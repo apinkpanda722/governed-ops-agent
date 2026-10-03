@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "mock-skeleton",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-03T23:49:49+0900",
+      "summary": "TDD로 mock-jira·mock-slack의 healthz 앱·이중 포트 실행·관리 CLI와 Docker·compose 골격을 구현했고, 관리 포트 비공개·계층 경계를 확인했으며 make verify(ruff·포맷·164개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:54:08+0900",
+      "usage": {
+        "input_tokens": 351391,
+        "cached_input_tokens": 303104,
+        "output_tokens": 5854,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
