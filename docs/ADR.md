@@ -124,7 +124,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 
 ### ADR-011: HITL은 interrupt + Postgres checkpointer, 승인 노드와 실행 노드를 나누고, 프런트는 Next.js + BFF
 **상태**: 유효
-**결정**: LangGraph `interrupt()` + Postgres checkpointer, `Command(resume=...)`로 재개한다. 재개 시 멈춘 노드를 처음부터 다시 실행하므로 **승인 노드에는 `interrupt`만, 실행은 별도 노드**에 둔다("재개 여러 번 → 부작용 1회" 테스트). 상태 기계: 계획·조회 → 초안 → 실행 전 결정론 검사 → 승인 대기 → (승인 → 실행 → 완료/실패) / (수정 후 승인 → 결정론 검사 재실행 → 통과 시 새 초안 해시에 묶인 승인으로 실행, 실패 시 실행하지 않고 승인 대기로 되돌려 검사 결과 표시) / 거부 → 종료 / 만료 → 종료. 승인은 초안 내용 해시에 묶는다(TOCTOU 방지). 만료 30분(데모). 승인 요청도 멱등. 본인 승인은 결재가 아니라 "에이전트가 해석한 결과(수신처·초안·결정론 검사 결과)의 확인"이고, 직무 분리는 전사 공지에만 둔다. 승인자는 기본 요청자 본인, **전사 공지 채널 발송만 같은 팀 4급 이상 승인**(A 등급은 숫자가 클수록 상위, A `retrieval/access.py:43`, 8팀 모두 4급 데모 사용자 있음). 다른 사용자의 승인 시도 거부 테스트를 두고 T6에 1~2개 넣는다. 발송 신원은 요청자다(`credential_for(요청자)`). 승인자는 본문만 수정할 수 있고 수신처는 바꿀 수 없다(바꾸려면 거부 후 새 요청). 승인자와 수정 전후 초안 해시를 감사 로그에 남긴다. 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다. API: `POST /tasks`, `GET /tasks/{id}`, `POST /tasks/{id}/approval`(승인·수정·거부). 프런트는 **Next.js(App Router, TypeScript) + BFF**: route handler가 B 세션 토큰을 httpOnly 쿠키로 보관하고 FastAPI에 대신 요청하며, 진행 상황 SSE를 중계한다. Tailwind + shadcn/ui. 화면 4개: 로그인(데모 사용자 선택 = B 세션 발급), 요청·진행(SSE), 승인함(초안·수신처·결정론 검사·수정 차이, 전사 공지는 4급 이상만), 기록(task 상태, `audit-verify` 결과). `make verify`에 `tsc`·`eslint`·`vitest`, Playwright e2e는 승인 흐름 1~2개를 replay 모드로. Node·pnpm 설치는 사용자, 버전 고정. Slack 안 승인(인터랙티브 메시지)은 범위 밖.
+**결정**: LangGraph `interrupt()` + Postgres checkpointer, `Command(resume=...)`로 재개한다. 재개 시 멈춘 노드를 처음부터 다시 실행하므로 **승인 노드에는 `interrupt`만, 실행은 별도 노드**에 둔다("재개 여러 번 → 부작용 1회" 테스트). 상태 전이: 계획·조회 → 초안 → 실행 전 결정론 검사 → 승인 대기 → (승인 → 실행 → 완료/실패) / (수정 후 승인 → 결정론 검사 재실행 → 통과 시 새 초안 해시에 묶인 승인으로 실행, 실패 시 실행하지 않고 승인 대기로 되돌려 검사 결과 표시) / 거부 → 종료 / 만료 → 종료. 승인은 초안 내용 해시에 묶는다(TOCTOU 방지). 만료 30분(데모). 승인 요청도 멱등. 본인 승인은 결재가 아니라 "에이전트가 해석한 결과(수신처·초안·결정론 검사 결과)의 확인"이고, 직무 분리는 전사 공지에만 둔다. 승인자는 기본 요청자 본인, **전사 공지 채널 발송만 같은 팀 4급 이상 승인**(A 등급은 숫자가 클수록 상위, A `retrieval/access.py:43`, 8팀 모두 4급 데모 사용자 있음). 다른 사용자의 승인 시도 거부 테스트를 두고 T6에 1~2개 넣는다. 발송 신원은 요청자다(`credential_for(요청자)`). 승인자는 본문만 수정할 수 있고 수신처는 바꿀 수 없다(바꾸려면 거부 후 새 요청). 승인자와 수정 전후 초안 해시를 감사 로그에 남긴다. 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다. API: `POST /tasks`, `GET /tasks/{id}`, `POST /tasks/{id}/approval`(승인·수정·거부). 프런트는 **Next.js(App Router, TypeScript) + BFF**: route handler가 B 세션 토큰을 httpOnly 쿠키로 보관하고 FastAPI에 대신 요청하며, 진행 상황 SSE를 중계한다. Tailwind + shadcn/ui. 화면 4개: 로그인(데모 사용자 선택 = B 세션 발급), 요청·진행(SSE), 승인함(초안·수신처·결정론 검사·수정 차이, 전사 공지는 4급 이상만), 기록(task 상태, `audit-verify` 결과). `make verify`에 `tsc`·`eslint`·`vitest`, Playwright e2e는 승인 흐름 1~2개를 replay 모드로. Node·pnpm 설치는 사용자, 버전 고정. Slack 안 승인(인터랙티브 메시지)은 범위 밖.
 **이유**: 실행이 승인 노드 안에 있으면 재개 반복이 곧 중복 부작용이다. 승인을 해시에 묶지 않으면 승인 후 초안이 바뀌어도 실행된다. 전사 공지는 영향 범위가 넓어 상위 직급 승인이 필요하다. 인젝션이 수신처나 내용을 바꿨다면 요청자가 승인 화면에서 본다(본인 승인의 의미). 승인자가 수신처까지 바꿀 수 있으면 남의 이름으로 다른 채널에 보내는 경로가 생기므로 막고, 내용에 대한 책임은 감사 로그로 추적한다. SPA는 세션 토큰을 브라우저 JS가 다루는 위치에 두기 쉽고, BFF는 httpOnly 쿠키와 서버 쪽 중계로 토큰을 브라우저 JS 밖에 둔다. BFF로 두면 "자격 증명은 LLM·trace·브라우저에도 노출되지 않는다"를 웹까지 지킨다.
 **트레이드오프**: Node 도구 체인이 추가되어 설치·검증 대상이 늘어난다. 만료 30분은 데모 값이라 실무 승인 지연을 반영하지 않는다.
 **변경 기록**:
@@ -161,3 +161,17 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **트레이드오프**: 보존 기간 7일 동안 checkpointer에 PII를 포함한 원문이 남는다(THREAT_MODEL TH10 잔여 위험). 삭제 뒤에는 그 task를 재개하거나 원문으로 사후 분석할 수 없다. 삭제 명령 이름과 실행 주기는 미정(M5에서 결정)이다.
 **변경 기록**:
 - 2026-10-03: 결정 10으로 확정.
+
+### ADR-016: M0 골격 결정 — web 호스트 실행, mock 관리 접근 경로, checkpointer DB 보류
+**상태**: 유효
+**결정**:
+- web은 호스트에서 `cd web && pnpm dev`로 실행하고 compose에 넣지 않는다.
+- mock은 REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish한다(`mock-jira`: 호스트 8081, `mock-slack`: 호스트 8082). 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose exec <mock> python -m govops.mocks.admin <명령>`이고, 저장소 루트에서는 `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`을 쓴다(`<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. M0은 CLI 골격(`health`)까지만 구현했고, 상태 조회·초기화 명령은 M1, 장애 주입 명령은 M3에서 추가한다.
+- LangGraph checkpointer DB는 M0에서 만들지 않는다. `infra/postgres/init/01-create-databases.sh`는 `litellm`·`langfuse` DB만 만든다. checkpointer DB 위치는 미정(M1에서 결정)이다.
+- 패키지 이름은 `govops`(`src/govops/`)로 확정한다. Python 3.12(`pyproject.toml`의 최소 버전, `.python-version`의 실행 버전), uv 기반이며 계층 패키지 11개와 `costs.py` 골격을 둔다.
+- `.env.example`에는 변수 이름만 두고 값은 `.env`에만 둔다. 비용 상한은 환경 변수가 아니라 코드 설정(ADR-007: OpenAI $9.13, Anthropic $11.47, Gemini $7.29)이며 `src/govops/costs.py`에서 M1에 구현한다.
+- `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest 순서다. 설치된 의존성으로 API 키·네트워크 없이 통과한다.
+**이유**: 배치도는 BFF를 호스트에 두고 에이전트 서비스도 호스트에서 `uv run`으로 실행한다(ADR-004). web도 같은 배치를 따른다. 관리 포트를 publish하지 않고 컨테이너 안 CLI를 쓰면 compose 내부 네트워크 제한을 유지하면서 호스트 하네스가 관리 기능에 접근할 수 있다. checkpointer DB 위치는 M1 구현에서 정하므로 M0 초기화는 확정된 DB 두 개로 한정한다. 패키지·도구 체인과 단일 검증 진입점을 확정해 이후 계층 구현이 같은 기준을 따른다. 비밀 값은 `.env`에 모으고 비용 상한은 ADR-007의 코드 설정으로 관리한다.
+**트레이드오프**: web·에이전트는 compose와 별도로 호스트에서 실행해야 하고 mock 관리는 `docker compose exec`를 거쳐야 한다. M0의 `health` CLI만으로 상태 조회·초기화·장애 주입을 수행할 수 없으며 M1·M3 구현이 필요하다. checkpointer DB 배치와 비용 상한 구현은 M1까지 보류한다.
+**변경 기록**:
+- 2026-10-03: M0에서 확정

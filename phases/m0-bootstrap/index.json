@@ -1,0 +1,134 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m0-bootstrap",
+  "steps": [
+    {
+      "step": 0,
+      "name": "python-config",
+      "status": "completed",
+      "started_at": "2026-10-03T23:41:02+0900",
+      "summary": "TDD로 계층 패키지 11개와 costs.py 골격, Python 설정 및 make verify를 정리했고, ruff·포맷 검사·82개 테스트와 아키텍처 체크리스트를 통과했다.",
+      "completed_at": "2026-10-03T23:42:56+0900",
+      "usage": {
+        "input_tokens": 227731,
+        "cached_input_tokens": 188800,
+        "output_tokens": 2429,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "arch-guard",
+      "status": "completed",
+      "started_at": "2026-10-03T23:42:56+0900",
+      "summary": "tests/test_architecture.py에 11개 계층의 AST import 검사기와 TDD 회귀 테스트를 구현하고 규칙·허용 예외 체크리스트 및 make verify(ruff·포맷·121개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:45:34+0900",
+      "usage": {
+        "input_tokens": 206843,
+        "cached_input_tokens": 164096,
+        "output_tokens": 3908,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "repo-rules",
+      "status": "completed",
+      "started_at": "2026-10-03T23:45:34+0900",
+      "summary": "TDD로 저장소 규칙 테스트 13개와 디렉토리 5곳의 빈 .gitkeep을 추가했으며, .env.example·.gitignore 변경 없이 make verify(ruff·포맷·134개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:47:08+0900",
+      "usage": {
+        "input_tokens": 189915,
+        "cached_input_tokens": 171776,
+        "output_tokens": 1853,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "compose-core",
+      "status": "completed",
+      "started_at": "2026-10-03T23:47:08+0900",
+      "summary": "TDD로 Postgres·LiteLLM compose, DB 2개 초기화 스크립트, LiteLLM 설정과 빈 환경 변수 4개를 추가하고 make verify(ruff·포맷·143개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:49:49+0900",
+      "usage": {
+        "input_tokens": 277921,
+        "cached_input_tokens": 228352,
+        "output_tokens": 3568,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "mock-skeleton",
+      "status": "completed",
+      "started_at": "2026-10-03T23:49:49+0900",
+      "summary": "TDD로 mock-jira·mock-slack의 healthz 앱·이중 포트 실행·관리 CLI와 Docker·compose 골격을 구현했고, 관리 포트 비공개·계층 경계를 확인했으며 make verify(ruff·포맷·164개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:54:08+0900",
+      "usage": {
+        "input_tokens": 351391,
+        "cached_input_tokens": 303104,
+        "output_tokens": 5854,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 5,
+      "name": "compose-obs",
+      "status": "completed",
+      "started_at": "2026-10-03T23:54:08+0900",
+      "summary": "TDD로 Langfuse v3 obs 서비스 5개와 빈 환경 변수를 추가하고 핵심 스택 독립·Postgres 공유·보안 제약을 확인했으며 make verify(ruff·포맷·177개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:57:35+0900",
+      "usage": {
+        "input_tokens": 466801,
+        "cached_input_tokens": 381312,
+        "output_tokens": 4173,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 6,
+      "name": "web-toolchain",
+      "status": "completed",
+      "started_at": "2026-10-03T23:57:35+0900",
+      "summary": "TDD로 web 검사 scripts·Node 버전 고정·Vitest 설정·Button 스모크 및 보안 가드를 추가했고, Next.js 로컬 타입 생성 후 typecheck·lint·15개 웹 테스트와 make verify(177개 테스트)를 통과했다. 의존성·packageManager·Makefile은 유지했다.",
+      "completed_at": "2026-10-04T00:00:26+0900",
+      "usage": {
+        "input_tokens": 302883,
+        "cached_input_tokens": 263168,
+        "output_tokens": 3375,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 7,
+      "name": "verify-web",
+      "status": "completed",
+      "started_at": "2026-10-04T00:00:26+0900",
+      "summary": "TDD로 Makefile 순서 검사 테스트를 추가하고 verify를 ruff·포맷·pytest·tsc·eslint·vitest 순서로 확장했다. 단계 출력·pnpm 확인·실패 즉시 중단을 적용했으며 make verify(Python 178개·웹 15개 테스트)를 통과했다.",
+      "completed_at": "2026-10-04T00:01:49+0900",
+      "usage": {
+        "input_tokens": 163709,
+        "cached_input_tokens": 132992,
+        "output_tokens": 1280,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 8,
+      "name": "docs-sync",
+      "status": "completed",
+      "started_at": "2026-10-04T00:01:49+0900",
+      "summary": "ADR-016 추가와 문서 5곳의 M0 확정 사항 동기화를 완료하고 CRITICAL 규칙·계층 경계를 보존했으며 make verify(Python 178개·웹 15개 테스트)를 통과했다.",
+      "completed_at": "2026-10-04T00:05:10+0900",
+      "usage": {
+        "input_tokens": 537955,
+        "cached_input_tokens": 467456,
+        "output_tokens": 4431,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-03T23:41:02+0900",
+  "completed_at": "2026-10-04T00:05:10+0900"
+}

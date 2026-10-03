@@ -5,7 +5,7 @@
 가상 회사 "해온클라우드"의 운영 업무(티켓 조회·요약 → 코멘트·메시지·후속 티켓)를 사용자 신원으로 수행하는 LangGraph 단일 Tool-use Agent와, 그 앞의 거버넌스 게이트웨이(LiteLLM + Guardrail + 감사 로그). 프로젝트 A(`ko-docs-agentic-rag`)의 MCP 서버를 클라이언트로 쓴다. 목표·범위는 `docs/PRD.md`, 구조는 `docs/ARCHITECTURE.md`, 결정 근거는 `docs/ADR.md`, 지표는 `docs/EVAL.md`, 위협·완화·검증은 `docs/THREAT_MODEL.md`.
 
 ## 기술 스택
-- Python, uv (버전은 M0에서 `pyproject.toml`에 고정). 에이전트 서비스는 호스트에서 `uv run`으로 실행한다(ADR-004).
+- Python 3.12(`pyproject.toml`의 최소 버전, `.python-version`의 실행 버전), uv 기반. 에이전트 서비스는 호스트에서 `uv run`으로 실행한다(ADR-004).
 - 에이전트: LangGraph 단일 에이전트, `interrupt()` + Postgres checkpointer, `Command(resume=...)` 재개
 - API: FastAPI (`POST /tasks`, `GET /tasks/{id}`, `POST /tasks/{id}/approval`, 진행 SSE)
 - 도구 연결: MCP 클라이언트(streamable HTTP, A MCP live / 기록 재생용 가짜 A), mock-jira·mock-slack(FastAPI REST, compose)
@@ -15,11 +15,11 @@
 - 저장소: Postgres(compose, 인스턴스 하나에 DB 분리)
 - 감사 로그: JSONL, SHA-256 해시체인 + Ed25519 서명
 - 웹: Next.js(App Router, TypeScript) + BFF route handler, Tailwind, shadcn/ui, pnpm(Node·pnpm 버전 고정, 설치는 사용자)
-- 테스트·린트: pytest, ruff / tsc, eslint, vitest, Playwright(e2e, replay 모드). web 검사는 M0 phase에서 `make verify`에 추가한다.
+- 테스트·린트: pytest, ruff / tsc, eslint, vitest, Playwright(e2e, replay 모드). `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest 순서로 실행한다. Playwright e2e는 M5 이후 추가한다.
 
 ## 계층 경계
 
-패키지 이름 `src/govops/`는 M0에서 확정한다. 경계는 계층 가드 테스트(`tests/test_architecture.py`)로 강제한다.
+패키지 이름은 `govops`(`src/govops/`)다(ADR-016). 경계는 계층 가드 테스트(`tests/test_architecture.py`)로 강제한다.
 
 | 계층 | 위치 | 맡는 일 | import 금지 |
 |---|---|---|---|
@@ -74,5 +74,5 @@
 - 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
 
 ## 명령어
-make verify      # 현재: 하네스 자체 테스트(pytest). M0에서 ruff·pytest, 이어서 tsc·eslint·vitest를 추가한다 (Stop hook, execute.py, CI가 모두 이 명령을 부른다)
+make verify      # ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest (Stop hook, execute.py, CI가 모두 이 명령을 부른다). API 키·네트워크 없이 통과한다.
 (명령은 해당 마일스톤에서 추가된다. docs/PRD.md 마일스톤 참고)
