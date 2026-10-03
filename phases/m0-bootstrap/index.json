@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "web-toolchain",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-03T23:57:35+0900",
+      "summary": "TDD로 web 검사 scripts·Node 버전 고정·Vitest 설정·Button 스모크 및 보안 가드를 추가했고, Next.js 로컬 타입 생성 후 typecheck·lint·15개 웹 테스트와 make verify(177개 테스트)를 통과했다. 의존성·packageManager·Makefile은 유지했다.",
+      "completed_at": "2026-10-04T00:00:26+0900",
+      "usage": {
+        "input_tokens": 302883,
+        "cached_input_tokens": 263168,
+        "output_tokens": 3375,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
