@@ -1,7 +1,19 @@
 .PHONY: verify
 
 # 하네스의 단일 검증 진입점. Stop hook, scripts/execute.py, step AC가 모두 이 타깃을 호출한다.
-# Python lint·포맷 검사와 프로젝트·하네스 테스트를 실행한다.
-# web 검사(tsc·eslint·vitest)는 step 7에서 추가한다.
+# Python lint·포맷·pytest 이후 web tsc·eslint·vitest를 순서대로 실행한다.
+# API 키·네트워크 없이 설치된 의존성만 사용하며, 실패한 단계에서 즉시 중단한다.
 verify:
-	uv run ruff check . && uv run ruff format --check . && uv run pytest -q
+	@echo "==> ruff check"
+	uv run ruff check .
+	@echo "==> ruff format --check"
+	uv run ruff format --check .
+	@echo "==> pytest"
+	uv run pytest -q
+	@echo "==> web typecheck (tsc)"
+	@command -v pnpm >/dev/null || { echo "pnpm이 필요합니다 (사용자가 설치)"; exit 1; }
+	pnpm -C web typecheck
+	@echo "==> web lint (eslint)"
+	pnpm -C web lint
+	@echo "==> web test (vitest)"
+	pnpm -C web test
