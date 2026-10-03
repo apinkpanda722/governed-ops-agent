@@ -2,7 +2,8 @@
   "phases": [
     {
       "dir": "m0-bootstrap",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-10-04T00:05:10+0900"
     }
   ]
 }
