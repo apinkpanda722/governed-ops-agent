@@ -490,6 +490,23 @@ class TestParseUsage:
         }
 
 
+
+class TestDetectUsageLimit:
+    def test_extracts_resume_time(self):
+        text = '{"type":"error","message":"You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 10:23 PM."}'
+        assert ex.detect_usage_limit(text) == "10:23 PM"
+
+    def test_limit_without_time_returns_empty_string(self):
+        assert ex.detect_usage_limit("You have hit your usage limit.") == ""
+
+    def test_other_errors_return_none(self):
+        assert ex.detect_usage_limit("connection reset", "") is None
+        assert ex.detect_usage_limit("", "") is None
+
+    def test_checks_every_stream(self):
+        assert ex.detect_usage_limit("", "usage limit, try again at 9:05 AM") == "9:05 AM"
+
+
 class TestInvokeCodex:
     def _run_writing_result(self, executor, payload, returncode=0):
         def fake_run(cmd, **kwargs):
@@ -544,6 +561,15 @@ class TestInvokeCodex:
         with patch("subprocess.run", side_effect=self._run_writing_result(executor, None, returncode=1)):
             result = executor._invoke_codex({"step": 2, "name": "ui"}, "p")
         assert result["status"] == "error"
+
+    def test_usage_limit_is_reported_separately_from_generic_error(self, executor):
+        limit = '{"type":"error","message":"You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 10:23 PM."}'
+        def fake_run(cmd, **kwargs):
+            return MagicMock(returncode=1, stdout=limit, stderr="")
+        with patch("subprocess.run", side_effect=fake_run):
+            result = executor._invoke_codex({"step": 2, "name": "ui"}, "p")
+        assert result["status"] == "usage_limit"
+        assert result["resume_at"] == "10:23 PM"
 
     def test_timeout_is_error_not_crash(self, executor):
         err = subprocess.TimeoutExpired(cmd="codex", timeout=1800, output=b"", stderr=b"")
@@ -649,6 +675,20 @@ class TestExecuteSingleStep:
         assert s["blocked_reason"] == "API 키 필요"
         executor._commit_code.assert_not_called()
         executor._verify.assert_not_called()
+
+
+    def test_usage_limit_stops_without_retry_or_error_record(self, executor, capsys):
+        self._wire(executor, [{"status": "usage_limit", "resume_at": "10:23 PM",
+                               "usage": {"input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0}}])
+        with pytest.raises(SystemExit) as exc_info:
+            executor._execute_single_step({"step": 2, "name": "ui"})
+        assert exc_info.value.code == 3
+        assert executor._invoke_codex.call_count == 1
+        assert _step(executor, 2)["status"] == "pending"
+        executor._commit_code.assert_not_called()
+        executor._commit_meta.assert_not_called()
+        executor._update_top_index.assert_not_called()
+        assert "10:23 PM" in capsys.readouterr().out
 
 
 class TestExecuteAllSteps:

@@ -10,6 +10,7 @@ import argparse
 import contextlib
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -21,6 +22,19 @@ from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULT_SCHEMA = Path(__file__).resolve().parent / "step-result.schema.json"
+
+
+_USAGE_LIMIT_RE = re.compile(r"usage limit", re.IGNORECASE)
+_RESUME_TIME_RE = re.compile(r"try again at\s+([0-9]{1,2}:[0-9]{2}\s*[AaPp][Mm]?)")
+
+
+def detect_usage_limit(*texts: str) -> Optional[str]:
+    """Codex 사용량 한도 오류이면 재개 시각 문자열(없으면 빈 문자열)을, 아니면 None을 반환한다."""
+    for text in texts:
+        if text and _USAGE_LIMIT_RE.search(text):
+            m = _RESUME_TIME_RE.search(text)
+            return m.group(1) if m else ""
+    return None
 
 
 @contextlib.contextmanager
@@ -317,6 +331,9 @@ class StepExecutor:
             return {"status": "error", "reason": f"타임아웃 ({self.STEP_TIMEOUT}s 초과)", "usage": usage}
         if exit_code != 0:
             print(f"\n  WARN: Codex가 비정상 종료됨 (code {exit_code})")
+            resume_at = detect_usage_limit(stdout, stderr)
+            if resume_at is not None:
+                return {"status": "usage_limit", "resume_at": resume_at, "usage": usage}
         try:
             result = self._read_json(result_file)
             result_file.unlink()  # 내용은 index.json 에 옮겨 적으므로 파일은 남기지 않는다
@@ -411,6 +428,15 @@ class StepExecutor:
                 self._commit_meta(step_num, "completed")
                 print(f"  ✓ Step {step_num}: {step_name} [{elapsed}s]")
                 return True
+
+            if status == "usage_limit":
+                # 한도 오류는 재시도해도 성공할 수 없다. error로 기록하지 않고 step을 pending으로 둔 채 멈춘다.
+                resume_at = result.get("resume_at") or "알 수 없음"
+                print(f"  ⏳ Step {step_num}: {step_name} — Codex 사용량 한도. 재시도하지 않고 멈춥니다. 재개 가능 시각: {resume_at}")
+                print(f"    index.json은 바꾸지 않았고 코드 변경은 커밋하지 않았습니다. 한도가 풀리면:")
+                print(f"    1) 작업 트리에 남은 미완성 변경을 검토해 되돌리거나 stash한다 (`git status`)")
+                print(f"    2) 같은 명령으로 재실행한다 (step {step_num}은 pending 그대로)")
+                sys.exit(3)
 
             if status == "blocked":
                 self._update_step(step_num, status="blocked", blocked_reason=reason,
