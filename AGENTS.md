@@ -10,7 +10,7 @@
 - API: FastAPI (`POST /tasks`, `GET /tasks/{id}`, `POST /tasks/{id}/approval`, 진행 SSE)
 - 도구 연결: MCP 클라이언트(streamable HTTP, A MCP live / 기록 재생용 가짜 A), mock-jira·mock-slack(FastAPI REST, compose)
 - 게이트웨이: LiteLLM proxy(팀별 가상 키, `async_pre_call_hook`·`async_post_call_success_hook` Guardrail)
-- LLM: 주 모델 OpenAI `gpt-6-luna`, fallback Anthropic Sonnet 계열(ID·가격 확인 필요), 채점 Gemini `gemini-3.8-flash`(게이트웨이 미경유)
+- LLM: 주 모델 OpenAI `gpt-6-luna`, fallback Anthropic Sonnet 계열(호출 단위, ID·가격 확인 필요), Guardrail v2 분류기 Anthropic Haiku 계열(ID·가격 확인 필요), 채점 Gemini `gemini-3.8-flash`(게이트웨이 미경유)
 - 관측: Langfuse v3 셀프호스팅(compose profile `obs`), 꺼져 있으면 로컬 JSONL trace
 - 저장소: Postgres(compose, 인스턴스 하나에 DB 분리)
 - 감사 로그: JSONL, SHA-256 해시체인 + Ed25519 서명
@@ -49,19 +49,22 @@
 ## 아키텍처 규칙
 - CRITICAL: 도구 입력 스키마에 사용자·팀·직급 필드를 두지 않는다. 신원은 인증된 세션에서만 정하고, LangGraph 실행 context에는 사용자 ID만 둔다. 승인자 신원도 세션에서 정한다.
 - CRITICAL: 자격 증명은 도구 클라이언트가 요청 직전에 `broker.credential_for(user, audience)`로 받아 요청 헤더에만 붙인다. 토큰은 state·checkpointer·trace·로그·LLM 컨텍스트·브라우저에 두지 않는다. 저장된 checkpoint·trace·로그 스캔 테스트로 강제한다.
-- CRITICAL: 부작용 도구(메시지 발송, 티켓 코멘트, 티켓 생성)는 승인과 outbox를 거쳐서만 실행한다. 승인 노드에는 `interrupt()`만 두고 실행은 별도 노드에 둔다. 승인은 초안 내용 해시에 묶는다.
+- CRITICAL: 부작용 도구(메시지 발송, 티켓 코멘트, 티켓 생성)는 승인과 outbox를 거쳐서만 실행한다. 승인 노드에는 `interrupt()`만 두고 실행은 별도 노드에 둔다. 승인은 초안 내용 해시에 묶는다. 발송 신원은 요청자이고, 승인자는 본문만 수정할 수 있으며 수신처는 바꿀 수 없다.
 - CRITICAL: 부작용 실행 직전에 결정론 검사(수신 채널 허용 목록, 발송문 금지 PII, 팀별 정책)를 에이전트 안에서 강제한다. 탐지 모델 판정에 의존하지 않는다.
-- CRITICAL: 결과가 불확실한 부작용(타임아웃, 응답 유실)은 표식으로 조회한 뒤 없을 때만 다시 보낸다. 멱등 키 = task·도구·정규화 인자 해시.
+- CRITICAL: 부작용 도구는 재시도 전에 항상 표식을 2단계로 조회(조회 → 대기 → 재조회)하고 둘 다 없을 때만 다시 보낸다. 바로 재시도는 연결 수립 실패와 429(`Retry-After` 준수)뿐이다. 표식은 본문이 아니라 메타데이터 필드에 두고, 조회는 채널 최근 이력·티켓 하위 목록으로 한다(검색 API 금지). 멱등 키 = task·도구·정규화 인자 해시.
 - CRITICAL: 에이전트의 모델 호출은 `gateway` 클라이언트(LiteLLM)로만 한다. 채점(Gemini)은 게이트웨이를 거치지 않고 별도 비용 원장에 기록한다.
-- CRITICAL: 모든 유료 API 호출은 호출 직전에 공급사별 누적액을 검사하고, 상한(OpenAI $9.13, Anthropic $11.47, Gemini $7.29, B 전체 기간 총액)을 넘으면 호출하지 않는다.
-- CRITICAL: Guardrail 사전 검사의 오류·타임아웃은 차단(fail-closed), 사후 탐지의 오류는 통과 + 경보(fail-open)다.
+- CRITICAL: 모든 유료 API 호출은 호출 직전에 공급사별 누적액을 검사하고, 상한(OpenAI $9.13 주 모델, Anthropic $11.47 fallback·v2 분류기, Gemini $7.29 채점, B 전체 기간 총액)을 넘으면 호출하지 않는다. 원장에는 `purpose`(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)를 기록한다.
+- CRITICAL: Guardrail 사전 검사의 오류·타임아웃은 차단(fail-closed), 사후 탐지의 오류는 통과 + 경보(fail-open)다. v2 분류기가 실패하면 v1 결과로 판정하고 경보하며, v1까지 실패하면 차단한다.
 - CRITICAL: 감사 로그는 `audit/` 한 곳에서만 덧붙인다. 원문 대신 내용 해시와 mock ID만 기록한다(PII 금지). 실행 전 의도를 기록하고, 감사 로그 쓰기에 실패하면 부작용을 실행하지 않는다.
 - CRITICAL: A 계약 스냅샷(A 커밋 해시와 함께 복사한 도구 4개 v1)은 수정하지 않는다. 시작 시 live `tools/list`와 비교해 다르면 중단한다.
 - CRITICAL: 기록 재생 파일에 토큰·Authorization 헤더를 남기지 않는다. 기록 파일의 프롬프트 해시가 현재와 다르면 CI는 "재기록 필요"로 실패한다.
 - CRITICAL: mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다.
+- CRITICAL: 데모 로그인은 `DEMO_LOGIN` 플래그일 때만 열고 127.0.0.1에만 바인드한다.
+- CRITICAL: checkpointer의 원문은 task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다(ADR-015).
+- 탐색 예산은 MAX_STEPS와 별도로 둔다. 새 정보 없는 도구 호출이 N회 연속이면 종료하고, 권한 판정은 에이전트에게 숨긴다(ADR-014).
 - 읽기 권한 거부는 "없음"과 구별되지 않게 응답하고, 쓰기 권한 거부는 명시적 "권한 없음"으로 응답한다.
 - 모델 ID·설정은 평가 전에 freeze하고, 바꾸면 변경 기록을 남긴다.
-- 보고 수치는 live 모드(실제 A) 실행에서만 낸다. replay 모드는 CI·외부 검토자용이다.
+- 보고 수치는 live 모드(실제 A) 실행에서만 낸다. replay 모드는 CI·외부 검토자용이다. live 실행마다 A git HEAD·계약 스냅샷 해시·인덱스 이름을 기록한다(기준 `d2eec9c`, 다르면 경고).
 
 ## 개발 프로세스
 - CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것 (TDD)
