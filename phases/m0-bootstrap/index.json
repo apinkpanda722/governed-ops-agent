@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "compose-core",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-03T23:47:08+0900",
+      "summary": "TDD로 Postgres·LiteLLM compose, DB 2개 초기화 스크립트, LiteLLM 설정과 빈 환경 변수 4개를 추가하고 make verify(ruff·포맷·143개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:49:49+0900",
+      "usage": {
+        "input_tokens": 277921,
+        "cached_input_tokens": 228352,
+        "output_tokens": 3568,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
