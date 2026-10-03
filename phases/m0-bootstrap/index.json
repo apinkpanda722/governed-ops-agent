@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "repo-rules",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-03T23:45:34+0900",
+      "summary": "TDD로 저장소 규칙 테스트 13개와 디렉토리 5곳의 빈 .gitkeep을 추가했으며, .env.example·.gitignore 변경 없이 make verify(ruff·포맷·134개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:47:08+0900",
+      "usage": {
+        "input_tokens": 189915,
+        "cached_input_tokens": 171776,
+        "output_tokens": 1853,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
