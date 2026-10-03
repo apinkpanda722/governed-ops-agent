@@ -161,3 +161,17 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **트레이드오프**: 보존 기간 7일 동안 checkpointer에 PII를 포함한 원문이 남는다(THREAT_MODEL TH10 잔여 위험). 삭제 뒤에는 그 task를 재개하거나 원문으로 사후 분석할 수 없다. 삭제 명령 이름과 실행 주기는 미정(M5에서 결정)이다.
 **변경 기록**:
 - 2026-10-03: 결정 10으로 확정.
+
+### ADR-016: M0 골격 결정 — web 호스트 실행, mock 관리 접근 경로, checkpointer DB 보류
+**상태**: 유효
+**결정**:
+- web은 호스트에서 `cd web && pnpm dev`로 실행하고 compose에 넣지 않는다.
+- mock은 REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish한다(`mock-jira`: 호스트 8081, `mock-slack`: 호스트 8082). 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose exec <mock> python -m govops.mocks.admin <명령>`이고, 저장소 루트에서는 `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`을 쓴다(`<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. M0은 CLI 골격(`health`)까지만 구현했고, 상태 조회·초기화 명령은 M1, 장애 주입 명령은 M3에서 추가한다.
+- LangGraph checkpointer DB는 M0에서 만들지 않는다. `infra/postgres/init/01-create-databases.sh`는 `litellm`·`langfuse` DB만 만든다. checkpointer DB 위치는 미정(M1에서 결정)이다.
+- 패키지 이름은 `govops`(`src/govops/`)로 확정한다. Python 3.12(`pyproject.toml`의 최소 버전, `.python-version`의 실행 버전), uv 기반이며 계층 패키지 11개와 `costs.py` 골격을 둔다.
+- `.env.example`에는 변수 이름만 두고 값은 `.env`에만 둔다. 비용 상한은 환경 변수가 아니라 코드 설정(ADR-007: OpenAI $9.13, Anthropic $11.47, Gemini $7.29)이며 `src/govops/costs.py`에서 M1에 구현한다.
+- `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest 순서다. 설치된 의존성으로 API 키·네트워크 없이 통과한다.
+**이유**: 배치도는 BFF를 호스트에 두고 에이전트 서비스도 호스트에서 `uv run`으로 실행한다(ADR-004). web도 같은 배치를 따른다. 관리 포트를 publish하지 않고 컨테이너 안 CLI를 쓰면 compose 내부 네트워크 제한을 유지하면서 호스트 하네스가 관리 기능에 접근할 수 있다. checkpointer DB 위치는 M1 구현에서 정하므로 M0 초기화는 확정된 DB 두 개로 한정한다. 패키지·도구 체인과 단일 검증 진입점을 확정해 이후 계층 구현이 같은 기준을 따른다. 비밀 값은 `.env`에 모으고 비용 상한은 ADR-007의 코드 설정으로 관리한다.
+**트레이드오프**: web·에이전트는 compose와 별도로 호스트에서 실행해야 하고 mock 관리는 `docker compose exec`를 거쳐야 한다. M0의 `health` CLI만으로 상태 조회·초기화·장애 주입을 수행할 수 없으며 M1·M3 구현이 필요하다. checkpointer DB 배치와 비용 상한 구현은 M1까지 보류한다.
+**변경 기록**:
+- 2026-10-03: M0에서 확정
