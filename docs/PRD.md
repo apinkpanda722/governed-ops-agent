@@ -28,11 +28,11 @@
 - mock-slack 채널은 팀 채널 8개 + 전사 공지 1개다. 발송은 자기 팀 채널과 전사 공지만 허용한다. 전사 공지 발송만 같은 팀 4급 이상이 승인한다.
 
 ## 핵심 기능
-1. **신원 위임(자격 증명 중개):** 사용자는 B 세션 토큰으로 B에 인증하고, 중개 계층 `credential_for(user, audience)`가 호출 시점에 사용자의 A 토큰을 요청 헤더에만 붙인다(ADR-005).
-2. **HITL 승인:** LangGraph `interrupt()` + Postgres checkpointer. 승인·수정 후 승인·거부·만료(30분) 분기, 초안 해시에 묶인 승인(ADR-011).
-3. **부작용 멱등성:** outbox + 표식(marker) 조회로 "서버는 처리했는데 응답 유실"에서도 1회만 실행(ADR-006).
-4. **안정성:** Soft/Hard Timeout, 지수 백오프 + Jitter, Circuit Breaker, 모델 Fallback, MAX_STEPS + MAX_COST(값은 M3·M5에서 정한다).
-5. **게이트웨이·Guardrail:** 팀별 가상 키 + 사용자·task 메타데이터, 입력 차단 / 도구 결과 격리 / 출력 탐지 / 실행 직전 결정론 검사의 비대칭 구조(ADR-008).
+1. **신원 위임(자격 증명 중개):** 사용자는 B 세션 토큰으로 B에 인증하고, 중개 계층 `credential_for(user, audience)`가 호출 시점에 사용자의 A 토큰을 요청 헤더에만 붙인다. 데모 로그인은 IdP 대체 장치로 `DEMO_LOGIN` 플래그일 때만 127.0.0.1에서 연다(ADR-005).
+2. **HITL 승인:** LangGraph `interrupt()` + Postgres checkpointer. 승인·수정 후 승인·거부·만료(30분) 분기, 초안 해시에 묶인 승인. 발송 신원은 요청자이고 승인자는 본문만 수정한다(ADR-011).
+3. **부작용 멱등성:** outbox + 메타데이터 표식(marker) 2단계 조회로 "서버는 처리했는데 응답 유실"에서도 1회만 실행(ADR-006).
+4. **안정성:** Soft/Hard Timeout, 지수 백오프 + Jitter, Circuit Breaker, 호출 단위 모델 Fallback, MAX_STEPS + MAX_COST, MAX_STEPS와 별도의 탐색 예산(ADR-014)(값은 M3·M5에서 정한다).
+5. **게이트웨이·Guardrail:** 팀별 가상 키 + 사용자·task 메타데이터, 입력 차단 / 도구 결과 격리 / 출력 탐지 / 실행 직전 결정론 검사의 비대칭 구조. v2 분류기는 주 모델과 다른 회사(Anthropic 소형 모델)에 둔다(ADR-008).
 6. **감사 로그:** 해시체인 + Ed25519 서명, 실행마다 고정점(마지막 seq·hash 서명)을 `docs/results/` manifest에 커밋, `make audit-verify`(ADR-012).
 7. **관측·평가:** trace 하나 = task 하나(Langfuse 또는 JSONL), 평가셋 60 task, TCR·정확도 분리, golden trace CI(ADR-009·ADR-010).
 8. **웹(Next.js + BFF):** 로그인(데모 사용자 선택), 요청·진행(SSE), 승인함, 기록. 세션 토큰은 httpOnly 쿠키로 BFF만 가진다(ADR-011).
@@ -55,36 +55,38 @@
 |---|---|---|---|
 | M0 | 골격(하네스 복사), 설계 문서, compose(LiteLLM·Postgres·mock), Node 도구 체인, `make verify`에 ruff 추가 후 web 검사(`tsc`·`eslint`·`vitest`) 추가 | — | B 전용 API 키 3개 발급·`.env` 입력, Node·pnpm 설치(버전 고정) |
 | M1 | 에이전트 + mock + A MCP(live·replay) + 자격 증명 중개 + FastAPI(화면 없이 API·CLI), A 계약 스냅샷 복사, mock-jira 시드 | 동작 확인, 38명 × 표본 티켓 가시성 대조(live) | A 응답 기록 실행(합성 문서만), mock-jira 시드 추출 스크립트 실행, live A MCP 기동, 컨테이너→A Host 헤더 실측 |
-| M2 | Langfuse·trace·평가셋 60·TCR/정확도·응답 기록 재생 CI | TCR, 정확도(분리), task당 비용, 파일럿 실측으로 B 전체 비용 재추정 | Langfuse 기동·`docker stats` 실측, 정답 명세 60개 전수 검수, dev 실행 |
-| M3 | 타임아웃·재시도·서킷·fallback + outbox·표식 조회 + 장애 주입 | 장애 주입 하 중복 실행 0건, fallback 성공률·응답 시간 | 장애 주입 live 실행 |
+| M2 | Langfuse·trace·평가셋 60·TCR/정확도·응답 기록 재생 CI, 실행 계획표·탐색 예산 N 규칙 사전 등록(dev 전), live 실행의 A 버전 기록 | TCR(3회 평균·pass^3은 test), 정확도(분리), 용도별 task당 비용, 파일럿 실측으로 B 전체 비용 재추정 | A 합성 문서 메타데이터(정답 출처) 추출 스크립트 실행, Langfuse 기동·`docker stats` 실측, 정답 명세 60개 전수 검수, dev 실행 |
+| M3 | 타임아웃·재시도·서킷·호출 단위 fallback + outbox·메타데이터 표식 2단계 조회 + 장애 주입 F1~F11 | 장애 주입 하 중복 실행 0건, fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR | 장애 주입 live 실행 |
 | M4 | LiteLLM 팀 키 + Guardrail v1(사전·사후) + 감사 로그 해시체인 | Guardrail 추가 지연·비용 | 감사 서명 개인키 생성(`data/interim/`, 0600) |
-| M5 | HITL(interrupt·승인 정책) + MAX_STEPS/COST + 웹 화면 3개(로그인·요청 진행·승인함) | 루프 차단 동작, 재개 반복 → 부작용 1회 | — |
-| M6 | 레드팀 + Guardrail v2 비교 | v1·v2 차단율, 정상 task 오탐률, 켬 대 끔 추가 지연·비용 | 레드팀 live 실행 |
-| M7 | 문서화, 기록 화면, 데모 영상, 방어 노트, 블로그 | 체크리스트 전 항목 | 정확도 사람 채점 30개, 운영 대기열 검수, test 실행, 데모 촬영 |
+| M5 | HITL(interrupt·승인 정책) + MAX_STEPS/COST + 탐색 예산(ADR-014) + checkpointer 보존 기간 삭제(ADR-015) + 웹 화면 3개(로그인·요청 진행·승인함) | 루프 차단 동작, 재개 반복 → 부작용 1회, T5 단계 수·p95 지연 탐색 예산 켬 대 끔 | — |
+| M6 | 레드팀 120건 + 정상 대조 60(평가셋 재사용) + Guardrail v2(Anthropic 소형 분류 모델) 비교 | v1·v2 차단율, 정상 task 오탐률, 켬 대 끔 추가 지연·비용 | 레드팀 live 실행 |
+| M7 | 문서화, 기록 화면, 데모 영상, 방어 노트, 블로그<br/>데모 장면(약 3분 30초): 0 소개·배치도 / 1 플랫폼팀 3급 INC-2026-012 요약 발송, 처리 후 응답 유실 주입에도 1건 / 2 재무팀 3급 같은 요청 → 찾을 수 없음·발송 0 / 3 간접 인젝션 격리·승인 화면 수신처 / 4 전사 공지 같은 팀 4급 승인 / 5 `audit-verify` 꼬리 잘라내기 탐지 + trace + 수치<br/>블로그: "실제 API에 멱등 키가 없을 때 에이전트 부작용을 정확히 한 번 실행하기" | 체크리스트 전 항목 | 정확도 사람 채점 30개, 운영 대기열 검수, test 실행, 데모 촬영 |
 
 `make verify`는 현재 하네스 자체 테스트(pytest)만 돈다. M0 phase에서 `pyproject.toml`과 함께 ruff·pytest를 넣고, web 골격을 만든 step에서 `tsc`·`eslint`·`vitest`를 추가한다. Playwright e2e(승인 흐름 1~2개, replay 모드)는 승인 화면이 생긴 뒤(M5 이후) 추가한다.
 
 ### 축소 순서
-늦어지면 아래 순서로 덜어낸다.
-1. Guardrail v2 분류기(비교는 Guardrail 켬 대 끔으로)
-2. 웹 기록 화면(CLI `audit-verify`로 대신)
-3. 운영 검수 κ 재보정 1회만
-4. 평가셋 60 → 40(dev 15 / test 25)
-5. 최후 수단: Langfuse 셀프호스팅 → JSONL만
+늦어지거나 비용이 넘치면 아래 순서로 덜어낸다.
+1. test 3회 → 2회
+2. Guardrail v2 분류기(비교는 Guardrail 켬 대 끔으로)
+3. 웹 기록 화면(CLI `audit-verify`로 대신)
+4. 운영 검수 κ 재보정 1회만
+5. 평가셋 60 → 40(dev 15 / test 25)
+6. 최후 수단: Langfuse 셀프호스팅 → JSONL만
 
 **덜어내지 않는 핵심:** 신원 위임(중개), outbox 멱등성과 장애 주입, HITL, 감사 해시체인, Guardrail v1 비대칭, TCR·정확도 분리, 승인 화면.
 
 ## 예산
 - **비용 상한(B 전체 기간 총액, 월 단위 아님):** OpenAI **$9.13**, Anthropic **$11.47**, Gemini **$7.29**(합계 $27.89). 근거는 ADR-007.
-- 모든 유료 호출은 **호출 직전 공급사별 누적액 검사**로 상한을 강제한다(A `costs.py` 방식). 채점 비용은 별도 원장에 기록한다.
+- 모든 유료 호출은 **호출 직전 공급사별 누적액 검사**로 상한을 강제한다(A `costs.py` 방식). 채점 비용은 별도 원장에 기록한다. 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 용도: OpenAI = 주 모델, Anthropic = fallback·Guardrail v2 분류기, Gemini = 채점.
 - M2 파일럿 실측으로 B 전체 예상 비용을 다시 추정한다. 상한을 넘을 것으로 보이면 축소 순서를 적용하거나 추가 충전한다.
 
 ## 성공 기준
 - **사전 등록 절대 규칙(하나라도 어기면 실패):** 장애 주입 하 중복 실행 0건, 권한 밖 정보 노출 0건, 승인 없는 부작용 0건.
-- TCR과 정확도를 분리해 보고하고, dev 실행 뒤 test 실행 전에 등록한 목표와 비교해 채택/미달을 적는다.
+- TCR(구조 판정, test 3회 평균과 pass^3)과 정확도를 분리해 보고하고, dev 실행 뒤 test 실행 전에 등록한 목표와 비교해 채택/미달을 적는다.
 - task당 비용과 p95 지연(사람 승인 대기 제외)을 보고한다.
-- 모델 장애 주입 하 fallback 성공률과 응답 시간을 보고한다.
-- Guardrail v1·v2 차단율, 정상 task(인젝션·금지 PII 미포함) 오탐률, Guardrail 켬 대 끔 추가 지연·비용을 보고한다.
+- 모델 장애 주입 하 fallback 성공률과 응답 시간, 모델이 섞인 task 수와 그 TCR을 보고한다.
+- 레드팀 120건 기준 Guardrail v1·v2 차단율, 정상 task(인젝션·금지 PII 미포함) 오탐률, Guardrail 켬 대 끔 추가 지연·비용을 보고한다.
 - `make audit-verify`가 변조 테스트 5종(수정, 중간 삭제, 순서 변경, 고정점 이후 꼬리 잘라내기, 다른 키 서명)을 모두 탐지한다.
-- 보고 수치는 live 모드에서만 내고, replay 모드 golden trace CI는 키 없이 PR마다 통과한다.
+- 사전 등록한 실행 계획표(약 440회)대로 실행한다.
+- 보고 수치는 live 모드에서만 내고(실행마다 A git HEAD·계약 스냅샷 해시·인덱스 이름 기록), replay 모드 golden trace CI는 키 없이 PR마다 통과한다.
 - 상세 정의는 `docs/EVAL.md`.
