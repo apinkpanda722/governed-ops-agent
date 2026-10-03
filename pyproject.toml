@@ -1,7 +1,7 @@
 [project]
 name = "govops"
 version = "0.1.0"
-description = "Add your description here"
+description = "사용자 신원으로 운영 업무를 수행하는 에이전트와 거버넌스 게이트웨이"
 readme = "README.md"
 authors = [
     { name = "SpanLee-Time", email = "iih907@gmail.com" }
@@ -13,9 +13,6 @@ dependencies = [
     "uvicorn>=0.54.0",
 ]
 
-[project.scripts]
-govops = "govops:main"
-
 [build-system]
 requires = ["uv_build>=0.11.24,<0.12.0"]
 build-backend = "uv_build"
@@ -26,3 +23,9 @@ dev = [
     "pyyaml>=6.0.3",
     "ruff>=0.16.10",
 ]
+
+[tool.ruff]
+extend-exclude = ["phases", "scripts", "web"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "scripts"]

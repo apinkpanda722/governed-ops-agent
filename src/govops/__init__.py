@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from govops!")
+"""사용자 신원으로 운영 업무를 수행하는 거버넌스 에이전트."""
