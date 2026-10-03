@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "verify-web",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T00:00:26+0900",
+      "summary": "TDD로 Makefile 순서 검사 테스트를 추가하고 verify를 ruff·포맷·pytest·tsc·eslint·vitest 순서로 확장했다. 단계 출력·pnpm 확인·실패 즉시 중단을 적용했으며 make verify(Python 178개·웹 15개 테스트)를 통과했다.",
+      "completed_at": "2026-10-04T00:01:49+0900",
+      "usage": {
+        "input_tokens": 163709,
+        "cached_input_tokens": 132992,
+        "output_tokens": 1280,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
