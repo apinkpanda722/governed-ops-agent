@@ -117,7 +117,16 @@
     {
       "step": 8,
       "name": "docs-sync",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T00:01:49+0900",
+      "summary": "ADR-016 추가와 문서 5곳의 M0 확정 사항 동기화를 완료하고 CRITICAL 규칙·계층 경계를 보존했으며 make verify(Python 178개·웹 15개 테스트)를 통과했다.",
+      "completed_at": "2026-10-04T00:05:10+0900",
+      "usage": {
+        "input_tokens": 537955,
+        "cached_input_tokens": 467456,
+        "output_tokens": 4431,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-03T23:41:02+0900"
