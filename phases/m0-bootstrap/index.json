@@ -2,14 +2,60 @@
   "project": "governed-ops-agent",
   "phase": "m0-bootstrap",
   "steps": [
-    { "step": 0, "name": "python-config", "status": "pending" },
-    { "step": 1, "name": "arch-guard", "status": "pending" },
-    { "step": 2, "name": "repo-rules", "status": "pending" },
-    { "step": 3, "name": "compose-core", "status": "pending" },
-    { "step": 4, "name": "mock-skeleton", "status": "pending" },
-    { "step": 5, "name": "compose-obs", "status": "pending" },
-    { "step": 6, "name": "web-toolchain", "status": "pending" },
-    { "step": 7, "name": "verify-web", "status": "pending" },
-    { "step": 8, "name": "docs-sync", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "python-config",
+      "status": "completed",
+      "started_at": "2026-10-03T23:41:02+0900",
+      "summary": "TDD로 계층 패키지 11개와 costs.py 골격, Python 설정 및 make verify를 정리했고, ruff·포맷 검사·82개 테스트와 아키텍처 체크리스트를 통과했다.",
+      "completed_at": "2026-10-03T23:42:56+0900",
+      "usage": {
+        "input_tokens": 227731,
+        "cached_input_tokens": 188800,
+        "output_tokens": 2429,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "arch-guard",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "repo-rules",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "compose-core",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "mock-skeleton",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "compose-obs",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "web-toolchain",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "verify-web",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "docs-sync",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-03T23:41:02+0900"
 }
