@@ -15,11 +15,11 @@
 - 저장소: Postgres(compose, 인스턴스 하나에 DB 분리)
 - 감사 로그: JSONL, SHA-256 해시체인 + Ed25519 서명
 - 웹: Next.js(App Router, TypeScript) + BFF route handler, Tailwind, shadcn/ui, pnpm(Node·pnpm 버전 고정, 설치는 사용자)
-- 테스트·린트: pytest, ruff / tsc, eslint, vitest, Playwright(e2e, replay 모드). web typecheck·eslint·vitest 검사는 M0에서 `make verify`에 추가 완료했다. Playwright e2e는 M5 이후 추가한다.
+- 테스트·린트: pytest, ruff / tsc, eslint, vitest, Playwright(e2e, replay 모드). `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest 순서로 실행한다. Playwright e2e는 M5 이후 추가한다.
 
 ## 계층 경계
 
-패키지 이름은 M0에서 `src/govops/`로 확정했다(ADR-016). 경계는 계층 가드 테스트(`tests/test_architecture.py`)로 강제한다.
+패키지 이름은 `govops`(`src/govops/`)다(ADR-016). 경계는 계층 가드 테스트(`tests/test_architecture.py`)로 강제한다.
 
 | 계층 | 위치 | 맡는 일 | import 금지 |
 |---|---|---|---|

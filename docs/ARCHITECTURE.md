@@ -7,7 +7,7 @@
 - **미정(구현 phase에서 결정)**: 결정 기록에 없는 구현 세부. 해당 phase 설계 때 정하고 ADR에 남긴다.
 
 ## 디렉토리 구조
-패키지 이름은 M0에서 `govops`로 확정했다(ADR-016).
+패키지 이름은 `govops`(`src/govops/`)다(ADR-016).
 
 ```
 src/govops/
@@ -89,7 +89,7 @@ flowchart LR
 - 핵심 스택(LiteLLM·Postgres·mock 2개)은 Langfuse 없이 뜨고, 이때 trace는 로컬 JSONL로 남는다. Langfuse는 `docker compose --profile obs`로만 뜬다(ADR-009).
 - Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. M0 init은 `litellm`·`langfuse` DB만 만들고 checkpointer DB는 만들지 않는다(ADR-016). LangGraph checkpointer DB를 같은 인스턴스에 둘지는 미정(M1에서 결정)이다.
 - web은 호스트에서 `cd web && pnpm dev`로 실행하고 compose에 넣지 않는다(ADR-016).
-- mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`으로 확정했다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. M0은 `health` CLI 골격만 구현했고 상태 조회·초기화는 M1, 장애 주입 명령 내용은 미정(M3에서 결정)이다.
+- mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`이다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. 현재 CLI는 `health` 명령뿐이고 상태 조회·초기화는 M1, 장애 주입 명령 내용은 미정(M3에서 결정)이다.
 - Docker VM은 약 16GB(A OpenSearch와 공유)다. 첫 기동 후 `docker stats`로 실측하고, 부족하면 Docker 메모리를 늘린다.
 
 ## A 연동 모드
@@ -104,7 +104,7 @@ flowchart LR
 - 정답 출처: A 합성 문서 메타데이터(`doc_id`, 권한 필드, `fact_id`·값, 본문 없음, `syn-*`만)를 일회성 스크립트로 추출해 커밋한다(사용자 실행). A 커밋 해시·개수는 manifest에 둔다(ADR-010).
 - A MCP 장애(지연·5xx·연결 거부)는 A를 고칠 수 없으므로 replay 가짜 A에 주입한다(F11).
 
-## 에이전트 상태 기계
+## 에이전트 상태 전이
 
 승인 노드에는 `interrupt()`만 두고 실행은 별도 노드에 둔다. LangGraph는 `Command(resume=...)` 재개 시 멈춘 노드를 처음부터 다시 실행하므로, 실행을 승인 노드에 두면 재개할 때마다 부작용이 반복될 수 있다(ADR-011).
 
