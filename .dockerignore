@@ -1,0 +1,5 @@
+.venv
+web/
+data/
+.git
+.env*

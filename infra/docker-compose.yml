@@ -35,5 +35,25 @@ services:
       postgres:
         condition: service_healthy
 
+  mock-jira:
+    build:
+      context: ..
+      dockerfile: infra/mocks/Dockerfile
+    command: ["python", "-m", "govops.mocks", "jira"]
+    ports:
+      - "127.0.0.1:8081:8000"
+    # 관리 접근: docker compose exec mock-jira python -m govops.mocks.admin health
+    expose: ["9000"]
+
+  mock-slack:
+    build:
+      context: ..
+      dockerfile: infra/mocks/Dockerfile
+    command: ["python", "-m", "govops.mocks", "slack"]
+    ports:
+      - "127.0.0.1:8082:8000"
+    # 관리 접근: docker compose exec mock-slack python -m govops.mocks.admin health
+    expose: ["9000"]
+
 volumes:
   postgres_data:

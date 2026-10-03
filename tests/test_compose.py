@@ -45,6 +45,8 @@ def test_secret_environment_values_are_references(compose: dict) -> None:
 
 def test_images_have_fixed_tags_and_verification_comments(compose: dict) -> None:
     for name, service in compose["services"].items():
+        if "build" in service:
+            continue
         image = service["image"]
         assert ":" in image.rsplit("/", 1)[-1], name
         assert image.rsplit(":", 1)[-1] not in {"", "latest"}, name
@@ -130,3 +132,46 @@ def test_litellm_has_one_primary_model_and_environment_settings() -> None:
     }
     assert "확인 필요(구현 시 공식 문서로 확인): 모델 ID·가격" in text
     assert "Guardrail은 M4" in text
+
+
+@pytest.mark.parametrize(("name", "port"), [("jira", 8081), ("slack", 8082)])
+def test_mock_build_command_and_ports(compose: dict, name: str, port: int) -> None:
+    service = compose["services"][f"mock-{name}"]
+    assert service["build"] == {
+        "context": "..",
+        "dockerfile": "infra/mocks/Dockerfile",
+    }
+    assert service["command"] == ["python", "-m", "govops.mocks", name]
+    assert service["ports"] == [f"127.0.0.1:{port}:8000"]
+    assert "9000" in service["expose"]
+    assert not service.get("environment")
+
+
+def test_no_service_publishes_admin_port(compose: dict) -> None:
+    for name, service in compose["services"].items():
+        for port in service.get("ports", []):
+            target = port.rsplit(":", 1)[-1].split("/", 1)[0]
+            assert target != "9000", name
+
+
+def test_mock_dockerfile_has_pinned_images_and_frozen_install() -> None:
+    text = (REPO_ROOT / "infra/mocks/Dockerfile").read_text(encoding="utf-8")
+    lines = text.splitlines()
+    assert re.search(r"^FROM python:3\.12\.\d+-slim\S*", text, re.MULTILINE)
+    assert re.search(r"--from=ghcr\.io/astral-sh/uv:\d+\.\d+\.\d+", text)
+    for index, line in enumerate(lines):
+        if line.startswith("FROM ") or "--from=ghcr.io/astral-sh/uv:" in line:
+            assert index > 0
+            assert lines[index - 1].startswith("#")
+            assert (
+                "확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)"
+                in lines[index - 1]
+            )
+        assert not line.startswith(("CMD ", "ENTRYPOINT "))
+    assert "uv sync --frozen --no-dev" in text
+    assert "/app/.venv/bin" in text
+
+
+def test_dockerignore_excludes_private_and_unneeded_directories() -> None:
+    patterns = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    assert {".venv", "web/", "data/", ".git", ".env*"} <= set(patterns)
