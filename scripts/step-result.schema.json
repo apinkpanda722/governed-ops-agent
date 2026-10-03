@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary", "reason"],
+  "properties": {
+    "status": {"type": "string", "enum": ["completed", "error", "blocked"]},
+    "summary": {"type": "string", "description": "completed일 때 이 step의 산출물 한 줄 요약. 다음 step 프롬프트에 전달된다."},
+    "reason": {"type": ["string", "null"], "description": "error/blocked일 때 구체적 사유. completed면 null."}
+  }
+}
