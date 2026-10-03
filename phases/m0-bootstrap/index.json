@@ -1,0 +1,15 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m0-bootstrap",
+  "steps": [
+    { "step": 0, "name": "python-config", "status": "pending" },
+    { "step": 1, "name": "arch-guard", "status": "pending" },
+    { "step": 2, "name": "repo-rules", "status": "pending" },
+    { "step": 3, "name": "compose-core", "status": "pending" },
+    { "step": 4, "name": "mock-skeleton", "status": "pending" },
+    { "step": 5, "name": "compose-obs", "status": "pending" },
+    { "step": 6, "name": "web-toolchain", "status": "pending" },
+    { "step": 7, "name": "verify-web", "status": "pending" },
+    { "step": 8, "name": "docs-sync", "status": "pending" }
+  ]
+}
