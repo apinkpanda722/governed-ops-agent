@@ -8,6 +8,8 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = REPO_ROOT / "infra/docker-compose.yml"
+CORE_SERVICES = {"postgres", "litellm", "mock-jira", "mock-slack"}
+OBS_SERVICES = {"langfuse-web", "langfuse-worker", "clickhouse", "redis", "minio"}
 
 
 @pytest.fixture
@@ -18,6 +20,44 @@ def compose() -> dict:
 def test_core_services_exist(compose: dict) -> None:
     assert compose["name"] == "govops"
     assert {"postgres", "litellm"} <= compose["services"].keys()
+
+
+@pytest.mark.parametrize("name", sorted(OBS_SERVICES))
+def test_observability_services_require_obs_profile(compose: dict, name: str) -> None:
+    assert "obs" in compose["services"][name]["profiles"]
+
+
+@pytest.mark.parametrize("name", sorted(CORE_SERVICES))
+def test_core_services_are_independent_of_obs(compose: dict, name: str) -> None:
+    service = compose["services"][name]
+    assert "profiles" not in service
+    assert not OBS_SERVICES.intersection(service.get("depends_on", {}))
+
+
+def test_only_one_postgres_service_exists(compose: dict) -> None:
+    services = compose["services"]
+    assert set(services) == CORE_SERVICES | OBS_SERVICES
+    postgres_services = {
+        name
+        for name, service in services.items()
+        if "postgres" in name.lower() or "postgres" in service.get("image", "").lower()
+    }
+    assert postgres_services == {"postgres"}
+
+
+@pytest.mark.parametrize("name", ["langfuse-web", "langfuse-worker"])
+def test_langfuse_uses_existing_postgres_database(compose: dict, name: str) -> None:
+    service = compose["services"][name]
+    assert service["environment"]["DATABASE_URL"] == (
+        "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/langfuse"
+    )
+    assert service["depends_on"]["postgres"]["condition"] == "service_healthy"
+
+
+def test_only_langfuse_web_publishes_obs_ports(compose: dict) -> None:
+    assert compose["services"]["langfuse-web"]["ports"] == ["127.0.0.1:3000:3000"]
+    for name in OBS_SERVICES - {"langfuse-web"}:
+        assert not compose["services"][name].get("ports"), name
 
 
 def test_all_ports_bind_to_loopback(compose: dict) -> None:
@@ -34,7 +74,7 @@ def test_secret_environment_values_are_references(compose: dict) -> None:
         if isinstance(environment, list):
             environment = dict(entry.partition("=")[::2] for entry in environment)
         for variable, value in environment.items():
-            if re.search(r"PASSWORD|KEY|SECRET|SALT|TOKEN", variable):
+            if re.search(r"PASSWORD|KEY|SECRET|SALT|TOKEN|AUTH$", variable):
                 # 실패 시 값 대신 서비스·변수 이름만 보고한다.
                 assert isinstance(value, str), (name, variable)
                 assert re.fullmatch(r"\$\{[A-Z][A-Z0-9_]*(?::[-?][^}]*)?\}", value), (
