@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "arch-guard",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-03T23:42:56+0900",
+      "summary": "tests/test_architecture.py에 11개 계층의 AST import 검사기와 TDD 회귀 테스트를 구현하고 규칙·허용 예외 체크리스트 및 make verify(ruff·포맷·121개 테스트)를 통과했다.",
+      "completed_at": "2026-10-03T23:45:34+0900",
+      "usage": {
+        "input_tokens": 206843,
+        "cached_input_tokens": 164096,
+        "output_tokens": 3908,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
