@@ -122,9 +122,9 @@ obs-down:
 
 
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini
-# 사용자 실행
+# 읽기 전용 A 저장소(A_ROOT) 필요, 사용자 실행
 eval-cards:
-	uv run python -m govops.eval.review_cli cards
+	uv run python -m govops.eval.review_cli cards --a-root $(A_ROOT)
 
 # 사용자 실행
 eval-review-status:

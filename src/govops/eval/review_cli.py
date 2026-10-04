@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from govops.eval.a_source import ASource, ASourceError
 from govops.eval.cards import build_cards
 from govops.eval.meta import load_meta
 from govops.eval.review import REVIEW_PATH, review_report
@@ -13,6 +14,9 @@ from govops.eval.spec import load_specs
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["cards", "status"])
+    parser.add_argument(
+        "--a-root", type=Path, default=None, help="A 저장소(읽기 전용, cards에 필요)"
+    )
     args = parser.parse_args(argv)
     paths = [
         Path(p)
@@ -32,7 +36,15 @@ def main(argv: list[str] | None = None) -> int:
         tickets = json.loads(paths[3].read_text(encoding="utf-8"))["tickets"]
         specs = load_specs(paths[0], meta, users, tickets)
         if args.command == "cards":
-            for path in build_cards(specs, meta, users, tickets):
+            if args.a_root is None or not args.a_root.is_dir():
+                print("A 저장소 경로 필요: make eval-cards A_ROOT=<A 저장소 경로>")
+                return 1
+            try:
+                source = ASource(args.a_root, {d.doc_id for d in meta.docs})
+            except ASourceError as error:
+                print(str(error))
+                return 1
+            for path in build_cards(specs, meta, users, tickets, source):
                 print(path)
             return 0
         report = review_report(specs, REVIEW_PATH)

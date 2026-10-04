@@ -26,7 +26,7 @@ src/govops/
 ├── obs/          # trace span, 전송 전 마스킹, 로컬 JSONL / Langfuse 출력
 │   └── trace.py·mask.py·jsonl.py·langfuse.py
 ├── costs.py      # 공급사별 비용 원장·전체 기간 상한(호출 직전 누적액 검사)
-├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
+├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·cards_content.py·cards_text.py·cards_assets.py·a_source.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
 ├── replay/       # 가짜 A MCP 서버(기록 재생), LLM 응답 기록·재생
 └── mocks/        # mock-jira·mock-slack FastAPI 서비스, 장애 주입, 관리 엔드포인트
 web/              # Next.js(App Router, TypeScript): 화면 4개 + BFF route handler, Tailwind, shadcn/ui
@@ -49,7 +49,7 @@ data/
 ├── manifest/     # costs.jsonl·costs_grading.jsonl (커밋)
 ├── raw/          # 커밋 안 함
 └── interim/      # 커밋 안 함 (감사 서명 개인키 0600 등)
-    └── eval/cards/  # 오프라인 카드 HTML, data/interim/eval/cards/ (커밋 안 함)
+    └── eval/cards/  # 오프라인 검수 카드 HTML 한 장(index.html: 목록·카드 60장·판정 저장), 본문 발췌 포함이라 커밋 안 함
 docs/results/     # 결과표, 가설 사전 등록, 감사 고정점 manifest (날짜·커밋 해시)
 └── human-grading-registration.json  # docs/results/human-grading-registration.json, 사람 CSV 해시 등록
 logs/             # 로컬 JSONL trace·감사 로그 (커밋 안 함)
