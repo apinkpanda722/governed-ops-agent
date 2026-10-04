@@ -1,0 +1,49 @@
+{
+  "SEED": 20261005,
+  "checks": {
+    "composition": true,
+    "executable_in": true,
+    "grades": true,
+    "m2_dev": true,
+    "split": true,
+    "split_teams": true,
+    "teams": true
+  },
+  "executable_in": {
+    "m2": 20,
+    "m3": 40
+  },
+  "grades": {
+    "1": 11,
+    "2": 10,
+    "3": 10,
+    "4": 10,
+    "5": 10,
+    "6": 9
+  },
+  "m2_dev_count": 7,
+  "meta_sha256": "6c8e6f59489bcc58a196da57c78637f0afcb9dd2bece7b8bd0b85cbec043eb12",
+  "splits": {
+    "dev": 20,
+    "test": 40
+  },
+  "tasks_sha256": "d6b9204c1cf0487021461d5e35a5c790dd810cc6857c0fa6982fa8a23e27a439",
+  "teams": {
+    "data-ai": 8,
+    "finance": 7,
+    "hr": 8,
+    "legal": 8,
+    "payments": 7,
+    "platform": 7,
+    "security": 8,
+    "sre": 7
+  },
+  "types": {
+    "T1": 10,
+    "T2": 12,
+    "T3": 12,
+    "T4": 8,
+    "T5": 12,
+    "T6": 6
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "a_commit": "d2eec9c08ffbd61cf8ab5d84d4dd817452d044cc",
+  "a_commit_matches_expected": true,
+  "canary_count": 30,
+  "canary_doc_count": 30,
+  "doc_count": 200,
+  "doc_type_counts": {
+    "guide": 30,
+    "incident": 25,
+    "meeting": 50,
+    "notice": 25,
+    "runbook": 30,
+    "weekly": 40
+  },
+  "expectation_checks": {
+    "canary_doc_count": {
+      "actual": 30,
+      "expected": 30,
+      "matches": true
+    },
+    "doc_count": {
+      "actual": 200,
+      "expected": 200,
+      "matches": true
+    },
+    "doc_type_counts": {
+      "actual": {
+        "guide": 30,
+        "incident": 25,
+        "meeting": 50,
+        "notice": 25,
+        "runbook": 30,
+        "weekly": 40
+      },
+      "expected": {
+        "guide": 30,
+        "incident": 25,
+        "meeting": 50,
+        "notice": 25,
+        "runbook": 30,
+        "weekly": 40
+      },
+      "matches": true
+    },
+    "injection_doc_count": {
+      "actual": 12,
+      "expected": 12,
+      "matches": true
+    }
+  },
+  "expectations_match": true,
+  "expected_a_commit": "d2eec9c",
+  "fact_count": 458,
+  "injection_count": 12,
+  "injection_doc_count": 12,
+  "meta_sha256": "6c8e6f59489bcc58a196da57c78637f0afcb9dd2bece7b8bd0b85cbec043eb12",
+  "ticket_count": 60
+}
