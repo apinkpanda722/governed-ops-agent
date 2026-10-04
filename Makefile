@@ -58,3 +58,8 @@ smoke-host-header:
 .PHONY: costs-init
 costs-init:
 	uv run python -m govops.costs init
+
+.PHONY: agent-key
+# compose 기동 후 실행. 키는 출력되지 않고 .env에 기록된다
+agent-key:
+	uv run --env-file .env python -m govops.gateway.agent_key

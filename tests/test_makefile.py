@@ -45,3 +45,13 @@ def test_user_run_targets_are_separate():
     assert all(name not in verify for name in live)
     assert ".PHONY: verify\n" in text
     assert "SMOKE_USER ?= demo-platform-g3" in text
+
+
+def test_agent_key_is_user_run_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert (
+        "\nagent-key:\n\tuv run --env-file .env python -m govops.gateway.agent_key\n"
+        in text
+    )
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert "agent-key" not in verify
