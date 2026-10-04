@@ -43,6 +43,19 @@ def request_only_changes(
     return changes
 
 
+def content_changes(
+    new_specs: Sequence[TaskSpec], old_specs: Sequence[TaskSpec]
+) -> set[str]:
+    """요청 문장 외의 내용이 바뀐 문항(이전 판정을 이어받을 수 없고 새로 검수해야 한다)."""
+    old = {s.task_id: s for s in old_specs}
+    return {
+        spec.task_id
+        for spec in new_specs
+        if spec.task_id in old
+        and spec_content_sha256(old[spec.task_id]) != spec_content_sha256(spec)
+    }
+
+
 def carry_over(
     new_specs: Sequence[TaskSpec],
     old_specs: Sequence[TaskSpec],

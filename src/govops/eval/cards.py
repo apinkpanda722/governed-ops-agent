@@ -21,7 +21,12 @@ from govops.eval.cards_content import (
     Evidence,
     build_content,
 )
-from govops.eval.carryover import Carried, carry_over, request_only_changes
+from govops.eval.carryover import (
+    Carried,
+    carry_over,
+    content_changes,
+    request_only_changes,
+)
 from govops.eval.meta import EvalMeta
 from govops.eval.review import (
     REVIEW_PATH,
@@ -72,6 +77,7 @@ def _card(
     ctx: Context,
     previous: str | None = None,
     carried: Carried | None = None,
+    changed: bool = False,
 ) -> str:
     spec = content.spec
     sha = spec_hash(spec)
@@ -82,6 +88,7 @@ def _card(
         f'data-exec="{_e(spec.executable_in)}" data-sha="{_e(sha)}" '
         f'data-warn="{1 if warn else 0}" data-confirmed="{_e(state)}"'
         + (' data-carry="1"' if previous is not None else "")
+        + (' data-changed="1"' if changed else "")
         + (
             f' data-carry-status="{_e(carried.status)}" data-carry-note="{_e(carried.note)}"'
             if carried
@@ -105,6 +112,11 @@ def _card(
             '<div class="banner">⚠ 자동 점검에서 확인이 필요한 항목이 있습니다: '
             + _e(" / ".join(c.text for c in warn))
             + "</div>"
+        )
+    if changed:
+        out += (
+            '<div class="changed">내용이 바뀜 — 처음부터 새로 검수'
+            ' <span class="small">(요청 문장 외의 내용이 바뀌어 이전 판정을 이어받지 않았습니다)</span></div>'
         )
     if previous is not None:
         hint = (
@@ -259,10 +271,12 @@ def build_cards(
     storage = storage_key(ordered)
     # 요청 문장만 바뀐 문항(이전 명세와 비교)과 그 이전 판정. 카드는 미리 채워 보여 줄 뿐이다.
     request_only: dict[str, str] = {}
+    changed_ids: set[str] = set()
     carried: dict[str, Carried] = {}
     prev_key = ""
     if previous_specs:
         request_only = request_only_changes(ordered, previous_specs)
+        changed_ids = content_changes(ordered, previous_specs)
         prev_key = storage_key(sorted(previous_specs, key=lambda s: s.task_id))
         try:
             carried = carry_over(
@@ -275,6 +289,7 @@ def build_cards(
         f'data-split="{_e(c.spec.split)}" data-exec="{_e(c.spec.executable_in)}" '
         f'data-warn="{1 if c.warnings else 0}"'
         + (' data-carry="1"' if c.spec.task_id in request_only else "")
+        + (' data-changed="1"' if c.spec.task_id in changed_ids else "")
         + f'><td><a href="#{_e(c.spec.task_id)}">'
         f"{_e(c.spec.task_id)}</a></td><td>{_e(TYPE_NAMES[c.spec.type])}</td>"
         f"<td>{_e(c.spec.split)}</td><td>{_e(EXEC_LABELS[c.spec.executable_in])}</td>"
@@ -299,7 +314,8 @@ def build_cards(
         + options(EXEC_LABELS.items())
         + '</select></label> <label><input id="f-pending" type="checkbox"> 미판정만</label> '
         '<label><input id="f-warn" type="checkbox"> 경고 있는 것만</label> '
-        '<label><input id="f-carry" type="checkbox"> 문장만 확인(요청 문장만 바뀜)</label></div>'
+        '<label><input id="f-carry" type="checkbox"> 문장만 확인(요청 문장만 바뀜)</label> '
+        '<label><input id="f-changed" type="checkbox"> 새로 검수(내용 바뀜)</label></div>'
     )
     intro = (
         "<p>각 문항의 질문과 정답을 읽고, 정답이 맞는지 판정하세요. 본문 발췌에서 노란 부분이 "
@@ -329,6 +345,7 @@ def build_cards(
                 ctx,
                 request_only.get(c.spec.task_id),
                 carried.get(c.spec.task_id),
+                c.spec.task_id in changed_ids,
             )
             for c in contents
         )

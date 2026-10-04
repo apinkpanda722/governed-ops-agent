@@ -12,6 +12,7 @@ article.warn{border-color:#c0392b;border-width:2px}
 mark{background:#ffe58f;padding:0 .1em}mark.bad{background:#ffc9c2}
 .ev{background:#fafafa;border:1px solid #e1e4e8;padding:.4em .7em;margin:.3em 0 .6em;font-size:.92em;overflow-wrap:anywhere}
 .small{color:#555;font-size:.88em}.tag{display:inline-block;border:1px solid #aab;border-radius:4px;padding:0 .4em;margin-right:.3em;font-size:.82em}
+.changed{background:#fdecea;border:1px solid #e6a49b;color:#8a1f11;padding:.4em .7em;border-radius:6px;margin:.5em 0}
 .carry{background:#fff7e0;border:1px solid #e8c36a;padding:.4em .7em;border-radius:6px;margin:.5em 0}
 .judge label{margin-right:1.2em}.judge input.note{width:60%}
 details{margin-top:.8em}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8em;background:#f6f8fa;padding:.5em}
@@ -94,12 +95,12 @@ if (typeof document !== "undefined") (function () {
     });
     var pending = judged().filter(function (id) { return state.judgments[id].carried; }).length;
     $("progress").textContent = judged().length + " / " + articles.length + " 문항 판정" + (pending ? " (문장 확인 전 " + pending + "개)" : "");
-    var t = $("f-type").value, s = $("f-split").value, e = $("f-exec").value, only = $("f-pending").checked, warn = $("f-warn").checked, carry = $("f-carry").checked;
+    var t = $("f-type").value, s = $("f-split").value, e = $("f-exec").value, only = $("f-pending").checked, warn = $("f-warn").checked, carry = $("f-carry").checked, changed = $("f-changed").checked;
     articles.concat(Array.prototype.slice.call(document.querySelectorAll("tr[data-task]"))).forEach(function (el) {
       var id = el.getAttribute("data-task"), j = state.judgments[id];
       var hide = (t && el.getAttribute("data-type") !== t) || (s && el.getAttribute("data-split") !== s) ||
         (e && el.getAttribute("data-exec") !== e) || (only && j && j.status) || (warn && el.getAttribute("data-warn") !== "1") ||
-        (carry && el.getAttribute("data-carry") !== "1");
+        (carry && el.getAttribute("data-carry") !== "1") || (changed && el.getAttribute("data-changed") !== "1");
       el.hidden = !!hide;
     });
   }

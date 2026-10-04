@@ -130,3 +130,23 @@ def person_text(
     if person is None:
         return person_id
     return f"{person_id} → {person.name}({team_name(person.team)}팀 {person.grade}급, {person.role})"
+
+
+_DIGIT_BATCHIM = set("0136780")  # 영·일·삼·육·칠·팔은 받침이 있다
+_LATIN_BATCHIM = set("lmnr")  # 엘·엠·엔·알
+
+
+def josa(word: str, pair: str) -> str:
+    """받침 유무에 맞는 조사(`이/가`, `은/는`, `을/를`). 끝의 괄호 설명은 건너뛴다."""
+    with_batchim, without = pair.split("/")
+    text = re.sub(r"\([^()]*\)\s*$", "", word.strip()) or word.strip()
+    last = text[-1:]
+    if "가" <= last <= "힣":
+        has = (ord(last) - 0xAC00) % 28 != 0
+    elif last.isdigit():
+        has = last in _DIGIT_BATCHIM
+    elif last.isalpha():
+        has = last.lower() in _LATIN_BATCHIM
+    else:
+        has = False
+    return with_batchim if has else without
