@@ -19,7 +19,24 @@ class FakeService:
 
     async def start(self, user_id, request):
         self.requests.append(request)
-        if self.change != "ledger":
+        if self.change in {"reserved", "unsettled"}:
+            reservation = self.ledger.reserve(
+                purpose="agent_primary",
+                model="fake",
+                task_id=user_id,
+                estimate_usd=0.02,
+            )
+            if self.change == "reserved":
+                self.ledger.settle(
+                    reservation,
+                    purpose="agent_primary",
+                    model="fake",
+                    task_id=user_id,
+                    input_tokens=1,
+                    output_tokens=1,
+                    cost_usd=0.01,
+                )
+        elif self.change != "ledger":
             self.ledger.record(
                 purpose="agent_primary",
                 model="fake",
@@ -49,6 +66,8 @@ class FakeService:
     "change,item",
     [
         (None, None),
+        ("reserved", None),  # 예약 + 정산 행은 호출 하나로 센다
+        ("unsettled", "agent_primary"),  # 정산되지 않은 예약만으로는 통과하지 않는다
         ("finance", "finance"),
         ("platform", "platform"),
         ("status", "status"),
@@ -62,7 +81,7 @@ def test_agent(tmp_path, change, item):
         ledger = CostLedger(tmp_path)
         service = FakeService(ledger, change)
         result = await smoke.smoke_agent(service, ledger, poll_interval=0)
-        assert result.ok == (change is None)
+        assert result.ok == (change in {None, "reserved"})
         assert len(set(service.requests)) == 1
         if item:
             assert item in "\n".join(result.lines)

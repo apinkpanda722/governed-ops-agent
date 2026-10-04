@@ -313,5 +313,5 @@ M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec�
 - **에이전트 상태:** LangGraph state + 같은 Postgres 인스턴스의 `govops` 앱 DB checkpointer(`GOVOPS_DATABASE_URL`, ADR-017). `make verify` 테스트는 in-memory saver를 쓰며 실제 Postgres는 사용자 스모크로 확인한다. state에는 사용자 ID·초안·초안 해시·도구 결과가 들어가고 토큰은 들어가지 않는다. checkpointer는 실행에 필요한 원문을 두며, task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다. 삭제 명령과 테스트는 M5에 둔다(ADR-015).
 - **outbox:** 멱등 키별 상태(기록됨·성공·불확실·실패)와 표식. 저장 위치는 미정(M3에서 결정).
 - **mock 상태:** mock 서비스 메모리 또는 파일. 관리 엔드포인트로 초기화한다. 장애 주입은 요청 순번 스크립트로 재현한다.
-- **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007.
+- **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 호출 직전에 상한 검사와 예약 행 기록을 원장 잠금 안에서 한 번에 하고 호출 뒤 같은 예약 ID로 정산하며, 정산되지 않은 예약은 상한 쪽으로 계속 센다(ADR-007). 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007.
 - **비밀 값:** API 키는 `.env`에서만 읽는다. M1은 에이전트 전용 가상 키 1개(`LITELLM_AGENT_KEY`)를 쓰고 팀별 키는 M4에 둔다. LiteLLM 팀별 가상 키의 보관·주입 방식은 미정(M4에서 결정)이다.

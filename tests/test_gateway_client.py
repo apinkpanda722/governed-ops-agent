@@ -63,6 +63,16 @@ def response(*, usage=True, calls=False):
     return body
 
 
+def ledger_rows(tmp_path):
+    return [
+        json.loads(line) for line in (tmp_path / "costs.jsonl").read_text().splitlines()
+    ]
+
+
+def settled_rows(tmp_path):
+    return [row for row in ledger_rows(tmp_path) if row.get("kind") != "reservation"]
+
+
 def run(tmp_path, handler, **kwargs):
     async def invoke():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
@@ -129,13 +139,16 @@ def test_request_and_result(tmp_path, monkeypatch, calls, caplog):
     )
     assert result.cost_usd == expected
     rows = (tmp_path / "costs.jsonl").read_text().splitlines()
-    assert len(rows) == 1
-    row = json.loads(rows[0])
+    # 호출 직전 예약 행 + 호출 뒤 정산 행(같은 예약 ID)
+    assert len(rows) == 2
+    reservation, row = (json.loads(r) for r in rows)
+    assert reservation["kind"] == "reservation"
+    assert row["reservation_id"] == reservation["reservation_id"]
     assert row["purpose"] == "agent_primary"
     assert row["model"] == "gpt-6-luna"
     assert row["task_id"] == "task-1"
     assert row["cost_usd"] == expected
-    assert KEY not in caplog.text + rows[0]
+    assert KEY not in caplog.text + "".join(rows)
     assert MESSAGES[0]["content"] not in caplog.text
     assert "LITELLM_MASTER_KEY" not in Path("src/govops/gateway/client.py").read_text()
 
@@ -143,20 +156,20 @@ def test_request_and_result(tmp_path, monkeypatch, calls, caplog):
 def test_missing_usage_records_estimate(tmp_path):
     costs.init_ledgers(tmp_path)
     estimates = []
-    ledger_check = costs.CostLedger.check_before_call
+    reserve = costs.CostLedger.reserve
 
-    def check(self, **kwargs):
+    def spy(self, **kwargs):
         estimates.append(kwargs["estimate_usd"])
-        ledger_check(self, **kwargs)
+        return reserve(self, **kwargs)
 
     from unittest.mock import patch
 
-    with patch.object(costs.CostLedger, "check_before_call", check):
+    with patch.object(costs.CostLedger, "reserve", spy):
         result = run(
             tmp_path, lambda _: httpx.Response(200, json=response(usage=False))
         )
     assert result.cost_usd == estimates[0] > 0
-    row = json.loads((tmp_path / "costs.jsonl").read_text())
+    row = settled_rows(tmp_path)[0]
     assert row["cost_usd"] == result.cost_usd
     assert (
         costs.token_cost_usd(
@@ -189,7 +202,7 @@ def test_budget_blocks_network(tmp_path, missing):
 
 
 @pytest.mark.parametrize("failure", [401, 429, 500, "connection", "timeout"])
-def test_safe_errors_no_retry_or_record(tmp_path, failure, caplog):
+def test_safe_errors_no_retry_and_settle_zero(tmp_path, failure, caplog):
     costs.init_ledgers(tmp_path)
     caplog.set_level(logging.DEBUG)
     for name in ("openai", "httpx", "httpcore"):
@@ -217,7 +230,12 @@ def test_safe_errors_no_retry_or_record(tmp_path, failure, caplog):
         + caplog.text
     )
     assert caught.value.__cause__ is None
-    assert (tmp_path / "costs.jsonl").read_text() == ""
+    # 실패해도 같은 예약 ID로 0원 정산 행이 남고 미정산 예약이 없다.
+    reservation, settlement = ledger_rows(tmp_path)
+    assert reservation["kind"] == "reservation"
+    assert settlement["reservation_id"] == reservation["reservation_id"]
+    assert settlement["cost_usd"] == 0
+    assert costs.CostLedger(tmp_path).committed_usd("openai") == 0
 
 
 @pytest.mark.parametrize("key", [None, "", "   "])
@@ -297,7 +315,102 @@ def test_partial_usage_uses_estimate(tmp_path, missing):
         input_tokens_upper=result.usage.input_tokens,
         max_output_tokens=128,
     )
-    assert (
-        json.loads((tmp_path / "costs.jsonl").read_text())["cost_usd"]
-        == result.cost_usd
+    assert settled_rows(tmp_path)[0]["cost_usd"] == result.cost_usd
+
+
+def test_ledger_io_runs_off_the_event_loop_thread(tmp_path):
+    import threading
+    from unittest.mock import patch
+
+    costs.init_ledgers(tmp_path)
+    threads = {}
+    reserve = costs.CostLedger.reserve
+    settle = costs.CostLedger.settle
+
+    def spy_reserve(self, **kwargs):
+        threads["reserve"] = threading.current_thread()
+        return reserve(self, **kwargs)
+
+    def spy_settle(self, *args, **kwargs):
+        threads["settle"] = threading.current_thread()
+        return settle(self, *args, **kwargs)
+
+    with (
+        patch.object(costs.CostLedger, "reserve", spy_reserve),
+        patch.object(costs.CostLedger, "settle", spy_settle),
+    ):
+        run(tmp_path, lambda _: httpx.Response(200, json=response()))
+    assert threads["reserve"] is not threading.main_thread()
+    assert threads["settle"] is not threading.main_thread()
+
+
+def test_empty_choices_settles_actual_usage_then_fails_safely(tmp_path):
+    costs.init_ledgers(tmp_path)
+    body = response()
+    body["choices"] = []
+    with pytest.raises(GatewayError) as caught:
+        run(tmp_path, lambda _: httpx.Response(200, json=body))
+    assert KEY not in str(caught.value) + repr(caught.value)
+    reservation, settlement = ledger_rows(tmp_path)
+    assert settlement["reservation_id"] == reservation["reservation_id"]
+    assert settlement["cost_usd"] == costs.token_cost_usd(
+        "gpt-6-luna", input_tokens=100, cached_input_tokens=40, output_tokens=20
     )
+    assert costs.CostLedger(tmp_path).committed_usd("openai") == settlement["cost_usd"]
+
+
+def test_concurrent_calls_near_the_cap_cannot_exceed_it(tmp_path):
+    costs.init_ledgers(tmp_path)
+    cap = costs.SUPPLIER_CAPS_USD["openai"]
+    estimate = costs.estimate_call_usd(
+        "gpt-6-luna", input_tokens_upper=2 * 400 + 1024, max_output_tokens=128
+    )
+    # 예약 가능한 호출이 정확히 2개이도록 잔여 상한을 맞춘다.
+    costs.CostLedger(tmp_path).record(
+        purpose="agent_primary",
+        model="gpt-6-luna",
+        task_id="old",
+        input_tokens=0,
+        output_tokens=0,
+        cost_usd=round(cap - 2.5 * estimate, 10),
+    )
+    seen = []
+    release = asyncio.Event()
+
+    async def invoke():
+        async def handler(request):
+            seen.append(request)
+            await release.wait()
+            return httpx.Response(200, json=response())
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            client = LiteLLMChatClient(
+                api_key=KEY, ledger=costs.CostLedger(tmp_path), http_client=http
+            )
+
+            async def call(index):
+                return await client.complete(
+                    messages=MESSAGES,
+                    tools=[],
+                    task_id=f"t{index}",
+                    user_id="u",
+                    max_output_tokens=128,
+                )
+
+            tasks = [asyncio.create_task(call(i)) for i in range(8)]
+            for _ in range(200):  # 요청이 모두 대기 상태가 될 때까지 양보
+                await asyncio.sleep(0.01)
+                if len(seen) + sum(task.done() for task in tasks) >= 8:
+                    break
+            committed_in_flight = costs.CostLedger(tmp_path).committed_usd("openai")
+            release.set()
+            return committed_in_flight, await asyncio.gather(
+                *tasks, return_exceptions=True
+            )
+
+    in_flight, outcomes = asyncio.run(invoke())
+    rejected = [o for o in outcomes if isinstance(o, costs.BudgetExceededError)]
+    passed = [o for o in outcomes if isinstance(o, ChatResult)]
+    assert len(passed) == 2 and len(rejected) == 6
+    assert len(seen) == 2  # 거절된 호출은 네트워크 요청을 보내지 않았다
+    assert in_flight <= cap + 1e-9  # 진행 중인 예약까지 합산해도 상한 이내

@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import replace
 from pathlib import Path
 
+import httpx
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
@@ -53,6 +54,41 @@ def test_wiring_contract_and_memory(serve_asgi, a_tokens, monkeypatch):
     )
     with pytest.raises(StartupError):
         asyncio.run(run())
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_wiring_closes_shared_rest_client(serve_asgi, a_tokens, monkeypatch, fail):
+    path, _ = a_tokens
+    monkeypatch.setenv("KODOCS_MCP_TOKENS_FILE", str(path))
+    monkeypatch.setenv("LITELLM_AGENT_KEY", "fake-key")
+    monkeypatch.setenv("GOVOPS_DATABASE_URL", "")
+    recordings = RecordingSet.load(Path(__file__).parent / "fixtures/a_recordings")
+    monkeypatch.setenv(
+        "KODOCS_MCP_URL",
+        serve_asgi(create_app(recordings=recordings, tokens_file=path)) + "/mcp",
+    )
+    created = []
+
+    class Tracked(httpx.AsyncClient):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            created.append(self)
+
+    monkeypatch.setattr("govops.api.wiring.httpx.AsyncClient", Tracked)
+
+    async def run():
+        async with open_task_service():
+            assert len(created) == 1 and not created[0].is_closed
+            if fail:
+                raise RuntimeError("body failure")
+
+    if fail:
+        with pytest.raises(RuntimeError):
+            asyncio.run(run())
+    else:
+        asyncio.run(run())
+    # Jira·Slack이 공유하는 HTTP 클라이언트는 서비스 종료 시 닫힌다.
+    assert len(created) == 1 and created[0].is_closed
 
 
 def test_server_lifespan_assembles_and_closes(monkeypatch):

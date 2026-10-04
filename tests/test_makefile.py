@@ -9,7 +9,10 @@ def test_db_init_is_idempotent_and_user_run_only() -> None:
     text = (REPO_ROOT / "Makefile").read_text()
     assert ".PHONY: db-init" in text
     recipe = text.split("\ndb-init:\n", 1)[1].split("\n\n", 1)[0]
-    assert "docker compose -f infra/docker-compose.yml exec -T postgres" in recipe
+    assert (
+        "docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres"
+        in recipe
+    )
     assert "CREATE DATABASE govops" in recipe
     assert "WHERE NOT EXISTS" in recipe
     assert "pg_database" in recipe
@@ -91,3 +94,11 @@ def test_api_smokes_are_user_run_only():
         )
     verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
     assert "smoke-checkpointer" not in verify and "smoke-agent" not in verify
+
+
+def test_every_docker_compose_command_passes_the_env_file() -> None:
+    # compose가 .env의 변수를 읽지 못해 내는 WARN을 막는다.
+    text = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    commands = [line for line in text.splitlines() if "docker compose" in line]
+    assert commands
+    assert all("docker compose --env-file .env " in line for line in commands)

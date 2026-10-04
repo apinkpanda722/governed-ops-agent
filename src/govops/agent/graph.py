@@ -70,6 +70,9 @@ def build_graph(
                 else "gateway_error"
             )
             return {"steps": steps, "status": "failed", "error": code}
+        except Exception:  # noqa: BLE001 — 분류되지 않은 모델 노드 실패도 task를 종료한다
+            # 예외 메시지는 state에 넣지 않는다. 비용은 gateway가 이미 정산했다.
+            return {"steps": steps, "status": "failed", "error": "model_error"}
         content = result.message.get("content")
         calls = result.message.get("tool_calls") or []
         message = {"role": "assistant", "content": content}
