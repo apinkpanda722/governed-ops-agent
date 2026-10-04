@@ -6,6 +6,7 @@ from pathlib import Path
 
 from govops.eval.a_source import ASource, ASourceError
 from govops.eval.cards import build_cards
+from govops.eval.carryover import load_committed_specs
 from govops.eval.meta import load_meta
 from govops.eval.review import REVIEW_PATH, review_report
 from govops.eval.spec import load_specs
@@ -44,7 +45,11 @@ def main(argv: list[str] | None = None) -> int:
             except ASourceError as error:
                 print(str(error))
                 return 1
-            for path in build_cards(specs, meta, users, tickets, source):
+            # 마지막으로 커밋된 명세와 비교해 요청 문장만 바뀐 문항을 가려낸다(git이 없으면 건너뜀).
+            previous = load_committed_specs(paths[0])
+            for path in build_cards(
+                specs, meta, users, tickets, source, previous_specs=previous
+            ):
                 print(path)
             return 0
         report = review_report(specs, REVIEW_PATH)

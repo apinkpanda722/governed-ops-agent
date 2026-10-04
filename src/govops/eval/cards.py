@@ -21,8 +21,14 @@ from govops.eval.cards_content import (
     Evidence,
     build_content,
 )
+from govops.eval.carryover import Carried, carry_over, request_only_changes
 from govops.eval.meta import EvalMeta
-from govops.eval.review import REVIEW_PATH, ReviewFormatError, review_report
+from govops.eval.review import (
+    REVIEW_PATH,
+    ReviewFormatError,
+    load_confirmed_rows,
+    review_report,
+)
 from govops.eval.spec import TaskSpec, spec_hash
 
 JUDGMENTS = (
@@ -60,7 +66,13 @@ def _list(items: Sequence[str]) -> str:
     return "<ul>" + "".join("<li>" + i + "</li>" for i in items) + "</ul>"
 
 
-def _card(content: CardContent, state: str, ctx: Context) -> str:
+def _card(
+    content: CardContent,
+    state: str,
+    ctx: Context,
+    previous: str | None = None,
+    carried: Carried | None = None,
+) -> str:
     spec = content.spec
     sha = spec_hash(spec)
     warn = content.warnings
@@ -69,6 +81,12 @@ def _card(content: CardContent, state: str, ctx: Context) -> str:
         f'data-type="{_e(spec.type)}" data-split="{_e(spec.split)}" '
         f'data-exec="{_e(spec.executable_in)}" data-sha="{_e(sha)}" '
         f'data-warn="{1 if warn else 0}" data-confirmed="{_e(state)}"'
+        + (' data-carry="1"' if previous is not None else "")
+        + (
+            f' data-carry-status="{_e(carried.status)}" data-carry-note="{_e(carried.note)}"'
+            if carried
+            else ""
+        )
         + (' class="warn"' if warn else "")
         + ">"
         + "<h2>"
@@ -87,6 +105,21 @@ def _card(content: CardContent, state: str, ctx: Context) -> str:
             '<div class="banner">⚠ 자동 점검에서 확인이 필요한 항목이 있습니다: '
             + _e(" / ".join(c.text for c in warn))
             + "</div>"
+        )
+    if previous is not None:
+        hint = (
+            ' <span class="small">(이전 판정을 미리 채웠습니다. 새 문장을 확인한 뒤 '
+            f'<button type="button" class="seen" data-task="{_e(spec.task_id)}">'
+            "문장 확인함</button>을 누르거나 판정을 다시 고르세요)</span>"
+            if carried
+            else ' <span class="small">(이전 판정 없음)</span>'
+        )
+        out += (
+            '<div class="carry">요청 문장만 바뀜 — 문장만 확인'
+            + hint
+            + '<br><span class="small">이전 문장: '
+            + _e(previous)
+            + "</span></div>"
         )
     out += (
         "<h3>① 질문</h3><p><b>"
@@ -188,6 +221,8 @@ def build_cards(
     tickets: Sequence[Mapping],
     source: ASource,
     out_dir: Path = Path("data/interim/eval/cards/"),
+    *,
+    previous_specs: Sequence[TaskSpec] | None = None,
 ) -> list[Path]:
     # 사람이 검수하는 디렉토리(확정본 위치)에는 쓰지 않는다. 심볼릭 링크로 우회하는 경우도 막는다.
     if (
@@ -216,13 +251,31 @@ def build_cards(
         pass
     ordered = sorted(specs, key=lambda s: s.task_id)
     contents = [build_content(s, ctx) for s in ordered]
-    storage = hashlib.sha256(
-        "".join(spec_hash(s) for s in ordered).encode()
-    ).hexdigest()[:16]
+
+    def storage_key(items):
+        digest = hashlib.sha256("".join(spec_hash(s) for s in items).encode())
+        return "govops-review-" + digest.hexdigest()[:16]
+
+    storage = storage_key(ordered)
+    # 요청 문장만 바뀐 문항(이전 명세와 비교)과 그 이전 판정. 카드는 미리 채워 보여 줄 뿐이다.
+    request_only: dict[str, str] = {}
+    carried: dict[str, Carried] = {}
+    prev_key = ""
+    if previous_specs:
+        request_only = request_only_changes(ordered, previous_specs)
+        prev_key = storage_key(sorted(previous_specs, key=lambda s: s.task_id))
+        try:
+            carried = carry_over(
+                ordered, previous_specs, load_confirmed_rows(REVIEW_PATH)
+            )
+        except ReviewFormatError:
+            carried = {}
     rows = "".join(
         f'<tr data-task="{_e(c.spec.task_id)}" data-type="{_e(c.spec.type)}" '
         f'data-split="{_e(c.spec.split)}" data-exec="{_e(c.spec.executable_in)}" '
-        f'data-warn="{1 if c.warnings else 0}"><td><a href="#{_e(c.spec.task_id)}">'
+        f'data-warn="{1 if c.warnings else 0}"'
+        + (' data-carry="1"' if c.spec.task_id in request_only else "")
+        + f'><td><a href="#{_e(c.spec.task_id)}">'
         f"{_e(c.spec.task_id)}</a></td><td>{_e(TYPE_NAMES[c.spec.type])}</td>"
         f"<td>{_e(c.spec.split)}</td><td>{_e(EXEC_LABELS[c.spec.executable_in])}</td>"
         f"<td>{'⚠ ' + str(len(c.warnings)) if c.warnings else '✓'}</td>"
@@ -245,11 +298,12 @@ def build_cards(
         + '</select></label> <label>실행 <select id="f-exec"><option value="">전체</option>'
         + options(EXEC_LABELS.items())
         + '</select></label> <label><input id="f-pending" type="checkbox"> 미판정만</label> '
-        '<label><input id="f-warn" type="checkbox"> 경고 있는 것만</label></div>'
+        '<label><input id="f-warn" type="checkbox"> 경고 있는 것만</label> '
+        '<label><input id="f-carry" type="checkbox"> 문장만 확인(요청 문장만 바뀜)</label></div>'
     )
     intro = (
         "<p>각 문항의 질문과 정답을 읽고, 정답이 맞는지 판정하세요. 본문 발췌에서 노란 부분이 "
-        "정답의 근거입니다. 판정은 이 브라우저에만 임시 저장되고, 위의 저장 버튼으로 "
+        "정답의 근거입니다. 요청 문장만 바뀐 문항에는 이전 판정이 미리 채워져 있으니 새 문장만 확인하세요. 판정은 이 브라우저에만 임시 저장되고, 위의 저장 버튼으로 "
         "<code>confirmed.json</code>을 내려받아 <code>data/eval/review/</code>에 두어야 "
         "확정본으로 인정됩니다. 판정하지 않은 문항은 파일에 들어가지 않습니다.</p>"
     )
@@ -262,13 +316,22 @@ def build_cards(
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         "<title>정답 명세 검수 카드</title><style>"
         + STYLE
-        + f'</style><body data-storage-key="govops-review-{storage}">'
+        + f'</style><body data-storage-key="{storage}" data-prev-key="{prev_key}">'
         "<h1>정답 명세 검수 카드</h1>"
         + intro
         + controls
         + "<h2>목록</h2>"
         + summary
-        + "".join(_card(c, existing[c.spec.task_id], ctx) for c in contents)
+        + "".join(
+            _card(
+                c,
+                existing[c.spec.task_id],
+                ctx,
+                request_only.get(c.spec.task_id),
+                carried.get(c.spec.task_id),
+            )
+            for c in contents
+        )
         + "<script>"
         + SCRIPT
         + "</script></body></html>"

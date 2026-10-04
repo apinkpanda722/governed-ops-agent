@@ -443,21 +443,36 @@ def test_audit_flags_each_rule_without_values():
         assert all(visible_value not in str(v) for v in found)
 
 
-def test_other_specs_keep_their_hashes_on_the_real_corpus():
-    """검수한 56개 문항의 spec_sha256은 생성기 변경으로 바뀌지 않는다."""
+def test_other_specs_keep_their_content_on_the_real_corpus():
+    """검수한 56개 문항은 요청 문장 외의 내용이 불변이고, 존댓말 문항은 해시도 불변이다."""
     root = Path(__file__).resolve().parents[1]
     if not (root / "data/eval/meta.json").is_file():
         pytest.skip("data/eval/meta.json 없음")
+    from govops.eval.carryover import request_only_changes
     from govops.eval.meta import load_meta
+    from govops.eval.spec import spec_content_sha256
     from govops.eval.spec_audit import audit_specs
+    from govops.eval.tone import FORMAL, assign_tones
 
     frozen = json.loads((root / "tests/fixtures/frozen_task_hashes.json").read_text())
     meta = load_meta(root / "data/eval/meta.json")
     tickets = json.loads((root / "data/seed/tickets.json").read_text())["tickets"]
     users = json.loads((root / "data/seed/users.json").read_text())["users"]
     specs = generate_tasks(meta, tickets, users)
-    by_id = {s.task_id: s.spec_sha256 for s in specs}
-    assert {i: by_id[i] for i in frozen["frozen"]} == frozen["frozen"]
-    assert all(by_id[i] != old for i, old in frozen["replaced_old"].items())
+    by_id = {s.task_id: s for s in specs}
+    tones = assign_tones(specs)
+    for task_id, old in frozen["frozen"].items():
+        new = by_id[task_id]
+        assert spec_content_sha256(new) == old["content_sha"], task_id
+        same_request = new.request == old["request"]
+        assert same_request == (tones[task_id] == FORMAL), task_id
+        assert (new.spec_sha256 == old["sha"]) == same_request, task_id
+    # 교체된 T5-01~04는 요청 문장 외의 내용도 달라서 이어받기 대상이 아니다
     assert set(frozen["replaced_old"]) == {"T5-01", "T5-02", "T5-03", "T5-04"}
+    for task_id, old in frozen["replaced_old"].items():
+        assert spec_content_sha256(by_id[task_id]) != old["content_sha"]
+        assert by_id[task_id].spec_sha256 != old["sha"]
     assert audit_specs(specs, meta, users, tickets) == []
+    assert (
+        request_only_changes is not None
+    )  # 이어받기 규칙은 test_eval_carryover가 검증한다

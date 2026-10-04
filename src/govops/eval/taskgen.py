@@ -13,6 +13,7 @@ from govops.eval.access_index import AccessIndex
 from govops.eval.meta import EvalMeta, load_meta
 from govops.eval.spec import TaskSpec, dump_specs, spec_hash, validate_specs
 from govops.eval.spec_audit import audit_specs
+from govops.eval.tone import RequestParts, assign_tones, render_request, tone_summary
 from govops.eval.visibility import can_read
 
 SEED = 20261005
@@ -123,6 +124,7 @@ def generate_with_report(
             absent.append(target)
         n += 1
     index = AccessIndex(meta, tickets)
+    parts: dict[str, RequestParts] = {}
     used = set()
     specs = []
     team_counts, grade_counts = Counter(), Counter()
@@ -142,6 +144,7 @@ def generate_with_report(
         task_id=None,
         draw=rng,
     ):
+        core, dest = action, None  # 말투 변형을 입힐 때 문장을 다시 만드는 재료
         doc = row is not None and "doc_id" in row
         sd = [row["doc_id"]] if doc else []
         st = [row["ticket_id"]] if row is not None and not doc else []
@@ -228,6 +231,7 @@ def generate_with_report(
             outcome, facts, derived = "blocked", [], []
             channel = f"team-{next(t for t in teams if t != user['team'])}"
             action = f"내용을 요약하여 {channel} 채널로 발송"
+            core, dest = "내용 요약", (channel, "발송")
         elif typ != "T1":
             kind, destination, structure = "slack_message", channel, {}
             if typ == "T3":
@@ -290,6 +294,7 @@ def generate_with_report(
                 ]
             if typ != "T3":
                 action = f"{action}하여 {channel} 채널로 보고"
+                dest = (channel, "보고")
         request = TEMPLATES[sub][draw.randrange(3)].format(target=target, action=action)
         raw = {
             "task_id": task_id or f"{typ}-{1 + sum(s.type == typ for s in specs):02}",
@@ -321,6 +326,7 @@ def generate_with_report(
             validate_specs([spec], meta, users, tickets)
         except ValueError:
             return None
+        parts[spec.task_id] = RequestParts(target, core, dest)
         return spec
 
     def rows_for(typ, sub, user):
@@ -507,6 +513,13 @@ def generate_with_report(
                 "audit violations remain: "
                 + ", ".join(f"{v.task_id}:{v.rule}" for v in remaining)
             )
+    # 선정이 끝난 뒤에 말투를 입힌다(대상·요청자·결과는 그대로). 존댓말은 기존 문장을 유지한다.
+    tones = assign_tones(specs)
+    for i, spec in enumerate(specs):
+        text = render_request(tones[spec.task_id], spec.task_id, parts[spec.task_id])
+        if text is not None:
+            changed = spec.model_copy(update={"request": text})
+            specs[i] = changed.model_copy(update={"spec_sha256": spec_hash(changed)})
     validate_specs(specs, meta, users, tickets)
     if not all(summarize(specs)["checks"].values()):
         raise ValueError("task distribution MISMATCH")
@@ -551,6 +564,7 @@ def summarize(specs: Sequence[TaskSpec]) -> dict:
         "executable_in": dict(sorted(executable.items())),
         "teams": dict(sorted(teams.items())),
         "grades": dict(sorted(grades.items())),
+        "tones": tone_summary(specs, assign_tones(specs)),
         "m2_dev_count": m2_dev,
         "tasks_sha256": hashlib.sha256(
             _bytes([s.model_dump() for s in specs])

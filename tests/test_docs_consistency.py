@@ -98,6 +98,7 @@ def test_eval_phase_commands_and_documented_rules():
         "tool_coverage",
         "data/eval/review/confirmed.json",
         "data/eval/review/leak_confirmations.json",
+        "TONE_COUNTS",
         "not_found_or_partial",
         "### `m2-run` hypotheses.md에 그대로 넣을 문장",
     ):
