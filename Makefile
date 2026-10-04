@@ -55,6 +55,12 @@ smoke-mock:
 smoke-host-header:
 	uv run --env-file .env python -m govops.tools.smoke host-header --user $(SMOKE_USER)
 
+
+.PHONY: cost-report
+# 원장 읽기 전용, 네트워크 불필요
+cost-report:
+	uv run python -m govops.costs report
+
 .PHONY: costs-init
 costs-init:
 	uv run python -m govops.costs init
@@ -78,6 +84,11 @@ serve:
 ask:
 	uv run --env-file .env python -m govops.api.cli ask --as $(AS) "$(Q)"
 
+.PHONY: smoke-obs
+# compose 핵심 스택 + make obs-up + live A + Langfuse 키 필요, 사용자 실행
+smoke-obs:
+	uv run --env-file .env python -m govops.api.smoke obs
+
 .PHONY: smoke-checkpointer smoke-agent
 # compose·make db-init 필요, 쓰기·읽기 왕복
 smoke-checkpointer:
@@ -96,6 +107,17 @@ eval-meta-extract:
 # meta.json 필요, 사용자 실행
 eval-gen:
 	uv run python -m govops.eval.taskgen
+
+.PHONY: obs-up obs-down
+# 사용자 실행
+obs-up:
+	LITELLM_CONFIG_FILE=./litellm/config.obs.yaml docker compose --env-file .env -f infra/docker-compose.yml --profile obs up -d
+
+# 사용자 실행
+obs-down:
+	docker compose --env-file .env -f infra/docker-compose.yml --profile obs stop langfuse-web langfuse-worker clickhouse redis minio
+	LITELLM_CONFIG_FILE=./litellm/config.yaml docker compose --env-file .env -f infra/docker-compose.yml up -d litellm
+
 
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini
 # 사용자 실행

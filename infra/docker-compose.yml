@@ -27,10 +27,13 @@ services:
       LITELLM_DATABASE_URL: ${LITELLM_DATABASE_URL}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      LANGFUSE_HOST: http://langfuse-web:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
     ports:
       - "127.0.0.1:4000:4000"
     volumes:
-      - ./litellm/config.yaml:/app/config.yaml:ro
+      - ${LITELLM_CONFIG_FILE:-./litellm/config.yaml}:/app/config.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy

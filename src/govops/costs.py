@@ -5,6 +5,7 @@ import fcntl
 import json
 import math
 import os
+import sys
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -456,10 +457,219 @@ def init_ledgers(root: Path | None = None) -> list[Path]:
     return created
 
 
+REPORT_PLAN: Mapping[str, int] = MappingProxyType(
+    {"dev": 20, "test": 120, "Guardrail 끔": 40, "Guardrail v2": 60, "레드팀": 240}
+)
+
+
+@dataclass(frozen=True)
+class RatioStats:
+    n: int
+    mean: float | None
+    p50: float | None
+    p95: float | None
+    max: float | None
+    over_one: int
+
+
+@dataclass(frozen=True)
+class PurposeReport:
+    purpose: str
+    supplier: str
+    settled_calls: int
+    ratio: RatioStats
+    settled_usd: float
+    legacy_rows: int
+    unsettled_reservations: int
+    tasks: int
+    mean_usd_per_task: float | None
+    zero_estimates: int = 0
+    unmatched_settlements: int = 0
+    missing_task_rows: int = 0
+    pending_usd: float = 0.0
+    ledger_path: Path | None = None
+    rows: int = 0
+
+
+def _ratio_stats(values: list[Decimal]) -> RatioStats:
+    values = sorted(values)
+    n = len(values)
+    if not n:
+        return RatioStats(0, None, None, None, None, 0)
+    # Nearest-rank: 정렬한 n개 값에서 ceil(p * n)번째(1부터 시작)를 택한다.
+    return RatioStats(
+        n,
+        float(sum(values) / n),
+        float(values[math.ceil(0.50 * n) - 1]),
+        float(values[math.ceil(0.95 * n) - 1]),
+        float(values[-1]),
+        sum(value > 1 for value in values),
+    )
+
+
+def cost_report(root: Path | None = None) -> list[PurposeReport]:
+    """두 원장을 공유 잠금·읽기 모드로 읽어 용도별 정산을 집계한다."""
+    ledger = CostLedger(root)
+    rows = []
+    for grading, filename in enumerate(_FILENAMES):
+        with ledger._open(ledger.root / filename, "r") as source:
+            fcntl.flock(source, fcntl.LOCK_SH)
+            rows.extend(ledger._read_rows(source, grading=bool(grading)))
+    reports = []
+    for purpose in PURPOSES:
+        selected = [row for row in rows if row["purpose"] == purpose]
+        reservations: dict[str, list[dict]] = {}
+        settled = [row for row in selected if not _is_reservation(row)]
+        for row in selected:
+            if _is_reservation(row):
+                reservations.setdefault(row["reservation_id"], []).append(row)
+        ratios = []
+        matched = set()
+        legacy = zero = unmatched = missing_task = 0
+        task_costs: dict[str, Decimal] = {}
+        for row in settled:
+            task = row["task_id"]
+            if task is None:
+                missing_task += 1
+            else:
+                task_costs[task] = task_costs.get(task, Decimal(0)) + _amount(
+                    row["cost_usd"]
+                )
+            rid = row.get("reservation_id")
+            if rid is None:
+                legacy += 1
+                continue
+            candidates = reservations.get(rid, [])
+            if len(candidates) != 1:
+                unmatched += 1
+                continue
+            reserved = candidates[0]
+            if rid in matched:
+                unmatched += 1
+                continue
+            matched.add(rid)
+            estimate = _amount(reserved["estimate_usd"])
+            if estimate == 0:
+                zero += 1
+            else:
+                ratios.append(_amount(row["cost_usd"]) / estimate)
+        pending = [
+            row
+            for row in selected
+            if _is_reservation(row) and row["reservation_id"] not in matched
+        ]
+        # 상한 잔여액은 기존 원장의 보수적 합산과 동일한 기준을 쓴다.
+        _, pending_amount = ledger._tally(selected, PURPOSE_SUPPLIER[purpose])
+        reports.append(
+            PurposeReport(
+                purpose=purpose,
+                supplier=PURPOSE_SUPPLIER[purpose],
+                settled_calls=len(settled),
+                ratio=_ratio_stats(ratios),
+                settled_usd=float(
+                    sum((_amount(r["cost_usd"]) for r in settled), Decimal(0))
+                ),
+                legacy_rows=legacy,
+                unsettled_reservations=len(pending),
+                tasks=len(task_costs),
+                mean_usd_per_task=float(sum(task_costs.values()) / len(task_costs))
+                if task_costs
+                else None,
+                zero_estimates=zero,
+                unmatched_settlements=unmatched,
+                missing_task_rows=missing_task,
+                pending_usd=float(pending_amount),
+                ledger_path=ledger.root / _FILENAMES[purpose == "grading"],
+                rows=len(selected),
+            )
+        )
+    return reports
+
+
+def format_report(reports, *, plan: Mapping[str, int] | None = None) -> str:
+    reports = list(reports)
+    plan = REPORT_PLAN if plan is None else plan
+    lines = [f"비용 보고 날짜: {datetime.now(ZoneInfo('Asia/Seoul')).isoformat()}"]
+    for path in dict.fromkeys(r.ledger_path for r in reports):
+        lines.append(f"원장: {path}")
+    lines.append(f"행 수 합계: {sum(r.rows for r in reports)}")
+    for report in reports:
+        ratio = report.ratio
+        lines.append(
+            f"{report.purpose} ({report.supplier}): 정산 호출 {report.settled_calls}, 정산 ${report.settled_usd:.6f}, task {report.tasks}"
+        )
+        lines.append(
+            "비율: "
+            + ", ".join(
+                f"{key}={getattr(ratio, key)}"
+                for key in ("n", "mean", "p50", "p95", "max", "over_one")
+            )
+        )
+        lines.append(
+            f"legacy_rows={report.legacy_rows}, 추정액 0 제외={report.zero_estimates}, 예약 불일치={report.unmatched_settlements}, task_id 없음={report.missing_task_rows}"
+        )
+        lines.append(
+            f"미정산 예약={report.unsettled_reservations} (상한 계산에서 보수적으로 포함), 예약액=${report.pending_usd:.6f}"
+        )
+        mean = report.mean_usd_per_task
+        lines.append(
+            f"task당 평균: ${mean:.6f}"
+            if mean is not None
+            else "task당 평균: 데이터 없음"
+        )
+        if ratio.over_one:
+            lines.append(f"경고: 추정 상한을 넘은 호출 {ratio.over_one}건")
+    lines.extend(
+        [
+            "재추정: 파일럿 전 참고용 — 읽기 task 표본이며 부작용·승인·레드팀 task의 비용은 다를 수 있다",
+            "계획: "
+            + ", ".join(f"{name} {count}" for name, count in plan.items())
+            + f"; 합계 {sum(plan.values())}",
+            "장애 주입 표본은 미정이므로 제외",
+        ]
+    )
+    for report in reports:
+        lines.append(
+            f"{report.purpose}: 추정 표본 정산 호출 {report.settled_calls - report.missing_task_rows}, task {report.tasks}"
+        )
+        if report.mean_usd_per_task is None:
+            lines.append("데이터 없음")
+        elif report.purpose == "agent_primary":
+            estimate = report.mean_usd_per_task * sum(plan.values())
+            cap = SUPPLIER_CAPS_USD["openai"]
+            committed = sum(
+                r.settled_usd + r.pending_usd for r in reports if r.supplier == "openai"
+            )
+            remaining = cap - committed
+            remaining_ratio = (
+                f"{estimate / remaining * 100:.2f}%"
+                if remaining > 0
+                else "비교 불가 (잔여액 없음)"
+            )
+            lines.append(
+                f"예상 총액 ${estimate:.6f}; OpenAI 상한 ${cap:.2f} 대비 {estimate / cap * 100:.2f}%; 잔여액 ${remaining:.6f} 대비 {remaining_ratio}"
+            )
+        else:
+            lines.append(
+                f"task당 평균 ${report.mean_usd_per_task:.6f} (전체 실행 수 외삽은 주 모델만 적용)"
+            )
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["init"])
-    parser.parse_args(argv)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("init")
+    report_parser = subparsers.add_parser("report")
+    report_parser.add_argument("--root", type=Path)
+    args = parser.parse_args(argv)
+    if args.command == "report":
+        try:
+            print(format_report(cost_report(args.root)))
+        except (LedgerMissingError, ValueError, TypeError, OSError) as exc:
+            print(f"비용 보고 오류: {exc}", file=sys.stderr)
+            return 1
+        return 0
     root = _default_root()
     created = init_ledgers(root)
     for filename in _FILENAMES:

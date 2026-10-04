@@ -1,0 +1,78 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m2-obs",
+  "steps": [
+    {
+      "step": 0,
+      "name": "obs-core",
+      "status": "completed",
+      "started_at": "2026-10-04T18:45:41+0900",
+      "summary": "한국 형식 PII 판정·비밀 마스킹, contextvars 기반 span과 로컬 JSONL sink를 TDD로 구현하고 계층 가드 포함 make verify 통과(Python 882개·웹 15개).",
+      "completed_at": "2026-10-04T18:57:50+0900",
+      "usage": {
+        "input_tokens": 1770067,
+        "cached_input_tokens": 1696256,
+        "output_tokens": 17017,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "obs-instrument",
+      "status": "completed",
+      "started_at": "2026-10-04T18:57:50+0900",
+      "summary": "task별 루트 trace와 그래프·모델·도구 span, 게이트웨이 사용량·비용 속성 및 운영 JSONL·비밀 등록을 구현하고 격리·마스킹·실패·취소 검증 포함 make verify 통과(Python 888개·웹 15개).",
+      "completed_at": "2026-10-04T19:03:57+0900",
+      "usage": {
+        "input_tokens": 1134963,
+        "cached_input_tokens": 1055488,
+        "output_tokens": 8520,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "obs-langfuse",
+      "status": "completed",
+      "started_at": "2026-10-04T19:03:57+0900",
+      "summary": "선택적 fail-open Langfuse sink, existing_trace_id 메타데이터, obs 전용 LiteLLM 콜백·compose 타깃을 구현하고 make verify 통과(Python 904개·웹 15개).",
+      "completed_at": "2026-10-04T19:10:50+0900",
+      "usage": {
+        "input_tokens": 1434700,
+        "cached_input_tokens": 1354752,
+        "output_tokens": 8962,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "cost-report",
+      "status": "completed",
+      "started_at": "2026-10-04T19:10:50+0900",
+      "summary": "읽기 전용 cost-report 명령과 예약·정산 비율 통계, 480회 계획 비용 재추정 및 제외 건수 보고를 TDD로 구현하고 make verify 통과(Python 913개·웹 15개).",
+      "completed_at": "2026-10-04T19:15:40+0900",
+      "usage": {
+        "input_tokens": 782622,
+        "cached_input_tokens": 722176,
+        "output_tokens": 6377,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "obs-smoke-docs",
+      "status": "completed",
+      "started_at": "2026-10-04T19:15:40+0900",
+      "summary": "smoke-obs의 고정 기대값 7개·INFO 조회와 mock 테스트, 관측 문서 동기화를 구현하고 make verify 통과(Python 957개·웹 15개).",
+      "completed_at": "2026-10-04T19:20:55+0900",
+      "usage": {
+        "input_tokens": 634734,
+        "cached_input_tokens": 556032,
+        "output_tokens": 7363,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-04T18:45:41+0900",
+  "completed_at": "2026-10-04T19:20:55+0900"
+}

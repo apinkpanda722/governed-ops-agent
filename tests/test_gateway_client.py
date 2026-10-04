@@ -107,7 +107,12 @@ def test_request_and_result(tmp_path, monkeypatch, calls, caplog):
         assert request.headers["authorization"] == f"Bearer {KEY}"
         assert body["model"] == "agent-primary"
         assert body["user"] == "synthetic-user"
-        assert body["metadata"] == {"task_id": "task-1"}
+        assert body["metadata"] == {
+            "task_id": "task-1",
+            "trace_user_id": "synthetic-user",
+            "generation_name": "agent-primary",
+            "tags": ["govops"],
+        }
         assert body["messages"] == MESSAGES
         assert "synthetic-user" not in json.dumps(body["messages"])
         assert body["tools"] == TOOLS
@@ -414,3 +419,78 @@ def test_concurrent_calls_near_the_cap_cannot_exceed_it(tmp_path):
     assert len(passed) == 2 and len(rejected) == 6
     assert len(seen) == 2  # 거절된 호출은 네트워크 요청을 보내지 않았다
     assert in_flight <= cap + 1e-9  # 진행 중인 예약까지 합산해도 상한 이내
+
+
+def test_valid_trace_metadata(tmp_path):
+    costs.init_ledgers(tmp_path)
+
+    def handler(request):
+        body = json.loads(request.content)
+        assert body["metadata"] == {
+            "task_id": "a" * 32,
+            "existing_trace_id": "a" * 32,
+            "trace_user_id": "synthetic-user",
+            "generation_name": "agent-primary",
+            "tags": ["govops"],
+        }
+        return httpx.Response(200, json=response())
+
+    async def invoke():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            client = LiteLLMChatClient(
+                base_url="http://gateway.test",
+                api_key=KEY,
+                ledger=costs.CostLedger(tmp_path),
+                http_client=http,
+            )
+            await client.complete(
+                messages=MESSAGES,
+                tools=TOOLS,
+                task_id="a" * 32,
+                user_id="synthetic-user",
+                max_output_tokens=128,
+            )
+
+    asyncio.run(invoke())
+
+
+@pytest.mark.parametrize("task_id", ["a" * 32, "task-1", "A" * 32])
+def test_body_and_sdk_metadata_match(tmp_path, monkeypatch, task_id):
+    from unittest.mock import AsyncMock, Mock
+
+    sdk = Mock()
+    sdk.close = AsyncMock()
+    sdk.chat.completions.create = AsyncMock(return_value=object())
+    monkeypatch.setattr("govops.gateway.client.AsyncOpenAI", Mock(return_value=sdk))
+    client = LiteLLMChatClient(
+        base_url="http://gateway.test",
+        api_key=KEY,
+        ledger=costs.CostLedger(tmp_path),
+    )
+    captured = []
+    original = client._send
+
+    async def send(body, **kwargs):
+        captured.append(body)
+        return await original(body, **kwargs)
+
+    client._send = send
+    costs.init_ledgers(tmp_path)
+    # A sentinel response exercises transport only, then fails normal parsing.
+    with pytest.raises(GatewayError):
+        asyncio.run(
+            client.complete(
+                messages=MESSAGES,
+                tools=TOOLS,
+                task_id=task_id,
+                user_id="synthetic-user",
+            )
+        )
+    metadata = sdk.chat.completions.create.call_args.kwargs["extra_body"]["metadata"]
+    assert metadata == captured[0]["metadata"]
+    assert metadata["task_id"] == task_id
+    assert metadata["trace_user_id"] == "synthetic-user"
+    assert metadata["tags"] == ["govops"]
+    assert metadata["generation_name"] == "agent-primary"
+    assert ("existing_trace_id" in metadata) == (task_id == "a" * 32)
+    assert "trace_id" not in metadata and "parent_observation_id" not in metadata

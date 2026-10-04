@@ -88,7 +88,7 @@ def test_serve_and_ask_are_user_run_only():
 
 def test_api_smokes_are_user_run_only():
     text = (REPO_ROOT / "Makefile").read_text()
-    for name in ("checkpointer", "agent"):
+    for name in ("checkpointer", "agent", "obs"):
         assert (
             f"\nsmoke-{name}:\n\tuv run --env-file .env python -m govops.api.smoke {name}\n"
             in text
@@ -140,3 +140,40 @@ def test_grading_targets_user_only():
         )
         assert name in text.split(".PHONY:")[-1]
         assert name not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_obs_targets_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for name in ("obs-up", "obs-down"):
+        assert f"# 사용자 실행\n{name}:" in text
+        assert name not in text.split("verify:\n")[1].split("\n\n")[0]
+    assert (
+        "LITELLM_CONFIG_FILE=./litellm/config.obs.yaml docker compose --env-file .env"
+        in text
+    )
+    assert (
+        "--profile obs stop langfuse-web langfuse-worker clickhouse redis minio" in text
+    )
+    assert "up -d litellm" in text
+
+
+def test_cost_report_is_read_only_without_env_file():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: cost-report" in text
+    assert (
+        "# 원장 읽기 전용, 네트워크 불필요\ncost-report:\n\tuv run python -m govops.costs report\n"
+        in text
+    )
+    recipe = text.split("\ncost-report:\n")[1].split("\n\n")[0]
+    assert "--env-file" not in recipe  # 키 없는 user-run 타깃의 명시적 예외
+    assert "cost-report" not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_smoke_obs_phony_and_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: smoke-obs" in text
+    assert "smoke-obs" not in text.split("verify:\n")[1].split("\n\n")[0]
+    assert (
+        "# compose 핵심 스택 + make obs-up + live A + Langfuse 키 필요, 사용자 실행"
+        in text
+    )

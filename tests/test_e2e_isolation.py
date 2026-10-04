@@ -22,6 +22,8 @@ from govops.mocks.seed import load_tickets
 from govops.mocks.service import create_admin_app, create_rest_app
 from govops.mocks.slack import SlackState
 from govops.mocks.tokens import generate_tokens
+from govops.obs.jsonl import JsonlSink
+from govops.obs.mask import register_secret_values
 from govops.replay.fake_a import create_app as create_a
 from govops.replay.recordings import RecordingSet
 from govops.replay.tokens import generate_tokens as generate_a
@@ -135,6 +137,8 @@ class ScriptedChat:
 
 
 def test_e2e_isolation(tmp_path, monkeypatch, serve_asgi, caplog, capsys):
+    trace_dir = tmp_path / "traces"
+    monkeypatch.setattr("govops.obs.trace._defaults", (JsonlSink(trace_dir),))
     caplog.set_level(logging.DEBUG)
     for name in tuple(logging.Logger.manager.loggerDict):
         caplog.set_level(logging.DEBUG, logger=name)
@@ -180,6 +184,7 @@ def test_e2e_isolation(tmp_path, monkeypatch, serve_asgi, caplog, capsys):
     secrets += list(a_tokens.values()) + [
         v for u in mock_tokens.values() for v in u.values()
     ]
+    register_secret_values(secrets)
     a_capture = Capture(
         create_a(
             recordings=RecordingSet.load(ROOT / "data/replay/a"), tokens_file=a_file
@@ -364,7 +369,20 @@ def test_e2e_isolation(tmp_path, monkeypatch, serve_asgi, caplog, capsys):
                 assert all(
                     team not in message["content"] for team in ("platform", "finance")
                 )
+    trace_files = list(trace_dir.glob("*.jsonl"))
+    assert len(trace_files) == 5
+    trace_output = b"".join(path.read_bytes() for path in trace_files)
+    assert b"Authorization" not in trace_output and b"Bearer" not in trace_output
+    for path in trace_files:
+        records = [json.loads(line) for line in path.read_text().splitlines()]
+        roots = [r for r in records if r["kind"] == "task"]
+        assert len(roots) == 1 and roots[0]["trace_id"] == path.stem
+        owner = roots[0]["attributes"]["user_id"]
+        assert all(
+            other not in json.dumps(records) for other in USERS if other != owner
+        )
     outputs = [
+        trace_output,
         b"".join(public_responses),
         json.dumps(
             [{k: c[k] for k in ("messages", "tools")} for c in chat.calls]

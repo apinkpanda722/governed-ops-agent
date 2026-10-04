@@ -132,3 +132,26 @@ def test_preregistration_sentences_are_exact():
     assert section.strip().splitlines() == [
         f"{index}. {sentence}" for index, sentence in enumerate(sentences, 1)
     ]
+
+
+def test_obs_document_contract():
+    commands = read("AGENTS.md").split("## 명령어", 1)[1]
+    for name in ("obs-up", "obs-down", "smoke-obs", "cost-report"):
+        assert f"make {name} " in commands
+    assert read("AGENTS.md").count("CRITICAL:") == 25
+    architecture = read("docs/ARCHITECTURE.md")
+    for marker in (
+        "existing_trace_id",
+        "PII만 마스킹한 원문",
+        "300자",
+        "turn_off_message_logging",
+    ):
+        assert marker in architecture
+    section = (
+        read("docs/ADR.md").split("### ADR-009:", 1)[1].split("### ADR-010:", 1)[0]
+    )
+    body, history = section.split("**변경 기록**:", 1)
+    assert "existing_trace_id" in body
+    assert "변경 기록" not in body
+    # 작업 시작 시 ADR-009에서 읽은 기존 항목 수.
+    assert len(re.findall(r"^- ", history, re.MULTILINE)) == 1

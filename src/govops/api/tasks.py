@@ -5,6 +5,7 @@ import re
 from uuid import uuid4
 
 from govops.agent.graph import get_task, run_task
+from govops.obs.trace import set_attributes, trace
 
 _TASK_ID = re.compile(r"[0-9a-f]{32}")
 
@@ -31,15 +32,31 @@ class TaskService:
         return task_id
 
     async def _run(self, task_id: str, user_id: str, request: str) -> None:
-        try:
-            await run_task(
-                self.graph, task_id=task_id, user_id=user_id, request=request
+        with trace(task_id, user_id=user_id):
+            set_attributes(
+                **{"input.request": request, "output.answer": None},
+                steps=0,
+                cited_doc_ids=[],
             )
-        except asyncio.CancelledError:
-            self._failed.add(task_id)
-            raise
-        except Exception:  # noqa: BLE001 — never expose background exception details
-            self._failed.add(task_id)
+            try:
+                state = await run_task(
+                    self.graph, task_id=task_id, user_id=user_id, request=request
+                )
+            except asyncio.CancelledError:
+                self._failed.add(task_id)
+                set_attributes(final_status="failed", error_code="cancelled")
+                raise
+            except Exception:  # noqa: BLE001 — never expose background exception details
+                self._failed.add(task_id)
+                set_attributes(final_status="failed", error_code="internal_error")
+            else:
+                set_attributes(
+                    final_status=state["status"],
+                    steps=state["steps"],
+                    error_code=state["error"],
+                    cited_doc_ids=state["cited_doc_ids"],
+                    **{"output.answer": state["answer"]},
+                )
 
     async def get(self, user_id: str, task_id: str) -> dict | None:
         if not _TASK_ID.fullmatch(task_id):

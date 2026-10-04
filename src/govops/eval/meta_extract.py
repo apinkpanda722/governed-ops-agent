@@ -110,6 +110,21 @@ def _extract(a_root: Path, out: Path, expected: dict) -> dict:
                             "owner_team": source.get("owner_team"),
                         }
                     )
+    # plan.jsonl의 문서는 서비스 사실(f-service-*)도 참조한다. 서비스 설명은 복사하지 않는다.
+    services_path = seed / "services.yaml"
+    if not services_path.is_file():
+        raise MetaValidationError("required A seed file missing: services.yaml")
+    services = yaml.safe_load(services_path.read_text(encoding="utf-8"))
+    for service in services["services"]:
+        for fact in service["facts"]:
+            facts.append(
+                {
+                    **{key: fact[key] for key in ("fact_id", "kind", "value")},
+                    "source_kind": "service",
+                    "source_id": service["name"],
+                    "owner_team": service.get("owner_team"),
+                }
+            )
     for canary in canaries:
         facts.append(
             {
@@ -207,9 +222,10 @@ def extract(a_root: Path, out: Path, *, expected: dict | None = None) -> dict:
         sqlite3.Error,
         yaml.YAMLError,
         subprocess.SubprocessError,
-    ):
+    ) as error:
+        # 예외 클래스 이름만 알린다(메시지에는 값이 있을 수 있다).
         raise MetaValidationError(
-            "metadata extraction failed; check source and output"
+            f"metadata extraction failed ({type(error).__name__}); check source and output"
         ) from None
 
 
