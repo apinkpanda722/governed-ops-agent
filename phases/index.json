@@ -7,7 +7,8 @@
     },
     {
       "dir": "m1-tools",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-10-04T12:19:03+0900"
     }
   ]
 }
