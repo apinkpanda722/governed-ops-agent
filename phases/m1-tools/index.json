@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "rest-clients",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T12:03:03+0900",
+      "summary": "읽기 REST 클라이언트·9개 도구 spec·6개 읽기 실행기 구현; 신원 분리·토큰 비노출·부작용 네트워크 차단·계층 경계 검증 및 make verify 전체 통과(Python 381 passed, 1 skipped; 웹 15 passed).",
+      "completed_at": "2026-10-04T12:07:40+0900",
+      "usage": {
+        "input_tokens": 641375,
+        "cached_input_tokens": 578560,
+        "output_tokens": 6806,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
