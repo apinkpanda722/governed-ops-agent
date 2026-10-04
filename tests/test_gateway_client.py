@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 from pathlib import Path
 
 import httpx
@@ -107,7 +108,10 @@ def test_request_and_result(tmp_path, monkeypatch, calls, caplog):
         assert request.headers["authorization"] == f"Bearer {KEY}"
         assert body["model"] == "agent-primary"
         assert body["user"] == "synthetic-user"
-        assert body["metadata"] == {
+        metadata = dict(body["metadata"])
+        # generation_id는 LiteLLM이 만드는 긴 ID 대신 우리가 정하는 짧은 hex다.
+        assert re.fullmatch(r"[0-9a-f]{16}", metadata.pop("generation_id"))
+        assert metadata == {
             "task_id": "task-1",
             "trace_user_id": "synthetic-user",
             "generation_name": "agent-primary",
@@ -426,7 +430,9 @@ def test_valid_trace_metadata(tmp_path):
 
     def handler(request):
         body = json.loads(request.content)
-        assert body["metadata"] == {
+        metadata = dict(body["metadata"])
+        assert re.fullmatch(r"[0-9a-f]{16}", metadata.pop("generation_id"))
+        assert metadata == {
             "task_id": "a" * 32,
             "existing_trace_id": "a" * 32,
             "trace_user_id": "synthetic-user",
@@ -494,3 +500,46 @@ def test_body_and_sdk_metadata_match(tmp_path, monkeypatch, task_id):
     assert metadata["generation_name"] == "agent-primary"
     assert ("existing_trace_id" in metadata) == (task_id == "a" * 32)
     assert "trace_id" not in metadata and "parent_observation_id" not in metadata
+    assert re.fullmatch(r"[0-9a-f]{16}", metadata["generation_id"])
+
+
+def test_generation_id_is_short_unique_and_recorded_on_the_span(tmp_path):
+    from govops.obs import trace as obs
+
+    costs.init_ledgers(tmp_path)
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content)["metadata"]["generation_id"])
+        return httpx.Response(200, json=response())
+
+    class Capture:
+        def __init__(self):
+            self.records = []
+
+        def emit(self, record):
+            self.records.append(record)
+
+        def close_trace(self, trace_id):
+            pass
+
+    sink = Capture()
+
+    async def invoke():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            client = LiteLLMChatClient(
+                api_key=KEY,
+                base_url="http://litellm.test",
+                ledger=costs.CostLedger(tmp_path),
+                http_client=http,
+            )
+            for _ in range(2):
+                await client.complete(
+                    messages=MESSAGES, tools=TOOLS, task_id="a" * 32, user_id="u"
+                )
+
+    with obs.trace("a" * 32, sinks=[sink]):
+        asyncio.run(invoke())
+    assert len(set(seen)) == 2 and all(re.fullmatch(r"[0-9a-f]{16}", g) for g in seen)
+    root = sink.records[-1]
+    assert root.attributes["generation_id"] == seen[-1]

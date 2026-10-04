@@ -235,7 +235,15 @@ async def smoke_obs(
                     )
                     for kind in ("model_call", "tool_call")
                 )
-                checks[2] = bool(generations)
+                # LiteLLM generation은 우리가 정한 generation_id(모델 호출 span 속성)로 생겨야 한다.
+                generation_ids = {
+                    (row.get("attributes") or {}).get("generation_id")
+                    for row in rows
+                    if row.get("kind") == "model_call"
+                } - {None}
+                checks[2] = bool(generations) and all(
+                    item.get("id") in generation_ids for item in generations
+                )
                 checks[3] = bool(generations) and all(
                     item.get(field) in (None, "", {}, [])
                     for item in generations

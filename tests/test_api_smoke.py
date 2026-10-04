@@ -234,6 +234,7 @@ def test_each_structured_id_field_is_checked(tmp_path, field):
         ("model", "E2"),
         ("tool", "E2"),
         ("generation", "E3"),
+        ("generation_id", "E3"),
         ("content", "E4"),
         ("phone", "E5"),
         ("placeholder", "E5"),
@@ -256,7 +257,10 @@ def test_obs_expectations(tmp_path, change, failed, queue):
         {
             "span_id": str(i),
             "kind": kind,
-            "attributes": {"input.request": "참고 연락처: [PII:mobile]"},
+            "attributes": {
+                "input.request": "참고 연락처: [PII:mobile]",
+                **({"generation_id": "generation"} if kind == "model_call" else {}),
+            },
         }
         for i, kind in enumerate(("task", "model_call", "tool_call"))
     ]
@@ -284,6 +288,8 @@ def test_obs_expectations(tmp_path, change, failed, queue):
         observations[{"root": 0, "model": 1, "tool": 2}[change]]["name"] = "other"
     if change == "generation":
         observations.pop()
+    if change == "generation_id":
+        generation["id"] = "litellm-made-long-id"
     if change == "content":
         generation["input"] = "message"
     if change == "phone":

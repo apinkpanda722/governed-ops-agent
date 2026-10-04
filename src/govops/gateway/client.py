@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import secrets
 from collections.abc import Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -127,6 +128,11 @@ class LiteLLMChatClient:
         }
         if re.fullmatch(r"[0-9a-f]{32}", task_id):
             metadata["existing_trace_id"] = task_id
+        # LiteLLM이 만드는 기본 generation ID(응답 ID 기반의 긴 base64)는 Langfuse가
+        # MinIO 객체 이름으로 쓸 때 제한에 걸려 업로드가 실패한다. 짧은 hex를 직접 정한다.
+        generation_id = secrets.token_hex(8)
+        metadata["generation_id"] = generation_id
+        set_attributes(generation_id=generation_id)
         body = {
             "model": "agent-primary",
             "messages": list(messages),

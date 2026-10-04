@@ -66,8 +66,11 @@ def langfuse_sink_from_env(
             secret_key=env["LANGFUSE_SECRET_KEY"],
             tracer_provider=provider,
         )
-        # Langfuse's default export filter recognizes this instrumentation scope.
-        tracer = provider.get_tracer("langfuse-sdk")
+        # Langfuse의 span 프로세서는 이 계측 범위 이름과, 같은 프로젝트의 public_key를 범위
+        # 속성으로 가진 span만 내보낸다. 속성이 없으면 span이 조용히 버려진다(debug 로그만).
+        tracer = provider.get_tracer(
+            "langfuse-sdk", attributes={"public_key": env["LANGFUSE_PUBLIC_KEY"]}
+        )
 
         class Exporter:
             def export_record(self, record: SpanRecord) -> None:
