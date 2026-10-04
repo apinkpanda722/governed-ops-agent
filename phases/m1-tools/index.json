@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "mcp-client",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T11:56:57+0900",
+      "summary": "TDD로 stateless A MCP 클라이언트·계약 검사·기록 CLI·시작 요청 6개 구현; 토큰 비노출·신원 분리·비합성 응답 전체 건너뛰기·기록 왕복 검증 및 make verify 전체 통과(Python 378 passed, 1 skipped; 웹 15 passed).",
+      "completed_at": "2026-10-04T12:03:03+0900",
+      "usage": {
+        "input_tokens": 1554012,
+        "cached_input_tokens": 1473664,
+        "output_tokens": 9050,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
