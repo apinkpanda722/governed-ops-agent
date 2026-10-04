@@ -14,11 +14,12 @@
 
 ### 1. ADR-017 신설 (`docs/ADR.md` 끝에 추가, 기존 형식을 따른다: 상태·결정·이유·트레이드오프·변경 기록)
 
-제목: `ADR-017: M1 결정 — 도구 이름, mock 자격 증명, B 세션 토큰, checkpointer DB`. 상태 유효. 결정 4건:
+제목: `ADR-017: M1 결정 — 도구 이름, mock 자격 증명, mock-jira 쓰기 권한, B 세션 토큰, checkpointer DB`. 상태 유효. 결정 5건:
 1. **도구 이름**: `search_docs`, `lookup_id`, `run_sql`, `get_document`(A 계약), `jira_get_ticket`, `jira_search_tickets`(읽기), `jira_add_comment`, `jira_create_followup_ticket`(필수 `parent_ticket_id`), `slack_send_message`(부작용). 형식은 `{시스템}_{동사}_{대상}` snake_case. 입력 스키마에 사용자·팀·직급 필드 없음. 채널 이력·코멘트 목록·후속 티켓 목록 조회는 표식 조회용으로 도구 계층만 쓰고 모델에 노출하지 않는다. mock-slack 이력 조회는 자기 팀 채널·전사 공지만, 그 밖은 403.
 2. **mock 사용자 자격 증명**: 사용자 38명 × audience(`mock-jira`, `mock-slack`)별 토큰. 평문은 `data/interim/mock/tokens.json`(0600, 커밋 안 함), 해시 매니페스트(`data/seed/mock_jira_token_hashes.json`, `data/seed/mock_slack_token_hashes.json`)와 사용자 목록 `data/seed/users.json`(label·team·grade)은 커밋. mock이 토큰 해시로 인증해 team·grade를 정한다. broker가 평문 파일을 읽는 유일한 곳(`MOCK_TOKENS_FILE` 환경 변수, 기본 위 경로).
-3. **B 세션 토큰**: `POST /sessions`가 `DEMO_LOGIN` 플래그이고 127.0.0.1 클라이언트일 때만 열린다. 토큰은 `secrets.token_urlsafe(32)`이고 서버는 SHA-256 해시만 메모리에 두며 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이고 최종값은 M5에서 정한다. 인증 의존성이 `Authorization: Bearer`에서 `user_id`를 얻고 승인자 신원도 같은 경로다. 다른 사용자의 task 조회는 404.
-4. **checkpointer DB**: 같은 Postgres 인스턴스에 새 DB `govops`(앱 DB). checkpointer 테이블을 두고 M3 outbox 저장 위치는 여기서 정하지 않는다. `infra/postgres/init/01-create-databases.sh`에 추가하고 기존 볼륨용 멱등 명령 `make db-init`을 둔다. `GOVOPS_DATABASE_URL` 환경 변수. `make verify`는 Postgres 없이 통과해야 하므로 테스트는 in-memory saver를 쓰고 실제 Postgres는 스모크로 확인한다.
+3. **mock-jira 쓰기 권한**: 읽을 수 없는 티켓에 대한 코멘트·후속 티켓 요청은 존재하지 않는 티켓과 같은 404다(존재 비밀 우선). jira에는 읽기와 별개인 쓰기 권한 구분을 두지 않는다. 명시적 403 "권한 없음"은 존재가 공개된 대상(mock-slack 채널)의 쓰기·이력 조회에만 쓴다.
+4. **B 세션 토큰**: `POST /sessions`가 `DEMO_LOGIN` 플래그이고 127.0.0.1 클라이언트일 때만 열린다. 토큰은 `secrets.token_urlsafe(32)`이고 서버는 SHA-256 해시만 메모리에 두며 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이고 최종값은 M5에서 정한다. 인증 의존성이 `Authorization: Bearer`에서 `user_id`를 얻고 승인자 신원도 같은 경로다. 다른 사용자의 task 조회는 404.
+5. **checkpointer DB**: 같은 Postgres 인스턴스에 새 DB `govops`(앱 DB). checkpointer 테이블을 두고 M3 outbox 저장 위치는 여기서 정하지 않는다. `infra/postgres/init/01-create-databases.sh`에 추가하고 기존 볼륨용 멱등 명령 `make db-init`을 둔다. `GOVOPS_DATABASE_URL` 환경 변수. `make verify`는 Postgres 없이 통과해야 하므로 테스트는 in-memory saver를 쓰고 실제 Postgres는 스모크로 확인한다.
 
 변경 기록: `2026-10-04: M1 설계에서 확정.` 한 줄.
 
@@ -27,6 +28,7 @@
 - **승인 노드 핵심(`interrupt`, 초안 해시 결합, `POST /tasks/{id}/approval`)은 M3**로 둔다. 이유(문서에는 사실로만): M3 장애 주입의 중복 0건 검증에 부작용 실행 경로가 필요하고, 그 경로는 승인을 거친다.
 - **M5**에는 웹 화면(로그인·요청 진행·승인함), 전사 공지 승인자 정책, MAX_STEPS/COST, 탐색 예산(ADR-014), checkpointer 보존 기간 삭제(ADR-015)를 남긴다.
 - `docs/PRD.md` 마일스톤 표: M1 행은 두 phase(`m1-tools`, `m1-agent`)로 진행한다고 표기하고, M3 행 산출물에 승인 노드 핵심을 추가하며 M5 행에서 제거한다(측정·사용자 작업 열도 맞춘다: M3 측정에 "재개 반복 → 부작용 1회", M5 측정에서 이를 빼고 "루프 차단 동작" 등 남는 항목만). **M2 행의 사용자 작업 열에 한 줄을 추가한다: "Langfuse 기동 전 Redis 7.4.11 이후 보안 수정 여부 재확인".**
+- `docs/ADR.md` ADR-006 본문의 "읽기 거부는 \"없음\"과 구별 불가, 쓰기 거부는 명시적 \"권한 없음\"" 비대칭 문장(결정 단락의 mock-slack 설명 부분과 이유 단락의 해당 설명)을 다음 규칙에 맞게 고친다: 읽기 권한 거부와, 읽을 수 없는 티켓에 대한 쓰기 요청(코멘트·후속 티켓)은 모두 \"없음\"과 구별되지 않는 응답(mock-jira 404)이다. 명시적 \"권한 없음\"(403)은 존재가 공개된 대상, 즉 mock-slack 채널(채널 목록은 공개 정보)의 쓰기·이력 조회에만 쓴다. 이유 단락도 같은 기준으로 맞춘다(존재 자체가 기밀인 티켓은 쓰기에서도 존재를 알리지 않는다). 같은 비대칭 표현이 있는 모든 곳을 같은 기준으로 맞춘다: `docs/ARCHITECTURE.md`("도구와 부작용·멱등성"의 "mock 응답 비대칭" 항목), `docs/THREAT_MODEL.md`(TH5 행의 "읽기 거부는…"과 V7 행의 "쓰기 거부는 명시적…"), `docs/PRD.md`, `AGENTS.md`("아키텍처 규칙"의 "읽기 권한 거부는 …, 쓰기 권한 거부는 …" 한 줄). `grep -n "쓰기 거부\|쓰기 권한 거부\|읽기 거부\|읽기 권한 거부" AGENTS.md docs/*.md`로 빠짐없이 찾는다. 다만, AGENTS.md는 해당 한 줄의 표현만 바꾸고 다른 규칙은 건드리지 않는다. ADR-006의 변경 기록에는 줄을 추가하지 않는다.
 - `docs/ADR.md`: ADR-013, ADR-011, 그리고 마일스톤을 언급하는 다른 ADR(ADR-014·ADR-015 등)의 본문을 위 기준으로 맞춘다. `docs/ARCHITECTURE.md`, `docs/EVAL.md`, `docs/THREAT_MODEL.md`, `AGENTS.md`에서 `M3`·`M5`를 언급하며 승인 노드·HITL의 구현 시점을 말하는 문장도 `grep -n "M3\|M5"`로 찾아 같은 기준으로 고친다. M5에 남는 항목(웹 화면, 전사 공지 승인자 정책, MAX_STEPS/COST, 탐색 예산, 보존 기간 삭제, 쿠키 속성·CSRF·세션 만료)의 언급은 M5로 유지한다.
 
 ### 3. 확정된 "미정"의 갱신
@@ -38,7 +40,7 @@
 
 ### 4. 검증용 테스트
 
-- 문서 변경을 검사하는 테스트를 `tests/test_docs_consistency.py`로 추가한다: ADR-017이 존재하고 도구 9개 이름이 ARCHITECTURE의 도구 표와 `src/govops/tools/registry.py`의 `tool_specs()` 이름과 일치한다. PRD의 M3 행에 `approval` 또는 `승인`이 있고 M5 행에는 `interrupt`·`approval` 승인 노드 구현 문구가 없다. AGENTS.md의 CRITICAL 항목 수가 이 step 이전과 같다(앞뒤로 센 값 비교 대신 현재 개수를 상수로 고정). ARCHITECTURE의 `data/` 구조에 `contract/`·`seed/`·`replay/`가 있다.
+- 문서 변경을 검사하는 테스트를 `tests/test_docs_consistency.py`로 추가한다: ADR-017이 존재하고 도구 9개 이름이 ARCHITECTURE의 도구 표와 `src/govops/tools/registry.py`의 `tool_specs()` 이름과 일치한다. PRD의 M3 행에 `approval` 또는 `승인`이 있고 M5 행에는 `interrupt`·`approval` 승인 노드 구현 문구가 없다. AGENTS.md의 CRITICAL 항목 수가 이 step 이전과 같다(앞뒤로 센 값 비교 대신 현재 개수를 상수로 고정). ARCHITECTURE의 `data/` 구조에 `contract/`·`seed/`·`replay/`가 있다. ADR-017에 mock-jira 쓰기 404 결정이 있고, ADR-006 본문에 "쓰기 거부는 명시적"으로 jira 전체를 일반화하는 옛 문장이 남아 있지 않다("mock-slack" 한정 표현 확인).
 
 ## Acceptance Criteria
 
