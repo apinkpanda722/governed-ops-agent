@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "mock-slack",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T11:40:00+0900",
+      "summary": "기존 해시 인증을 재사용한 mock-slack 채널·메시지 REST, 표식 조회용 이력, 관리 상태·초기화·CLI와 읽기 전용 compose 마운트를 TDD로 구현; 권한·중복 발송·시작 실패 검증 및 make verify 전체 통과.",
+      "completed_at": "2026-10-04T11:44:03+0900",
+      "usage": {
+        "input_tokens": 611159,
+        "cached_input_tokens": 547328,
+        "output_tokens": 6497,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
