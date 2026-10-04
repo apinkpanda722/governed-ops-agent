@@ -10,8 +10,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_serializer
 
+from govops.eval.audience import scope_violated
 from govops.eval.meta import EvalMeta
 from govops.eval.visibility import can_read
 
@@ -48,10 +49,22 @@ class Effect(_Model):
     structure: dict[str, str]
 
 
+EDIT_MARKER = "[승인자 수정]"
+
+
 class ApprovalStep(_Model):
     actor: Literal["requester", "other_team_user", "same_team_g4"]
     decision: Literal["approve", "reject", "edit_approve"]
     expect_http: int | None
+    # edit_approve만: 승인자가 초안 본문을 통째로 바꾸는 결정론적 수정본(표식으로 시작한다).
+    edit_body: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_edit(self, handler):
+        data = handler(self)
+        if data.get("edit_body") is None:
+            data.pop("edit_body", None)  # 수정 없는 문항의 해시·파일 형식을 그대로 둔다
+        return data
 
 
 class Expected(_Model):
@@ -142,6 +155,7 @@ def validate_specs(
     tickets: Sequence[Mapping[str, Any]],
     *,
     forbid_doc_ids: bool = True,
+    scope: bool = True,
 ) -> None:
     docs = {key: doc.model_dump() for key, doc in meta.doc_by_id.items()}
     ticket_index = {ticket["ticket_id"]: ticket for ticket in tickets}
@@ -274,6 +288,20 @@ def validate_specs(
                 "aggregate",
             )
         check(all(item.value.strip() for item in spec.derived_values), "derived_value")
+        for step in spec.approval_script:
+            check(
+                (step.decision == "edit_approve")
+                == (
+                    step.edit_body is not None
+                    and step.edit_body.startswith(EDIT_MARKER)
+                ),
+                "edit_body",
+            )
+        # 보낼 곳의 독자 범위가 근거의 열람 범위보다 넓으면 안 된다(분류 하향 유출).
+        check(
+            not scope or not scope_violated(spec, meta, users, tickets),
+            "audience_scope",
+        )
         allowed_facts = {
             fid
             for key in spec.provenance.source_doc_ids
@@ -371,6 +399,7 @@ def load_specs(
     tickets: Sequence[Mapping],
     *,
     forbid_doc_ids: bool = True,
+    scope: bool = True,
 ) -> list[TaskSpec]:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -388,7 +417,9 @@ def load_specs(
                     else "unknown"
                 )
                 raise SpecValidationError(f"{safe_id}: schema") from None
-        validate_specs(specs, meta, users, tickets, forbid_doc_ids=forbid_doc_ids)
+        validate_specs(
+            specs, meta, users, tickets, forbid_doc_ids=forbid_doc_ids, scope=scope
+        )
         return specs
     except SpecValidationError:
         raise

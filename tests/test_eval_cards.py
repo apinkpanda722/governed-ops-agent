@@ -211,7 +211,7 @@ def test_cards_are_plain_korean_with_evidence_and_no_external_resources(world):
     ):
         assert marker in html
     t1 = unescape(card_text(html, "T1-01"))
-    assert "직원이 묻습니다" in t1 and "급 직원" in t1
+    assert "직원이 묻습니다" in t1 and "급(숫자가 클수록 상위 직급) 직원" in t1
     visible = re.sub(
         r"<details>.*?</details>", "", card_text(html, "T1-01"), flags=re.DOTALL
     )
@@ -811,7 +811,7 @@ def test_ticket_summary_card_lists_each_fact_with_its_judging_rule(world):
     assert "영문 코드" in visible and "중 하나가 답에 있으면 인정" in visible
     assert "같은 뜻이면 인정(표현은 달라도 됨)" in visible  # 제목·담당자
     assert "(연도 생략)이면 인정" in visible  # 날짜
-    assert "p-001 →" in visible  # 담당자는 사람 사실과 같은 표시
+    assert "p-001 →" not in visible  # 내부 ID는 본문에 두지 않는다(자세히에만)
     assert "이(가)" not in visible and "은(는)" not in visible
     assert "티켓 상태가 티켓 정보와 일치한다" in visible
     assert "생성일이 티켓 정보와 일치한다" in visible
@@ -867,3 +867,63 @@ def test_document_request_checks_flag_ids_and_ambiguous_references(world):
     assert flagged  # 같은 제목의 다른 문서가 있으면 지칭이 모호하다
     flagged, text = warnings(specs, None)  # 제목 파일이 없으면 지칭 점검만 건너뛴다
     assert not flagged and "문서 지칭이" not in text
+
+
+def test_approval_sentences_use_the_right_particle_and_show_the_edit():
+    from govops.eval.cards_text import approval_sentences
+
+    lines = approval_sentences(
+        [
+            {"actor": "other_team_user", "decision": "approve", "expect_http": 404},
+            {"actor": "same_team_g4", "decision": "approve", "expect_http": None},
+            {
+                "actor": "requester",
+                "decision": "edit_approve",
+                "expect_http": None,
+                "edit_body": "[승인자 수정] 본문",
+            },
+        ]
+    )
+    assert lines[0].startswith("다른 팀 직원이 ") and "직원가" not in " ".join(lines)
+    assert lines[1].startswith("같은 팀 4급 이상 직원이 ")
+    assert lines[2].startswith("요청자가 ") and "[승인자 수정] 본문" in lines[2]
+
+
+def test_changed_card_highlights_changed_sections_and_folds_the_rest(carried_world):
+    meta, tickets, users, specs, source, tmp, previous, _ = carried_world
+    assert len(specs[0].required_facts) >= 2
+    other = specs[0].model_copy(
+        update={"required_facts": specs[0].required_facts[:-1]}  # ③ 칸만 바뀐다
+    )
+    specs = [other.model_copy(update={"spec_sha256": spec_hash(other)}), *specs[1:]]
+    html = build_cards(
+        specs, meta, users, tickets, source, tmp / "cards", previous_specs=previous
+    )[0].read_text()
+    changed = card_text(html, specs[0].task_id)
+    assert 'class="diff"' in changed  # 바뀐 칸 강조
+    assert (
+        'class="same"' in changed and "바뀌지 않음(펼치기)" in changed
+    )  # 같은 칸은 접힘
+    # 요청 문장만 바뀐 카드와 처음 만드는 카드는 모든 칸을 그대로 편다
+    assert 'class="same"' not in card_text(html, specs[1].task_id)
+
+
+def test_t4_and_announce_cards_state_korean_status_and_the_g4_approval_rule(world):
+    meta, tickets, users, specs, source, tmp = world
+    html = unescape(
+        build_cards(specs, meta, users, tickets, source, tmp / "cards")[0].read_text()
+    )
+    t4 = next(s for s in specs if s.type == "T4")
+    card = card_text(html, t4.task_id)
+    count = next(v.value for v in t4.derived_values if v.name == "visible_count")
+    assert (
+        f"보고 메시지에 정답 값 {count}(건)이 들어 있어야 함(정확도에서 채점)" in card
+    )
+    assert (
+        "열림(open)" in card
+        or "해결 완료(resolved)" in card
+        or "진행 중(in_progress)" in card
+    )
+    announce = next(s for s in specs if s.subtype == "all_hands")
+    assert "문서 공개 여부와 관계없이" in card_text(html, announce.task_id)
+    assert "(결정 10)" in card_text(html, announce.task_id)

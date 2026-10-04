@@ -108,6 +108,19 @@ def fixture():
         # 실제 코퍼스처럼 모든 장애는 읽을 수 있는 공개 문서에도 일부 사실이 언급된다(그래서 요청에
         # 장애 번호를 써도 "숨은 장애"가 아니다). 이 언급 문서의 값은 금지 값이 될 수 없다.
         pub = f"f-pub-{i}"
+        # 전사 공지로 보낼 수 있는 공개 문서는 사실이 3개 이상이어야 한다.
+        pub_extra = [f"f-pub-{i}-b", f"f-pub-{i}-c"]
+        for k, fact_id in enumerate(pub_extra):
+            facts.append(
+                {
+                    "fact_id": fact_id,
+                    "kind": "text",
+                    "value": f"PUBLIC_EXTRA_{k}_{i:03}",
+                    "source_kind": "event",
+                    "source_id": f"evt-pub-{i:03}",
+                    "owner_team": team,
+                }
+            )
         docs.append(
             {
                 "doc_id": f"syn-pub-{i:03}",
@@ -116,7 +129,7 @@ def fixture():
                 "access_level": "public",
                 "access_teams": [],
                 "access_min_grade": 1,
-                "fact_ids": [pub],
+                "fact_ids": [pub, *pub_extra],
                 "related_doc_ids": [],
                 "injection_id": None,
                 "canary_fact_id": None,
@@ -429,7 +442,10 @@ def test_repair_replaces_only_the_violating_specs():
     }
     assert violating, "fixture가 위반을 만들어야 이 테스트가 의미가 있다"
     specs, repaired = generated(True)
-    assert set(repaired) == violating
+    # 발송 범위·섞인 문서 위반(T2·T3·T6)도 교체 목록에 담긴다.
+    scoped = set(repaired) - violating
+    assert violating <= set(repaired)
+    assert all(i.startswith(("T2", "T3", "T6")) for i in scoped)
     before = {s.task_id: s.spec_sha256 for s in legacy}
     after = {s.task_id: s.spec_sha256 for s in specs}
     assert before.keys() == after.keys()
@@ -440,9 +456,9 @@ def test_repair_replaces_only_the_violating_specs():
     assert all(
         before[i] == after[i]
         for i in before
-        if i not in violating | summaries | doc_targets
+        if i not in violating | summaries | doc_targets | scoped
     )
-    assert all(before[i] != after[i] for i in violating)
+    assert all(before[i] != after[i] for i in violating | scoped)
     assert audit_specs(specs, meta, users, tickets) == []
     new = [s for s in specs if s.subtype == "no_permission"]
     assert len(new) == 4 and all(

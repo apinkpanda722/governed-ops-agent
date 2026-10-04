@@ -39,6 +39,7 @@ ACTORS = {
     "other_team_user": "다른 팀 직원",
     "same_team_g4": "같은 팀 4급 이상 직원",
 }
+GRADE_NOTE = "(숫자가 클수록 상위 직급)"
 DECISIONS = {"approve": "승인", "reject": "거부", "edit_approve": "수정 후 승인"}
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 _WINDOW_LIMIT = 220
@@ -120,7 +121,10 @@ def approval_sentences(script: list[Mapping[str, Any]]) -> list[str]:
         decision = DECISIONS.get(step["decision"], step["decision"])
         code = step.get("expect_http")
         outcome = f" → 거절되어야 함(HTTP {code})" if code else " → 정상 처리"
-        result.append(f"{actor}가 {decision}{outcome}")
+        line = f"{actor}{josa(actor, '이/가')} {decision}{outcome}"
+        if step.get("edit_body"):
+            line += f" · 수정 후 본문(초안은 실행마다 달라 수정 전은 고정할 수 없음): {step['edit_body']}"
+        result.append(line)
     return result
 
 
@@ -129,7 +133,8 @@ def person_text(
 ) -> str:
     if person is None:
         return person_id
-    return f"{person_id} → {person.name}({team_name(person.team)}팀 {person.grade}급, {person.role})"
+    # 내부 ID(p-107)는 카드의 "자세히"(원본 JSON)에만 둔다.
+    return f"{person.name}({team_name(person.team)}팀 {person.grade}급, {person.role})"
 
 
 _DIGIT_BATCHIM = set("0136780")  # 영·일·삼·육·칠·팔은 받침이 있다
