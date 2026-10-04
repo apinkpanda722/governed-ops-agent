@@ -69,3 +69,14 @@ def test_agent_key_is_user_run_only():
     )
     verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
     assert "agent-key" not in verify
+
+
+def test_serve_and_ask_are_user_run_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert "# compose·live A 기동 후, DEMO_LOGIN=true 필요\nserve:\n" in text
+    assert "uv run --env-file .env python -m govops.api\n" in text
+    assert (
+        'uv run --env-file .env python -m govops.api.cli ask --as $(AS) "$(Q)"' in text
+    )
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert "serve" not in verify and "ask" not in verify

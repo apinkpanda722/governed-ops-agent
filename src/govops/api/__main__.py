@@ -2,28 +2,32 @@
 
 import argparse
 import os
+from contextlib import asynccontextmanager
 
 import uvicorn
 
 from govops.api.app import create_app
 from govops.api.sessions import SessionStore
-from govops.api.startup import verify_contract
+from govops.api.tasks import TaskService
 from govops.api.users import load_users
-from govops.tools.a_mcp import AMcpClient
+from govops.api.wiring import open_task_service
 
 
 def build_server_config(port: int) -> uvicorn.Config:
-    client = AMcpClient(os.environ["KODOCS_MCP_URL"])
-
-    async def contract_check():
-        await verify_contract(client)
-
     app = create_app(
         users=load_users(),
         sessions=SessionStore(),
         demo_login=os.environ.get("DEMO_LOGIN", "").lower() == "true",
-        startup_checks=(contract_check,),
+        service=TaskService(None),
     )
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with open_task_service() as service:
+            app.state.task_service = service
+            yield
+
+    app.router.lifespan_context = lifespan
     return uvicorn.Config(app, host="127.0.0.1", port=port, access_log=False)
 
 
