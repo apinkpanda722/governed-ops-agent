@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "agent-graph",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T16:08:29+0900",
+      "summary": "읽기 도구 6개만 실행하는 LangGraph 단일 에이전트·한국어 프롬프트·상태 조회를 TDD로 구현; 신원 분리·인용 집계·오류 처리·MAX_STEPS 검증 및 make verify 통과(Python 490개, web 15개).",
+      "completed_at": "2026-10-04T16:12:12+0900",
+      "usage": {
+        "input_tokens": 527993,
+        "cached_input_tokens": 468352,
+        "output_tokens": 5548,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
