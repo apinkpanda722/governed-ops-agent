@@ -5,6 +5,7 @@ import json
 from dataclasses import replace
 
 import pytest
+
 from govops.replay.recordings import (
     Recording,
     RecordingRejected,

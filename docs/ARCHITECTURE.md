@@ -12,10 +12,14 @@
 ```
 src/govops/
 ├── api/          # FastAPI: B 세션 인증, POST /tasks, GET /tasks/{id}, POST /tasks/{id}/approval, 진행 SSE
+│   ├── sessions.py·auth.py·users.py·startup.py·app.py  # M1 세션·인증·task API
+│   └── tasks.py·wiring.py·cli.py·smoke.py  # 백그라운드 task·운영 조립·CLI·사용자 스모크
 ├── agent/        # LangGraph 단일 에이전트: 상태·노드·그래프, 실행 전 결정론 검사, 승인 정책, MAX_STEPS/MAX_COST
+│   └── prompts.py·graph.py·checkpointer.py  # 한국어 프롬프트·읽기 그래프·DB 팩토리
 ├── tools/        # 도구 계약(스키마·버전·부작용 여부), A MCP 클라이언트, mock REST 클라이언트, outbox·표식 조회, 타임아웃·재시도·서킷
 ├── broker/       # credential_for(user, audience) — 자격 증명을 꺼내는 유일한 지점
 ├── gateway/      # LiteLLM 호출 클라이언트(에이전트의 유일한 모델 경로), LiteLLM 안에서 도는 Guardrail 훅 어댑터
+│   └── client.py·agent_key.py  # 비동기 모델 호출·전용 가상 키 발급
 ├── guardrails/   # 순수 Python 판정: 한국 형식 PII 정규식, 인젝션 패턴 사전, 팀별 정책 표 로더 (v2 분류기는 gateway 경유 호출)
 ├── audit/        # 감사 로그 해시체인·서명 쓰기(유일한 쓰기 지점), audit-verify
 ├── obs/          # trace span, 전송 전 마스킹, 로컬 JSONL / Langfuse 출력
@@ -34,6 +38,7 @@ data/
 ├── seed/         # tickets.json·users.json(label·team·grade)·mock_jira_token_hashes.json·mock_slack_token_hashes.json·manifest.json(추출 A 커밋 해시·개수) (커밋)
 ├── replay/       # requests.json(기록 요청), a/recordings.jsonl(A 응답, syn-*만, 토큰·Authorization 없음); LLM 응답 기록(프롬프트 해시 포함)은 M2 (커밋)
 ├── eval/         # 평가셋 60 task 정답 명세 (사람 검수 후 확정, 커밋)
+├── manifest/     # costs.jsonl·costs_grading.jsonl (커밋)
 ├── raw/          # 커밋 안 함
 └── interim/      # 커밋 안 함 (감사 서명 개인키 0600 등)
 docs/results/     # 결과표, 가설 사전 등록, 감사 고정점 manifest (날짜·커밋 해시)
@@ -85,7 +90,7 @@ flowchart LR
   SVC -.->|eval만, 게이트웨이 미경유| GEM
 ```
 
-- 에이전트 서비스가 호스트에 있는 이유: A MCP는 `127.0.0.1` 고정이고 MCP SDK가 이 경우 Host 헤더 검사를 켠다. 컨테이너에서 `host.docker.internal`로 붙으면 거절될 가능성이 크다. **확인 필요(구현 시 공식 문서로 확인): 컨테이너에서 A의 Host 헤더 검사가 거절하는지 M1에서 실측한다.** A는 고치지 않는다(ADR-004).
+- 에이전트 서비스가 호스트에 있는 이유: A MCP는 `127.0.0.1` 고정이고 MCP SDK가 이 경우 Host 헤더 검사를 켠다. 컨테이너에서 `host.docker.internal`로 붙으면 네트워크에는 도달하지만 인증된 요청도 Host 검사로 421 거절된다(M1 실측, ADR-004). A는 고치지 않는다.
 - 핵심 스택(LiteLLM·Postgres·mock 2개)은 Langfuse 없이 뜨고, 이때 trace는 로컬 JSONL로 남는다. Langfuse는 `docker compose --profile obs`로만 뜬다(ADR-009).
 - Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. M0 init은 `litellm`·`langfuse` DB만 만들고 checkpointer DB는 만들지 않는다(ADR-016). LangGraph checkpointer는 같은 인스턴스의 `govops` 앱 DB에 둔다. `m1-agent`에서 init 스크립트에 추가하고 기존 볼륨에는 멱등 `make db-init`을 제공한다. 연결 변수는 `GOVOPS_DATABASE_URL`이다(ADR-017).
 - web은 호스트에서 `cd web && pnpm dev`로 실행하고 compose에 넣지 않는다(ADR-016).
@@ -221,7 +226,7 @@ sequenceDiagram
 
 ## 게이트웨이와 Guardrail 비대칭 구조
 
-호출자 식별: LiteLLM **팀별 가상 키 + `user` 필드(사용자 ID) + 메타데이터 task ID**. 팀별 예산·사용량·정책은 LiteLLM 기능으로 둔다.
+호출자 식별: M1은 에이전트 전용 가상 키 `LITELLM_AGENT_KEY`와 `user` 필드(사용자 ID)·메타데이터 task ID를 쓴다. M4에서는 LiteLLM **팀별 가상 키 + `user` 필드(사용자 ID) + 메타데이터 task ID**. 팀별 예산·사용량·정책은 LiteLLM 기능으로 둔다.
 
 | 지점 | 위치 | 대상 | 동작 | Guardrail 오류·타임아웃 시 | 이유 |
 |---|---|---|---|---|---|
@@ -302,9 +307,11 @@ sequenceDiagram
 - B 세션: `POST /sessions`는 `DEMO_LOGIN` 플래그와 127.0.0.1 클라이언트 조건에서만 열린다. `secrets.token_urlsafe(32)`로 발급하고 서버는 SHA-256 해시만 메모리에 두어 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이며 최종값은 M5에서 정한다. 인증 의존성은 `Authorization: Bearer`에서 요청자·승인자 `user_id`를 얻는다. 다른 사용자의 task 조회는 404다(ADR-017).
 - 쿠키 속성(`Secure`·`SameSite`)·CSRF 대책·세션 만료 시간은 미정(M5에서 결정)이다.
 
+M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec만 두며 연결은 M3에 둔다. `MAX_STEPS`는 폭주 방지용 임시 상수이며 최종값은 M5에서 정한다.
+
 ## 상태 관리
 - **에이전트 상태:** LangGraph state + 같은 Postgres 인스턴스의 `govops` 앱 DB checkpointer(`GOVOPS_DATABASE_URL`, ADR-017). `make verify` 테스트는 in-memory saver를 쓰며 실제 Postgres는 사용자 스모크로 확인한다. state에는 사용자 ID·초안·초안 해시·도구 결과가 들어가고 토큰은 들어가지 않는다. checkpointer는 실행에 필요한 원문을 두며, task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다. 삭제 명령과 테스트는 M5에 둔다(ADR-015).
 - **outbox:** 멱등 키별 상태(기록됨·성공·불확실·실패)와 표식. 저장 위치는 미정(M3에서 결정).
 - **mock 상태:** mock 서비스 메모리 또는 파일. 관리 엔드포인트로 초기화한다. 장애 주입은 요청 순번 스크립트로 재현한다.
-- **비용 원장:** 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007.
-- **비밀 값:** API 키는 `.env`에서만 읽는다. LiteLLM 팀별 가상 키의 보관·주입 방식은 미정(M4에서 결정)이다.
+- **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007.
+- **비밀 값:** API 키는 `.env`에서만 읽는다. M1은 에이전트 전용 가상 키 1개(`LITELLM_AGENT_KEY`)를 쓰고 팀별 키는 M4에 둔다. LiteLLM 팀별 가상 키의 보관·주입 방식은 미정(M4에서 결정)이다.

@@ -41,9 +41,9 @@
 ### ADR-004: A는 고치지 않고, B 에이전트는 호스트에서 돌며, live·replay 두 모드로 연결한다
 **상태**: 유효
 **결정**: B 에이전트 서비스는 호스트에서 `uv run`으로 실행하고, LiteLLM·Langfuse·mock·Postgres는 B의 compose에 둔다. A 연결은 live(실제 A, 보고 수치는 이 모드만)와 replay(기록한 A 응답을 돌려주는 가짜 A MCP, CI·외부 검토자용) 두 모드다. 기록은 사용자가 실행하고 합성 문서(`syn-*`)만 남긴다(실제 규정 원문 재게시 금지, 검사 테스트로 강제). 토큰·Authorization 헤더는 기록하지 않는다. A `tests/contract/snapshots`(도구 4개 v1)를 A 커밋 해시와 함께 복사하고, 시작 시 live `tools/list`와 비교해 다르면 중단한다. 가짜 A도 같은 계약 테스트를 통과한다. B MCP 클라이언트 테스트는 실제 streamable HTTP로 가짜 A에 요청한다. B 진행 중 A는 고치지 않는다. A 결함은 A 저장소 별도 이슈·PR로 다루고, 공개 직전 `make m8-audit` 재실행에 포함한다.
-**이유**: A MCP는 `127.0.0.1` 고정(`mcp_server/__main__.py:17`, `server.py:133`의 `streamable_http_app(host="127.0.0.1")`)이고, MCP SDK는 이 경우 Host 헤더 검사를 켠다. 컨테이너에서 `host.docker.internal`로 붙으면 거절될 가능성이 크다. A를 고치면 A의 보고 수치와 감사 결과가 흔들리므로 B 쪽 배치를 바꾼다. replay 모드가 있어야 키 없는 CI와 외부 검토자가 재현할 수 있다.
+**이유**: A MCP는 `127.0.0.1` 고정(`mcp_server/__main__.py:17`, `server.py:133`의 `streamable_http_app(host="127.0.0.1")`)이고, MCP SDK는 이 경우 Host 헤더 검사를 켠다. 컨테이너에서 `host.docker.internal`로 붙으면 네트워크에는 도달하지만 인증된 요청도 Host 검사로 거절된다(M1 실측). A를 고치면 A의 보고 수치와 감사 결과가 흔들리므로 B 쪽 배치를 바꾼다. replay 모드가 있어야 키 없는 CI와 외부 검토자가 재현할 수 있다.
 **트레이드오프**: 에이전트 서비스만 compose 밖에 있어 `docker compose up` 한 번으로 전체가 뜨지 않는다. replay는 기록 시점의 A 응답만 재현하므로 A가 바뀌면 재기록해야 한다(계약 비교가 이를 잡는다).
-**확인 필요(구현 시 공식 문서로 확인)**: 컨테이너에서 A의 Host 헤더 검사가 실제로 거절하는지(M1 실측).
+**확정(M1 실측, 2026-10-04)**: 컨테이너에서 `host.docker.internal:8765`로 네트워크 도달은 되지만(인증 없는 POST는 401), 인증된 요청에 위조 Host 헤더를 달면 A가 421로 거절한다. 따라서 에이전트 서비스는 호스트에서 실행한다. 근거: [M1 도구 계층 live 실측](results/2026-10-04-m1-tools-live.md).
 **변경 기록**:
 - 2026-10-03: 결정 3으로 확정.
 
@@ -81,6 +81,7 @@
 ### ADR-007: 모델과 키, 비용 상한은 B 전체 기간 총액으로 코드로 강제한다
 **상태**: 유효
 **결정**: 에이전트 주 모델은 OpenAI `gpt-6-luna`(A와 동일, A 지연을 기준선으로), fallback은 Anthropic Sonnet 계열(다른 회사)이며 호출 단위(LiteLLM)로 전환한다. 모델이 섞인 task 수와 그 TCR을 따로 보고한다. Guardrail v2 분류기는 Anthropic 소형 모델(Haiku 계열, ADR-008)이다. 채점은 Gemini `gemini-3.8-flash`(A 절차, 사람 κ 재보정). 주 모델·fallback·v2 분류기는 LiteLLM 경유, 채점은 게이트웨이를 거치지 않고 비용은 별도 원장에 둔다. B 전용 키를 새로 발급한다(OpenAI project, Anthropic workspace, Gemini project). 사용자가 발급해 B `.env`에만 둔다. Upstage는 쓰지 않는다. 모델 ID·설정은 평가 전 freeze하고 변경은 기록을 공개한다.
+원장은 `data/manifest/costs.jsonl`과 채점 전용 `data/manifest/costs_grading.jsonl`에 두며, 원장이 없으면 호출 거부한다.
 비용 상한은 **B 전체 기간 총액(월 단위 아님)**이다. 규칙: `상한 = 잔액 × 0.9`(10%는 지원 직전 A 재점검·B 데모 재촬영 몫). 잔액을 원장으로 추정할 때는 A 원장 사용액에 청구 여유 1.05(A `billing_margin`, 원장 대 콘솔 +3.2% 실측 이력)를 곱해 뺀다. 센트 미만은 버린다. **호출 직전 공급사별 누적액 검사로 강제한다**(A `costs.py` 방식). 공급사 상한은 그대로 두고, 원장의 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다.
 
 | 공급사 | 근거 | B 상한 |

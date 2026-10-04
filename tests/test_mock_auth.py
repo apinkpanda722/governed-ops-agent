@@ -5,6 +5,7 @@ import json
 import secrets
 
 import pytest
+
 from govops.mocks.auth import MockUser, TokenHashStore
 from govops.mocks.tokens import main
 

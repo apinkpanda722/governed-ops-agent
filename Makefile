@@ -54,3 +54,35 @@ smoke-mock:
 # live A·사용자 토큰 필요; 인증된 위조 Host 요청 421 또는 403 거절.
 smoke-host-header:
 	uv run --env-file .env python -m govops.tools.smoke host-header --user $(SMOKE_USER)
+
+.PHONY: costs-init
+costs-init:
+	uv run python -m govops.costs init
+
+.PHONY: agent-key
+# compose 기동 후 실행. 키는 출력되지 않고 .env에 기록된다
+agent-key:
+	uv run --env-file .env python -m govops.gateway.agent_key
+
+.PHONY: db-init
+# compose 기동 후 실행, 이미 있으면 변경 없음
+db-init:
+	docker compose -f infra/docker-compose.yml exec -T postgres sh -c 'printf "%s\n" "SELECT '\''CREATE DATABASE govops'\'' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '\''govops'\'');" "\gexec" | psql --username "$$POSTGRES_USER" --dbname postgres --set ON_ERROR_STOP=1'
+
+.PHONY: serve ask
+# compose·live A 기동 후, DEMO_LOGIN=true 필요
+serve:
+	uv run --env-file .env python -m govops.api
+
+# 예시: make ask AS=demo-platform-g3 Q="티켓을 요약해 주세요"
+ask:
+	uv run --env-file .env python -m govops.api.cli ask --as $(AS) "$(Q)"
+
+.PHONY: smoke-checkpointer smoke-agent
+# compose·make db-init 필요, 쓰기·읽기 왕복
+smoke-checkpointer:
+	uv run --env-file .env python -m govops.api.smoke checkpointer
+
+# live A·LiteLLM·make agent-key 필요, 실제 호출 수 센트, 기대값: 두 사용자 completed·platform만 syn-incident-022 관찰·인용·원장 증가
+smoke-agent:
+	uv run --env-file .env python -m govops.api.smoke agent

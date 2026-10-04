@@ -58,3 +58,19 @@ def test_jira_existence_privacy_and_slack_denial():
     mock = adr.split("### ADR-006:", 1)[1].split("### ADR-007:", 1)[0]
     assert '쓰기 거부는 명시적 "권한 없음"' not in mock
     assert "mock-slack 채널" in mock and "403" in mock and "404" in mock
+
+
+def test_agent_phase_commands_and_ledger():
+    commands = read("AGENTS.md").split("## 명령어", 1)[1]
+    for name in (
+        "costs-init",
+        "agent-key",
+        "db-init",
+        "serve",
+        "ask",
+        "smoke-checkpointer",
+        "smoke-agent",
+    ):
+        assert f"make {name} " in commands
+    assert read("AGENTS.md").count("CRITICAL:") == 25
+    assert "data/manifest/costs.jsonl" in read("docs/ARCHITECTURE.md")

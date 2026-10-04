@@ -1,0 +1,194 @@
+{
+  "users": [
+    {
+      "grade": 1,
+      "label": "demo-data-ai-g1",
+      "team": "data-ai"
+    },
+    {
+      "grade": 2,
+      "label": "demo-data-ai-g2",
+      "team": "data-ai"
+    },
+    {
+      "grade": 3,
+      "label": "demo-data-ai-g3",
+      "team": "data-ai"
+    },
+    {
+      "grade": 4,
+      "label": "demo-data-ai-g4",
+      "team": "data-ai"
+    },
+    {
+      "grade": 1,
+      "label": "demo-finance-g1",
+      "team": "finance"
+    },
+    {
+      "grade": 2,
+      "label": "demo-finance-g2",
+      "team": "finance"
+    },
+    {
+      "grade": 3,
+      "label": "demo-finance-g3",
+      "team": "finance"
+    },
+    {
+      "grade": 4,
+      "label": "demo-finance-g4",
+      "team": "finance"
+    },
+    {
+      "grade": 6,
+      "label": "demo-finance-g6",
+      "team": "finance"
+    },
+    {
+      "grade": 1,
+      "label": "demo-hr-g1",
+      "team": "hr"
+    },
+    {
+      "grade": 2,
+      "label": "demo-hr-g2",
+      "team": "hr"
+    },
+    {
+      "grade": 3,
+      "label": "demo-hr-g3",
+      "team": "hr"
+    },
+    {
+      "grade": 4,
+      "label": "demo-hr-g4",
+      "team": "hr"
+    },
+    {
+      "grade": 5,
+      "label": "demo-hr-g5",
+      "team": "hr"
+    },
+    {
+      "grade": 1,
+      "label": "demo-legal-g1",
+      "team": "legal"
+    },
+    {
+      "grade": 2,
+      "label": "demo-legal-g2",
+      "team": "legal"
+    },
+    {
+      "grade": 3,
+      "label": "demo-legal-g3",
+      "team": "legal"
+    },
+    {
+      "grade": 4,
+      "label": "demo-legal-g4",
+      "team": "legal"
+    },
+    {
+      "grade": 5,
+      "label": "demo-legal-g5",
+      "team": "legal"
+    },
+    {
+      "grade": 1,
+      "label": "demo-payments-g1",
+      "team": "payments"
+    },
+    {
+      "grade": 2,
+      "label": "demo-payments-g2",
+      "team": "payments"
+    },
+    {
+      "grade": 3,
+      "label": "demo-payments-g3",
+      "team": "payments"
+    },
+    {
+      "grade": 4,
+      "label": "demo-payments-g4",
+      "team": "payments"
+    },
+    {
+      "grade": 5,
+      "label": "demo-payments-g5",
+      "team": "payments"
+    },
+    {
+      "grade": 1,
+      "label": "demo-platform-g1",
+      "team": "platform"
+    },
+    {
+      "grade": 2,
+      "label": "demo-platform-g2",
+      "team": "platform"
+    },
+    {
+      "grade": 3,
+      "label": "demo-platform-g3",
+      "team": "platform"
+    },
+    {
+      "grade": 4,
+      "label": "demo-platform-g4",
+      "team": "platform"
+    },
+    {
+      "grade": 6,
+      "label": "demo-platform-g6",
+      "team": "platform"
+    },
+    {
+      "grade": 1,
+      "label": "demo-security-g1",
+      "team": "security"
+    },
+    {
+      "grade": 3,
+      "label": "demo-security-g3",
+      "team": "security"
+    },
+    {
+      "grade": 4,
+      "label": "demo-security-g4",
+      "team": "security"
+    },
+    {
+      "grade": 5,
+      "label": "demo-security-g5",
+      "team": "security"
+    },
+    {
+      "grade": 1,
+      "label": "demo-sre-g1",
+      "team": "sre"
+    },
+    {
+      "grade": 2,
+      "label": "demo-sre-g2",
+      "team": "sre"
+    },
+    {
+      "grade": 3,
+      "label": "demo-sre-g3",
+      "team": "sre"
+    },
+    {
+      "grade": 4,
+      "label": "demo-sre-g4",
+      "team": "sre"
+    },
+    {
+      "grade": 5,
+      "label": "demo-sre-g5",
+      "team": "sre"
+    }
+  ]
+}

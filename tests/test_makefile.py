@@ -5,6 +5,20 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_db_init_is_idempotent_and_user_run_only() -> None:
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: db-init" in text
+    recipe = text.split("\ndb-init:\n", 1)[1].split("\n\n", 1)[0]
+    assert "docker compose -f infra/docker-compose.yml exec -T postgres" in recipe
+    assert "CREATE DATABASE govops" in recipe
+    assert "WHERE NOT EXISTS" in recipe
+    assert "pg_database" in recipe
+    assert "\\gexec" in recipe
+    assert "ON_ERROR_STOP=1" in recipe
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert "db-init" not in verify
+
+
 def test_verify_recipe_runs_all_checks_in_order() -> None:
     lines = (REPO_ROOT / "Makefile").read_text(encoding="utf-8").splitlines()
     start = lines.index("verify:") + 1
@@ -45,3 +59,35 @@ def test_user_run_targets_are_separate():
     assert all(name not in verify for name in live)
     assert ".PHONY: verify\n" in text
     assert "SMOKE_USER ?= demo-platform-g3" in text
+
+
+def test_agent_key_is_user_run_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert (
+        "\nagent-key:\n\tuv run --env-file .env python -m govops.gateway.agent_key\n"
+        in text
+    )
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert "agent-key" not in verify
+
+
+def test_serve_and_ask_are_user_run_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert "# compose·live A 기동 후, DEMO_LOGIN=true 필요\nserve:\n" in text
+    assert "uv run --env-file .env python -m govops.api\n" in text
+    assert (
+        'uv run --env-file .env python -m govops.api.cli ask --as $(AS) "$(Q)"' in text
+    )
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert "serve" not in verify and "ask" not in verify
+
+
+def test_api_smokes_are_user_run_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for name in ("checkpointer", "agent"):
+        assert (
+            f"\nsmoke-{name}:\n\tuv run --env-file .env python -m govops.api.smoke {name}\n"
+            in text
+        )
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert "smoke-checkpointer" not in verify and "smoke-agent" not in verify

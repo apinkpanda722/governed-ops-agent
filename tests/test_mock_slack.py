@@ -8,12 +8,12 @@ from itertools import count
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from govops.mocks.slack import SlackState
 
 from govops.mocks import __main__ as runner
 from govops.mocks import admin
 from govops.mocks.auth import TEAMS, TokenHashStore
 from govops.mocks.service import create_admin_app, create_rest_app
+from govops.mocks.slack import SlackState
 from govops.mocks.tokens import generate_tokens
 
 

@@ -83,3 +83,11 @@ make smoke-identity # 두 사용자 신원별 티켓 가시성 확인(사용자 
 make smoke-visibility # 38명 × 표본 티켓 가시성 대조(사용자 실행)
 make smoke-mock # mock 채널·권한·인증 확인(사용자 실행)
 make smoke-host-header # live A 인증된 위조 Host 헤더 거절 실측(사용자 실행)
+
+make costs-init # 분리 비용 원장 초기화(사용자 실행)
+make agent-key # 에이전트 전용 LiteLLM 가상 키 발급(사용자 실행)
+make db-init # govops 앱 DB 멱등 초기화(사용자 실행)
+make serve # 루프백 API 서비스 실행(사용자 실행)
+make ask # 사용자 신원으로 요청·폴링 CLI(사용자 실행)
+make smoke-checkpointer # Postgres 체크포인트 쓰기·읽기 왕복(사용자 실행)
+make smoke-agent # 두 사용자 live 조회·관찰·인용·비용 검증(사용자 실행)
