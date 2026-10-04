@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "docs-sync",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T18:26:10+0900",
+      "summary": "평가 명령어·모듈·데이터 경로와 M2/M3 경계·채점 규칙·고정 사전 등록 문구를 문서에 동기화하고 일관성 테스트 및 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-04T18:29:10+0900",
+      "usage": {
+        "input_tokens": 379152,
+        "cached_input_tokens": 317696,
+        "output_tokens": 3884,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-04T17:42:59+0900"
