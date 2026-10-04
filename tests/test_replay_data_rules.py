@@ -3,9 +3,9 @@
 import json
 from pathlib import Path
 
-from govops.replay.recordings import Recording, validate_recording
 from jsonschema import Draft202012Validator
 
+from govops.replay.recordings import Recording, validate_recording
 from govops.tools.contract import load_snapshot
 
 ROOT = Path(__file__).parents[1]
@@ -27,6 +27,11 @@ def test_repository_recordings():
                 if path.suffix == ".jsonl"
                 else json.loads(content)
             )
+            if path.name == "requests.json":
+                payloads = [
+                    {**request, "result": {}, "is_error": False}
+                    for request in payloads["requests"]
+                ]
             if isinstance(payloads, dict):
                 payloads = [payloads]
             for payload in payloads:
