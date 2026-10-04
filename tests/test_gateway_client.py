@@ -543,3 +543,43 @@ def test_generation_id_is_short_unique_and_recorded_on_the_span(tmp_path):
     assert len(set(seen)) == 2 and all(re.fullmatch(r"[0-9a-f]{16}", g) for g in seen)
     root = sink.records[-1]
     assert root.attributes["generation_id"] == seen[-1]
+
+
+def test_generation_is_attached_under_the_current_model_span(tmp_path):
+    from govops.obs import trace as obs
+
+    costs.init_ledgers(tmp_path)
+    seen = {}
+
+    def handler(request):
+        seen["metadata"] = json.loads(request.content)["metadata"]
+        return httpx.Response(200, json=response())
+
+    class Sink:
+        def emit(self, record):
+            pass
+
+        def close_trace(self, trace_id):
+            pass
+
+    async def invoke():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            client = LiteLLMChatClient(
+                api_key=KEY,
+                base_url="http://litellm.test",
+                ledger=costs.CostLedger(tmp_path),
+                http_client=http,
+            )
+            return await client.complete(
+                messages=MESSAGES, tools=TOOLS, task_id="a" * 32, user_id="u"
+            )
+
+    with (
+        obs.trace("a" * 32, sinks=[Sink()]),
+        obs.span(obs.SpanKind.MODEL_CALL, "agent-primary"),
+    ):
+        expected = obs.current_span_id()
+        asyncio.run(invoke())
+    assert seen["metadata"]["parent_observation_id"] == expected
+    assert re.fullmatch(r"[0-9a-f]{16}", expected)
+    assert "trace_id" not in seen["metadata"]

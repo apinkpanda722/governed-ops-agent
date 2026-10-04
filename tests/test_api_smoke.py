@@ -236,6 +236,8 @@ def test_each_structured_id_field_is_checked(tmp_path, field):
         ("generation", "E3"),
         ("generation_id", "E3"),
         ("content", "E4"),
+        ("redacted", None),
+        ("request_text", "E4"),
         ("phone", "E5"),
         ("placeholder", "E5"),
         ("secret", "E6"),
@@ -292,6 +294,18 @@ def test_obs_expectations(tmp_path, change, failed, queue):
         generation["id"] = "litellm-made-long-id"
     if change == "content":
         generation["input"] = "message"
+    if change == "redacted":
+        # LiteLLM은 원문 로깅을 끄면 비우지 않고 자리 표시자로 바꾼다.
+        generation["input"] = [{"role": "user", "content": "redacted-by-litellm"}]
+        generation["output"] = {
+            "role": "assistant",
+            "content": "redacted-by-litellm",
+            "tool_calls": [{"function": {"arguments": "redacted-by-litellm"}}],
+        }
+    if change == "request_text":
+        generation["input"] = [
+            {"role": "user", "content": "redacted-by-litellm INC-2026-012"}
+        ]
     if change == "phone":
         generation["metadata"] = probe
     if change == "secret":
@@ -396,3 +410,237 @@ def test_obs_probe_and_fixed_contract():
     assert len(smoke.OBS_EXPECTATIONS) == 7
     assert smoke.OBS_TIMEOUT_S == 60 and smoke.OBS_POLL_INTERVAL == 5
     assert smoke.OBS_INFO == "INFO annotation_queues_status="
+
+
+REASONS = {
+    "missing": ("E1", "trace_fetch_status=404"),
+    "root": ("E2", "root_task_missing"),
+    "model": ("E2", "model_call_span_missing"),
+    "tool": ("E2", "tool_call_span_missing"),
+    "generation": ("E3", "generation_missing"),
+    "generation_id": ("E3", "generation_id_mismatch=1"),
+    "content": ("E4", "generation_not_redacted=1"),
+    "request_text": ("E4", "request_text_in_generation=1"),
+    "phone": ("E5", "probe_in_langfuse"),
+    "placeholder": ("E5", "pii_placeholder_missing"),
+    "secret": ("E6", "secret_in_langfuse"),
+    "counts": ("E7", "local_spans=3 remote_spans=2"),
+    "local_phone": ("E5", "probe_in_local"),
+    "local_secret": ("E6", "secret_in_local"),
+}
+
+
+def run_obs(tmp_path, handler, service=None, **kwargs):
+    import httpx
+
+    task = "a" * 32
+
+    class Service:
+        async def start(self, user, request):
+            return task
+
+        async def get(self, user, task_id):
+            return {"status": "completed"}
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await smoke.smoke_obs(
+                service or Service(),
+                client,
+                host="http://langfuse.test",
+                public_key="public-sentinel",
+                secret_key="private-smoke-sentinel",
+                secrets=("private-smoke-sentinel",),
+                trace_root=tmp_path,
+                **{"timeout_s": 0, "poll_interval": 0} | kwargs,
+            )
+
+    return asyncio.run(run())
+
+
+@pytest.mark.parametrize("change", sorted(REASONS))
+def test_failed_checks_carry_a_short_reason_code(tmp_path, change):
+    import json
+
+    import httpx
+
+    task = "a" * 32
+    rows = [
+        {
+            "span_id": str(i),
+            "kind": kind,
+            "attributes": {
+                "input.request": "참고 연락처: [PII:mobile]",
+                **({"generation_id": "generation"} if kind == "model_call" else {}),
+            },
+        }
+        for i, kind in enumerate(("task", "model_call", "tool_call"))
+    ]
+    observations = [
+        {
+            "id": r["span_id"],
+            "name": r["kind"],
+            "type": "SPAN",
+            "input": r["attributes"]["input.request"],
+            "parentObservationId": None if i == 0 else "0",
+            "traceId": task,
+        }
+        for i, r in enumerate(rows)
+    ]
+    generation = {
+        "id": "generation",
+        "name": "agent-primary",
+        "type": "GENERATION",
+        "traceId": task,
+        "input": None,
+        "output": None,
+    }
+    observations.append(generation)
+    if change in {"root", "model", "tool"}:
+        observations[{"root": 0, "model": 1, "tool": 2}[change]]["name"] = "other"
+    if change == "generation":
+        observations.pop()
+    if change == "generation_id":
+        generation["id"] = "litellm-made-long-id"
+    if change == "content":
+        generation["input"] = "message"
+    if change == "request_text":
+        generation["input"] = "redacted-by-litellm INC-2026-012"
+    if change == "phone":
+        generation["metadata"] = smoke.OBS_PROBE
+    if change == "secret":
+        generation["metadata"] = "private-smoke-sentinel"
+    if change == "placeholder":
+        observations[0]["input"] = "no placeholder"
+    if change == "counts":
+        observations.pop(1)
+    if change == "local_phone":
+        rows[0]["attributes"]["leak"] = smoke.OBS_PROBE
+    if change == "local_secret":
+        rows[0]["attributes"]["leak"] = "private-smoke-sentinel"
+    (tmp_path / f"{task}.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
+
+    def handler(request):
+        if request.url.path.endswith("annotation-queues"):
+            return httpx.Response(200)
+        if change == "missing":
+            return httpx.Response(404)
+        return httpx.Response(200, json={"id": task, "observations": observations})
+
+    result = run_obs(tmp_path, handler)
+    code, reason = REASONS[change]
+    lines = [line for line in result.lines if line.startswith("FAIL " + code)]
+    assert lines and f": {reason}" in lines[0], result.lines
+    text = str(result)
+    assert smoke.OBS_PROBE not in text and "private-smoke-sentinel" not in text
+
+
+def test_generations_under_model_span_is_reported_as_info(tmp_path):
+    import json
+
+    import httpx
+
+    task = "a" * 32
+    rows = [
+        {"span_id": "0", "kind": "task", "attributes": {"input.request": "[PII:x]"}},
+        {"span_id": "1", "kind": "model_call", "attributes": {"generation_id": "g1"}},
+        {"span_id": "2", "kind": "tool_call", "attributes": {}},
+    ]
+    (tmp_path / f"{task}.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
+    base = [
+        {"id": r["span_id"], "name": r["kind"], "type": "SPAN", "traceId": task}
+        for r in rows
+    ]
+    base[0]["input"] = "[PII:x]"
+    for item in base[1:]:
+        item["parentObservationId"] = "0"
+    generation = {
+        "id": "g1",
+        "name": "agent-primary",
+        "type": "GENERATION",
+        "traceId": task,
+        "parentObservationId": "1",
+    }
+
+    def handler(request):
+        if request.url.path.endswith("annotation-queues"):
+            return httpx.Response(200)
+        return httpx.Response(
+            200, json={"id": task, "observations": [*base, generation]}
+        )
+
+    result = run_obs(tmp_path, handler)
+    assert "INFO generations_under_model_span=1/1" in result.lines
+    generation.pop("parentObservationId")
+    assert "INFO generations_under_model_span=0/1" in run_obs(tmp_path, handler).lines
+
+
+def test_final_attempt_does_not_wipe_partial_results(tmp_path):
+    """마감 직전 짧은 마지막 조회가 앞선 판정을 전부 지우던 문제의 회귀 테스트."""
+    import json
+
+    import httpx
+
+    task = "a" * 32
+    rows = [
+        {"span_id": "0", "kind": "task", "attributes": {"input.request": "[PII:x]"}}
+    ]
+    (tmp_path / f"{task}.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
+    observations = [
+        {
+            "id": "0",
+            "name": "task",
+            "type": "SPAN",
+            "traceId": task,
+            "input": "[PII:x]",
+        }
+    ]
+
+    async def handler(request):
+        if request.url.path.endswith("annotation-queues"):
+            return httpx.Response(200)
+        await asyncio.sleep(0.15)  # 남은 시간이 거의 없을 때의 느린 조회
+        return httpx.Response(200, json={"id": task, "observations": observations})
+
+    result = run_obs(tmp_path, handler, timeout_s=0.3, poll_interval=0.05)
+    assert any(line.startswith("PASS E1") for line in result.lines), result.lines
+
+
+def test_failures_report_stage_and_exception_class_only(tmp_path):
+    import httpx
+
+    class Boom(RuntimeError):
+        pass
+
+    class Failing:
+        async def start(self, user, request):
+            raise Boom("private-smoke-sentinel http://secret.example")
+
+    result = run_obs(tmp_path, lambda request: httpx.Response(200), service=Failing())
+    assert "INFO stage=task_run exception=Boom" in result.lines
+    assert not result.ok
+    assert "private-smoke-sentinel" not in str(result) and "secret.example" not in str(
+        result
+    )
+
+    def handler(request):
+        if request.url.path.endswith("annotation-queues"):
+            return httpx.Response(200)
+        raise httpx.ConnectError("private-smoke-sentinel", request=request)
+
+    result = run_obs(tmp_path, handler)
+    first = next(line for line in result.lines if line.startswith("FAIL E1"))
+    assert "trace_fetch_exception=ConnectError" in first
+    assert "private-smoke-sentinel" not in str(result)
+
+    def unauthorized(request):
+        if request.url.path.endswith("annotation-queues"):
+            return httpx.Response(200)
+        return httpx.Response(401)
+
+    first = next(
+        line
+        for line in run_obs(tmp_path, unauthorized).lines
+        if line.startswith("FAIL E1")
+    )
+    assert "trace_fetch_status=401" in first

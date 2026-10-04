@@ -155,6 +155,12 @@ def test_obs_targets_user_only():
         "--profile obs stop langfuse-web langfuse-worker clickhouse redis minio" in text
     )
     assert "up -d litellm" in text
+    # config.obs.yaml의 내용이 바뀌어도 LiteLLM이 새 설정을 읽도록 obs-up은 항상 재생성한다.
+    recipe = text.split("\nobs-up:\n", 1)[1].split("\n\n", 1)[0]
+    assert (
+        "--force-recreate" in recipe
+        and "litellm" in recipe.split("--force-recreate")[1]
+    )
 
 
 def test_cost_report_is_read_only_without_env_file():

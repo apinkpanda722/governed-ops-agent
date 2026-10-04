@@ -21,7 +21,7 @@ from openai import (
 )
 
 from govops.costs import CostLedger, estimate_call_usd, token_cost_usd
-from govops.obs.trace import set_attributes
+from govops.obs.trace import current_span_id, set_attributes
 
 _MODEL = "gpt-6-luna"
 _IN_CALL: ContextVar[bool] = ContextVar("gateway_model_call", default=False)
@@ -132,6 +132,10 @@ class LiteLLMChatClient:
         # MinIO 객체 이름으로 쓸 때 제한에 걸려 업로드가 실패한다. 짧은 hex를 직접 정한다.
         generation_id = secrets.token_hex(8)
         metadata["generation_id"] = generation_id
+        # generation을 에이전트의 모델 호출 span 아래에 붙인다(span ID = Langfuse observation ID).
+        parent = current_span_id()
+        if parent is not None:
+            metadata["parent_observation_id"] = parent
         set_attributes(generation_id=generation_id)
         body = {
             "model": "agent-primary",
