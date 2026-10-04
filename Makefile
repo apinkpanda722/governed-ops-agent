@@ -55,6 +55,12 @@ smoke-mock:
 smoke-host-header:
 	uv run --env-file .env python -m govops.tools.smoke host-header --user $(SMOKE_USER)
 
+
+.PHONY: cost-report
+# 원장 읽기 전용, 네트워크 불필요
+cost-report:
+	uv run python -m govops.costs report
+
 .PHONY: costs-init
 costs-init:
 	uv run python -m govops.costs init

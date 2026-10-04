@@ -155,3 +155,15 @@ def test_obs_targets_user_only():
         "--profile obs stop langfuse-web langfuse-worker clickhouse redis minio" in text
     )
     assert "up -d litellm" in text
+
+
+def test_cost_report_is_read_only_without_env_file():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: cost-report" in text
+    assert (
+        "# 원장 읽기 전용, 네트워크 불필요\ncost-report:\n\tuv run python -m govops.costs report\n"
+        in text
+    )
+    recipe = text.split("\ncost-report:\n")[1].split("\n\n")[0]
+    assert "--env-file" not in recipe  # 키 없는 user-run 타깃의 명시적 예외
+    assert "cost-report" not in text.split("verify:\n")[1].split("\n\n")[0]
