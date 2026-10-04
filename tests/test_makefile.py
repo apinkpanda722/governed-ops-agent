@@ -52,14 +52,15 @@ def test_user_run_targets_are_separate():
         "smoke-mock",
         "smoke-host-header",
     ]
-    for name in ["mock-tokens", "seed-extract", *live]:
+    for name in ["mock-tokens", "seed-extract", "eval-meta-extract", *live]:
         assert "\n" + name + ":\n" in text
         recipe = text.split("\n" + name + ":\n", 1)[1].splitlines()[0]
         assert "uv run " in recipe
         if name in live:
             assert "uv run --env-file .env " in recipe
     verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
-    assert all(name not in verify for name in live)
+    assert all(name not in verify for name in [*live, "eval-meta-extract"])
+    assert "eval-meta-extract" in text.split(".PHONY:", 2)[-1]
     assert ".PHONY: verify\n" in text
     assert "SMOKE_USER ?= demo-platform-g3" in text
 

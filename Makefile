@@ -86,3 +86,8 @@ smoke-checkpointer:
 # live A·LiteLLM·make agent-key 필요, 실제 호출 수 센트, 기대값: 두 사용자 completed·platform만 syn-incident-022 관찰·인용·원장 증가
 smoke-agent:
 	uv run --env-file .env python -m govops.api.smoke agent
+
+.PHONY: eval-meta-extract
+# 읽기 전용 A 필요, 사용자 실행
+eval-meta-extract:
+	uv run python -m govops.eval.meta_extract --a-root $(A_ROOT)
