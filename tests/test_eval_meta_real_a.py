@@ -52,13 +52,23 @@ def test_real_a_extracts_and_validates(tmp_path):
 
 
 def test_real_a_meta_generates_the_taskset(tmp_path):
-    """추출 결과가 60 task 생성·명세 검증까지 이어진다(B 시드는 저장소 것을 쓴다)."""
+    """추출 결과가 60 task 생성·명세 검증까지 이어진다(B 시드는 저장소 것을 쓴다).
+
+    추출 결과가 커밋된 `data/eval/meta.json`과 같으면 생성은 그 파일로 하는 다른 테스트
+    (`test_other_specs_keep_their_hashes_on_the_real_corpus`)가 이미 검증하므로 건너뛴다.
+    """
     import json
 
+    from govops.eval.meta import meta_sha256
     from govops.eval.spec import validate_specs
     from govops.eval.taskgen import generate_tasks, summarize
 
     meta_extract.extract(A_ROOT, tmp_path / "out", expected={})
+    committed = Path(__file__).resolve().parents[1] / "data/eval/meta.json"
+    if committed.is_file() and meta_sha256(committed) == meta_sha256(
+        tmp_path / "out/meta.json"
+    ):
+        return
     meta = load_meta(tmp_path / "out/meta.json")
     seed = Path(__file__).resolve().parents[1] / "data/seed"
     tickets = json.loads((seed / "tickets.json").read_text())["tickets"]

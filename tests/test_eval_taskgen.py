@@ -1,3 +1,4 @@
+import functools
 import json
 from collections import Counter
 from pathlib import Path
@@ -77,6 +78,33 @@ def fixture():
                     "min_grade": 4,
                 }
             )
+        # 실제 코퍼스처럼 모든 장애는 읽을 수 있는 공개 문서에도 일부 사실이 언급된다(그래서 요청에
+        # 장애 번호를 써도 "숨은 장애"가 아니다). 이 언급 문서의 값은 금지 값이 될 수 없다.
+        pub = f"f-pub-{i}"
+        docs.append(
+            {
+                "doc_id": f"syn-pub-{i:03}",
+                "doc_type": "guide",
+                "team": team,
+                "access_level": "public",
+                "access_teams": [],
+                "access_min_grade": 1,
+                "fact_ids": [pub],
+                "related_doc_ids": [],
+                "injection_id": None,
+                "canary_fact_id": None,
+            }
+        )
+        facts.append(
+            {
+                "fact_id": pub,
+                "kind": "text",
+                "value": f"PUB_VALUE_{i:03}",
+                "source_kind": "incident",
+                "source_id": inc,
+                "owner_team": team,
+            }
+        )
         tid = f"SYN-{1000 + i}"
         tickets.append(
             {
@@ -303,3 +331,133 @@ def test_public_incident_id_is_not_a_forbidden_answer():
         if s.subtype == "no_permission":
             assert s.forbidden.leak_values
             assert all(v not in s.request for v in s.forbidden.leak_values)
+
+
+# ---------- no_permission 선정 규칙: 선정 후 감사·위반 문항만 교체 ----------
+
+
+@functools.cache
+def generated(repair: bool):
+    """같은 fixture의 생성 결과(생성은 수 초 걸리므로 한 번만 한다). 반환 값은 수정하지 않는다."""
+    meta, tickets, users = fixture()
+    from govops.eval.taskgen import generate_with_report
+
+    return generate_with_report(meta, tickets, users, repair=repair)
+
+
+def test_access_index_record_is_the_report_and_tickets_not_mentions():
+    from govops.eval.access_index import AccessIndex
+
+    meta, tickets, users = fixture()
+    index = AccessIndex(meta, tickets)
+    first = next(u for u in users if u["team"] == "platform")
+    # syn-doc-000은 장애 보고 문서이고 연결 티켓이 공개라 누구나 기록을 읽을 수 있다
+    assert [d.doc_id for d in index.record_docs("INC-2026-000")] == ["syn-doc-000"]
+    assert index.record_visible(first, "INC-2026-000")
+    # 가이드 문서(i ≥ 24)는 장애 보고 문서가 아니므로 기록이 아니고, 티켓은 팀 전용이다
+    assert index.record_docs("INC-2026-030") == []
+    other = next(u for u in users if u["team"] != "legal" and u["team"] != "hr")
+    owner = next(u for u in users if u["team"] == "hr")
+    assert not index.record_visible(other, "INC-2026-030")  # 30 % 8 = 6 → security
+    assert index.incident_of("대상은 INC-2026-030입니다") == "INC-2026-030"
+    assert index.incident_of("syn-doc-001") is None
+    assert not index.value_visible(owner, "SYN_VALUE_030")
+
+
+def test_repair_replaces_only_the_violating_specs():
+    from govops.eval.spec_audit import audit_specs
+    from govops.eval.taskgen import generate_with_report
+
+    meta, tickets, users = fixture()
+    legacy = generated(False)[0]
+    violating = {v.task_id for v in audit_specs(legacy, meta, users, tickets)}
+    assert violating, "fixture가 위반을 만들어야 이 테스트가 의미가 있다"
+    specs, repaired = generated(True)
+    assert set(repaired) == violating
+    before = {s.task_id: s.spec_sha256 for s in legacy}
+    after = {s.task_id: s.spec_sha256 for s in specs}
+    assert before.keys() == after.keys()
+    assert all(before[i] == after[i] for i in before if i not in violating)
+    assert all(before[i] != after[i] for i in violating)
+    assert audit_specs(specs, meta, users, tickets) == []
+    new = [s for s in specs if s.subtype == "no_permission"]
+    assert len(new) == 4 and all(
+        s.expected.outcome == "not_found_or_partial" and s.forbidden.leak_values
+        for s in new
+    )
+    assert generate_with_report(meta, tickets, users)[0] == specs  # 결정론
+
+
+def test_repair_failure_is_loud_when_no_candidate_exists():
+    meta, tickets, users = fixture()
+    public = [
+        t | {"access_level": "public", "access_teams": [], "access_min_grade": 1}
+        for t in tickets
+    ]
+    with pytest.raises(ValueError, match="insufficient eligible candidates"):
+        generate_tasks(meta, public, users)
+
+
+def test_audit_flags_each_rule_without_values():
+    from govops.eval.spec_audit import audit_specs
+
+    meta, tickets, users = fixture()
+    specs = generated(True)[0]
+    by_label = {u["label"]: u for u in users}
+    npm = next(s for s in specs if s.subtype == "no_permission")
+    visible_value = next(
+        f.value
+        for f in meta.facts
+        if any(
+            f.fact_id in d.fact_ids and readable(by_label[npm.user], d)
+            for d in meta.docs
+        )
+    )
+    leaky = npm.model_copy(
+        update={
+            "forbidden": npm.forbidden.model_copy(
+                update={"leak_values": [visible_value]}
+            )
+        }
+    )
+    outdated = npm.model_copy(
+        update={"expected": npm.expected.model_copy(update={"outcome": "not_found"})}
+    )
+    seen = next(
+        t["incident_id"]
+        for t in tickets
+        if t["access_level"] == "public" and t["incident_id"]
+    )
+    readable_record = npm.model_copy(update={"request": f"{seen} 요약"})
+    empty = npm.model_copy(
+        update={"forbidden": npm.forbidden.model_copy(update={"leak_values": []})}
+    )
+    for spec, rule in [
+        (leaky, "leak_value_readable"),
+        (outdated, "outcome"),
+        (readable_record, "incident_record_readable"),
+        (empty, "leak_values_missing"),
+    ]:
+        found = audit_specs([spec], meta, users, tickets)
+        assert rule in {v.rule for v in found}
+        assert all(visible_value not in str(v) for v in found)
+
+
+def test_other_specs_keep_their_hashes_on_the_real_corpus():
+    """검수한 56개 문항의 spec_sha256은 생성기 변경으로 바뀌지 않는다."""
+    root = Path(__file__).resolve().parents[1]
+    if not (root / "data/eval/meta.json").is_file():
+        pytest.skip("data/eval/meta.json 없음")
+    from govops.eval.meta import load_meta
+    from govops.eval.spec_audit import audit_specs
+
+    frozen = json.loads((root / "tests/fixtures/frozen_task_hashes.json").read_text())
+    meta = load_meta(root / "data/eval/meta.json")
+    tickets = json.loads((root / "data/seed/tickets.json").read_text())["tickets"]
+    users = json.loads((root / "data/seed/users.json").read_text())["users"]
+    specs = generate_tasks(meta, tickets, users)
+    by_id = {s.task_id: s.spec_sha256 for s in specs}
+    assert {i: by_id[i] for i in frozen["frozen"]} == frozen["frozen"]
+    assert all(by_id[i] != old for i, old in frozen["replaced_old"].items())
+    assert set(frozen["replaced_old"]) == {"T5-01", "T5-02", "T5-03", "T5-04"}
+    assert audit_specs(specs, meta, users, tickets) == []

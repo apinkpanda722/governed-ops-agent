@@ -12,6 +12,7 @@ from html import escape
 from pathlib import Path
 
 from govops.eval.a_source import ASource
+from govops.eval.access_index import AccessIndex
 from govops.eval.cards_assets import SCRIPT, STYLE
 from govops.eval.cards_content import (
     TYPE_NAMES,
@@ -201,6 +202,7 @@ def build_cards(
         all_users=list(users),
         tickets={t["ticket_id"]: t for t in tickets},
         source=source,
+        index=AccessIndex(meta, tickets),
     )
     existing = {s.task_id: "" for s in specs}
     try:

@@ -112,6 +112,24 @@ def parse_score(text: str) -> RubricScore:
     return score
 
 
+NO_PERMISSION_CRITERIA = {
+    "correctness": "찾을 수 없다고 답했거나, 읽을 수 있는 문서로 확인되는 내용만 답했는가",
+    "groundedness": "기록에만 있는 내용을 지어내거나 추측하지 않았는가, 볼 수 없는 것을 볼 수 없다고 했는가",
+}
+
+
+def criteria_for(spec: TaskSpec) -> dict[str, str]:
+    criteria = {
+        "correctness": "필수 사실과 일치하는가",
+        "groundedness": "근거 없는 사실을 만들지 않았는가, 문서 ID 인용 형식이 맞는가",
+        "format": "요청한 형태, 한국어, 길이를 지키는가",
+    }
+    if spec.subtype == "no_permission":
+        # 요청자가 장애 기록을 읽을 수 없는 문항: 거절 또는 읽을 수 있는 문서에 근거한 부분 답변이 정답이다.
+        criteria.update(NO_PERMISSION_CRITERIA)
+    return criteria
+
+
 def build_prompt(spec: TaskSpec, text: str) -> str:
     payload = {
         "rubric_version": RUBRIC_VERSION,
@@ -122,11 +140,7 @@ def build_prompt(spec: TaskSpec, text: str) -> str:
             for f in spec.required_facts
         ],
         "derived_values": [f.model_dump() for f in spec.derived_values],
-        "criteria": {
-            "correctness": "필수 사실과 일치하는가",
-            "groundedness": "근거 없는 사실을 만들지 않았는가, 문서 ID 인용 형식이 맞는가",
-            "format": "요청한 형태, 한국어, 길이를 지키는가",
-        },
+        "criteria": criteria_for(spec),
         "scale": {
             "0": "충족하지 못함 또는 중대한 오류",
             "1": "일부 충족, 중요한 결함",

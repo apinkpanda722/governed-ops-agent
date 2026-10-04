@@ -18,7 +18,6 @@ from govops.eval.cards_text import access_reason, excerpt, fact_label
 from govops.eval.review import review_report
 from govops.eval.review_cli import main
 from govops.eval.spec import dump_specs, load_specs, spec_hash
-from govops.eval.taskgen import generate_tasks
 
 TEAM_NAMES = {
     "data-ai": "데이터AI",
@@ -104,8 +103,12 @@ def make_a_tree(root: Path, meta) -> Path:
 
 @pytest.fixture
 def world(tmp_path):
+    from test_eval_taskgen import generated
+
     meta, tickets, users = fixture()
-    specs = generate_tasks(meta, tickets, users)
+    specs = list(
+        generated(True)[0]
+    )  # 같은 fixture의 캐시된 생성 결과(목록은 복사해 쓴다)
     a_root = make_a_tree(tmp_path / "a", meta)
     source = ASource(a_root, {d.doc_id for d in meta.docs})
     return meta, tickets, users, specs, source, tmp_path
@@ -273,6 +276,38 @@ def test_auto_check_failures_warn_at_the_top(world):
     assert "✗" in card and "금지 값·ID가 질문에 들어 있지 않다" in unescape(card)
     clean = card_text(html, next(s.task_id for s in specs if s.task_id != spec.task_id))
     assert "✓" in clean
+
+
+def test_no_permission_cards_use_the_record_level_answer_and_have_no_warning(world):
+    from govops.eval.cards_content import NO_PERMISSION_ANSWER
+
+    meta, tickets, users, specs, source, tmp = world
+    html = build_cards(specs, meta, users, tickets, source, tmp / "cards")[
+        0
+    ].read_text()
+    cards = [s for s in specs if s.subtype == "no_permission"]
+    assert len(cards) == 4
+    for spec in cards:
+        card = card_text(html, spec.task_id)
+        text = unescape(card)
+        assert NO_PERMISSION_ANSWER in text
+        assert 'data-warn="0"' in card and "✗" not in card
+        assert "장애 기록" in text and "읽을 수 없음" in text
+        assert "장애의 기록(장애 보고 문서·연결 티켓)을 읽을 수 없다" in text
+
+
+def test_a_legacy_no_permission_spec_is_flagged(world):
+    meta, tickets, users, specs, source, tmp = world
+    legacy = next(s for s in specs if s.subtype == "no_permission")
+    legacy = legacy.model_copy(
+        update={"expected": legacy.expected.model_copy(update={"outcome": "not_found"})}
+    )
+    specs = [legacy if s.task_id == legacy.task_id else s for s in specs]
+    html = build_cards(specs, meta, users, tickets, source, tmp / "cards")[
+        0
+    ].read_text()
+    card = card_text(html, legacy.task_id)
+    assert 'data-warn="1"' in card and "정의되어 있다" in unescape(card)
 
 
 def test_slack_target_check_does_not_apply_to_ticket_tasks(world):

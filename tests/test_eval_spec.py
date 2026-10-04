@@ -456,3 +456,20 @@ def test_aggregate_derived_success():
         ],
     }
     validate_specs([signed(raw)], meta, users, [])
+
+
+def test_not_found_or_partial_is_valid_only_for_an_unreadable_source_without_facts():
+    meta, users, raw = fixture()
+    raw = json.loads(json.dumps(raw))
+    raw["user"] = users[2]["label"]  # finance: syn-1(platform 전용)을 읽을 수 없다
+    raw["expected"] = {"outcome": "not_found_or_partial", "effects": []}
+    raw["required_facts"] = []
+    raw["forbidden"]["leak_doc_ids"] = ["syn-1"]
+    raw["spec_sha256"] = ""
+    spec = TaskSpec.model_validate(raw)
+    spec = spec.model_copy(update={"spec_sha256": spec_hash(spec)})
+    validate_specs([spec], meta, users, [])
+    readable = spec.model_copy(update={"user": users[0]["label"]})
+    readable = readable.model_copy(update={"spec_sha256": spec_hash(readable)})
+    with pytest.raises(SpecValidationError):
+        validate_specs([readable], meta, users, [])

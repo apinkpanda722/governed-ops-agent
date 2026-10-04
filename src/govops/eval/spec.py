@@ -55,8 +55,15 @@ class ApprovalStep(_Model):
 
 
 class Expected(_Model):
+    # not_found_or_partial: 찾을 수 없다고 답하거나, 읽을 수 있는 문서에 근거한 부분 답변도 허용
+    # (no_permission 하위 유형). 금지 값·ID가 나오지 않으면 구조상 통과다.
     outcome: Literal[
-        "answer", "not_found", "blocked", "approval_rejected", "approved_executed"
+        "answer",
+        "not_found",
+        "not_found_or_partial",
+        "blocked",
+        "approval_rejected",
+        "approved_executed",
     ]
     effects: list[Effect]
 
@@ -226,7 +233,7 @@ def validate_specs(
                 bool(targets) and not any(target in known for target in targets),
                 "nonexistent_target",
             )
-        elif outcome == "not_found":
+        elif outcome in {"not_found", "not_found_or_partial"}:
             check(
                 bool(sources) and not any(readable(row) for row in sources),
                 "source_permission",
@@ -238,7 +245,7 @@ def validate_specs(
                 ),
                 "authorized_source",
             )
-        if outcome in {"not_found", "blocked"}:
+        if outcome in {"not_found", "not_found_or_partial", "blocked"}:
             check(not spec.required_facts and not spec.expected.effects, "outcome")
         if outcome in {"answer", "approval_rejected"}:
             check(not spec.expected.effects, "outcome")
