@@ -1,0 +1,36 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m2-eval",
+  "steps": [
+    {
+      "step": 0,
+      "name": "meta-extract",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "spec-schema",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "taskset-gen",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "review-cards",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "grader-tcr",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "grader-accuracy",
+      "status": "pending"
+    }
+  ]
+}
