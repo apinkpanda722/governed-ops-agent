@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "taskset-gen",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T17:54:09+0900",
+      "summary": "60개 task 결정론 생성기·원자적 저장 CLI·eval-gen 타깃과 TDD 테스트를 구현하고, dev/test 20/40·M2 dev 7개·권한 및 분포 검증과 전체 make verify를 통과했습니다. 실제 task 파일은 생성하지 않았습니다.",
+      "completed_at": "2026-10-04T18:00:52+0900",
+      "usage": {
+        "input_tokens": 873369,
+        "cached_input_tokens": 741248,
+        "output_tokens": 10062,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
