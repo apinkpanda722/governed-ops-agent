@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "mock-jira",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T11:31:12+0900",
+      "summary": "mock-jira REST·토큰 해시 인증·시드 로더·관리 상태/초기화·토큰 생성기와 읽기 전용 compose 마운트를 TDD로 구현; 권한·중복 POST·토큰 보호 검증 및 make verify 전체 통과.",
+      "completed_at": "2026-10-04T11:40:00+0900",
+      "usage": {
+        "input_tokens": 1176955,
+        "cached_input_tokens": 1097088,
+        "output_tokens": 14848,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
