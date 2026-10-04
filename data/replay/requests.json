@@ -1,0 +1,48 @@
+{
+  "requests": [
+    {
+      "caller": "demo-platform-g3",
+      "tool": "lookup_id",
+      "arguments": {
+        "kind": "incident",
+        "value": "INC-2026-012"
+      }
+    },
+    {
+      "caller": "demo-platform-g3",
+      "tool": "search_docs",
+      "arguments": {
+        "query": "합성 장애 연결 지연"
+      }
+    },
+    {
+      "caller": "demo-platform-g3",
+      "tool": "get_document",
+      "arguments": {
+        "doc_id": "syn-incident-022"
+      }
+    },
+    {
+      "caller": "demo-finance-g3",
+      "tool": "lookup_id",
+      "arguments": {
+        "kind": "incident",
+        "value": "INC-2026-012"
+      }
+    },
+    {
+      "caller": "demo-finance-g3",
+      "tool": "search_docs",
+      "arguments": {
+        "query": "합성 장애 연결 지연"
+      }
+    },
+    {
+      "caller": "demo-finance-g3",
+      "tool": "get_document",
+      "arguments": {
+        "doc_id": "syn-incident-022"
+      }
+    }
+  ]
+}

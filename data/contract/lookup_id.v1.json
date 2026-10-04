@@ -1,0 +1,113 @@
+{
+  "description": "티켓·결재·장애·서비스·규정 식별자를 권한 필터와 함께 정확히 조회합니다. 최대 5개 문서의 요약 본문을 반환합니다.",
+  "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "kind": {
+        "enum": [
+          "ticket",
+          "approval",
+          "incident",
+          "service",
+          "regulation"
+        ],
+        "title": "Kind",
+        "type": "string"
+      },
+      "value": {
+        "description": "정확히 조회할 식별자 값",
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Value",
+        "type": "string"
+      }
+    },
+    "required": [
+      "kind",
+      "value"
+    ],
+    "title": "LookupIdInput",
+    "type": "object"
+  },
+  "name": "lookup_id",
+  "output_schema": {
+    "$defs": {
+      "LookupDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "doc_id": {
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "is_current": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Current"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "doc_id",
+          "title",
+          "is_current",
+          "date",
+          "text"
+        ],
+        "title": "LookupDocument",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "documents": {
+        "items": {
+          "$ref": "#/$defs/LookupDocument"
+        },
+        "title": "Documents",
+        "type": "array"
+      },
+      "truncated": {
+        "title": "Truncated",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "documents",
+      "truncated"
+    ],
+    "title": "LookupIdOutput",
+    "type": "object"
+  },
+  "version": 1
+}

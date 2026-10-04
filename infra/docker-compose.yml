@@ -2,8 +2,8 @@ name: govops
 
 services:
   postgres:
-    # 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-    image: postgres:16.4
+    # 공식 릴리스·보안 공지 확인(2026-10-04): PostgreSQL 17.11 보안 수정 28건 포함, Langfuse 공식 compose 기본 17 계열
+    image: postgres:17.11
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -19,8 +19,8 @@ services:
       retries: 5
 
   litellm:
-    # 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-    image: ghcr.io/berriai/litellm:main-v1.63.14
+    # 공식 릴리스·보안 공지 확인(2026-10-04): 1.103 안정 라인 핫픽스, CVE-2026-42208·48710·35030 수정 포함, pull 시 cosign 서명 검증
+    image: ghcr.io/berriai/litellm:v1.103.3
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
@@ -40,6 +40,8 @@ services:
       context: ..
       dockerfile: infra/mocks/Dockerfile
     command: ["python", "-m", "govops.mocks", "jira"]
+    volumes:
+      - ../data/seed:/app/data/seed:ro
     ports:
       - "127.0.0.1:8081:8000"
     # 관리 접근: docker compose exec mock-jira python -m govops.mocks.admin health
@@ -50,6 +52,8 @@ services:
       context: ..
       dockerfile: infra/mocks/Dockerfile
     command: ["python", "-m", "govops.mocks", "slack"]
+    volumes:
+      - ../data/seed:/app/data/seed:ro
     ports:
       - "127.0.0.1:8082:8000"
     # 관리 접근: docker compose exec mock-slack python -m govops.mocks.admin health
@@ -60,8 +64,8 @@ services:
   # 최신 공식 compose와 v3의 차이는 첫 기동 전에 사용자가 확인한다.
   langfuse-worker:
     profiles: ["obs"]
-    # 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-    image: langfuse/langfuse-worker:3.0.0
+    # 공식 릴리스·보안 공지 확인(2026-10-04): Langfuse v3 라인 최신(2026-09-24)
+    image: langfuse/langfuse-worker:3.225.11
     environment: &langfuse-environment
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/langfuse
       NEXTAUTH_URL: http://127.0.0.1:3000
@@ -96,8 +100,8 @@ services:
 
   langfuse-web:
     profiles: ["obs"]
-    # 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-    image: langfuse/langfuse:3.0.0
+    # 공식 릴리스·보안 공지 확인(2026-10-04): Langfuse v3 라인 최신(2026-09-24)
+    image: langfuse/langfuse:3.225.11
     environment:
       <<: *langfuse-environment
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
@@ -107,8 +111,8 @@ services:
 
   clickhouse:
     profiles: ["obs"]
-    # 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-    image: clickhouse/clickhouse-server:24.12.3.47
+    # 공식 릴리스·보안 공지 확인(2026-10-04): Langfuse v3 호환, v4 최소 요구 25.12 충족
+    image: clickhouse/clickhouse-server:25.12.9.61
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
@@ -124,8 +128,8 @@ services:
 
   redis:
     profiles: ["obs"]
-    # 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-    image: redis:7.4.2
+    # 공식 릴리스·보안 공지 확인(2026-10-04): 7.4.11 보안 수정 포함, 이후 보안 수정은 M2 obs 첫 기동 전 재확인
+    image: redis:7.4.11
     command: ["redis-server", "--requirepass", "${REDIS_AUTH}", "--maxmemory-policy", "noeviction"]
     environment:
       REDISCLI_AUTH: ${REDIS_AUTH}
@@ -139,8 +143,8 @@ services:
 
   minio:
     profiles: ["obs"]
-    # 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-    image: minio/minio:RELEASE.2025-02-07T23-21-09Z
+    # 공식 릴리스·보안 공지 확인(2026-10-04): MinIO 공식 이미지 배포 중단, Langfuse 공식 compose의 Chainguard 이미지를 digest로 고정(무료판은 latest만 제공)
+    image: cgr.dev/chainguard/minio@sha256:4cf4831a2bbcf13ddca09c1cbcc9faff716dd3c4247e0babc32864b8ee8e0034
     entrypoint: ["/bin/sh", "-c"]
     # 확인 필요(구현 시 공식 문서로 확인): /data/langfuse 생성 방식의 버킷 초기화 지원.
     command: ['mkdir -p /data/langfuse && exec minio server --address ":9000" --console-address ":9001" /data']

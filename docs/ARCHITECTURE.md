@@ -25,14 +25,14 @@ src/govops/
 └── mocks/        # mock-jira·mock-slack FastAPI 서비스, 장애 주입, 관리 엔드포인트
 web/              # Next.js(App Router, TypeScript): 화면 4개 + BFF route handler, Tailwind, shadcn/ui
 infra/
-├── postgres/init/01-create-databases.sh  # litellm·langfuse DB 초기화(checkpointer DB는 M1에서 결정)
+├── postgres/init/01-create-databases.sh  # litellm·langfuse·govops 앱 DB 초기화 계획(ADR-017, m1-agent)
 ├── litellm/config.yaml                  # LiteLLM 주 모델·환경 변수 참조 설정
 ├── mocks/Dockerfile                     # mock-jira·mock-slack 공용 이미지
 └── docker-compose.yml                   # LiteLLM·Postgres·mock 2개, profile obs: Langfuse v3 스택
 data/
 ├── contract/     # A 계약 스냅샷(도구 4개 v1) + A 커밋 해시 (커밋, 수정 금지)
-├── seed/         # mock-jira 합성 티켓 JSON + manifest(추출 A 커밋 해시·개수) (커밋)
-├── replay/       # A 응답 기록(syn-*만, 토큰·Authorization 없음), LLM 응답 기록(프롬프트 해시 포함) (커밋)
+├── seed/         # tickets.json·users.json(label·team·grade)·mock_jira_token_hashes.json·mock_slack_token_hashes.json·manifest.json(추출 A 커밋 해시·개수) (커밋)
+├── replay/       # requests.json(기록 요청), a/recordings.jsonl(A 응답, syn-*만, 토큰·Authorization 없음); LLM 응답 기록(프롬프트 해시 포함)은 M2 (커밋)
 ├── eval/         # 평가셋 60 task 정답 명세 (사람 검수 후 확정, 커밋)
 ├── raw/          # 커밋 안 함
 └── interim/      # 커밋 안 함 (감사 서명 개인키 0600 등)
@@ -41,7 +41,7 @@ logs/             # 로컬 JSONL trace·감사 로그 (커밋 안 함)
 tests/
 ```
 
-`data/` 하위 이름(`contract/`·`seed/`·`replay/`·`eval/`)과 감사 로그 저장 경로는 미정(구현 phase에서 결정)이다. 계층 간 import 금지 규칙은 [AGENTS.md](../AGENTS.md#계층-경계)가 원본이다.
+`data/contract/`·`data/seed/`·`data/replay/`는 확정 경로다. `data/eval/` 하위 구조와 감사 로그 저장 경로는 미정(구현 phase에서 결정)이다. 계층 간 import 금지 규칙은 [AGENTS.md](../AGENTS.md#계층-경계)가 원본이다.
 
 ## 배치도
 
@@ -60,7 +60,7 @@ flowchart LR
   end
   subgraph Compose[B docker compose]
     LLM[LiteLLM proxy<br/>팀 가상 키 · Guardrail 훅]
-    PG[(Postgres<br/>LiteLLM DB · Langfuse DB · checkpointer)]
+    PG[(Postgres<br/>LiteLLM DB · Langfuse DB · govops 앱 DB(checkpointer))]
     MJ[mock-jira]
     MS[mock-slack]
     subgraph OBS[profile obs]
@@ -87,9 +87,9 @@ flowchart LR
 
 - 에이전트 서비스가 호스트에 있는 이유: A MCP는 `127.0.0.1` 고정이고 MCP SDK가 이 경우 Host 헤더 검사를 켠다. 컨테이너에서 `host.docker.internal`로 붙으면 거절될 가능성이 크다. **확인 필요(구현 시 공식 문서로 확인): 컨테이너에서 A의 Host 헤더 검사가 거절하는지 M1에서 실측한다.** A는 고치지 않는다(ADR-004).
 - 핵심 스택(LiteLLM·Postgres·mock 2개)은 Langfuse 없이 뜨고, 이때 trace는 로컬 JSONL로 남는다. Langfuse는 `docker compose --profile obs`로만 뜬다(ADR-009).
-- Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. M0 init은 `litellm`·`langfuse` DB만 만들고 checkpointer DB는 만들지 않는다(ADR-016). LangGraph checkpointer DB를 같은 인스턴스에 둘지는 미정(M1에서 결정)이다.
+- Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. M0 init은 `litellm`·`langfuse` DB만 만들고 checkpointer DB는 만들지 않는다(ADR-016). LangGraph checkpointer는 같은 인스턴스의 `govops` 앱 DB에 둔다. `m1-agent`에서 init 스크립트에 추가하고 기존 볼륨에는 멱등 `make db-init`을 제공한다. 연결 변수는 `GOVOPS_DATABASE_URL`이다(ADR-017).
 - web은 호스트에서 `cd web && pnpm dev`로 실행하고 compose에 넣지 않는다(ADR-016).
-- mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`이다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. 현재 CLI는 `health` 명령뿐이고 상태 조회·초기화는 M1, 장애 주입 명령 내용은 미정(M3에서 결정)이다.
+- mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`이다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. CLI는 `health`·`state`(상태 조회)·`reset`(초기화)을 제공하고, 장애 주입 명령 내용은 미정(M3에서 결정)이다.
 - Docker VM은 약 16GB(A OpenSearch와 공유)다. 첫 기동 후 `docker stats`로 실측하고, 부족하면 Docker 메모리를 늘린다.
 
 ## A 연동 모드
@@ -105,6 +105,8 @@ flowchart LR
 - A MCP 장애(지연·5xx·연결 거부)는 A를 고칠 수 없으므로 replay 가짜 A에 주입한다(F11).
 
 ## 에이전트 상태 전이
+
+승인 노드 핵심(`interrupt`, 초안 해시 결합, `POST /tasks/{id}/approval`)은 M3에서 구현한다. M3 장애 주입의 중복 0건 검증에는 승인을 거치는 부작용 실행 경로가 필요하다. M5는 웹 화면(로그인·요청 진행·승인함), 전사 공지 승인자 정책, MAX_STEPS/COST, 탐색 예산(ADR-014), checkpointer 보존 기간 삭제(ADR-015)를 구현한다.
 
 승인 노드에는 `interrupt()`만 두고 실행은 별도 노드에 둔다. LangGraph는 `Command(resume=...)` 재개 시 멈춘 노드를 처음부터 다시 실행하므로, 실행을 승인 노드에 두면 재개할 때마다 부작용이 반복될 수 있다(ADR-011).
 
@@ -167,11 +169,11 @@ stateDiagram-v2
 | `lookup_id` | A MCP | 없음 | 불필요 | 읽기, 재시도 안전 |
 | `run_sql` | A MCP | 없음 | 불필요 | 읽기(A가 SELECT만 허용), 재시도 안전 |
 | `get_document` | A MCP | 없음 | 불필요 | 읽기, 재시도 안전 |
-| 티켓 조회 | mock-jira | 없음 | 불필요 | 읽기, 재시도 안전 |
-| 티켓 검색 | mock-jira | 없음 | 불필요 | 읽기, 재시도 안전 |
-| 메시지 발송 | mock-slack | 있음 | 필요(전사 공지는 같은 팀 4급 이상) | outbox + 메시지 메타데이터 표식 → 재시도 전 채널 최근 이력에서 2단계 조회 |
-| 티켓 코멘트 | mock-jira | 있음 | 필요 | outbox + 코멘트 메타데이터 표식 → 재시도 전 해당 티켓 코멘트 목록에서 2단계 조회 |
-| 티켓 생성 | mock-jira | 있음 | 필요 | outbox + 티켓 메타데이터 표식 → 재시도 전 원 티켓의 하위(후속) 티켓 목록에서 2단계 조회 |
+| `jira_get_ticket` | mock-jira | 없음 | 불필요 | 읽기, 재시도 안전 |
+| `jira_search_tickets` | mock-jira | 없음 | 불필요 | 읽기, 재시도 안전 |
+| `slack_send_message` | mock-slack | 있음 | 필요(전사 공지는 같은 팀 4급 이상) | outbox + 메시지 메타데이터 표식 → 재시도 전 채널 최근 이력에서 2단계 조회 |
+| `jira_add_comment` | mock-jira | 있음 | 필요 | outbox + 코멘트 메타데이터 표식 → 재시도 전 해당 티켓 코멘트 목록에서 2단계 조회 |
+| `jira_create_followup_ticket` | mock-jira | 있음 | 필요 | outbox + 티켓 메타데이터 표식 → 재시도 전 원 티켓의 하위(후속) 티켓 목록에서 2단계 조회 |
 
 - **멱등성은 B가 보장한다.** mock은 실제 서비스처럼 서버 측 중복 제거를 하지 않는다. **확인 필요(구현 시 공식 문서로 확인): 실제 Slack 메시지 발송·Jira 이슈 생성·코멘트 API에 서버 측 멱등 키가 있는지.** 결정 기록은 "없다"는 전제로 설계했다(ADR-006).
 - 표식은 본문이 아니라 메타데이터 필드에 둔다(본문 표식은 사용자에게 보이고 사람이 수정하면 사라진다). **확인 필요(구현 시 공식 문서로 확인): 실제 대응 필드(Slack 메시지 메타데이터, Jira 이슈 속성).** 조회는 채널 최근 이력·티켓 하위 목록으로 하고 검색 API는 쓰지 않는다(검색은 반영이 늦을 수 있다).
@@ -179,10 +181,10 @@ stateDiagram-v2
 - outbox 순서: ① 감사 로그에 실행 의도 기록 → ② outbox에 멱등 키·상태 기록 → ③ 메타데이터 필드에 표식을 넣어 호출 → ④ 결과를 outbox·감사 로그에 기록. 같은 멱등 키가 이미 성공이면 호출하지 않는다.
 - 핵심 장애는 "서버는 처리했는데 응답 유실"이다. 이때 재발송하면 중복, 포기하면 누락이므로 표식 조회로 판정한다.
 - 티켓 생성은 기존 티켓의 후속 티켓으로만 한다(원 티켓 연결 필수, 독립 티켓 생성은 범위 밖). 그래서 표식 조회 대상은 항상 원 티켓의 후속 티켓 목록이고 검색 API가 필요 없다.
-- 도구 이름, 표식 값 형식, 2단계 조회 대기 시간, outbox 저장소(Postgres 테이블 여부)는 미정(M1·M3에서 결정)이다.
-- 티켓 생성 도구의 입력 스키마는 원 티켓 ID를 필수 필드로 둔다.
+- 도구 이름은 위 표의 9개로 확정한다(ADR-017). A 계약 이름을 유지하며 B 도구는 `{시스템}_{동사}_{대상}` snake_case다. 표식 값 형식, 2단계 조회 대기 시간, outbox 저장소(Postgres 테이블 여부)는 미정(M3에서 결정)이다.
+- `jira_create_followup_ticket` 입력 스키마는 `parent_ticket_id`를 필수로 둔다. 모든 도구 입력에 사용자·팀·직급 필드는 없다. 채널 이력·코멘트 목록·후속 티켓 목록 조회는 표식 조회용으로 도구 계층만 쓰고 모델에는 노출하지 않는다. mock-slack 이력은 자기 팀 채널·전사 공지만 허용하며 그 밖은 403이다.
 - "원 티켓 없이 티켓 생성 요구"를 레드팀·T5 거절 사례로 넣을지는 미정(M6에서 결정)이다.
-- mock 응답 비대칭: 읽기 권한 거부는 "없음"과 구별되지 않게 응답한다(존재 자체가 기밀). 쓰기 권한 거부는 명시적 "권한 없음"이다(채널 목록은 공개 정보).
+- mock 응답 비대칭: 읽기 권한 거부와 읽을 수 없는 티켓에 대한 쓰기 요청(코멘트·후속 티켓)은 "없음"과 구별되지 않는 응답(mock-jira 404)이다. 명시적 "권한 없음"(403)은 존재가 공개된 mock-slack 채널(채널 목록은 공개 정보)의 쓰기·이력 조회에만 쓴다.
 - mock-jira 티켓 조회 권한은 A와 같은 규칙(`access_level`·`access_teams`·`access_min_grade`)이다. live에서 38명 × 표본 티켓 가시성을 A와 대조하는 테스트를 둔다.
 
 ## 자격 증명 중개 흐름 (`credential_for`)
@@ -211,7 +213,9 @@ sequenceDiagram
 
 - audience: A MCP(`kodocs-mcp`), mock-jira, mock-slack. 같은 중개를 거치고 audience만 다르다. 실무 전환 시 이 함수 한 곳만 RFC 8693 토큰 교환으로 바꾼다(ADR-005).
 - A 토큰 출처: `.env`의 경로 변수로 A의 `data/interim/mcp/tokens.json`을 실행 시 읽는다. B 저장소에 복사하지 않는다. 사람·에이전트는 이 파일을 열거나 출력하지 않는다.
-- mock-jira·mock-slack이 받을 사용자 자격 증명의 발급 방식은 미정(M1에서 결정)이다.
+- mock 사용자 38명 × audience(`mock-jira`, `mock-slack`)별 토큰을 발급한다. 평문은 `data/interim/mock/tokens.json`(0600, 커밋 안 함)에 두고 broker만 요청 시 읽는다(`MOCK_TOKENS_FILE`, 기본 위 경로). mock은 커밋된 해시 매니페스트로 인증해 team·grade를 정한다(ADR-017).
+- 구현 모듈: `mocks.auth`·`mocks.tokens`는 해시 인증·토큰 생성, `mocks.seed_extract`는 시드 추출, `broker.credentials`는 요청 시 자격 증명 조회, `replay.fake_a`·`replay.recordings`는 가짜 A·안전한 기록, `tools.contract`·`tools.a_mcp`는 계약 검사·stateless MCP 연결, `tools.jira`·`tools.slack`·`tools.rest`는 읽기 REST, `tools.registry`는 9개 계약·6개 읽기 실행, `tools.record_a`·`tools.smoke`는 사용자 실행용 기록·검증이다. 부작용 실행은 M3다.
+- 환경 변수: `MOCK_JIRA_URL`·`MOCK_SLACK_URL`은 REST 주소 재정의(기본 `http://127.0.0.1:8081`·`http://127.0.0.1:8082`), `MOCK_JIRA_TOKEN_HASHES`·`MOCK_SLACK_TOKEN_HASHES`는 mock 인증 해시 매니페스트 경로(기본 `data/seed/mock_jira_token_hashes.json`·`data/seed/mock_slack_token_hashes.json`), `MOCK_JIRA_TICKETS`는 티켓 시드 경로(기본 `data/seed/tickets.json`)다. `.env.example`에는 사용자 설정 이름만 두며 코드 기본값 변수는 추가하지 않는다.
 - 불변식: 토큰은 state·checkpointer·trace·로그·LLM 컨텍스트에 없다(저장된 checkpoint·trace·로그를 스캔하는 테스트). 같은 task를 두 사용자가 요청하면 A 결과가 다르다.
 - 한계: B 프로세스가 사용자들의 A 토큰을 보관하므로 B가 탈취되면 전원이 노출된다(ADR-005).
 
@@ -295,10 +299,11 @@ sequenceDiagram
 - 브라우저 JS는 토큰을 볼 수 없다. "자격 증명은 LLM·trace·브라우저에도 노출되지 않는다"를 웹 계층까지 이어 간다.
 - 데모 로그인은 IdP 대체 장치다. `DEMO_LOGIN` 플래그일 때만 열고 127.0.0.1에만 바인드한다. 신뢰 경계는 세션 발급 이후다(ADR-005).
 - 화면 4개: 로그인(데모 사용자 선택 = B 세션 발급), 요청·진행(SSE), 승인함(초안·수신처·결정론 검사 결과·수정 차이, 전사 공지는 4급 이상만), 기록(task 상태, `audit-verify` 결과).
+- B 세션: `POST /sessions`는 `DEMO_LOGIN` 플래그와 127.0.0.1 클라이언트 조건에서만 열린다. `secrets.token_urlsafe(32)`로 발급하고 서버는 SHA-256 해시만 메모리에 두어 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이며 최종값은 M5에서 정한다. 인증 의존성은 `Authorization: Bearer`에서 요청자·승인자 `user_id`를 얻는다. 다른 사용자의 task 조회는 404다(ADR-017).
 - 쿠키 속성(`Secure`·`SameSite`)·CSRF 대책·세션 만료 시간은 미정(M5에서 결정)이다.
 
 ## 상태 관리
-- **에이전트 상태:** LangGraph state + Postgres checkpointer. state에는 사용자 ID·초안·초안 해시·도구 결과가 들어가고 토큰은 들어가지 않는다. checkpointer는 실행에 필요한 원문을 두며, task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다. 삭제 명령과 테스트를 둔다(ADR-015).
+- **에이전트 상태:** LangGraph state + 같은 Postgres 인스턴스의 `govops` 앱 DB checkpointer(`GOVOPS_DATABASE_URL`, ADR-017). `make verify` 테스트는 in-memory saver를 쓰며 실제 Postgres는 사용자 스모크로 확인한다. state에는 사용자 ID·초안·초안 해시·도구 결과가 들어가고 토큰은 들어가지 않는다. checkpointer는 실행에 필요한 원문을 두며, task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다. 삭제 명령과 테스트는 M5에 둔다(ADR-015).
 - **outbox:** 멱등 키별 상태(기록됨·성공·불확실·실패)와 표식. 저장 위치는 미정(M3에서 결정).
 - **mock 상태:** mock 서비스 메모리 또는 파일. 관리 엔드포인트로 초기화한다. 장애 주입은 요청 순번 스크립트로 재현한다.
 - **비용 원장:** 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007.

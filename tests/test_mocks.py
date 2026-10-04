@@ -1,15 +1,17 @@
 """Mock 서비스와 관리 CLI를 소켓 바인드 없이 검사한다."""
 
 import asyncio
+import hashlib
 import json
+import secrets
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from govops.mocks.service import create_admin_app, create_rest_app
 
 from govops.mocks import __main__ as runner
 from govops.mocks import admin
+from govops.mocks.service import create_admin_app, create_rest_app
 
 
 @pytest.mark.parametrize("service", ["jira", "slack"])
@@ -78,7 +80,30 @@ def test_admin_invalid_command_exits(argv: list[str]) -> None:
 
 
 @pytest.mark.parametrize("service", ["jira", "slack"])
-def test_runner_serves_both_apps_in_one_event_loop(service: str, monkeypatch) -> None:
+def test_runner_serves_both_apps_in_one_event_loop(
+    service: str, monkeypatch, tmp_path
+) -> None:
+    if service in {"jira", "slack"}:
+        token = secrets.token_urlsafe(32)
+        hashes = tmp_path / "hashes.json"
+        hashes.write_text(
+            json.dumps(
+                {
+                    "users": [
+                        {
+                            "label": "demo-platform-g3",
+                            "team": "platform",
+                            "grade": 3,
+                            "token_sha256": hashlib.sha256(token.encode()).hexdigest(),
+                        }
+                    ]
+                }
+            )
+        )
+        seed = tmp_path / "tickets.json"
+        seed.write_text(json.dumps({"tickets": []}))
+        monkeypatch.setenv(f"MOCK_{service.upper()}_TOKEN_HASHES", str(hashes))
+        monkeypatch.setenv("MOCK_JIRA_TICKETS", str(seed))
     servers = []
     loops = []
 

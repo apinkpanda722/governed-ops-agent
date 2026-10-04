@@ -88,6 +88,10 @@ def test_images_have_fixed_tags_and_verification_comments(compose: dict) -> None
         if "build" in service:
             continue
         image = service["image"]
+        if "@sha256:" in image:
+            # 태그를 제공하지 않는 이미지는 digest로 고정한다.
+            assert re.fullmatch(r"[^@:]+(:[^@]+)?@sha256:[0-9a-f]{64}", image), name
+            continue
         assert ":" in image.rsplit("/", 1)[-1], name
         assert image.rsplit(":", 1)[-1] not in {"", "latest"}, name
     lines = COMPOSE_PATH.read_text(encoding="utf-8").splitlines()
@@ -95,7 +99,7 @@ def test_images_have_fixed_tags_and_verification_comments(compose: dict) -> None
         if re.match(r"\s*image:", line):
             assert index > 0
             assert lines[index - 1].lstrip().startswith("#")
-            assert "확인 필요" in lines[index - 1]
+            assert "공식 릴리스·보안 공지 확인(" in lines[index - 1]
 
 
 def test_all_compose_variables_are_declared_in_env_example() -> None:
@@ -197,16 +201,13 @@ def test_no_service_publishes_admin_port(compose: dict) -> None:
 def test_mock_dockerfile_has_pinned_images_and_frozen_install() -> None:
     text = (REPO_ROOT / "infra/mocks/Dockerfile").read_text(encoding="utf-8")
     lines = text.splitlines()
-    assert re.search(r"^FROM python:3\.12\.\d+-slim\S*", text, re.MULTILINE)
+    assert re.search(r"^FROM python:3\.12\.\d+-slim-trixie$", text, re.MULTILINE)
     assert re.search(r"--from=ghcr\.io/astral-sh/uv:\d+\.\d+\.\d+", text)
     for index, line in enumerate(lines):
         if line.startswith("FROM ") or "--from=ghcr.io/astral-sh/uv:" in line:
             assert index > 0
             assert lines[index - 1].startswith("#")
-            assert (
-                "확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)"
-                in lines[index - 1]
-            )
+            assert "공식 릴리스 확인(" in lines[index - 1]
         assert not line.startswith(("CMD ", "ENTRYPOINT "))
     assert "uv sync --frozen --no-dev" in text
     assert "/app/.venv/bin" in text
@@ -215,3 +216,15 @@ def test_mock_dockerfile_has_pinned_images_and_frozen_install() -> None:
 def test_dockerignore_excludes_private_and_unneeded_directories() -> None:
     patterns = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     assert {".venv", "web/", "data/", ".git", ".env*"} <= set(patterns)
+
+
+def test_jira_seed_is_mounted_read_only(compose: dict) -> None:
+    assert (
+        "../data/seed:/app/data/seed:ro" in compose["services"]["mock-jira"]["volumes"]
+    )
+
+
+def test_slack_seed_is_mounted_read_only(compose: dict) -> None:
+    assert (
+        "../data/seed:/app/data/seed:ro" in compose["services"]["mock-slack"]["volumes"]
+    )

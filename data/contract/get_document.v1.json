@@ -1,0 +1,81 @@
+{
+  "description": "문서 ID와 선택적 구간 ID로 권한이 확인된 문서 본문을 가져옵니다. 문서가 없거나 볼 수 없으면 같은 not_found 오류를 반환합니다.",
+  "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "doc_id": {
+        "description": "가져올 문서 식별자",
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Doc Id",
+        "type": "string"
+      },
+      "section_key": {
+        "anyOf": [
+          {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "특정 구간만 가져올 때의 구간 식별자",
+        "title": "Section Key"
+      }
+    },
+    "required": [
+      "doc_id"
+    ],
+    "title": "GetDocumentInput",
+    "type": "object"
+  },
+  "name": "get_document",
+  "output_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "doc_id": {
+        "title": "Doc Id",
+        "type": "string"
+      },
+      "sections": {
+        "items": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": "Sections",
+        "type": "array"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "title": {
+        "title": "Title",
+        "type": "string"
+      },
+      "truncated": {
+        "title": "Truncated",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "doc_id",
+      "title",
+      "sections",
+      "text",
+      "truncated"
+    ],
+    "title": "GetDocumentOutput",
+    "type": "object"
+  },
+  "version": 1
+}

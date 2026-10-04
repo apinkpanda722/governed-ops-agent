@@ -1,0 +1,148 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m1-tools",
+  "steps": [
+    {
+      "step": 0,
+      "name": "contract-check",
+      "status": "completed",
+      "started_at": "2026-10-04T11:27:56+0900",
+      "summary": "계약 스냅샷 해시 검증·MCP 도구 비교·재귀 신원 필드 검사 모듈과 TDD 테스트 구현; 스냅샷 변경 없이 신원 위반 0건 및 make verify 전체 통과.",
+      "completed_at": "2026-10-04T11:31:12+0900",
+      "usage": {
+        "input_tokens": 411836,
+        "cached_input_tokens": 362368,
+        "output_tokens": 5192,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "mock-jira",
+      "status": "completed",
+      "started_at": "2026-10-04T11:31:12+0900",
+      "summary": "mock-jira REST·토큰 해시 인증·시드 로더·관리 상태/초기화·토큰 생성기와 읽기 전용 compose 마운트를 TDD로 구현; 권한·중복 POST·토큰 보호 검증 및 make verify 전체 통과.",
+      "completed_at": "2026-10-04T11:40:00+0900",
+      "usage": {
+        "input_tokens": 1176955,
+        "cached_input_tokens": 1097088,
+        "output_tokens": 14848,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "mock-slack",
+      "status": "completed",
+      "started_at": "2026-10-04T11:40:00+0900",
+      "summary": "기존 해시 인증을 재사용한 mock-slack 채널·메시지 REST, 표식 조회용 이력, 관리 상태·초기화·CLI와 읽기 전용 compose 마운트를 TDD로 구현; 권한·중복 발송·시작 실패 검증 및 make verify 전체 통과.",
+      "completed_at": "2026-10-04T11:44:03+0900",
+      "usage": {
+        "input_tokens": 611159,
+        "cached_input_tokens": 547328,
+        "output_tokens": 6497,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "seed-extract",
+      "status": "completed",
+      "started_at": "2026-10-04T11:44:04+0900",
+      "summary": "TDD로 일회성 seed-extract CLI 구현; 신원·팀·금지 이름 검증, 해시 미복사, 결정론 출력·실패 복구·가짜 A 불변성 확인 및 make verify 전체 통과(276 passed, 1 skipped).",
+      "completed_at": "2026-10-04T11:48:00+0900",
+      "usage": {
+        "input_tokens": 270961,
+        "cached_input_tokens": 223104,
+        "output_tokens": 6606,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "broker",
+      "status": "completed",
+      "started_at": "2026-10-04T11:48:00+0900",
+      "summary": "TDD로 broker 자격 증명 조회·known_users·안전한 예외와 환경 변수 설정 구현; 토큰 비노출·캐시 없음·계층 경계 검증 및 make verify 전체 통과(341 passed, 1 skipped, 웹 15 passed).",
+      "completed_at": "2026-10-04T11:51:33+0900",
+      "usage": {
+        "input_tokens": 337351,
+        "cached_input_tokens": 282240,
+        "output_tokens": 5569,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 5,
+      "name": "replay-fake-a",
+      "status": "completed",
+      "started_at": "2026-10-04T11:51:33+0900",
+      "summary": "TDD로 실제 MCP SDK 기반 가짜 A 서버·기록 형식 및 안전성 검증·replay 토큰 생성기·로컬 HTTP 테스트를 구현; 인증·계약·신원 분리·토큰 비노출·계층 경계 확인 및 make verify 전체 통과(372 passed, 1 skipped, 웹 15 passed).",
+      "completed_at": "2026-10-04T11:56:57+0900",
+      "usage": {
+        "input_tokens": 436455,
+        "cached_input_tokens": 380544,
+        "output_tokens": 9251,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 6,
+      "name": "mcp-client",
+      "status": "completed",
+      "started_at": "2026-10-04T11:56:57+0900",
+      "summary": "TDD로 stateless A MCP 클라이언트·계약 검사·기록 CLI·시작 요청 6개 구현; 토큰 비노출·신원 분리·비합성 응답 전체 건너뛰기·기록 왕복 검증 및 make verify 전체 통과(Python 378 passed, 1 skipped; 웹 15 passed).",
+      "completed_at": "2026-10-04T12:03:03+0900",
+      "usage": {
+        "input_tokens": 1554012,
+        "cached_input_tokens": 1473664,
+        "output_tokens": 9050,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 7,
+      "name": "rest-clients",
+      "status": "completed",
+      "started_at": "2026-10-04T12:03:03+0900",
+      "summary": "읽기 REST 클라이언트·9개 도구 spec·6개 읽기 실행기 구현; 신원 분리·토큰 비노출·부작용 네트워크 차단·계층 경계 검증 및 make verify 전체 통과(Python 381 passed, 1 skipped; 웹 15 passed).",
+      "completed_at": "2026-10-04T12:07:40+0900",
+      "usage": {
+        "input_tokens": 641375,
+        "cached_input_tokens": 578560,
+        "output_tokens": 6806,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 8,
+      "name": "smoke-tools",
+      "status": "completed",
+      "started_at": "2026-10-04T12:07:40+0900",
+      "summary": "TDD로 smoke CLI·사용자 실행용 Make 타깃 구현; 독립 가시성 oracle·결정론 표본·불일치 탐지·Host 인증 및 토큰 비노출 검증, make verify 전체 통과(Python 399 passed, 1 skipped; 웹 15 passed).",
+      "completed_at": "2026-10-04T12:14:02+0900",
+      "usage": {
+        "input_tokens": 991271,
+        "cached_input_tokens": 904448,
+        "output_tokens": 10004,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 9,
+      "name": "docs-sync",
+      "status": "completed",
+      "started_at": "2026-10-04T12:14:02+0900",
+      "summary": "ADR-017 신설·M1 확정 결정·M3 승인 핵심/M5 범위·권한 응답 정책을 문서에 동기화하고 일관성 테스트 추가; 기존 규칙·ADR 변경 기록 보존 및 make verify 전체 통과(Python 403 passed, 1 skipped; 웹 15 passed).",
+      "completed_at": "2026-10-04T12:19:03+0900",
+      "usage": {
+        "input_tokens": 1081274,
+        "cached_input_tokens": 989824,
+        "output_tokens": 7623,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-04T11:27:56+0900",
+  "completed_at": "2026-10-04T12:19:03+0900"
+}
