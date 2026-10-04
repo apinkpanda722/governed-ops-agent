@@ -18,6 +18,7 @@ from govops.eval.cards_text import (
     josa,
     person_text,
 )
+from govops.eval.doc_titles import DOC_ID_IN_TEXT, doc_reference, references
 from govops.eval.meta import EvalMeta
 from govops.eval.spec import TaskSpec
 from govops.eval.visibility import can_read
@@ -112,6 +113,7 @@ class Context:
     tickets: Mapping[str, Mapping[str, Any]]
     source: ASource
     index: AccessIndex
+    titles: Mapping[str, str] | None = None  # 문서 제목(없으면 제목 지칭 점검을 건너뜀)
 
     def team(self, code: str) -> str:
         return self.source.team_name(code)
@@ -530,5 +532,24 @@ def build_content(spec: TaskSpec, ctx: Context) -> CardContent:
         elif target:
             check(
                 target in {mine, "announce"}, "수신처가 요청자 팀 채널 또는 전사 공지다"
+            )
+    if sources and sub != "no_permission":
+        check(
+            DOC_ID_IN_TEXT.search(spec.request) is None,
+            "요청 문장에 내부 문서 ID(syn-…)가 없다(문서는 제목으로 지칭한다)",
+        )
+        check(
+            all(len(docs[d].fact_ids) >= 3 for d in sources),
+            "요약 대상 문서에 표시된 사실이 3개 이상이다",
+        )
+        if ctx.titles is not None and sub != "incident_summary":
+            # 장애 요약은 장애 번호로 지칭한다(제목 지칭 대상이 아님)
+            unique = references(ctx.titles)
+            check(
+                all(
+                    d in unique and doc_reference(ctx.titles[d]) in spec.request
+                    for d in sources
+                ),
+                "요청 문장의 문서 지칭이 대상 문서를 가리키고 다른 문서와 겹치지 않는다",
             )
     return content

@@ -42,6 +42,7 @@ data/
 ├── replay/       # requests.json(기록 요청), a/recordings.jsonl(A 응답, syn-*만, 토큰·Authorization 없음); LLM 응답 기록(프롬프트 해시 포함)은 M2 (커밋)
 ├── eval/         # 평가 메타데이터·60 task 명세
 │   ├── meta.json·meta.manifest.json  # 합성 메타데이터·추출 manifest
+│   ├── doc_titles.json             # 문서 제목(plan.jsonl title_hint). 요청 문장의 문서 지칭용이며 meta.json 해시에 영향 없음
 │   ├── tasks.json·tasks.manifest.json  # 생성 명세·분포 및 검증 manifest
 │   ├── review/confirmed.json       # 사람이 작성한 해시 기반 확정본
 │   ├── review/leak_confirmations.json  # 사람이 작성한 노출 후보 판정(절대 규칙 2)

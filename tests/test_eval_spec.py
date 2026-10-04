@@ -257,7 +257,7 @@ def test_valid_not_found_and_nonexistent():
     validate_specs([signed(raw)], meta, users, [])
     raw["request"] = "syn-1 문서를 찾아 주세요"
     with pytest.raises(SpecValidationError, match="nonexistent_target"):
-        validate_specs([signed(raw)], meta, users, [])
+        validate_specs([signed(raw)], meta, users, [], forbid_doc_ids=False)
 
 
 @pytest.mark.parametrize(
@@ -434,7 +434,7 @@ def test_id_fact_request_exemption_only_for_readable_target():
     ).hexdigest()
     raw["required_facts"][0]["value"] = "syn-1"
     raw["request"] = "syn-1 문서를 요약해 주세요"
-    validate_specs([signed(raw)], meta, users, [])
+    validate_specs([signed(raw)], meta, users, [], forbid_doc_ids=False)
 
 
 def test_aggregate_derived_success():
@@ -473,3 +473,28 @@ def test_not_found_or_partial_is_valid_only_for_an_unreadable_source_without_fac
     readable = readable.model_copy(update={"spec_sha256": spec_hash(readable)})
     with pytest.raises(SpecValidationError):
         validate_specs([readable], meta, users, [])
+
+
+def test_request_with_a_document_id_is_rejected_but_incident_and_ticket_numbers_are_not():
+    meta, users, raw = fixture()
+    raw = json.loads(json.dumps(raw))
+    base = TaskSpec.model_validate(raw)
+
+    def resealed(request):
+        changed = base.model_copy(update={"request": request})
+        return changed.model_copy(update={"spec_sha256": spec_hash(changed)})
+
+    validate_specs([resealed("INC-2026-001 장애를 요약해 주세요")], meta, users, [])
+    validate_specs([resealed("FIN-1035 티켓 요약해줘")], meta, users, [])
+    with pytest.raises(SpecValidationError) as error:
+        validate_specs([resealed("syn-meeting-006 요약해 주세요")], meta, users, [])
+    assert "request_doc_id" in str(error.value) and "syn-meeting" not in str(
+        error.value
+    )
+    validate_specs(
+        [resealed("syn-meeting-006 요약해 주세요")],
+        meta,
+        users,
+        [],
+        forbid_doc_ids=False,
+    )

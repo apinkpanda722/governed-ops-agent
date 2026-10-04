@@ -96,7 +96,7 @@ make smoke-obs # live task·Langfuse 연결·마스킹 검증(사용자 실행)
 make cost-report # 읽기 전용 비용 비율·계획 비용 재추정(사용자 실행)
 make smoke-agent # 두 사용자 live 조회·관찰·인용·비용 검증(사용자 실행)
 
-make eval-meta-extract # A 합성 평가 메타데이터 읽기 전용 추출(사용자 실행)
+make eval-meta-extract # A 합성 평가 메타데이터와 문서 제목(doc_titles.json) 읽기 전용 추출(사용자 실행)
 make eval-gen # 평가 task 60개 결정론 생성(사용자 실행)
 make eval-cards # 한국어 평문 검수 카드 HTML 한 장 생성(A_ROOT의 합성 본문 읽기 전용, 판정은 사람이 내려받은 confirmed.json만 인정, 사용자 실행)
 make eval-review-status # 사람 확정본·명세 해시 검증(사용자 실행)

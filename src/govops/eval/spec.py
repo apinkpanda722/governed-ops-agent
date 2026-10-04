@@ -140,6 +140,8 @@ def validate_specs(
     meta: EvalMeta,
     users: Sequence[Mapping[str, Any]],
     tickets: Sequence[Mapping[str, Any]],
+    *,
+    forbid_doc_ids: bool = True,
 ) -> None:
     docs = {key: doc.model_dump() for key, doc in meta.doc_by_id.items()}
     ticket_index = {ticket["ticket_id"]: ticket for ticket in tickets}
@@ -170,6 +172,13 @@ def validate_specs(
             "executable_in",
         )
         check(bool(spec.request.strip()) and len(spec.request) <= 300, "request_length")
+        if forbid_doc_ids:
+            # 실제 직원은 내부 문서 ID를 모른다. 문서는 제목(주제 표현)으로 지칭한다.
+            # 장애 번호(INC-…)와 티켓 번호는 직원이 쓰는 식별자라 허용한다.
+            check(
+                re.search(r"(?<![\w-])syn-[\w-]+", spec.request) is None,
+                "request_doc_id",
+            )
         check(spec.user in user_index, "user_reference")
         check(
             spec.provenance.meta_sha256
@@ -356,7 +365,12 @@ def validate_specs(
 
 
 def load_specs(
-    path: Path, meta: EvalMeta, users: Sequence[Mapping], tickets: Sequence[Mapping]
+    path: Path,
+    meta: EvalMeta,
+    users: Sequence[Mapping],
+    tickets: Sequence[Mapping],
+    *,
+    forbid_doc_ids: bool = True,
 ) -> list[TaskSpec]:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -374,7 +388,7 @@ def load_specs(
                     else "unknown"
                 )
                 raise SpecValidationError(f"{safe_id}: schema") from None
-        validate_specs(specs, meta, users, tickets)
+        validate_specs(specs, meta, users, tickets, forbid_doc_ids=forbid_doc_ids)
         return specs
     except SpecValidationError:
         raise
