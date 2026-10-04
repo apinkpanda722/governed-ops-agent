@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "agent-key",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T14:46:03+0900",
+      "summary": "agent_key 패키지 CLI·make agent-key·TDD 테스트 구현: 재발급 거부, 키 비노출, 바이트·권한 보존 및 원자적 저장 검증; make verify 통과(Python 465개, web 15개).",
+      "completed_at": "2026-10-04T16:05:41+0900",
+      "usage": {
+        "input_tokens": 490271,
+        "cached_input_tokens": 447744,
+        "output_tokens": 5249,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
