@@ -41,6 +41,7 @@ data/
 │   ├── meta.json·meta.manifest.json  # 합성 메타데이터·추출 manifest
 │   ├── tasks.json·tasks.manifest.json  # 생성 명세·분포 및 검증 manifest
 │   ├── review/confirmed.json       # 사람이 작성한 해시 기반 확정본
+│   ├── review/leak_confirmations.json  # 사람이 작성한 노출 후보 판정(절대 규칙 2)
 │   └── human/                      # scores.csv·human_sample.json 블라인드 사람 채점 표본
 ├── manifest/     # costs.jsonl·costs_grading.jsonl (커밋)
 ├── raw/          # 커밋 안 함
