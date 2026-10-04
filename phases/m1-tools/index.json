@@ -131,7 +131,16 @@
     {
       "step": 9,
       "name": "docs-sync",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T12:14:02+0900",
+      "summary": "ADR-017 신설·M1 확정 결정·M3 승인 핵심/M5 범위·권한 응답 정책을 문서에 동기화하고 일관성 테스트 추가; 기존 규칙·ADR 변경 기록 보존 및 make verify 전체 통과(Python 403 passed, 1 skipped; 웹 15 passed).",
+      "completed_at": "2026-10-04T12:19:03+0900",
+      "usage": {
+        "input_tokens": 1081274,
+        "cached_input_tokens": 989824,
+        "output_tokens": 7623,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-04T11:27:56+0900"
