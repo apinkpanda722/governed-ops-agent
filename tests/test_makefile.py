@@ -113,3 +113,14 @@ def test_eval_gen_is_user_run_only():
         in text
     )
     assert "eval-gen" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+
+
+def test_review_targets_are_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for target, command in [("eval-cards", "cards"), ("eval-review-status", "status")]:
+        assert (
+            f"# 사용자 실행\n{target}:\n\tuv run python -m govops.eval.review_cli {command}"
+            in text
+        )
+        assert target in text.split(".PHONY:")[-1]
+        assert target not in text.split("verify:\n")[1].split("\n\n")[0]

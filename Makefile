@@ -96,3 +96,12 @@ eval-meta-extract:
 # meta.json 필요, 사용자 실행
 eval-gen:
 	uv run python -m govops.eval.taskgen
+
+.PHONY: eval-cards eval-review-status
+# 사용자 실행
+eval-cards:
+	uv run python -m govops.eval.review_cli cards
+
+# 사용자 실행
+eval-review-status:
+	uv run python -m govops.eval.review_cli status
