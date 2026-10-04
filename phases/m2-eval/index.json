@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "meta-extract",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T17:42:59+0900",
+      "summary": "평가 메타데이터 모델·검증 로더·결정론적 읽기 전용 추출 CLI와 Make 타깃을 구현하고, 합성 fixture 및 전체 make verify 검증을 통과했습니다. 실제 A 추출은 실행하지 않았습니다.",
+      "completed_at": "2026-10-04T17:48:05+0900",
+      "usage": {
+        "input_tokens": 599457,
+        "cached_input_tokens": 536832,
+        "output_tokens": 7736,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -37,5 +46,6 @@
       "name": "docs-sync",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-04T17:42:59+0900"
 }
