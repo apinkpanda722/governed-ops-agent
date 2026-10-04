@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "grader-accuracy",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T18:10:53+0900",
+      "summary": "필수 fact 포함률, Gemini 별도 원장 채점·단가 만료 차단, 가중 κ·CI·사람 표본 폴백, 블라인드 시트·커밋 게이트·CLI·Make 타깃을 TDD로 구현하고 합성 드라이런과 전체 make verify를 통과했습니다. 실제 API는 호출하지 않았습니다.",
+      "completed_at": "2026-10-04T18:26:10+0900",
+      "usage": {
+        "input_tokens": 2584562,
+        "cached_input_tokens": 2472576,
+        "output_tokens": 24320,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
