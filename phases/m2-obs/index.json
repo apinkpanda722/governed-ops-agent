@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "obs-core",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T18:45:41+0900",
+      "summary": "한국 형식 PII 판정·비밀 마스킹, contextvars 기반 span과 로컬 JSONL sink를 TDD로 구현하고 계층 가드 포함 make verify 통과(Python 882개·웹 15개).",
+      "completed_at": "2026-10-04T18:57:50+0900",
+      "usage": {
+        "input_tokens": 1770067,
+        "cached_input_tokens": 1696256,
+        "output_tokens": 17017,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -27,5 +36,6 @@
       "name": "obs-smoke-docs",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-04T18:45:41+0900"
 }
