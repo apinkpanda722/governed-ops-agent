@@ -17,7 +17,8 @@
     },
     {
       "dir": "m2-eval",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-10-04T18:29:10+0900"
     }
   ]
 }
