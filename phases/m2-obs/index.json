@@ -1,0 +1,31 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m2-obs",
+  "steps": [
+    {
+      "step": 0,
+      "name": "obs-core",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "obs-instrument",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "obs-langfuse",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "cost-report",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "obs-smoke-docs",
+      "status": "pending"
+    }
+  ]
+}

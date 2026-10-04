@@ -19,6 +19,10 @@
       "dir": "m2-eval",
       "status": "completed",
       "completed_at": "2026-10-04T18:29:10+0900"
+    },
+    {
+      "dir": "m2-obs",
+      "status": "pending"
     }
   ]
 }
