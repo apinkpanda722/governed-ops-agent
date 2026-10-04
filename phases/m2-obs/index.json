@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "obs-langfuse",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T19:03:57+0900",
+      "summary": "선택적 fail-open Langfuse sink, existing_trace_id 메타데이터, obs 전용 LiteLLM 콜백·compose 타깃을 구현하고 make verify 통과(Python 904개·웹 15개).",
+      "completed_at": "2026-10-04T19:10:50+0900",
+      "usage": {
+        "input_tokens": 1434700,
+        "cached_input_tokens": 1354752,
+        "output_tokens": 8962,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
