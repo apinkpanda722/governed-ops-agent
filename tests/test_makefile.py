@@ -80,3 +80,14 @@ def test_serve_and_ask_are_user_run_only():
     )
     verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
     assert "serve" not in verify and "ask" not in verify
+
+
+def test_api_smokes_are_user_run_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for name in ("checkpointer", "agent"):
+        assert (
+            f"\nsmoke-{name}:\n\tuv run --env-file .env python -m govops.api.smoke {name}\n"
+            in text
+        )
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert "smoke-checkpointer" not in verify and "smoke-agent" not in verify

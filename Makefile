@@ -77,3 +77,12 @@ serve:
 # 예시: make ask AS=demo-platform-g3 Q="티켓을 요약해 주세요"
 ask:
 	uv run --env-file .env python -m govops.api.cli ask --as $(AS) "$(Q)"
+
+.PHONY: smoke-checkpointer smoke-agent
+# compose·make db-init 필요, 쓰기·읽기 왕복
+smoke-checkpointer:
+	uv run --env-file .env python -m govops.api.smoke checkpointer
+
+# live A·LiteLLM·make agent-key 필요, 실제 호출 수 센트, 기대값: 두 사용자 completed·platform만 syn-incident-022 관찰·인용·원장 증가
+smoke-agent:
+	uv run --env-file .env python -m govops.api.smoke agent
