@@ -9,6 +9,10 @@
       "dir": "m1-tools",
       "status": "completed",
       "completed_at": "2026-10-04T12:19:03+0900"
+    },
+    {
+      "dir": "m1-agent",
+      "status": "pending"
     }
   ]
 }

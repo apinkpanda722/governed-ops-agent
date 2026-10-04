@@ -1,0 +1,51 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m1-agent",
+  "steps": [
+    {
+      "step": 0,
+      "name": "costs",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "gateway-client",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "agent-key",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "checkpointer-db",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "agent-graph",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "api-sessions",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "api-tasks-cli",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "e2e-isolation",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "smoke-docs",
+      "status": "pending"
+    }
+  ]
+}
