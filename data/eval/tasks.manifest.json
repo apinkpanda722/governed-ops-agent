@@ -14,11 +14,11 @@
     "m3": 40
   },
   "grades": {
-    "1": 10,
-    "2": 9,
-    "3": 10,
+    "1": 9,
+    "2": 10,
+    "3": 11,
     "4": 10,
-    "5": 11,
+    "5": 10,
     "6": 10
   },
   "m2_dev_count": 7,
@@ -27,16 +27,48 @@
     "dev": 20,
     "test": 40
   },
-  "tasks_sha256": "510500d5fd9441aa4585a3b623bd2daf81f2a6c5668afc1653107176c472cc1f",
+  "tasks_sha256": "5ff6be5424db1491f41c5e2c6d4e77710f0087a9239c6825c72de961c3d751af",
   "teams": {
     "data-ai": 7,
     "finance": 7,
     "hr": 8,
-    "legal": 8,
-    "payments": 7,
+    "legal": 7,
+    "payments": 8,
     "platform": 8,
     "security": 8,
     "sre": 7
+  },
+  "tones": {
+    "T1": {
+      "banmal": 5,
+      "formal": 3,
+      "short": 2
+    },
+    "T2": {
+      "banmal": 6,
+      "formal": 3,
+      "short": 3
+    },
+    "T3": {
+      "banmal": 6,
+      "formal": 3,
+      "short": 3
+    },
+    "T4": {
+      "banmal": 4,
+      "formal": 2,
+      "short": 2
+    },
+    "T5": {
+      "banmal": 6,
+      "formal": 3,
+      "short": 3
+    },
+    "T6": {
+      "banmal": 3,
+      "formal": 1,
+      "short": 2
+    }
   },
   "types": {
     "T1": 10,

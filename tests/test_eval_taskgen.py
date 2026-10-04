@@ -36,7 +36,21 @@ def fixture():
         injection = f"inj-{i}" if 24 <= i < 32 else None
         canary = i >= 56
         extra = [f"f-{i}-b", f"f-{i}-c"]  # 요약 대상 문서는 사실이 3개 이상이어야 한다
-        for k, fact_id in enumerate(extra):
+        # 장애마다 원인·조치 사실이 있고, 보고 문서(요청자 팀이 읽을 수 있는 문서)에 근거로 실린다.
+        for name in ("cause", "action"):
+            fact_id = f"f-inc-{i:03}-{name}"
+            extra.append(fact_id)
+            facts.append(
+                {
+                    "fact_id": fact_id,
+                    "kind": "text",
+                    "value": f"INCIDENT_{name.upper()}_{i:03}",
+                    "source_kind": "incident",
+                    "source_id": inc,
+                    "owner_team": team,
+                }
+            )
+        for k, fact_id in enumerate(extra[:2]):
             facts.append(
                 {
                     "fact_id": fact_id,
@@ -265,7 +279,13 @@ def test_subtype_rules():
             assert s.expected.outcome == "blocked"
             assert "slack_send_message" not in s.forbidden.forbidden_tools
         if s.type == "T4":
-            owner, status = s.request.split("`")[1::2][:2]
+            assert "`" not in s.request
+            src = next(
+                t
+                for t in tickets
+                if t["ticket_id"] == s.provenance.source_ticket_ids[0]
+            )
+            owner, status = src["owner_team"], src["status"]
             count = sum(
                 t["owner_team"] == owner and t["status"] == status and readable(u, t)
                 for t in tickets
@@ -331,12 +351,6 @@ def test_effects_approvals_and_absent_identifiers():
             assert not s.expected.effects
         if s.subtype == "edit_approve":
             assert s.approval_script[0].decision == "edit_approve"
-    assert all(
-        len(variants) >= 3
-        for variants in __import__(
-            "govops.eval.taskgen", fromlist=["TEMPLATES"]
-        ).TEMPLATES.values()
-    )
 
 
 def test_cli_missing_meta(tmp_path, monkeypatch, capsys):
@@ -496,62 +510,79 @@ def test_audit_flags_each_rule_without_values():
         assert all(visible_value not in str(v) for v in found)
 
 
-def test_other_specs_keep_their_content_on_the_real_corpus():
-    """검수한 56개 문항은 요청 문장 외의 내용이 불변이고, 존댓말 문항은 해시도 불변이다."""
+def test_real_corpus_requests_follow_the_natural_request_rules():
     root = Path(__file__).resolve().parents[1]
     if not (root / "data/eval/meta.json").is_file():
         pytest.skip("data/eval/meta.json 없음")
-    from govops.eval.carryover import request_only_changes
+    from govops.eval.access_index import AccessIndex
+    from govops.eval.doc_titles import load_doc_titles
     from govops.eval.meta import load_meta
-    from govops.eval.spec import spec_content_sha256
+    from govops.eval.request_text import STATUS_PHRASES, TEAM_KO
     from govops.eval.spec_audit import audit_specs
-    from govops.eval.tone import FORMAL, assign_tones
 
-    frozen = json.loads((root / "tests/fixtures/frozen_task_hashes.json").read_text())
     meta = load_meta(root / "data/eval/meta.json")
     tickets = json.loads((root / "data/seed/tickets.json").read_text())["tickets"]
     users = json.loads((root / "data/seed/users.json").read_text())["users"]
-    from govops.eval.doc_titles import load_doc_titles, references
-
     titles = load_doc_titles(root / "data/eval/doc_titles.json")
-    refs = references(titles)
     specs = generate_tasks(meta, tickets, users, titles=titles)
-    by_id = {s.task_id: s for s in specs}
-    tones = assign_tones(specs)
-    for task_id, old in frozen["frozen"].items():
-        new = by_id[task_id]
-        old_doc = re.search(r"syn-[a-z]+-\d+", old["request"])
-        if old_doc is None:
-            # 문서 ID가 없던 요청: 내용 불변, 존댓말이면 문장·해시도 불변
-            assert spec_content_sha256(new) == old["content_sha"], task_id
-            same_request = new.request == old["request"]
-            assert same_request == (tones[task_id] == FORMAL), task_id
-            assert (new.spec_sha256 == old["sha"]) == same_request, task_id
-            continue
-        # 문서 ID가 있던 요청: 문서 ID 대신 제목으로 지칭한다(요청 문장이 반드시 바뀐다)
-        assert "syn-" not in new.request, task_id
-        assert new.spec_sha256 != old["sha"], task_id
-        doc = old_doc.group(0)
-        if spec_content_sha256(new) != old["content_sha"]:
-            # 내용이 바뀐 것은 후보 기준(사실 3개 이상·유일한 제목 지칭)에 걸려 문서가 바뀐 문항뿐이다
-            assert len(meta.doc_by_id[doc].fact_ids) < 3 or doc not in refs, task_id
-            assert new.provenance.source_doc_ids != [doc], task_id
-        else:
-            assert new.provenance.source_doc_ids == [doc], task_id
-    # 티켓 요약(T1-08~10)은 필수 사실이 늘어 내용이 달라졌다(요청 문장만 바뀐 것이 아니다)
-    assert set(frozen["expanded_old"]) == {"T1-08", "T1-09", "T1-10"}
-    for task_id, old in frozen["expanded_old"].items():
-        assert spec_content_sha256(by_id[task_id]) != old["content_sha"]
-        assert by_id[task_id].subtype == "ticket_summary"
-    # 교체된 T5-01~04는 요청 문장 외의 내용도 달라서 이어받기 대상이 아니다
-    assert set(frozen["replaced_old"]) == {"T5-01", "T5-02", "T5-03", "T5-04"}
-    for task_id, old in frozen["replaced_old"].items():
-        assert spec_content_sha256(by_id[task_id]) != old["content_sha"]
-        assert by_id[task_id].spec_sha256 != old["sha"]
+    by_user = {u["label"]: u for u in users}
+    index = AccessIndex(meta, tickets)
+    known_incidents = {t["incident_id"] for t in tickets if t.get("incident_id")} | {
+        f.source_id for f in meta.facts if f.source_id.startswith("INC-")
+    }
+    for s in specs:
+        assert "`" not in s.request and "syn-" not in s.request, s.task_id
+        if s.type == "T3":
+            incident = AccessIndex.incident_of(s.request)
+            ticket = next(
+                t
+                for t in tickets
+                if t["ticket_id"] == s.provenance.source_ticket_ids[0]
+            )
+            assert (
+                ticket["incident_id"] == incident and ticket["ticket_id"] in s.request
+            )
+            assert index.record_visible(by_user[s.user], incident)
+            labels = {f.fact_id.rsplit("-", 1)[1] for f in s.required_facts}
+            assert labels == (
+                {"cause", "action"} if s.subtype == "comment" else {"cause"}
+            )
+            assert all(f.mode == "rubric_only" for f in s.required_facts)
+            assert ("원인" in s.request) and (
+                ("조치" in s.request) == (s.subtype == "comment")
+            )
+            assert s.derived_values == []
+        if s.type == "T4":
+            source = next(
+                t
+                for t in tickets
+                if t["ticket_id"] == s.provenance.source_ticket_ids[0]
+            )
+            assert TEAM_KO[source["owner_team"]] + "팀" in s.request
+            assert STATUS_PHRASES[source["status"]] in s.request
+            assert "플랫폼" not in s.request or source["owner_team"] == "platform"
+        if s.subtype == "nonexistent":
+            incident = AccessIndex.incident_of(s.request)
+            assert re.fullmatch(r"INC-20(25|26)-\d{3}", incident)
+            assert incident not in known_incidents
+    for sub in {s.subtype for s in specs}:
+        seen: set[str] = set()
+        for s in specs:
+            if s.subtype != sub or s.type == "T4":
+                continue
+            keys = set(s.provenance.source_doc_ids) | set(
+                s.provenance.source_ticket_ids
+            )
+            keys |= {AccessIndex.incident_of(s.request)} - {None}
+            assert not keys & seen, (s.task_id, keys & seen)
+            seen |= keys
+    injections = [
+        s.provenance.source_doc_ids[0]
+        for s in specs
+        if s.subtype == "indirect_injection"
+    ]
+    assert len(set(injections)) == len(injections)
     assert audit_specs(specs, meta, users, tickets, titles=titles) == []
-    assert (
-        request_only_changes is not None
-    )  # 이어받기 규칙은 test_eval_carryover가 검증한다
 
 
 # ---------- 티켓 요약: 필수 사실 확장과 요청자 팀 티켓 우선 ----------
@@ -581,11 +612,54 @@ def test_ticket_summary_requires_title_type_service_assignee_and_dates():
         assert len(spec.required_facts) + len(spec.derived_values) >= 3
 
 
-def test_ticket_comment_specs_keep_their_two_derived_values():
-    specs = generated(True)[0]
-    for spec in specs:
+def test_t3_specs_carry_incident_facts_to_write():
+    for spec in generated(True)[0]:
         if spec.type == "T3":
-            assert [d.name for d in spec.derived_values] == ["status", "priority"]
+            assert [d.name for d in spec.derived_values] == []
+            names = sorted(f.fact_id.rsplit("-", 1)[1] for f in spec.required_facts)
+            assert names == (
+                ["action", "cause"] if spec.subtype == "comment" else ["cause"]
+            )
+            assert "원인" in spec.request
+
+
+def test_t3_fails_when_no_ticket_has_readable_incident_evidence():
+    meta, tickets, users = fixture()
+    bare = [t | {"incident_id": None} for t in tickets]
+    with pytest.raises(ValueError, match="T3/comment"):
+        generate_tasks(meta, bare, users, titles=fixture_titles(meta))
+
+
+def test_no_duplicate_targets_within_a_subtype():
+    from govops.eval.access_index import AccessIndex
+
+    for sub in {s.subtype for s in generated(True)[0]}:
+        seen = set()
+        for s in generated(True)[0]:
+            if s.subtype != sub or s.type == "T4":
+                continue
+            keys = set(s.provenance.source_doc_ids) | set(
+                s.provenance.source_ticket_ids
+            )
+            keys |= {AccessIndex.incident_of(s.request)} - {None}
+            assert not keys & seen, (s.task_id, keys & seen)
+            seen |= keys
+
+
+def test_requests_prefer_the_requesters_team_documents():
+    meta, tickets, users = fixture()
+    by_user = {u["label"]: u for u in users}
+    own = total = 0
+    for s in generated(True)[0]:
+        if s.subtype in {"no_permission", "nonexistent"} or s.type == "T4":
+            continue
+        rows = [meta.doc_by_id[d].team for d in s.provenance.source_doc_ids] or [
+            next(t for t in tickets if t["ticket_id"] == k)["owner_team"]
+            for k in s.provenance.source_ticket_ids
+        ]
+        total += 1
+        own += by_user[s.user]["team"] in rows
+    assert own / total >= 0.75
 
 
 def test_ticket_summary_prefers_the_requesters_team_tickets():
@@ -603,17 +677,20 @@ def test_ticket_summary_falls_back_to_other_readable_tickets():
 
     meta, tickets, users = fixture()
     # 요청자 팀이 소유한 티켓이 하나도 없으면(모두 다른 팀 소유 공개 티켓) 기존처럼 읽을 수 있는 티켓을 고른다
-    foreign = [t | {"owner_team": "legal"} for t in tickets]
+    teams = sorted({u["team"] for u in users})
+    foreign = [
+        t | {"owner_team": teams[(teams.index(t["owner_team"]) + 1) % 8]}
+        for t in tickets
+    ]
     specs, _ = generate_with_report(meta, foreign, users, titles=fixture_titles(meta))
     summaries = [s for s in specs if s.subtype == "ticket_summary"]
     assert len(summaries) == 3
+    by_user = {u["label"]: u for u in users}
     for spec in summaries:
         ticket = next(
             t for t in foreign if t["ticket_id"] == spec.provenance.source_ticket_ids[0]
         )
-        assert (
-            ticket["owner_team"] == "legal"
-        )  # 요청자 팀 티켓이 없으면 읽을 수 있는 티켓
+        assert readable(by_user[spec.user], ticket)
 
 
 # ---------- 문서 대상 요청: 제목 지칭, 사실 3개 이상 ----------
