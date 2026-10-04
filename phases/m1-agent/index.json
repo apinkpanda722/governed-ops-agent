@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "api-sessions",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T16:12:12+0900",
+      "summary": "B 세션 해시 저장·인증, DEMO_LOGIN·루프백 제한, API 골격·고정 바인드 CLI·시작 계약 검증을 TDD로 구현; make verify 통과(Python 501개, web 15개).",
+      "completed_at": "2026-10-04T16:23:43+0900",
+      "usage": {
+        "input_tokens": 439592,
+        "cached_input_tokens": 393088,
+        "output_tokens": 4638,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
