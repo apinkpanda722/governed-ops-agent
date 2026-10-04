@@ -1,8 +1,8 @@
-# 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-FROM python:3.12.8-slim-bookworm
+# 공식 릴리스 확인(2026-10-04): python 3.12 최신 패치, Debian 13 stable
+FROM python:3.12.15-slim-trixie
 
-# 확인 필요(첫 기동 전 사용자가 공식 릴리스 노트로 확인)
-COPY --from=ghcr.io/astral-sh/uv:0.11.24 /uv /uvx /bin/
+# 공식 릴리스 확인(2026-10-04): uv 0.12.23(PyPI 최신)
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /uvx /bin/
 
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./

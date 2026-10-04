@@ -6,10 +6,10 @@ import json
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from govops.mocks.service import create_admin_app, create_rest_app
 
 from govops.mocks import __main__ as runner
 from govops.mocks import admin
+from govops.mocks.service import create_admin_app, create_rest_app
 
 
 @pytest.mark.parametrize("service", ["jira", "slack"])
