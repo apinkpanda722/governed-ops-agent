@@ -109,10 +109,11 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 
 ### ADR-009: 관측은 Langfuse v3 셀프호스팅(profile obs), 꺼지면 로컬 JSONL, golden trace는 두 층
 **상태**: 유효
-**결정**: Langfuse v3 셀프호스팅(web·worker·Postgres·ClickHouse·Redis·MinIO)을 compose profile `obs`로 분리한다. 핵심 스택은 Langfuse 없이 뜨고 trace는 로컬 JSONL이다. Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. 첫 기동 후 `docker stats`로 실측하고 부족하면 Docker 메모리를 늘린다. trace 하나 = task 하나이고, LiteLLM의 Langfuse 연동에 trace ID를 메타데이터로 넘겨 같은 trace에 묶는다. span: 그래프 노드, 도구 호출, 모델 호출, Guardrail 판정, 승인 대기·결정, 멱등성 조회, 재시도·서킷 상태 변화. score: TCR, 정확도, Guardrail 플래그, 사람 검수. golden trace 두 층: CI(PR마다) = 기록한 LLM 응답 + replay A + mock, 결정론, 도구 호출 순서 제약·부작용 수·최종 상태·거절·Guardrail 판정 비교, GitHub에 키 없음 / live 회귀 관문(사용자 실행) = 프롬프트·모델·도구 설명을 바꾼 PR 머지 전 평가셋 점수가 기준 이상인지. 기록 파일에 프롬프트 해시를 넣고 다르면 CI가 "재기록 필요"로 실패한다. 용어는 "응답 기록 / 기록 재생"(영상 녹화 아님).
+**결정**: Langfuse v3 셀프호스팅(web·worker·Postgres·ClickHouse·Redis·MinIO)을 compose profile `obs`로 분리한다. 핵심 스택은 Langfuse 없이 뜨고 trace는 로컬 JSONL이다. Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. 첫 기동 후 `docker stats`로 실측하고 부족하면 Docker 메모리를 늘린다. trace 하나 = task 하나이고, LiteLLM의 Langfuse 연동에 trace ID를 `existing_trace_id` 메타데이터로 넘겨 같은 trace에 묶는다. span: 그래프 노드, 도구 호출, 모델 호출, Guardrail 판정, 승인 대기·결정, 멱등성 조회, 재시도·서킷 상태 변화. score: TCR, 정확도, Guardrail 플래그, 사람 검수. golden trace 두 층: CI(PR마다) = 기록한 LLM 응답 + replay A + mock, 결정론, 도구 호출 순서 제약·부작용 수·최종 상태·거절·Guardrail 판정 비교, GitHub에 키 없음 / live 회귀 관문(사용자 실행) = 프롬프트·모델·도구 설명을 바꾼 PR 머지 전 평가셋 점수가 기준 이상인지. 기록 파일에 프롬프트 해시를 넣고 다르면 CI가 "재기록 필요"로 실패한다. 용어는 "응답 기록 / 기록 재생"(영상 녹화 아님).
 **이유**: 호스트 48GB·14코어, Docker VM 약 16GB(A OpenSearch와 공유)에서 Langfuse 전체를 항상 띄우면 메모리가 빠듯하다. profile로 분리하면 핵심 기능 개발이 관측 스택에 묶이지 않는다. CI에는 키를 둘 수 없으므로 결정론 층과 live 층을 나눈다.
 **트레이드오프**: Langfuse를 끈 실행은 JSONL로만 남아 대기열 검수를 할 수 없다. 기록 재생 CI는 프롬프트를 바꿀 때마다 재기록 비용이 든다.
-**확인 필요(구현 시 공식 문서로 확인)**: LiteLLM → Langfuse trace ID 메타데이터 키 이름. Langfuse annotation queue가 OSS(셀프호스팅)에 포함되는지(설치 직후 확인).
+메타데이터 키는 LiteLLM 공식 문서 기준 `existing_trace_id`로 확정하며, `v1.103.3` 동작은 사용자 실행 `make smoke-obs`로 확인한다. 마스킹은 sink 직전 `obs/mask.py`에서 수행한다. 요청·답변·초안은 PII 마스킹 원문(8,000자 상한), 도구 결과는 ID+앞부분 300자 발췌(PII·비밀 마스킹), 도구 인자는 PII·비밀 마스킹이다. 토큰·Authorization·키는 항상 제거한다. 모델 프롬프트·응답 원문은 span에 없고 LiteLLM 콜백 `turn_off_message_logging`으로 원문 로깅을 끈다.
+**확인 필요(구현 시 공식 문서로 확인)**: Langfuse annotation queue가 OSS(셀프호스팅)에 포함되는지(설치 직후 `smoke-obs`가 응답 코드를 기록).
 **변경 기록**:
 - 2026-10-03: 결정 8로 확정.
 

@@ -21,8 +21,10 @@ src/govops/
 ├── gateway/      # LiteLLM 호출 클라이언트(에이전트의 유일한 모델 경로), LiteLLM 안에서 도는 Guardrail 훅 어댑터
 │   └── client.py·agent_key.py  # 비동기 모델 호출·전용 가상 키 발급
 ├── guardrails/   # 순수 Python 판정: 한국 형식 PII 정규식, 인젝션 패턴 사전, 팀별 정책 표 로더 (v2 분류기는 gateway 경유 호출)
+│   └── pii.py    # 한국 형식 PII 판정
 ├── audit/        # 감사 로그 해시체인·서명 쓰기(유일한 쓰기 지점), audit-verify
 ├── obs/          # trace span, 전송 전 마스킹, 로컬 JSONL / Langfuse 출력
+│   └── trace.py·mask.py·jsonl.py·langfuse.py
 ├── costs.py      # 공급사별 비용 원장·전체 기간 상한(호출 직전 누적액 검사)
 ├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
 ├── replay/       # 가짜 A MCP 서버(기록 재생), LLM 응답 기록·재생
@@ -31,6 +33,7 @@ web/              # Next.js(App Router, TypeScript): 화면 4개 + BFF route han
 infra/
 ├── postgres/init/01-create-databases.sh  # litellm·langfuse·govops 앱 DB 초기화 계획(ADR-017, m1-agent)
 ├── litellm/config.yaml                  # LiteLLM 주 모델·환경 변수 참조 설정
+├── litellm/config.obs.yaml              # obs 전용 Langfuse 콜백·원문 로깅 끔
 ├── mocks/Dockerfile                     # mock-jira·mock-slack 공용 이미지
 └── docker-compose.yml                   # LiteLLM·Postgres·mock 2개, profile obs: Langfuse v3 스택
 data/
@@ -50,6 +53,7 @@ data/
 docs/results/     # 결과표, 가설 사전 등록, 감사 고정점 manifest (날짜·커밋 해시)
 └── human-grading-registration.json  # docs/results/human-grading-registration.json, 사람 CSV 해시 등록
 logs/             # 로컬 JSONL trace·감사 로그 (커밋 안 함)
+└── traces/<task_id>.jsonl  # task별 마스킹 span
 tests/
 ```
 
@@ -253,13 +257,26 @@ sequenceDiagram
 
 ## trace 구조
 
-- **trace 하나 = task 하나.** LiteLLM의 Langfuse 연동에 B의 trace ID를 메타데이터로 넘겨 모델 호출이 같은 trace에 묶이게 한다. **확인 필요(구현 시 공식 문서로 확인): LiteLLM → Langfuse trace ID 메타데이터 키 이름.**
+- **trace 하나 = task 하나.** LiteLLM의 Langfuse 연동에 B의 trace ID를 메타데이터로 넘겨 모델 호출이 같은 trace에 묶이게 한다. 메타데이터 키는 LiteLLM 공식 문서 기준 `existing_trace_id`로 확정한다([공식 문서](https://docs.litellm.ai/docs/observability/langfuse_integration)). `v1.103.3`에서의 동작은 사용자 실행 `make smoke-obs`로 확인한다.
 - span: 그래프 노드, 도구 호출, 모델 호출, Guardrail 판정, 승인 대기·결정, 멱등성(표식) 조회, 재시도·서킷 상태 변화.
 - score: TCR, 정확도, Guardrail 플래그, 사람 검수.
 - trace는 디버깅용이며 수정 가능하다. 책임 추적은 감사 로그가 맡는다.
 - 전송 전 마스킹 함수가 PII를 가린다. 토큰·Authorization 헤더는 span 속성에 넣지 않는다.
 - Langfuse를 띄우지 않으면 같은 구조를 로컬 JSONL로 쓴다.
 - golden trace 두 층: CI(PR마다, 기록한 LLM 응답 + replay A + mock, 결정론)와 live 회귀 관문(사용자 실행). 비교 항목은 [EVAL.md](EVAL.md#golden-trace)를 따른다.
+
+마스킹은 sink 직전 한 지점(`obs/mask.py`)에서 수행한다. 비밀 제거는 모든 항목에 우선 적용한다.
+
+| 대상 | 마스킹 기준 |
+|---|---|
+| 요청·최종 답변·초안 | PII만 마스킹한 원문(8,000자 상한) |
+| 도구 결과 | 문서·티켓 ID + 앞부분 300자 발췌(PII·비밀 마스킹) |
+| 도구 인자 | PII·비밀 마스킹 |
+| 토큰·Authorization·키 | 항상 제거 |
+| 모델 호출 프롬프트·응답 원문 | span에 없음 + LiteLLM 콜백 `turn_off_message_logging`(마스킹 우회 경로 차단) |
+
+Langfuse annotation queue의 OSS 포함 여부는 확인 필요(설치 직후 `smoke-obs`가 응답 코드를 기록)다.
+호스트에서 켜는 순서: `make obs-up` → UI에서 프로젝트·API 키 생성 → `.env`에 키 설정 → `make obs-up` 재실행.
 
 ## 감사 로그
 

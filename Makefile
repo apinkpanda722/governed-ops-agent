@@ -84,6 +84,11 @@ serve:
 ask:
 	uv run --env-file .env python -m govops.api.cli ask --as $(AS) "$(Q)"
 
+.PHONY: smoke-obs
+# compose 핵심 스택 + make obs-up + live A + Langfuse 키 필요, 사용자 실행
+smoke-obs:
+	uv run --env-file .env python -m govops.api.smoke obs
+
 .PHONY: smoke-checkpointer smoke-agent
 # compose·make db-init 필요, 쓰기·읽기 왕복
 smoke-checkpointer:

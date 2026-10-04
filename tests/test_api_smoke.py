@@ -223,3 +223,170 @@ def test_each_structured_id_field_is_checked(tmp_path, field):
     result = asyncio.run(smoke.smoke_agent(service, service.ledger))
     assert not result.ok
     assert any(field in line and "불일치" in line for line in result.lines)
+
+
+@pytest.mark.parametrize(
+    "change,failed",
+    [
+        (None, None),
+        ("missing", "E1"),
+        ("root", "E2"),
+        ("model", "E2"),
+        ("tool", "E2"),
+        ("generation", "E3"),
+        ("content", "E4"),
+        ("phone", "E5"),
+        ("placeholder", "E5"),
+        ("secret", "E6"),
+        ("counts", "E7"),
+        ("local_phone", "E5"),
+        ("local_secret", "E6"),
+    ],
+)
+@pytest.mark.parametrize("queue", [200, 404, "unavailable"])
+def test_obs_expectations(tmp_path, change, failed, queue):
+    import json
+
+    import httpx
+
+    task = "a" * 32
+    probe = smoke.OBS_PROBE
+    secret = "private-smoke-sentinel"
+    rows = [
+        {
+            "span_id": str(i),
+            "kind": kind,
+            "attributes": {"input.request": "참고 연락처: [PII:mobile]"},
+        }
+        for i, kind in enumerate(("task", "model_call", "tool_call"))
+    ]
+    observations = [
+        {
+            "id": row["span_id"],
+            "name": row["kind"],
+            "type": "SPAN",
+            "input": row["attributes"]["input.request"],
+            "parentObservationId": None if i == 0 else "0",
+            "traceId": task,
+        }
+        for i, row in enumerate(rows)
+    ]
+    generation = {
+        "id": "generation",
+        "name": "agent-primary",
+        "type": "GENERATION",
+        "traceId": task,
+        "input": None,
+        "output": None,
+    }
+    observations.append(generation)
+    if change in {"root", "model", "tool"}:
+        observations[{"root": 0, "model": 1, "tool": 2}[change]]["name"] = "other"
+    if change == "generation":
+        observations.pop()
+    if change == "content":
+        generation["input"] = "message"
+    if change == "phone":
+        generation["metadata"] = probe
+    if change == "secret":
+        generation["metadata"] = secret
+    if change == "placeholder":
+        observations[0]["input"] = "no placeholder"
+    if change == "counts":
+        observations.pop(1)
+    if change in {"local_phone", "local_secret"}:
+        rows[0]["attributes"]["leak"] = probe if change == "local_phone" else secret
+    (tmp_path / f"{task}.jsonl").write_text("\n".join(json.dumps(row) for row in rows))
+
+    class Service:
+        async def start(self, user, request):
+            assert user == "demo-platform-g3"
+            assert request == smoke.REQUEST + " 참고 연락처: " + probe
+            return task
+
+        async def get(self, user, task_id):
+            return {"status": "completed"}
+
+    def handler(request):
+        assert request.headers["authorization"].startswith("Basic ")
+        if request.url.path.endswith("annotation-queues"):
+            if queue == "unavailable":
+                raise httpx.ConnectError(secret, request=request)
+            return httpx.Response(queue)
+        return httpx.Response(
+            404 if change == "missing" else 200,
+            json={"id": task, "observations": observations},
+        )
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await smoke.smoke_obs(
+                Service(),
+                client,
+                host="http://langfuse.test",
+                public_key="public-sentinel",
+                secret_key=secret,
+                secrets=(secret,),
+                trace_root=tmp_path,
+                timeout_s=0,
+                poll_interval=0,
+            )
+
+    result = asyncio.run(run())
+    assert result.ok == (failed is None)
+    assert (
+        len([line for line in result.lines if line.startswith(("PASS ", "FAIL "))]) == 7
+    )
+    if failed:
+        assert any(line.startswith("FAIL " + failed) for line in result.lines)
+    assert f"INFO annotation_queues_status={queue}" in result.lines
+    assert probe not in str(result) and secret not in str(result)
+
+
+def test_obs_preflight(monkeypatch, capsys):
+    for name in smoke.OBS_REQUIRED_ENV:
+        monkeypatch.delenv(name, raising=False)
+    assert smoke.main(["obs"]) == 1
+    output = capsys.readouterr().out
+    assert all(name in output for name in smoke.OBS_REQUIRED_ENV)
+
+
+def test_obs_cli_wiring_and_safe_failure(monkeypatch, tmp_path, capsys, caplog):
+    init_ledgers(tmp_path)
+    monkeypatch.setattr(smoke, "CostLedger", lambda: CostLedger(tmp_path))
+    for name in smoke.OBS_REQUIRED_ENV:
+        monkeypatch.setenv(name, "secret-sentinel")
+    seen = []
+
+    @asynccontextmanager
+    async def service():
+        yield "fake-service"
+
+    async def obs(service, client, **kwargs):
+        seen.append(service)
+        assert isinstance(client, __import__("httpx").AsyncClient)
+        return smoke.SmokeResult(True, ["PASS E1_TRACE_EXISTS"])
+
+    monkeypatch.setattr(smoke, "open_task_service", service)
+    monkeypatch.setattr(smoke, "smoke_obs", obs)
+    assert smoke.main(["obs"]) == 0
+    assert seen == ["fake-service"]
+
+    @asynccontextmanager
+    async def broken():
+        raise RuntimeError("secret-sentinel " + smoke.OBS_PROBE)
+        yield
+
+    monkeypatch.setattr(smoke, "open_task_service", broken)
+    assert smoke.main(["obs"]) == 1
+    output = capsys.readouterr().out + caplog.text
+    assert "secret-sentinel" not in output and smoke.OBS_PROBE not in output
+
+
+def test_obs_probe_and_fixed_contract():
+    from govops.guardrails.pii import mask_pii
+
+    assert "[PII:mobile]" in mask_pii(smoke.OBS_PROBE)
+    assert len(smoke.OBS_EXPECTATIONS) == 7
+    assert smoke.OBS_TIMEOUT_S == 60 and smoke.OBS_POLL_INTERVAL == 5
+    assert smoke.OBS_INFO == "INFO annotation_queues_status="

@@ -88,7 +88,7 @@ def test_serve_and_ask_are_user_run_only():
 
 def test_api_smokes_are_user_run_only():
     text = (REPO_ROOT / "Makefile").read_text()
-    for name in ("checkpointer", "agent"):
+    for name in ("checkpointer", "agent", "obs"):
         assert (
             f"\nsmoke-{name}:\n\tuv run --env-file .env python -m govops.api.smoke {name}\n"
             in text
@@ -167,3 +167,13 @@ def test_cost_report_is_read_only_without_env_file():
     recipe = text.split("\ncost-report:\n")[1].split("\n\n")[0]
     assert "--env-file" not in recipe  # 키 없는 user-run 타깃의 명시적 예외
     assert "cost-report" not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_smoke_obs_phony_and_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: smoke-obs" in text
+    assert "smoke-obs" not in text.split("verify:\n")[1].split("\n\n")[0]
+    assert (
+        "# compose 핵심 스택 + make obs-up + live A + Langfuse 키 필요, 사용자 실행"
+        in text
+    )
