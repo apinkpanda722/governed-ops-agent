@@ -117,7 +117,16 @@
     {
       "step": 8,
       "name": "smoke-docs",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T16:32:19+0900",
+      "summary": "고정 기대값 기반 smoke-checkpointer·smoke-agent와 가짜 단위 테스트·Makefile 타깃·문서 동기화 구현; make verify 통과(Python 531개, web 15개), live 명령 미실행.",
+      "completed_at": "2026-10-04T16:36:58+0900",
+      "usage": {
+        "input_tokens": 703319,
+        "cached_input_tokens": 635776,
+        "output_tokens": 6925,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-04T13:08:02+0900"
