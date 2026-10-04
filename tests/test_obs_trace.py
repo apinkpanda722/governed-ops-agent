@@ -96,3 +96,17 @@ def test_sink_failure_and_defaults():
         assert sink_error_count() == start + 2
     finally:
         configure([])
+
+
+def test_current_span_id_follows_the_active_span():
+    from govops.obs.trace import current_span_id
+
+    assert current_span_id() is None
+    with trace("a" * 32, sinks=[]) as _:
+        root = current_span_id()
+        assert root and len(root) == 16
+        with span(SpanKind.GRAPH_NODE, "model"):
+            inner = current_span_id()
+            assert inner and inner != root
+        assert current_span_id() == root
+    assert current_span_id() is None

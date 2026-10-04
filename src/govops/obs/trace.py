@@ -152,6 +152,12 @@ def span(kind: SpanKind, name: str, **attributes: Any) -> Iterator[None]:
                 _sink_error()
 
 
+def current_span_id() -> str | None:
+    """현재 활성 span의 ID(16자리 hex). trace 밖이면 None."""
+    active = _current_span.get()
+    return active.span_id if active is not None else None
+
+
 def set_attributes(**attributes: Any) -> None:
     active = _current_span.get()
     if active is not None:

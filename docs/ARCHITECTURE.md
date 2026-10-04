@@ -275,7 +275,7 @@ sequenceDiagram
 | 토큰·Authorization·키 | 항상 제거 |
 | 모델 호출 프롬프트·응답 원문 | span에 없음 + LiteLLM 콜백 `turn_off_message_logging`(마스킹 우회 경로 차단) |
 
-Langfuse annotation queue의 OSS 포함 여부는 확인 필요(설치 직후 `smoke-obs`가 응답 코드를 기록)다.
+Langfuse annotation queue는 셀프호스팅 3.225.11에서 API가 HTTP 200으로 응답함을 확인했다(2026-10-04). LiteLLM generation ID는 기본값(긴 base64)이 MinIO 객체 이름 제한에 걸려 `generation_id`(16자리 hex)를 직접 지정하고, 같은 값을 모델 호출 span 속성에 남긴다. `parent_observation_id`로 generation을 모델 호출 span 아래에 붙인다(INFO `generations_under_model_span`으로 확인). 원문 로깅을 끄면 LiteLLM은 내용을 비우지 않고 `redacted-by-litellm` 자리 표시자를 보낸다.
 호스트에서 켜는 순서: `make obs-up` → UI에서 프로젝트·API 키 생성 → `.env`에 키 설정 → `make obs-up` 재실행.
 
 ## 감사 로그

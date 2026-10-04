@@ -112,6 +112,8 @@ eval-gen:
 # 사용자 실행
 obs-up:
 	LITELLM_CONFIG_FILE=./litellm/config.obs.yaml docker compose --env-file .env -f infra/docker-compose.yml --profile obs up -d
+	@# 바인드 마운트한 설정 파일의 내용만 바뀌면 compose가 재생성하지 않으므로 LiteLLM은 항상 재생성한다
+	LITELLM_CONFIG_FILE=./litellm/config.obs.yaml docker compose --env-file .env -f infra/docker-compose.yml --profile obs up -d --force-recreate --no-deps litellm
 
 # 사용자 실행
 obs-down:

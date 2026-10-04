@@ -135,7 +135,7 @@ TCR·정확도·지연 목표는 **dev 실행 뒤, test 실행 전에** `docs/re
 - 대기열 표본 = **실패·거절·Guardrail 플래그 전부 + 비용 상위 5% + 무작위 10%**.
 - 흐름: 실패 trace → 평가셋 후보 → 사람 확정 → 회귀 세트.
 - **검수자 1인**이다. 검수자 간 일치도는 잴 수 없으며 한계로 공개한다.
-- 대기열은 Langfuse annotation queue를 쓰는 것을 전제로 한다. **확인 필요(구현 시 공식 문서로 확인): Langfuse annotation queue가 OSS(셀프호스팅)에 포함되는지.** 포함되지 않으면 대체 방식은 M2에서 정한다.
+- 대기열은 Langfuse annotation queue를 쓰는 것을 전제로 한다. 셀프호스팅 Langfuse 3.225.11에서 annotation queue API가 HTTP 200으로 응답함을 확인했다(2026-10-04).
 
 ## 실행 조건
 - **보고 수치는 live 모드(실제 A)에서만** 낸다. replay 모드는 CI·외부 검토자용이다.
