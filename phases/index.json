@@ -12,7 +12,8 @@
     },
     {
       "dir": "m1-agent",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-10-04T16:36:59+0900"
     }
   ]
 }
