@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "contract-check",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T11:27:56+0900",
+      "summary": "계약 스냅샷 해시 검증·MCP 도구 비교·재귀 신원 필드 검사 모듈과 TDD 테스트 구현; 스냅샷 변경 없이 신원 위반 0건 및 make verify 전체 통과.",
+      "completed_at": "2026-10-04T11:31:12+0900",
+      "usage": {
+        "input_tokens": 411836,
+        "cached_input_tokens": 362368,
+        "output_tokens": 5192,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -52,5 +61,6 @@
       "name": "docs-sync",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-04T11:27:56+0900"
 }
