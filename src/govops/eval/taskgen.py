@@ -182,6 +182,22 @@ def generate_with_report(
                 ]
                 facts = _facts(meta, ids)
                 derived = [{"name": k, "value": row[k]} for k in ("status", "priority")]
+                if typ == "T1":
+                    # 티켓 요약은 제목·유형·서비스·담당자·날짜까지 요구한다(T3 코멘트는 그대로).
+                    # 열거형은 영문 코드 또는 한국어 동의어, 날짜는 날짜 규칙, 제목·담당자는 루브릭.
+                    derived += [
+                        {"name": "ticket_type", "value": row["ticket_type"]},
+                        {"name": "service", "value": row["service"]},
+                        {"name": "title", "value": row["title"]},
+                        {"name": "assignee", "value": row["assignee_id"]},
+                        {"name": "created_at", "value": row["created_at"][:10]},
+                    ]
+                    if row.get("resolved_at"):
+                        derived.append(
+                            {"name": "resolved_at", "value": row["resolved_at"][:10]}
+                        )
+        if sub == "ticket_summary" and len(facts) + len(derived) < 3:
+            return None  # 요약 판정에 쓸 사실이 3개 미만인 티켓은 후보에서 뺀다
         all_hands = sub in {"all_hands", "aggregate_all_hands", "all_hands_approver"}
         if all_hands and not any(
             u["team"] == user["team"] and u["grade"] >= 4 for u in users
@@ -513,6 +529,43 @@ def generate_with_report(
                 "audit violations remain: "
                 + ", ".join(f"{v.task_id}:{v.rule}" for v in remaining)
             )
+    if repair:
+        # 티켓 요약은 가능하면 요청자 팀의 티켓을 우선한다(없으면 공개 티켓 그대로). 요청자는 그대로여서
+        # 다른 문항의 선정(난수·팀/직급 카운터)에는 영향이 없다.
+        by_row = {t["ticket_id"]: t for t in tickets}
+        for at, old in enumerate(specs):
+            if old.subtype != "ticket_summary":
+                continue
+            asker = next(u for u in users if u["label"] == old.user)
+            current = old.provenance.source_ticket_ids[0]
+            if by_row[current]["owner_team"] == asker["team"]:
+                continue
+            own = [
+                t
+                for t in tickets
+                if t["owner_team"] == asker["team"]
+                and _read(asker, t)
+                and (old.user, t["ticket_id"]) not in used
+            ]
+            draw = random.Random(f"{SEED}:ticket-prefer:{old.task_id}")
+            draw.shuffle(own)
+            for row in own:
+                spec = candidate(
+                    "T1",
+                    "ticket_summary",
+                    old.split,
+                    asker,
+                    row,
+                    row["ticket_id"],
+                    "티켓 요약",
+                    task_id=old.task_id,
+                    draw=draw,
+                )
+                if spec is not None:
+                    used.discard((old.user, current))
+                    used.add((old.user, row["ticket_id"]))
+                    specs[at] = spec
+                    break
     # 선정이 끝난 뒤에 말투를 입힌다(대상·요청자·결과는 그대로). 존댓말은 기존 문장을 유지한다.
     tones = assign_tones(specs)
     for i, spec in enumerate(specs):

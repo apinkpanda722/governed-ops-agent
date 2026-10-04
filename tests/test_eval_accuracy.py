@@ -205,3 +205,184 @@ def test_id_and_service_rule_matches_the_description():
     )  # 대소문자 구분
     assert fact_inclusion(s, "INC-2025-006   그리고\nINC core-gateway").included == 2
     assert fact_inclusion(s, "core- gateway INC-2025-007").included == 0
+
+
+# ---------- 티켓 열거형 값(동의어)과 날짜·루브릭 파생 값 ----------
+
+
+def derived(**values):
+    return spec(
+        required_facts=[],
+        derived_values=[{"name": k, "value": v} for k, v in values.items()],
+    )
+
+
+def covered(name, value, text):
+    result = fact_inclusion(derived(**{name: value}), text)
+    return result.included == 1
+
+
+def test_synonym_table_is_fixed_and_has_no_overlap():
+    from govops.eval.accuracy import ENUM_SYNONYMS
+
+    assert set(ENUM_SYNONYMS) == {"status", "priority", "ticket_type"}
+    assert set(ENUM_SYNONYMS["status"]) == {"open", "in_progress", "resolved", "closed"}
+    assert set(ENUM_SYNONYMS["priority"]) == {"low", "medium", "high", "critical"}
+    assert set(ENUM_SYNONYMS["ticket_type"]) == {
+        "task",
+        "improvement",
+        "incident",
+        "request",
+    }
+    assert ENUM_SYNONYMS["status"]["resolved"] == (
+        "해결됨",
+        "해결 완료",
+        "해결",
+        "조치 완료",
+    )
+    assert ENUM_SYNONYMS["status"]["closed"] == ("종료", "종료됨", "닫힘", "클로즈")
+    assert ENUM_SYNONYMS["status"]["open"] == ("열림", "오픈", "접수됨", "신규")
+    assert ENUM_SYNONYMS["status"]["in_progress"] == (
+        "진행 중",
+        "진행중",
+        "처리 중",
+        "작업 중",
+    )
+    assert ENUM_SYNONYMS["priority"]["low"] == ("낮음", "낮은")
+    assert ENUM_SYNONYMS["priority"]["high"] == ("높음", "높은")
+    assert ENUM_SYNONYMS["priority"]["critical"] == ("긴급", "치명적", "치명")
+    for table in ENUM_SYNONYMS.values():
+        words = [w for words in table.values() for w in words]
+        assert len(words) == len(set(words))  # 한 표현은 한 코드에만 속한다
+
+
+@pytest.mark.parametrize(
+    "name,value,good,bad",
+    [
+        (
+            "status",
+            "resolved",
+            [
+                "resolved",
+                "RESOLVED",
+                "해결됨",
+                "해결 완료",
+                "상태는 해결입니다",
+                "조치 완료",
+            ],
+            ["미해결", "미해결됨", "closed", "종료", "open", "in_progress", "재해결"],
+        ),
+        (
+            "status",
+            "open",
+            ["open", "Open", "열림", "오픈 상태", "신규", "접수됨"],
+            ["재오픈", "reopen", "reopened"],
+        ),
+        (
+            "status",
+            "in_progress",
+            [
+                "in_progress",
+                "in progress",
+                "in-progress",
+                "진행 중",
+                "진행중",
+                "처리 중",
+            ],
+            ["진행 전"],
+        ),
+        (
+            "status",
+            "closed",
+            ["closed", "종료", "종료됨", "닫힘", "클로즈"],
+            ["resolved", "해결됨", "미종료"],
+        ),
+        (
+            "priority",
+            "low",
+            ["low", "LOW", "낮음", "우선순위가 낮은"],
+            ["lower", "follow"],
+        ),
+        (
+            "priority",
+            "high",
+            ["high", "높음", "높은 우선순위"],
+            ["highlight", "매우 낮음", "critical"],
+        ),
+        ("priority", "medium", ["medium", "보통", "중간"], ["median"]),
+        ("priority", "critical", ["critical", "긴급", "치명적", "치명"], ["high"]),
+        (
+            "ticket_type",
+            "incident",
+            ["incident", "장애", "인시던트"],
+            ["incidents-x_y"],
+        ),
+        ("ticket_type", "improvement", ["improvement", "개선", "개선 사항"], ["task"]),
+    ],
+)
+def test_enum_values_accept_the_code_or_a_korean_synonym(name, value, good, bad):
+    for text in good:
+        assert covered(name, value, f"티켓 {text}"), text
+    for text in bad:
+        assert not covered(name, value, f"티켓 {text}"), text
+
+
+def test_enum_codes_need_word_boundaries_and_ignore_case():
+    assert covered("status", "resolved", "(RESOLVED)")
+    assert not covered("status", "resolved", "unresolved")
+    assert covered("priority", "low", "Priority: Low.")
+
+
+@pytest.mark.parametrize(
+    "text,ok",
+    [
+        ("생성일 2025-04-10", True),
+        ("2025년 4월 10일에 생성", True),
+        ("2025년 04월 10일", True),
+        ("4월 10일 생성", True),
+        ("2025-04-11", False),
+        ("2024년 4월 10일", False),
+        ("2025-04", False),
+    ],
+)
+def test_date_values_use_the_date_rule_without_time(text, ok):
+    assert covered("created_at", "2025-04-10", text) is ok
+
+
+def test_full_iso_timestamps_are_reduced_to_the_date():
+    assert covered(
+        "resolved_at", "2025-04-10T18:00:00+09:00", "해결일은 2025년 4월 10일"
+    )
+
+
+def test_literal_and_rubric_derived_values():
+    assert covered("service", "analytics-hub", "서비스 analytics-hub")
+    assert not covered("service", "analytics-hub", "Analytics-Hub")  # 서비스명은 그대로
+    s = derived(title="분석 적재 지연 조사", assignee="p-077", status="resolved")
+    result = fact_inclusion(s, "상태 해결됨")
+    assert (result.required, result.included, result.missing) == (
+        1,
+        1,
+        (),
+    )  # 제목·담당자는 루브릭
+
+
+def test_describe_derived_rules_for_the_card():
+    from govops.eval.accuracy import describe_derived
+
+    shown, rule = describe_derived("status", "resolved")
+    assert shown == "해결됨(resolved)"
+    assert (
+        "resolved" in rule
+        and "해결됨" in rule
+        and "해결 완료" in rule
+        and "종료" not in rule
+    )
+    shown, rule = describe_derived("created_at", "2025-04-10T09:00:00+09:00")
+    assert shown == "2025-04-10"
+    assert "2025-04-10 또는 2025년 4월 10일 또는 4월 10일(연도 생략)" in rule
+    assert describe_derived("title", "제목")[1] == "같은 뜻이면 인정(표현은 달라도 됨)"
+    assert describe_derived("assignee", "p-077")[1].startswith("같은 뜻이면 인정")
+    assert describe_derived("service", "core-gateway")[1].startswith(
+        "이 값이 답에 그대로"
+    )

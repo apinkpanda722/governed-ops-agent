@@ -764,3 +764,69 @@ def test_seed_judgments_in_the_page_script():
         "D" not in out and "F" not in out
     )  # 요청 문장만 바뀐 문항이 아니면 이어받지 않는다
     assert out["E"]["status"] == "needs_change" and out["E"]["carried"] is True
+
+
+# ---------- 티켓 요약 카드 문구, 조사, "내용 바뀜" 배지 ----------
+
+
+def test_josa_follows_the_final_syllable():
+    from govops.eval.cards_text import josa
+
+    assert josa("티켓 상태", "이/가") == "가"
+    assert josa("티켓 우선순위", "이/가") == "가"
+    assert josa("생성일", "이/가") == "이"
+    assert josa("해결일", "이/가") == "이"
+    assert josa("서비스", "이/가") == "가"
+    assert josa("제목", "이/가") == "이"
+    assert josa("결제서비스팀 채널(team-payments)", "은/는") == "은"
+    assert josa("전사 공지 채널(announce)", "은/는") == "은"
+    assert josa("담당자", "이/가") == "가"
+    assert josa("3", "이/가") == "이"
+    assert josa("2", "이/가") == "가"
+
+
+def test_ticket_summary_card_lists_each_fact_with_its_judging_rule(world):
+    meta, tickets, users, specs, source, tmp = world
+    html = build_cards(specs, meta, users, tickets, source, tmp / "cards")[
+        0
+    ].read_text()
+    spec = next(s for s in specs if s.subtype == "ticket_summary")
+    text = unescape(card_text(html, spec.task_id))
+    visible = re.sub(r"<details>.*?</details>", "", text, flags=re.DOTALL)
+    for label in (
+        "티켓 상태",
+        "티켓 우선순위",
+        "티켓 유형",
+        "서비스",
+        "제목",
+        "담당자",
+        "생성일",
+    ):
+        assert f"{label}:" in visible, label
+    assert "영문 코드" in visible and "중 하나가 답에 있으면 인정" in visible
+    assert "같은 뜻이면 인정(표현은 달라도 됨)" in visible  # 제목·담당자
+    assert "(연도 생략)이면 인정" in visible  # 날짜
+    assert "p-001 →" in visible  # 담당자는 사람 사실과 같은 표시
+    assert "이(가)" not in visible and "은(는)" not in visible
+    assert "티켓 상태가 티켓 정보와 일치한다" in visible
+    assert "생성일이 티켓 정보와 일치한다" in visible
+
+
+def test_cards_mark_specs_whose_content_changed_as_new_reviews(carried_world):
+    meta, tickets, users, specs, source, tmp, previous, _ = carried_world
+    other = specs[0].model_copy(
+        update={"expected": specs[0].expected.model_copy(update={"outcome": "blocked"})}
+    )
+    specs = [other.model_copy(update={"spec_sha256": spec_hash(other)}), *specs[1:]]
+    html = build_cards(
+        specs, meta, users, tickets, source, tmp / "cards", previous_specs=previous
+    )[0].read_text()
+    changed = card_text(html, specs[0].task_id)
+    assert (
+        'data-changed="1"' in changed and "내용이 바뀜 — 처음부터 새로 검수" in changed
+    )
+    assert "요청 문장만 바뀜 — 문장만 확인" not in changed
+    assert " data-carry-status=" not in changed and ' data-carry="1"' not in changed
+    only_request = card_text(html, specs[1].task_id)
+    assert "내용이 바뀜" not in only_request and ' data-changed="1"' not in only_request
+    assert "f-changed" in html

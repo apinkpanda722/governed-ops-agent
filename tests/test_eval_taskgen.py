@@ -113,6 +113,12 @@ def fixture():
                 "owner_team": team,
                 "status": "open" if i % 2 else "resolved",
                 "priority": "high",
+                "title": f"합성 티켓 {i:03}",
+                "ticket_type": ("task", "improvement", "incident", "request")[i % 4],
+                "service": f"svc-{i:03}",
+                "assignee_id": "p-001",
+                "created_at": "2026-01-10T09:00:00+09:00",
+                "resolved_at": None if i % 2 else "2026-01-12T18:00:00+09:00",
                 "incident_id": inc,
                 "access_level": "public" if i < 24 else "team",
                 "access_teams": [] if i < 24 else [team],
@@ -377,7 +383,9 @@ def test_repair_replaces_only_the_violating_specs():
     before = {s.task_id: s.spec_sha256 for s in legacy}
     after = {s.task_id: s.spec_sha256 for s in specs}
     assert before.keys() == after.keys()
-    assert all(before[i] == after[i] for i in before if i not in violating)
+    summaries = {s.task_id for s in specs if s.subtype == "ticket_summary"}
+    # 티켓 요약은 요청자 팀 티켓 우선·사실 확장으로 달라진다. 나머지는 위반 문항만 바뀐다.
+    assert all(before[i] == after[i] for i in before if i not in violating | summaries)
     assert all(before[i] != after[i] for i in violating)
     assert audit_specs(specs, meta, users, tickets) == []
     new = [s for s in specs if s.subtype == "no_permission"]
@@ -467,6 +475,11 @@ def test_other_specs_keep_their_content_on_the_real_corpus():
         same_request = new.request == old["request"]
         assert same_request == (tones[task_id] == FORMAL), task_id
         assert (new.spec_sha256 == old["sha"]) == same_request, task_id
+    # 티켓 요약(T1-08~10)은 필수 사실이 늘어 내용이 달라졌다(요청 문장만 바뀐 것이 아니다)
+    assert set(frozen["expanded_old"]) == {"T1-08", "T1-09", "T1-10"}
+    for task_id, old in frozen["expanded_old"].items():
+        assert spec_content_sha256(by_id[task_id]) != old["content_sha"]
+        assert by_id[task_id].subtype == "ticket_summary"
     # 교체된 T5-01~04는 요청 문장 외의 내용도 달라서 이어받기 대상이 아니다
     assert set(frozen["replaced_old"]) == {"T5-01", "T5-02", "T5-03", "T5-04"}
     for task_id, old in frozen["replaced_old"].items():
@@ -476,3 +489,65 @@ def test_other_specs_keep_their_content_on_the_real_corpus():
     assert (
         request_only_changes is not None
     )  # 이어받기 규칙은 test_eval_carryover가 검증한다
+
+
+# ---------- 티켓 요약: 필수 사실 확장과 요청자 팀 티켓 우선 ----------
+
+
+def test_ticket_summary_requires_title_type_service_assignee_and_dates():
+    _, tickets, _ = fixture()
+    specs = generated(True)[0]
+    by_ticket = {t["ticket_id"]: t for t in tickets}
+    summaries = [s for s in specs if s.subtype == "ticket_summary"]
+    assert len(summaries) == 3
+    for spec in summaries:
+        ticket = by_ticket[spec.provenance.source_ticket_ids[0]]
+        got = {d.name: d.value for d in spec.derived_values}
+        expected = {
+            "status": ticket["status"],
+            "priority": ticket["priority"],
+            "ticket_type": ticket["ticket_type"],
+            "service": ticket["service"],
+            "title": ticket["title"],
+            "assignee": ticket["assignee_id"],
+            "created_at": ticket["created_at"][:10],
+        }
+        if ticket["resolved_at"]:
+            expected["resolved_at"] = ticket["resolved_at"][:10]
+        assert got == expected
+        assert len(spec.required_facts) + len(spec.derived_values) >= 3
+
+
+def test_ticket_comment_specs_keep_their_two_derived_values():
+    specs = generated(True)[0]
+    for spec in specs:
+        if spec.type == "T3":
+            assert [d.name for d in spec.derived_values] == ["status", "priority"]
+
+
+def test_ticket_summary_prefers_the_requesters_team_tickets():
+    _, tickets, users = fixture()
+    by_ticket = {t["ticket_id"]: t for t in tickets}
+    by_user = {u["label"]: u for u in users}
+    for spec in generated(True)[0]:
+        if spec.subtype == "ticket_summary":
+            ticket = by_ticket[spec.provenance.source_ticket_ids[0]]
+            assert ticket["owner_team"] == by_user[spec.user]["team"]
+
+
+def test_ticket_summary_falls_back_to_other_readable_tickets():
+    from govops.eval.taskgen import generate_with_report
+
+    meta, tickets, users = fixture()
+    # 요청자 팀이 소유한 티켓이 하나도 없으면(모두 다른 팀 소유 공개 티켓) 기존처럼 읽을 수 있는 티켓을 고른다
+    foreign = [t | {"owner_team": "legal"} for t in tickets]
+    specs, _ = generate_with_report(meta, foreign, users)
+    summaries = [s for s in specs if s.subtype == "ticket_summary"]
+    assert len(summaries) == 3
+    for spec in summaries:
+        ticket = next(
+            t for t in foreign if t["ticket_id"] == spec.provenance.source_ticket_ids[0]
+        )
+        assert (
+            ticket["owner_team"] == "legal"
+        )  # 요청자 팀 티켓이 없으면 읽을 수 있는 티켓

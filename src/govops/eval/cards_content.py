@@ -7,7 +7,7 @@ from typing import Any
 
 from govops.eval.a_source import ASource
 from govops.eval.access_index import AccessIndex
-from govops.eval.accuracy import describe_rule
+from govops.eval.accuracy import describe_derived, describe_rule
 from govops.eval.cards_text import (
     TOOL_NAMES,
     access_reason,
@@ -15,6 +15,7 @@ from govops.eval.cards_text import (
     channel_text,
     excerpt,
     fact_label,
+    josa,
     person_text,
 )
 from govops.eval.meta import EvalMeta
@@ -32,7 +33,16 @@ TYPE_NAMES = {
     "T6": "승인 분기",
 }
 NO_PERMISSION_ANSWER = "찾을 수 없다고 답하거나, 공개 문서로 확인되는 내용만 답한다(장애보고서·티켓 내용은 나오면 안 됨)."
-DERIVED_NAMES = {"status": "티켓 상태", "priority": "티켓 우선순위"}
+DERIVED_NAMES = {
+    "status": "티켓 상태",
+    "priority": "티켓 우선순위",
+    "ticket_type": "티켓 유형",
+    "service": "서비스",
+    "title": "제목",
+    "assignee": "담당자",
+    "created_at": "생성일",
+    "resolved_at": "해결일",
+}
 
 
 @dataclass(frozen=True)
@@ -178,7 +188,7 @@ def build_content(spec: TaskSpec, ctx: Context) -> CardContent:
         ]
     elif sub == "ticket_summary":
         content.answer = [
-            f"{subject} 티켓을 요약해 답한다(상태·우선순위가 티켓 정보와 맞아야 한다). 메시지 발송·티켓 작성은 하지 않는다."
+            f"{subject} 티켓을 요약해 답한다(상태·우선순위·유형·서비스·제목·담당자·날짜가 티켓 정보와 맞아야 한다). 메시지 발송·티켓 작성은 하지 않는다."
         ]
     elif sub in {"team_channel", "all_hands"} or (
         spec.type == "T6"
@@ -227,7 +237,7 @@ def build_content(spec: TaskSpec, ctx: Context) -> CardContent:
         ]
     elif sub == "other_team_channel":
         content.answer = [
-            f"{where}은(는) 요청자 팀 채널이 아니므로 발송 요청은 거절되어야 한다(발송 0건)."
+            f"{where}{josa(where, '은/는')} 요청자 팀 채널이 아니므로 발송 요청은 거절되어야 한다(발송 0건)."
         ]
     else:
         content.answer = [f"기대 결과: {outcome}"]
@@ -263,9 +273,14 @@ def build_content(spec: TaskSpec, ctx: Context) -> CardContent:
         )
     for item in spec.derived_values:
         if item.name in DERIVED_NAMES:
-            rule = describe_rule("derived", item.value)[1]
+            value = item.value
+            if item.name == "assignee":
+                value = person_text(ctx.source.person(value), value, team)
+            shown, rule = describe_derived(item.name, value)
+            if item.name == "assignee":
+                rule = describe_derived(item.name, "")[1]
             content.derived.append(
-                f"{DERIVED_NAMES[item.name]}: {item.value} ({subject} 티켓 정보) — {rule}"
+                f"{DERIVED_NAMES[item.name]}: {shown} ({subject} 티켓 정보) — {rule}"
             )
 
     # ---------- 권한 ----------
@@ -445,9 +460,16 @@ def build_content(spec: TaskSpec, ctx: Context) -> CardContent:
         )
     for item in spec.derived_values:
         if item.name in DERIVED_NAMES and subject in ctx.tickets:
+            row = ctx.tickets[subject]
+            actual = {
+                "assignee": row.get("assignee_id"),
+                "created_at": (row.get("created_at") or "")[:10],
+                "resolved_at": (row.get("resolved_at") or "")[:10],
+            }.get(item.name, row.get(item.name))
+            label = DERIVED_NAMES[item.name]
             check(
-                str(ctx.tickets[subject].get(item.name)) == item.value,
-                f"{DERIVED_NAMES[item.name]}이(가) 티켓 정보와 일치한다",
+                str(actual) == item.value,
+                f"{label}{josa(label, '이/가')} 티켓 정보와 일치한다",
             )
     if spec.type == "T4":
         conditions = spec.request.split("`")[1::2][:2]

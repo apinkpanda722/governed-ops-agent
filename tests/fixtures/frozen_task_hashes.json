@@ -1,5 +1,19 @@
 {
-  "_comment": "요청 말투 변형 도입 전(tasks_sha256 510500d5…)의 명세 해시. frozen의 56개는 요청 문장 외 내용이 불변이어야 하고(content_sha), 존댓말로 배정된 문항은 해시도 불변이어야 한다. replaced_old는 no_permission 선정 규칙 변경으로 교체된 문항의 이전 값이며 새 명세의 내용이 달라야 한다.",
+  "_comment": "요청 말투 변형 도입 전(tasks_sha256 510500d5…)의 명세 해시. frozen의 56개는 요청 문장 외 내용이 불변이어야 하고(content_sha), 존댓말로 배정된 문항은 해시도 불변이어야 한다. replaced_old는 no_permission 선정 규칙 변경으로 교체된 문항의 이전 값이며 새 명세의 내용이 달라야 한다. expanded_old는 티켓 요약의 필수 사실을 늘리면서 내용이 바뀐 문항(T1-08~10)의 이전 값이며 새 명세의 내용이 달라야 한다.",
+  "expanded_old": {
+    "T1-08": {
+      "content_sha": "a8dcf7658f11a1529f5ab86c4d0d57f860817e7e7baa5d29430445dc92a35ceb",
+      "sha": "ae06ee22073bca0c1cd6053d8a4eced1511663fc1e2b001b52d41ea30d2fb2aa"
+    },
+    "T1-09": {
+      "content_sha": "d9383e0a800c1a35f5b9745bcb436a76270052c3f928f23b915cee6e40c819aa",
+      "sha": "54d5291da027395a371a95d26ec1643ad1ee702b0d38829ddb34ba062af1ab4d"
+    },
+    "T1-10": {
+      "content_sha": "3012db417df5da485b56b7742bb43e280f26d758b72d7aa7904222c8cf4aebc8",
+      "sha": "5161971615db0c80247a6f62cdfd9fdd7cd68ce4036036ebc986708fbc3fbfdf"
+    }
+  },
   "frozen": {
     "T1-01": {
       "content_sha": "93d36242e9de425e41a68c744bb68e04df386fd0a43ee170802b2c2b47b20cd5",
@@ -35,21 +49,6 @@
       "content_sha": "2f7fbca5619ccc35af70567ec91886672668413fd01237a62d840e7334bf0550",
       "request": "syn-notice-004 대상으로 내용 요약해 주시겠어요?",
       "sha": "52afc3aaf7ae32b6c2a0e660ef5f5b5aaf268c04d7ea1035367dbe2524779989"
-    },
-    "T1-08": {
-      "content_sha": "a8dcf7658f11a1529f5ab86c4d0d57f860817e7e7baa5d29430445dc92a35ceb",
-      "request": "티켓 요약 부탁드립니다. 대상은 FIN-1035입니다.",
-      "sha": "ae06ee22073bca0c1cd6053d8a4eced1511663fc1e2b001b52d41ea30d2fb2aa"
-    },
-    "T1-09": {
-      "content_sha": "d9383e0a800c1a35f5b9745bcb436a76270052c3f928f23b915cee6e40c819aa",
-      "request": "티켓 요약 부탁드립니다. 대상은 SRE-1059입니다.",
-      "sha": "54d5291da027395a371a95d26ec1643ad1ee702b0d38829ddb34ba062af1ab4d"
-    },
-    "T1-10": {
-      "content_sha": "3012db417df5da485b56b7742bb43e280f26d758b72d7aa7904222c8cf4aebc8",
-      "request": "티켓 요약 부탁드립니다. 대상은 HRM-1015입니다.",
-      "sha": "5161971615db0c80247a6f62cdfd9fdd7cd68ce4036036ebc986708fbc3fbfdf"
     },
     "T2-01": {
       "content_sha": "f4b56301a7bc83d5f10804cbc9958e6a5bd3a3cab3911cf7029f85d9f9276d04",
