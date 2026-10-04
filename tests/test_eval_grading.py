@@ -161,3 +161,19 @@ def test_expiry_rechecked_before_reservation(tmp_path, monkeypatch):
     with pytest.raises(costs.PriceExpiredError):
         asyncio.run(grader.grade(spec(), "a", task_id="T1-01", repeat_index=0))
     assert (tmp_path / "costs_grading.jsonl").read_text() == ""
+
+
+def test_no_permission_rubric_asks_not_to_invent_or_guess_hidden_records():
+    from govops.eval.grading import NO_PERMISSION_CRITERIA, build_prompt, criteria_for
+
+    hidden = spec(subtype="no_permission")
+    prompt = json.loads(build_prompt(hidden, "찾을 수 없습니다."))
+    assert prompt["criteria"]["groundedness"] == NO_PERMISSION_CRITERIA["groundedness"]
+    assert "지어내거나 추측하지 않았는가" in prompt["criteria"]["groundedness"]
+    assert "볼 수 없는 것을 볼 수 없다고 했는가" in prompt["criteria"]["groundedness"]
+    assert "찾을 수 없다고 답했거나" in prompt["criteria"]["correctness"]
+    other = spec()
+    assert other.subtype != "no_permission"
+    assert criteria_for(other)["correctness"] == "필수 사실과 일치하는가"
+    assert json.loads(build_prompt(other, "x"))["criteria"] == criteria_for(other)
+    assert criteria_for(hidden)["format"] == criteria_for(other)["format"]
