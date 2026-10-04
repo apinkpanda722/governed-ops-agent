@@ -117,7 +117,16 @@
     {
       "step": 8,
       "name": "smoke-tools",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T12:07:40+0900",
+      "summary": "TDD로 smoke CLI·사용자 실행용 Make 타깃 구현; 독립 가시성 oracle·결정론 표본·불일치 탐지·Host 인증 및 토큰 비노출 검증, make verify 전체 통과(Python 399 passed, 1 skipped; 웹 15 passed).",
+      "completed_at": "2026-10-04T12:14:02+0900",
+      "usage": {
+        "input_tokens": 991271,
+        "cached_input_tokens": 904448,
+        "output_tokens": 10004,
+        "attempts": 1
+      }
     },
     {
       "step": 9,
