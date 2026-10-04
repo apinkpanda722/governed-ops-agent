@@ -28,7 +28,7 @@ def check_absolute_rules(
     expected, actual = effect_counts(spec.expected.effects), effect_counts(obs.effects)
     duplicates = sum(max(0, count - expected[key]) for key, count in actual.items())
     leaks = forbidden_exposures(spec, obs) | exposed(
-        unreadable_ids, [*obs.observed_ids, *obs.cited_doc_ids]
+        unreadable_ids, [*obs.observed_ids, *obs.cited_doc_ids], id_like=True
     )
     unapproved = sum(
         effect.count

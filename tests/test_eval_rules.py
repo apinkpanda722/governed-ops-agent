@@ -109,3 +109,12 @@ def test_unreadable_oracle():
     assert unreadable_ids_for(users[2], meta, tickets) == frozenset(
         {"PLT-001", "syn-1"}
     )
+
+
+def test_unreadable_id_variants_count_as_leaks():
+    s = spec()
+    o = observation(
+        observed_ids=["ＳＹＮ－１００４", "plt 2002"], cited_doc_ids=["syn 1004"]
+    )
+    report = check_absolute_rules(s, o, unreadable_ids=["syn-1004", "PLT-2002"])
+    assert report.leak_count == 2
