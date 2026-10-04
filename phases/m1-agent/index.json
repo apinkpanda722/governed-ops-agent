@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "e2e-isolation",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T16:28:32+0900",
+      "summary": "tests/test_e2e_isolation.py에 실제 API·그래프·ToolRuntime·broker·HTTP replay A·mock을 통과하는 8개 격리 검증 구현; production 수정 없이 make verify 통과(Python 514개, web 15개).",
+      "completed_at": "2026-10-04T16:32:18+0900",
+      "usage": {
+        "input_tokens": 625831,
+        "cached_input_tokens": 550528,
+        "output_tokens": 5533,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
