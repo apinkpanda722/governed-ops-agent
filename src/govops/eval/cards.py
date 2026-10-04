@@ -105,14 +105,13 @@ def _card(content: CardContent, state: str, ctx: Context) -> str:
     out += "<h3>③ 답에 들어가야 할 내용</h3>"
     if content.facts or content.derived:
         for fact in content.facts:
-            how = "그대로 나와야 함" if fact.exact else "같은 뜻이면 됨"
             out += (
                 "<p><b>"
                 + _e(fact.label)
                 + "</b>: "
                 + _e(fact.value)
                 + ' <span class="small">('
-                + how
+                + _e(fact.rule)
                 + ")</span></p>"
             )
             out += (

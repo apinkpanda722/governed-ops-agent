@@ -14,12 +14,12 @@
     "m3": 40
   },
   "grades": {
-    "1": 11,
-    "2": 10,
+    "1": 10,
+    "2": 9,
     "3": 10,
     "4": 10,
-    "5": 10,
-    "6": 9
+    "5": 11,
+    "6": 10
   },
   "m2_dev_count": 7,
   "meta_sha256": "6c8e6f59489bcc58a196da57c78637f0afcb9dd2bece7b8bd0b85cbec043eb12",
@@ -27,14 +27,14 @@
     "dev": 20,
     "test": 40
   },
-  "tasks_sha256": "d6b9204c1cf0487021461d5e35a5c790dd810cc6857c0fa6982fa8a23e27a439",
+  "tasks_sha256": "510500d5fd9441aa4585a3b623bd2daf81f2a6c5668afc1653107176c472cc1f",
   "teams": {
-    "data-ai": 8,
+    "data-ai": 7,
     "finance": 7,
     "hr": 8,
     "legal": 8,
     "payments": 7,
-    "platform": 7,
+    "platform": 8,
     "security": 8,
     "sre": 7
   },

@@ -310,6 +310,62 @@ def test_a_legacy_no_permission_spec_is_flagged(world):
     assert 'data-warn="1"' in card and "정의되어 있다" in unescape(card)
 
 
+def test_fact_rules_are_shown_as_the_real_judging_rule(world):
+    meta, tickets, users, specs, _, tmp = world
+    spec = next(s for s in specs if s.task_id == "T1-01")
+    first = spec.required_facts[0]
+    # 같은 사실을 datetime(저장 형식 2025-06-18T16:00)으로 바꿔 표시를 확인한다.
+    changed = {"kind": "datetime", "value": "2025-06-18T16:00"}
+    facts = [
+        f.model_copy(update=changed) if f.fact_id == first.fact_id else f
+        for f in meta.facts
+    ]
+    meta2 = meta.model_copy(update={"facts": facts})
+    spec2 = spec.model_copy(
+        update={
+            "required_facts": [
+                first.model_copy(update=changed),
+                *spec.required_facts[1:],
+            ]
+        }
+    )
+    src = ASource(make_a_tree(tmp / "a2", meta2), {d.doc_id for d in meta2.docs})
+    html = build_cards([spec2], meta2, users, tickets, src, tmp / "cards")[
+        0
+    ].read_text()
+    visible = re.sub(
+        r"<details>.*?</details>",
+        "",
+        unescape(card_text(html, spec2.task_id)),
+        flags=re.DOTALL,
+    )
+    assert "2025-06-18 16:00 <span" in visible  # 저장 형식(T)이 아니라 읽기 쉬운 형식
+    outside_excerpts = re.sub(
+        r'<div class="ev">.*?</div>', "", visible, flags=re.DOTALL
+    )
+    assert "2025-06-18T16:00" not in outside_excerpts
+    for phrase in (
+        "2025-06-18 또는 2025년 6월 18일 또는 6월 18일(연도 생략)",
+        "16:00 또는 16시 00분 또는 16시 또는 오후 4시",
+        "같은 문장 안이나 24자 이내",
+    ):
+        assert phrase in visible, phrase
+    assert "(그대로 나와야 함)" not in visible
+
+
+def test_service_and_id_facts_state_case_and_whitespace_handling(world):
+    meta, tickets, users, specs, source, tmp = world
+    html = build_cards(specs, meta, users, tickets, source, tmp / "cards")[
+        0
+    ].read_text()
+    text = unescape(card_text(html, "T1-01"))
+    assert (
+        "이 값이 답에 그대로 들어 있어야 인정(대소문자는 구분하고, 연속 공백은 하나로 봄)"
+        in text
+    )
+    assert "(그대로 나와야 함)" not in text
+
+
 def test_slack_target_check_does_not_apply_to_ticket_tasks(world):
     meta, tickets, users, specs, source, tmp = world
     html = build_cards(specs, meta, users, tickets, source, tmp / "cards")[
