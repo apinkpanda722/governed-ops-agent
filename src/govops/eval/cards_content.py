@@ -7,6 +7,7 @@ from typing import Any
 
 from govops.eval.a_source import ASource
 from govops.eval.access_index import AccessIndex
+from govops.eval.accuracy import describe_rule
 from govops.eval.cards_text import (
     TOOL_NAMES,
     access_reason,
@@ -49,7 +50,7 @@ class Evidence:
 class FactLine:
     label: str
     value: str
-    exact: bool  # True: 답에 그대로 나와야 함, False: 같은 뜻이면 됨
+    rule: str  # 실제 판정 규칙(평문)
     evidence: tuple[Evidence, ...]
 
 
@@ -256,18 +257,15 @@ def build_content(spec: TaskSpec, ctx: Context) -> CardContent:
         found = fact_evidence(
             required.fact_id, [d for d in candidates if doc_access(d)[0]]
         )
+        shown, rule = describe_rule(fact.kind, value, required.mode)
         content.facts.append(
-            FactLine(
-                fact_label(required.fact_id),
-                value,
-                required.mode == "literal",
-                tuple(found[:2]),
-            )
+            FactLine(fact_label(required.fact_id), shown, rule, tuple(found[:2]))
         )
     for item in spec.derived_values:
         if item.name in DERIVED_NAMES:
+            rule = describe_rule("derived", item.value)[1]
             content.derived.append(
-                f"{DERIVED_NAMES[item.name]}: {item.value} ({subject} 티켓 정보)"
+                f"{DERIVED_NAMES[item.name]}: {item.value} ({subject} 티켓 정보) — {rule}"
             )
 
     # ---------- 권한 ----------
