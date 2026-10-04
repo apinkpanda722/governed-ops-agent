@@ -1,0 +1,106 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m2-eval",
+  "steps": [
+    {
+      "step": 0,
+      "name": "meta-extract",
+      "status": "completed",
+      "started_at": "2026-10-04T17:42:59+0900",
+      "summary": "평가 메타데이터 모델·검증 로더·결정론적 읽기 전용 추출 CLI와 Make 타깃을 구현하고, 합성 fixture 및 전체 make verify 검증을 통과했습니다. 실제 A 추출은 실행하지 않았습니다.",
+      "completed_at": "2026-10-04T17:48:05+0900",
+      "usage": {
+        "input_tokens": 599457,
+        "cached_input_tokens": 536832,
+        "output_tokens": 7736,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "spec-schema",
+      "status": "completed",
+      "started_at": "2026-10-04T17:48:05+0900",
+      "summary": "TaskSpec 선언형 스키마·해시·불변식 검증기와 독립 권한 oracle을 구현하고, 38명×전체 시드 티켓 대조 및 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-04T17:54:09+0900",
+      "usage": {
+        "input_tokens": 705272,
+        "cached_input_tokens": 642560,
+        "output_tokens": 9319,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "taskset-gen",
+      "status": "completed",
+      "started_at": "2026-10-04T17:54:09+0900",
+      "summary": "60개 task 결정론 생성기·원자적 저장 CLI·eval-gen 타깃과 TDD 테스트를 구현하고, dev/test 20/40·M2 dev 7개·권한 및 분포 검증과 전체 make verify를 통과했습니다. 실제 task 파일은 생성하지 않았습니다.",
+      "completed_at": "2026-10-04T18:00:52+0900",
+      "usage": {
+        "input_tokens": 873369,
+        "cached_input_tokens": 741248,
+        "output_tokens": 10062,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "review-cards",
+      "status": "completed",
+      "started_at": "2026-10-04T18:00:52+0900",
+      "summary": "오프라인 문항 카드 HTML 생성기·해시 기반 읽기 전용 확정본 로더·검수 CLI와 Make 타깃을 TDD로 구현하고 전체 make verify를 통과했습니다. 실제 데이터·확정본·phases는 수정하지 않았습니다.",
+      "completed_at": "2026-10-04T18:05:45+0900",
+      "usage": {
+        "input_tokens": 506963,
+        "cached_input_tokens": 450944,
+        "output_tokens": 7022,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "grader-tcr",
+      "status": "completed",
+      "started_at": "2026-10-04T18:05:45+0900",
+      "summary": "Observation JSONL 모델·결정론적 TCR 채점기·반복 실행 집계·절대 규칙 3개 판정을 합성 관측 TDD로 구현하고 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-04T18:10:53+0900",
+      "usage": {
+        "input_tokens": 623951,
+        "cached_input_tokens": 568832,
+        "output_tokens": 7238,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 5,
+      "name": "grader-accuracy",
+      "status": "completed",
+      "started_at": "2026-10-04T18:10:53+0900",
+      "summary": "필수 fact 포함률, Gemini 별도 원장 채점·단가 만료 차단, 가중 κ·CI·사람 표본 폴백, 블라인드 시트·커밋 게이트·CLI·Make 타깃을 TDD로 구현하고 합성 드라이런과 전체 make verify를 통과했습니다. 실제 API는 호출하지 않았습니다.",
+      "completed_at": "2026-10-04T18:26:10+0900",
+      "usage": {
+        "input_tokens": 2584562,
+        "cached_input_tokens": 2472576,
+        "output_tokens": 24320,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 6,
+      "name": "docs-sync",
+      "status": "completed",
+      "started_at": "2026-10-04T18:26:10+0900",
+      "summary": "평가 명령어·모듈·데이터 경로와 M2/M3 경계·채점 규칙·고정 사전 등록 문구를 문서에 동기화하고 일관성 테스트 및 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-04T18:29:10+0900",
+      "usage": {
+        "input_tokens": 379152,
+        "cached_input_tokens": 317696,
+        "output_tokens": 3884,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-04T17:42:59+0900",
+  "completed_at": "2026-10-04T18:29:10+0900"
+}

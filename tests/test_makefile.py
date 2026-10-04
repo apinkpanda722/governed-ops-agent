@@ -52,14 +52,15 @@ def test_user_run_targets_are_separate():
         "smoke-mock",
         "smoke-host-header",
     ]
-    for name in ["mock-tokens", "seed-extract", *live]:
+    for name in ["mock-tokens", "seed-extract", "eval-meta-extract", *live]:
         assert "\n" + name + ":\n" in text
         recipe = text.split("\n" + name + ":\n", 1)[1].splitlines()[0]
         assert "uv run " in recipe
         if name in live:
             assert "uv run --env-file .env " in recipe
     verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
-    assert all(name not in verify for name in live)
+    assert all(name not in verify for name in [*live, "eval-meta-extract"])
+    assert "eval-meta-extract" in text.split(".PHONY:", 2)[-1]
     assert ".PHONY: verify\n" in text
     assert "SMOKE_USER ?= demo-platform-g3" in text
 
@@ -102,3 +103,40 @@ def test_every_docker_compose_command_passes_the_env_file() -> None:
     commands = [line for line in text.splitlines() if "docker compose" in line]
     assert commands
     assert all("docker compose --env-file .env " in line for line in commands)
+
+
+def test_eval_gen_is_user_run_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: eval-gen" in text
+    assert (
+        "# meta.json 필요, 사용자 실행\neval-gen:\n\tuv run python -m govops.eval.taskgen\n"
+        in text
+    )
+    assert "eval-gen" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+
+
+def test_review_targets_are_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for target, command in [("eval-cards", "cards"), ("eval-review-status", "status")]:
+        assert (
+            f"# 사용자 실행\n{target}:\n\tuv run python -m govops.eval.review_cli {command}"
+            in text
+        )
+        assert target in text.split(".PHONY:")[-1]
+        assert target not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_grading_targets_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for name, command in [
+        ("eval-human-sheet", "human-sheet"),
+        ("eval-human-register", "register-human"),
+        ("eval-gemini-grade", "grade"),
+        ("smoke-gemini", "smoke"),
+    ]:
+        assert (
+            f"# 사용자 실행\n{name}:\n\tuv run --env-file .env python -m govops.eval.grading_cli {command}"
+            in text
+        )
+        assert name in text.split(".PHONY:")[-1]
+        assert name not in text.split("verify:\n")[1].split("\n\n")[0]

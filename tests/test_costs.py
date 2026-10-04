@@ -42,7 +42,7 @@ def test_prices_and_constants(monkeypatch):
     assert costs.estimate_call_usd(
         "gpt-6-luna", input_tokens_upper=1000000, max_output_tokens=1000000
     ) == pytest.approx(0.6)
-    assert len(costs.PRICES) == 4
+    assert len(costs.PRICES) == 6
     for suffix, amount in [
         ("input", 0.1),
         ("cached_input", 0.01),
@@ -191,3 +191,25 @@ def test_partial_missing_fails_closed(tmp_path, missing):
     with pytest.raises(costs.LedgerMissingError):
         ledger.check_before_call(purpose="grading", estimate_usd=0)
     assert not (tmp_path / missing).exists()
+
+
+def test_gemini_prices_and_expiry():
+    from datetime import date
+
+    assert costs.gemini_cost_usd(
+        "gemini-3.8-flash",
+        input_tokens=1000000,
+        output_tokens=1000000,
+        on=date(2026, 12, 31),
+    ) == pytest.approx(4.5)
+    with pytest.raises(costs.PriceExpiredError):
+        costs.gemini_cost_usd(
+            "gemini-3.8-flash", input_tokens=0, output_tokens=0, on=date(2027, 1, 1)
+        )
+    for bad in [-1, 1.5, True, "1"]:
+        with pytest.raises(ValueError):
+            costs.gemini_cost_usd("gemini-3.8-flash", input_tokens=bad, output_tokens=0)
+    for suffix in ["input", "output"]:
+        p = costs.PRICES[f"google.gemini-3.8-flash.{suffix}"]
+        assert p.valid_until == "2026-12-31" and p.checked_on == "2026-10-01"
+        assert p.source_url == "https://ai.google.dev/gemini-api/docs/pricing"
