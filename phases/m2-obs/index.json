@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "cost-report",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T19:10:50+0900",
+      "summary": "읽기 전용 cost-report 명령과 예약·정산 비율 통계, 480회 계획 비용 재추정 및 제외 건수 보고를 TDD로 구현하고 make verify 통과(Python 913개·웹 15개).",
+      "completed_at": "2026-10-04T19:15:40+0900",
+      "usage": {
+        "input_tokens": 782622,
+        "cached_input_tokens": 722176,
+        "output_tokens": 6377,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
