@@ -1,0 +1,56 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m1-tools",
+  "steps": [
+    {
+      "step": 0,
+      "name": "contract-check",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "mock-jira",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "mock-slack",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "seed-extract",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "broker",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "replay-fake-a",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "mcp-client",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "rest-clients",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "smoke-tools",
+      "status": "pending"
+    },
+    {
+      "step": 9,
+      "name": "docs-sync",
+      "status": "pending"
+    }
+  ]
+}

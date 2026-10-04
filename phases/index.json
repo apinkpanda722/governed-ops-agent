@@ -4,6 +4,10 @@
       "dir": "m0-bootstrap",
       "status": "completed",
       "completed_at": "2026-10-04T00:05:10+0900"
+    },
+    {
+      "dir": "m1-tools",
+      "status": "pending"
     }
   ]
 }
