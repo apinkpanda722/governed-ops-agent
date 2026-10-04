@@ -1,6 +1,9 @@
-"""업무 API 구현 전 REST·관리 앱의 healthz 골격."""
+"""Mock REST·Compose 내부 관리 앱 팩토리."""
 
 from fastapi import FastAPI
+
+from govops.mocks.auth import TokenHashStore
+from govops.mocks.jira import JiraState, add_admin_routes, add_rest_routes
 
 
 def _create_health_app(service: str) -> FastAPI:
@@ -15,11 +18,24 @@ def _create_health_app(service: str) -> FastAPI:
     return app
 
 
-def create_rest_app(service: str) -> FastAPI:
+def create_rest_app(
+    service: str,
+    *,
+    state: JiraState | None = None,
+    token_store: TokenHashStore | None = None,
+) -> FastAPI:
     """호스트의 에이전트 서비스가 접근하는 REST 앱."""
-    return _create_health_app(service)
+    app = _create_health_app(service)
+    if service == "jira" and state is not None:
+        if token_store is None:
+            raise ValueError("jira business REST requires a token hash store")
+        add_rest_routes(app, state, token_store)
+    return app
 
 
-def create_admin_app(service: str) -> FastAPI:
-    """Compose 내부 전용 관리 앱. 현재는 healthz만 제공한다."""
-    return _create_health_app(service)
+def create_admin_app(service: str, *, state: JiraState | None = None) -> FastAPI:
+    """Compose 내부 전용 관리 앱."""
+    app = _create_health_app(service)
+    if service == "jira" and state is not None:
+        add_admin_routes(app, state)
+    return app

@@ -40,6 +40,8 @@ services:
       context: ..
       dockerfile: infra/mocks/Dockerfile
     command: ["python", "-m", "govops.mocks", "jira"]
+    volumes:
+      - ../data/seed:/app/data/seed:ro
     ports:
       - "127.0.0.1:8081:8000"
     # 관리 접근: docker compose exec mock-jira python -m govops.mocks.admin health

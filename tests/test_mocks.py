@@ -1,7 +1,9 @@
 """Mock 서비스와 관리 CLI를 소켓 바인드 없이 검사한다."""
 
 import asyncio
+import hashlib
 import json
+import secrets
 
 import httpx
 import pytest
@@ -78,7 +80,30 @@ def test_admin_invalid_command_exits(argv: list[str]) -> None:
 
 
 @pytest.mark.parametrize("service", ["jira", "slack"])
-def test_runner_serves_both_apps_in_one_event_loop(service: str, monkeypatch) -> None:
+def test_runner_serves_both_apps_in_one_event_loop(
+    service: str, monkeypatch, tmp_path
+) -> None:
+    if service == "jira":
+        token = secrets.token_urlsafe(32)
+        hashes = tmp_path / "hashes.json"
+        hashes.write_text(
+            json.dumps(
+                {
+                    "users": [
+                        {
+                            "label": "demo-platform-g3",
+                            "team": "platform",
+                            "grade": 3,
+                            "token_sha256": hashlib.sha256(token.encode()).hexdigest(),
+                        }
+                    ]
+                }
+            )
+        )
+        seed = tmp_path / "tickets.json"
+        seed.write_text(json.dumps({"tickets": []}))
+        monkeypatch.setenv("MOCK_JIRA_TOKEN_HASHES", str(hashes))
+        monkeypatch.setenv("MOCK_JIRA_TICKETS", str(seed))
     servers = []
     loops = []
 

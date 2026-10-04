@@ -216,3 +216,9 @@ def test_mock_dockerfile_has_pinned_images_and_frozen_install() -> None:
 def test_dockerignore_excludes_private_and_unneeded_directories() -> None:
     patterns = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     assert {".venv", "web/", "data/", ".git", ".env*"} <= set(patterns)
+
+
+def test_jira_seed_is_mounted_read_only(compose: dict) -> None:
+    assert (
+        "../data/seed:/app/data/seed:ro" in compose["services"]["mock-jira"]["volumes"]
+    )
