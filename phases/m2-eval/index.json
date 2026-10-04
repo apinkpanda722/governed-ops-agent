@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "spec-schema",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T17:48:05+0900",
+      "summary": "TaskSpec 선언형 스키마·해시·불변식 검증기와 독립 권한 oracle을 구현하고, 38명×전체 시드 티켓 대조 및 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-04T17:54:09+0900",
+      "usage": {
+        "input_tokens": 705272,
+        "cached_input_tokens": 642560,
+        "output_tokens": 9319,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
