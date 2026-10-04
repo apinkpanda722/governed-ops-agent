@@ -12,6 +12,7 @@ article.warn{border-color:#c0392b;border-width:2px}
 mark{background:#ffe58f;padding:0 .1em}mark.bad{background:#ffc9c2}
 .ev{background:#fafafa;border:1px solid #e1e4e8;padding:.4em .7em;margin:.3em 0 .6em;font-size:.92em;overflow-wrap:anywhere}
 .small{color:#555;font-size:.88em}.tag{display:inline-block;border:1px solid #aab;border-radius:4px;padding:0 .4em;margin-right:.3em;font-size:.82em}
+.carry{background:#fff7e0;border:1px solid #e8c36a;padding:.4em .7em;border-radius:6px;margin:.5em 0}
 .judge label{margin-right:1.2em}.judge input.note{width:60%}
 details{margin-top:.8em}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8em;background:#f6f8fa;padding:.5em}
 #controls{position:sticky;top:0;background:#fff;border-bottom:1px solid #c5c9d0;padding:.6em 0;z-index:5}
@@ -33,12 +34,26 @@ function buildConfirmed(reviewer, reviewedAt, judgments, shaById) {
   });
   return {reviewer: String(reviewer).trim(), reviewed_at: String(reviewedAt), tasks: tasks};
 }
+function seedJudgments(infos, prior) {
+  // 처음 열 때의 판정: 해시가 같은 기존 확정본, 그리고 요청 문장만 바뀐 문항의 이전 판정(브라우저 저장분이
+  // 있으면 그것이 더 최근이므로 우선). 이어받은 것은 carried 표시가 붙고 사람이 확인해야 사라진다.
+  var out = {};
+  var old = (prior && prior.judgments) || {};
+  infos.forEach(function (i) {
+    if (i.confirmed) { out[i.id] = {status: i.confirmed, note: "", imported: true}; return; }
+    if (!i.carry) return;
+    var p = old[i.id];
+    if (p && STATUSES.indexOf(p.status) >= 0) { out[i.id] = {status: p.status, note: p.note || "", carried: true}; return; }
+    if (i.carryStatus) out[i.id] = {status: i.carryStatus, note: i.carryNote || "", carried: true};
+  });
+  return out;
+}
 function validateHeader(reviewer, reviewedAt) {
   if (!String(reviewer).trim()) return "검수자 이름을 입력하세요.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(reviewedAt))) return "검수 날짜(YYYY-MM-DD)를 입력하세요.";
   return "";
 }
-if (typeof globalThis !== "undefined") globalThis.__cards = {buildConfirmed: buildConfirmed, validateHeader: validateHeader};
+if (typeof globalThis !== "undefined") globalThis.__cards = {buildConfirmed: buildConfirmed, validateHeader: validateHeader, seedJudgments: seedJudgments};
 if (typeof document !== "undefined") (function () {
   var memory = {};
   var key = document.body.getAttribute("data-storage-key") || "govops-review";
@@ -55,11 +70,14 @@ if (typeof document !== "undefined") (function () {
   articles.forEach(function (a) { sha[a.getAttribute("data-task")] = a.getAttribute("data-sha"); });
   var state = load();
   if (!state || typeof state !== "object") {
-    state = {reviewer: "", reviewed_at: "", judgments: {}};
-    articles.forEach(function (a) {
-      var c = a.getAttribute("data-confirmed");
-      if (c) state.judgments[a.getAttribute("data-task")] = {status: c, note: "", imported: true};
+    var prior = null;
+    try { var pk = document.body.getAttribute("data-prev-key"); if (pk) prior = JSON.parse(window.localStorage.getItem(pk) || "null"); } catch (e) {}
+    var infos = articles.map(function (a) {
+      return {id: a.getAttribute("data-task"), confirmed: a.getAttribute("data-confirmed") || "",
+        carry: a.getAttribute("data-carry") === "1", carryStatus: a.getAttribute("data-carry-status") || "",
+        carryNote: a.getAttribute("data-carry-note") || ""};
     });
+    state = {reviewer: (prior && prior.reviewer) || "", reviewed_at: (prior && prior.reviewed_at) || "", judgments: seedJudgments(infos, prior)};
   }
   var $ = function (id) { return document.getElementById(id); };
   if (!state.reviewed_at) state.reviewed_at = new Date().toISOString().slice(0, 10);
@@ -72,17 +90,26 @@ if (typeof document !== "undefined") (function () {
       a.querySelectorAll("input[type=radio]").forEach(function (r) { r.checked = !!j && r.value === j.status; });
       var note = a.querySelector("input.note"); if (note && document.activeElement !== note) note.value = j ? (j.note || "") : "";
       var cell = document.getElementById("st-" + id);
-      if (cell) cell.textContent = j && j.status ? STATUS_LABELS[j.status] + (j.imported ? " (기존 확정본)" : "") : "미판정";
+      if (cell) cell.textContent = j && j.status ? STATUS_LABELS[j.status] + (j.imported ? " (기존 확정본)" : "") + (j.carried ? " (이전 판정 이어받음 — 문장 확인 전)" : "") : "미판정";
     });
-    $("progress").textContent = judged().length + " / " + articles.length + " 문항 판정";
-    var t = $("f-type").value, s = $("f-split").value, e = $("f-exec").value, only = $("f-pending").checked, warn = $("f-warn").checked;
+    var pending = judged().filter(function (id) { return state.judgments[id].carried; }).length;
+    $("progress").textContent = judged().length + " / " + articles.length + " 문항 판정" + (pending ? " (문장 확인 전 " + pending + "개)" : "");
+    var t = $("f-type").value, s = $("f-split").value, e = $("f-exec").value, only = $("f-pending").checked, warn = $("f-warn").checked, carry = $("f-carry").checked;
     articles.concat(Array.prototype.slice.call(document.querySelectorAll("tr[data-task]"))).forEach(function (el) {
       var id = el.getAttribute("data-task"), j = state.judgments[id];
       var hide = (t && el.getAttribute("data-type") !== t) || (s && el.getAttribute("data-split") !== s) ||
-        (e && el.getAttribute("data-exec") !== e) || (only && j && j.status) || (warn && el.getAttribute("data-warn") !== "1");
+        (e && el.getAttribute("data-exec") !== e) || (only && j && j.status) || (warn && el.getAttribute("data-warn") !== "1") ||
+        (carry && el.getAttribute("data-carry") !== "1");
       el.hidden = !!hide;
     });
   }
+  document.addEventListener("click", function (ev) {
+    var el = ev.target;
+    if (el.matches && el.matches("button.seen")) {
+      var j = state.judgments[el.getAttribute("data-task")];
+      if (j) { delete j.carried; persist(); refresh(); }
+    }
+  });
   document.addEventListener("change", function (ev) {
     var el = ev.target, id = el.getAttribute("data-task");
     if (el.matches("input[type=radio][data-task]")) {
@@ -111,7 +138,9 @@ if (typeof document !== "undefined") (function () {
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob); a.download = "confirmed.json";
     document.body.appendChild(a); a.click(); a.remove();
-    $("msg").textContent = Object.keys(data.tasks).length + "개 문항의 판정을 confirmed.json으로 내려받았습니다. data/eval/review/confirmed.json에 두세요.";
+    var unseen = ids.filter(function (id) { return state.judgments[id].carried; }).length;
+    $("msg").textContent = Object.keys(data.tasks).length + "개 문항의 판정을 confirmed.json으로 내려받았습니다. data/eval/review/confirmed.json에 두세요." +
+      (unseen ? " (이어받은 판정 " + unseen + "개는 새 문장을 아직 확인하지 않은 상태입니다.)" : "");
     $("msg").className = "ok";
   });
   refresh();

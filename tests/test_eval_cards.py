@@ -588,3 +588,179 @@ def test_review_writes_are_absent():
                         and any(c in a.value for c in "wax+")
                         for a in node.args[1:]
                     )
+
+
+# ---------- 요청 문장만 바뀐 문항의 판정 이어받기 ----------
+
+
+def reworded(spec, request):
+    changed = spec.model_copy(update={"request": request})
+    return changed.model_copy(update={"spec_sha256": spec_hash(changed)})
+
+
+@pytest.fixture
+def carried_world(world, monkeypatch):
+    """이전 명세(요청 문장이 다름)와 그 해시에 대한 확정본이 있는 상태."""
+    meta, tickets, users, specs, source, tmp = world
+    previous = [reworded(s, s.request + " (이전 문장)") for s in specs]
+    monkeypatch.chdir(tmp)
+    review = tmp / "data/eval/review/confirmed.json"
+    review.parent.mkdir(parents=True)
+    tasks = {
+        s.task_id: {
+            "status": "needs_change" if i % 2 else "approved",
+            "spec_sha256": spec_hash(s),
+            "note": f"메모 {s.task_id}",
+        }
+        for i, s in enumerate(previous)
+    }
+    review.write_text(
+        json.dumps({"reviewer": "검수자", "reviewed_at": "2026-10-05", "tasks": tasks})
+    )
+    return meta, tickets, users, specs, source, tmp, previous, review
+
+
+def test_cards_prefill_and_badge_request_only_changes(carried_world):
+    meta, tickets, users, specs, source, tmp, previous, review = carried_world
+    before = review.read_bytes()
+    # 한 문항은 요청 문장 외에도 바뀌었다(교체 문항처럼)
+    other = specs[0].model_copy(
+        update={"expected": specs[0].expected.model_copy(update={"outcome": "blocked"})}
+    )
+    specs = [other.model_copy(update={"spec_sha256": spec_hash(other)}), *specs[1:]]
+    html = build_cards(
+        specs, meta, users, tickets, source, tmp / "cards", previous_specs=previous
+    )[0].read_text()
+    assert review.read_bytes() == before  # 확정본을 쓰지 않는다
+    carried = card_text(html, specs[1].task_id)
+    assert 'data-carry="1"' in carried and "요청 문장만 바뀜 — 문장만 확인" in carried
+    assert 'data-carry-status="needs_change"' in carried
+    assert escape(previous[1].request) in carried  # 이전 문장을 함께 보여 준다
+    assert f'data-carry-note="메모 {specs[1].task_id}"' in carried
+    changed = card_text(html, specs[0].task_id)
+    assert " data-carry-status=" not in changed
+    assert "요청 문장만 바뀜 — 문장만 확인" not in changed
+    assert (
+        html.count('data-carry="1"') >= len(specs) - 1 + 0
+    )  # 목록 행 포함이라 더 많을 수 있다
+    assert 'data-prev-key="govops-review-' in html and "f-carry" in html
+
+
+def test_no_previous_specs_means_no_carry(carried_world):
+    meta, tickets, users, specs, source, tmp, *_ = carried_world
+    html = build_cards(specs, meta, users, tickets, source, tmp / "cards")[
+        0
+    ].read_text()
+    assert "요청 문장만 바뀜 — 문장만 확인" not in html
+    assert ' data-carry-status="' not in html and ' data-carry="1"' not in html
+
+
+def test_decision_for_an_older_hash_is_not_prefilled_but_the_badge_stays(carried_world):
+    meta, tickets, users, specs, source, tmp, previous, review = carried_world
+    payload = json.loads(review.read_text())
+    payload["tasks"][specs[2].task_id]["spec_sha256"] = "0" * 64
+    review.write_text(json.dumps(payload))
+    html = build_cards(
+        specs, meta, users, tickets, source, tmp / "cards", previous_specs=previous
+    )[0].read_text()
+    card = card_text(html, specs[2].task_id)
+    assert (
+        "요청 문장만 바뀜 — 문장만 확인" in card
+    )  # 브라우저 저장분은 이어받을 수 있다
+    assert " data-carry-status=" not in card
+
+
+def test_cli_reads_the_committed_previous_specs(tmp_path, monkeypatch, capsys, world):
+    meta, tickets, users, specs, _, tmp = world
+    monkeypatch.chdir(tmp)
+    for name, payload in [
+        ("eval/meta", meta.model_dump()),
+        ("seed/users", {"users": users}),
+        ("seed/tickets", {"tickets": tickets}),
+    ]:
+        path = tmp / f"data/{name}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload))
+    previous = [reworded(s, s.request + " (이전)") for s in specs]
+    dump_specs(previous, tmp / "data/eval/tasks.json")
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    subprocess.run(["git", "init", "-q"], check=True)
+    subprocess.run(["git", "add", "data/eval/tasks.json"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "prev"], check=True)
+    dump_specs(specs, tmp / "data/eval/tasks.json")  # 새 명세(커밋 전)
+    review = tmp / "data/eval/review/confirmed.json"
+    review.parent.mkdir(parents=True)
+    review.write_text(
+        json.dumps(
+            {
+                "reviewer": "검수자",
+                "reviewed_at": "2026-10-05",
+                "tasks": {
+                    s.task_id: {
+                        "status": "approved",
+                        "spec_sha256": spec_hash(s),
+                        "note": "",
+                    }
+                    for s in previous
+                },
+            }
+        )
+    )
+    assert main(["cards", "--a-root", str(tmp / "a")]) == 0
+    html = (tmp / "data/interim/eval/cards/index.html").read_text()
+    assert html.count("요청 문장만 바뀜 — 문장만 확인") == 60
+    assert html.count(' data-carry-status="approved"') == 60
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node 필요")
+def test_seed_judgments_in_the_page_script():
+    infos = [
+        {"id": "A", "confirmed": "approved", "carry": False},  # 해시가 같은 기존 확정
+        {
+            "id": "B",
+            "confirmed": "",
+            "carry": True,
+            "carryStatus": "needs_change",
+            "carryNote": "n",
+        },
+        {"id": "C", "confirmed": "", "carry": True, "carryStatus": "", "carryNote": ""},
+        {
+            "id": "D",
+            "confirmed": "",
+            "carry": False,
+            "carryStatus": "approved",
+            "carryNote": "",
+        },
+        {
+            "id": "E",
+            "confirmed": "",
+            "carry": True,
+            "carryStatus": "approved",
+            "carryNote": "",
+        },
+    ]
+    prior = {
+        "judgments": {
+            "C": {"status": "rejected", "note": "브라우저"},
+            "D": {"status": "approved", "note": "carry 대상 아님"},
+            "E": {"status": "needs_change", "note": "브라우저가 더 최근"},
+            "F": {"status": "approved", "note": "없는 문항"},
+        }
+    }
+    script = (
+        "const vm=require('vm');const ctx={};vm.createContext(ctx);"
+        f"vm.runInContext({json.dumps(SCRIPT)},ctx);"
+        f"console.log(JSON.stringify(ctx.__cards.seedJudgments({json.dumps(infos)},{json.dumps(prior)})));"
+    )
+    out = json.loads(
+        subprocess.run(
+            ["node", "-e", script], capture_output=True, text=True, check=True
+        ).stdout
+    )
+    assert out["A"] == {"status": "approved", "note": "", "imported": True}
+    assert out["B"] == {"status": "needs_change", "note": "n", "carried": True}
+    assert out["C"] == {"status": "rejected", "note": "브라우저", "carried": True}
+    assert (
+        "D" not in out and "F" not in out
+    )  # 요청 문장만 바뀐 문항이 아니면 이어받지 않는다
+    assert out["E"]["status"] == "needs_change" and out["E"]["carried"] is True

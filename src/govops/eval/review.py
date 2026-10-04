@@ -25,8 +25,9 @@ class ReviewReport:
     stale: list[str]
 
 
-def review_report(specs: Sequence[TaskSpec], review_path: Path) -> ReviewReport:
-    rows = {}
+def load_confirmed_rows(review_path: Path) -> dict[str, dict]:
+    """사람이 작성한 확정본의 문항별 판정(읽기 전용). 파일이 없으면 {}, 형식이 틀리면 오류."""
+    rows: dict = {}
     if review_path.exists():
         try:
             raw = json.loads(review_path.read_text(encoding="utf-8"))
@@ -61,6 +62,11 @@ def review_report(specs: Sequence[TaskSpec], review_path: Path) -> ReviewReport:
                     raise ValueError
         except (OSError, ValueError, TypeError, KeyError):
             raise ReviewFormatError("invalid review format") from None
+    return rows
+
+
+def review_report(specs: Sequence[TaskSpec], review_path: Path) -> ReviewReport:
+    rows = load_confirmed_rows(review_path)
     groups = {
         key: [] for key in ("confirmed", "rejected", "needs_change", "pending", "stale")
     }

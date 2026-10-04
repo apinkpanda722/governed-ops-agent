@@ -123,6 +123,13 @@ def spec_hash(spec: TaskSpec) -> str:
     ).hexdigest()
 
 
+def spec_content_sha256(spec: TaskSpec) -> str:
+    """요청 문장과 해시를 뺀 나머지 내용의 해시. 요청 문장만 바뀐 문항을 가려내는 데 쓴다."""
+    return hashlib.sha256(
+        _json_bytes(spec.model_dump(exclude={"spec_sha256", "request"}))
+    ).hexdigest()
+
+
 def _fail(spec: TaskSpec, category: str) -> None:
     safe_id = spec.task_id if re.fullmatch(r"T[1-6]-\d+", spec.task_id) else "unknown"
     raise SpecValidationError(f"{safe_id}: {category}")
