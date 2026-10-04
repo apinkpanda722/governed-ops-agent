@@ -5,6 +5,20 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_db_init_is_idempotent_and_user_run_only() -> None:
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: db-init" in text
+    recipe = text.split("\ndb-init:\n", 1)[1].split("\n\n", 1)[0]
+    assert "docker compose -f infra/docker-compose.yml exec -T postgres" in recipe
+    assert "CREATE DATABASE govops" in recipe
+    assert "WHERE NOT EXISTS" in recipe
+    assert "pg_database" in recipe
+    assert "\\gexec" in recipe
+    assert "ON_ERROR_STOP=1" in recipe
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert "db-init" not in verify
+
+
 def test_verify_recipe_runs_all_checks_in_order() -> None:
     lines = (REPO_ROOT / "Makefile").read_text(encoding="utf-8").splitlines()
     start = lines.index("verify:") + 1

@@ -146,13 +146,14 @@ def test_litellm_config_mount_dependencies_and_environment(compose: dict) -> Non
     assert litellm["environment"] == {v: "${" + v + "}" for v in variables}
 
 
-def test_init_script_creates_only_litellm_and_langfuse_databases() -> None:
+def test_init_script_creates_litellm_langfuse_and_govops_databases() -> None:
     script = (REPO_ROOT / "infra/postgres/init/01-create-databases.sh").read_text(
         encoding="utf-8"
     )
     assert re.findall(r"CREATE DATABASE\s+([a-z_]+)\s*;", script) == [
         "litellm",
         "langfuse",
+        "govops",
     ]
     assert '"$POSTGRES_USER"' in script
     assert "ON_ERROR_STOP=1" in script
