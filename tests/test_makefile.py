@@ -103,3 +103,13 @@ def test_every_docker_compose_command_passes_the_env_file() -> None:
     commands = [line for line in text.splitlines() if "docker compose" in line]
     assert commands
     assert all("docker compose --env-file .env " in line for line in commands)
+
+
+def test_eval_gen_is_user_run_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: eval-gen" in text
+    assert (
+        "# meta.json 필요, 사용자 실행\neval-gen:\n\tuv run python -m govops.eval.taskgen\n"
+        in text
+    )
+    assert "eval-gen" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]

@@ -91,3 +91,8 @@ smoke-agent:
 # 읽기 전용 A 필요, 사용자 실행
 eval-meta-extract:
 	uv run python -m govops.eval.meta_extract --a-root $(A_ROOT)
+
+.PHONY: eval-gen
+# meta.json 필요, 사용자 실행
+eval-gen:
+	uv run python -m govops.eval.taskgen
