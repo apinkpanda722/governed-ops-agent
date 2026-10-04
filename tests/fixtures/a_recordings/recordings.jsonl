@@ -6,3 +6,6 @@
 {"arguments": {"doc_id": "syn-incident-022"}, "caller": "demo-finance-g3", "is_error": true, "result": {"error": {"code": "not_found", "message": "문서를 찾을 수 없습니다"}}, "tool": "get_document"}
 {"arguments": {"query": "합성 장애 연결 지연"}, "caller": "demo-finance-g3", "is_error": false, "result": {"results": [], "truncated": false}, "tool": "search_docs"}
 {"arguments": {"sql": "SELECT ticket_id FROM tickets"}, "caller": "demo-finance-g3", "is_error": false, "result": {"columns": ["ticket_id"], "rows": [], "truncated": false}, "tool": "run_sql"}
+{"caller":"demo-platform-g3","tool":"run_sql","arguments":{"sql":"SELECT ticket_id FROM tickets WHERE ticket_id IN ('SYN-1')"},"result":{"columns":["ticket_id"],"rows":[["SYN-1"]],"truncated":false},"is_error":false}
+{"caller":"demo-finance-g3","tool":"run_sql","arguments":{"sql":"SELECT ticket_id FROM tickets WHERE ticket_id IN ('SYN-1')"},"result":{"columns":["ticket_id"],"rows":[],"truncated":false},"is_error":false}
+{"caller":"demo-platform-g2","tool":"run_sql","arguments":{"sql":"SELECT ticket_id FROM tickets WHERE ticket_id IN ('SYN-1')"},"result":{"columns":["ticket_id"],"rows":[["SYN-1"]],"truncated":false},"is_error":false}
