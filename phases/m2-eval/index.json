@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "review-cards",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T18:00:52+0900",
+      "summary": "오프라인 문항 카드 HTML 생성기·해시 기반 읽기 전용 확정본 로더·검수 CLI와 Make 타깃을 TDD로 구현하고 전체 make verify를 통과했습니다. 실제 데이터·확정본·phases는 수정하지 않았습니다.",
+      "completed_at": "2026-10-04T18:05:45+0900",
+      "usage": {
+        "input_tokens": 506963,
+        "cached_input_tokens": 450944,
+        "output_tokens": 7022,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
