@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "gateway-client",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T13:12:23+0900",
+      "summary": "LiteLLM 비동기 gateway 클라이언트·Protocol·응답 파싱·호출 전 비용 검사·토큰 기반 원장 기록·안전한 오류 처리를 TDD로 구현; make verify 통과(Python 443개, web 15개).",
+      "completed_at": "2026-10-04T14:46:03+0900",
+      "usage": {
+        "input_tokens": 523439,
+        "cached_input_tokens": 486144,
+        "output_tokens": 5358,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
