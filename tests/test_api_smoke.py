@@ -450,9 +450,13 @@ def run_obs(tmp_path, handler, service=None, **kwargs):
                 host="http://langfuse.test",
                 public_key="public-sentinel",
                 secret_key="private-smoke-sentinel",
-                secrets=("private-smoke-sentinel",),
                 trace_root=tmp_path,
-                **{"timeout_s": 0, "poll_interval": 0} | kwargs,
+                **{
+                    "secrets": ("private-smoke-sentinel",),
+                    "timeout_s": 0,
+                    "poll_interval": 0,
+                }
+                | kwargs,
             )
 
     return asyncio.run(run())
@@ -644,3 +648,78 @@ def test_failures_report_stage_and_exception_class_only(tmp_path):
         if line.startswith("FAIL E1")
     )
     assert "trace_fetch_status=401" in first
+
+
+@pytest.mark.parametrize(
+    "where,leaked",
+    [
+        ("public_in_scope", False),
+        ("public_in_local", False),
+        ("secret_in_scope", True),
+        ("secret_in_metadata", True),
+        ("agent_key", True),
+    ],
+)
+def test_public_key_is_not_a_secret_but_the_secret_key_is(tmp_path, where, leaked):
+    """public key는 프로젝트 식별자이고 SDK가 span을 내보내는 조건(범위 속성)이라 비밀이 아니다."""
+    import json
+
+    import httpx
+
+    task = "a" * 32
+    rows = [
+        {
+            "span_id": str(i),
+            "kind": kind,
+            "attributes": {
+                "input.request": "[PII:mobile]",
+                **({"generation_id": "g1"} if kind == "model_call" else {}),
+            },
+        }
+        for i, kind in enumerate(("task", "model_call", "tool_call"))
+    ]
+    observations = [
+        {
+            "id": r["span_id"],
+            "name": r["kind"],
+            "type": "SPAN",
+            "input": r["attributes"]["input.request"],
+            "parentObservationId": None if i == 0 else "0",
+            "traceId": task,
+            "metadata": {"scope": {"attributes": {"public_key": "public-sentinel"}}},
+        }
+        for i, r in enumerate(rows)
+    ]
+    generation = {
+        "id": "g1",
+        "name": "agent-primary",
+        "type": "GENERATION",
+        "traceId": task,
+        "input": None,
+        "output": None,
+    }
+    observations.append(generation)
+    if where == "public_in_local":
+        rows[0]["attributes"]["scope_public_key"] = "public-sentinel"
+    if where == "secret_in_scope":
+        observations[0]["metadata"]["scope"]["attributes"]["secret"] = (
+            "private-smoke-sentinel"
+        )
+    if where == "secret_in_metadata":
+        generation["metadata"] = {"x": "private-smoke-sentinel"}
+    if where == "agent_key":
+        generation["metadata"] = {"x": "agent-key-sentinel"}
+    (tmp_path / f"{task}.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
+
+    def handler(request):
+        if request.url.path.endswith("annotation-queues"):
+            return httpx.Response(200)
+        return httpx.Response(200, json={"id": task, "observations": observations})
+
+    result = run_obs(tmp_path, handler, secrets=("agent-key-sentinel",))
+    e6 = next(line for line in result.lines if "E6_" in line)
+    assert e6.startswith("FAIL") == leaked, result.lines
+    if leaked:
+        assert "secret_in_langfuse" in e6
+    assert "private-smoke-sentinel" not in str(result)
+    assert "agent-key-sentinel" not in str(result)

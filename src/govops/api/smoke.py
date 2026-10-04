@@ -252,7 +252,9 @@ def _evaluate_obs(
     if request_text:
         reasons.append(f"request_text_in_generation={request_text}")
     checks.append(_Check(not reasons, ",".join(reasons)))
-    secret_values = [value for value in (*secrets, secret_key, public_key) if value]
+    # public key는 프로젝트 식별자이고 SDK가 span을 내보내는 조건(계측 범위 속성)이라 비밀이
+    # 아니다(인증은 secret key와 짝이어야 한다). public_key 인자는 비밀 목록에 넣지 않는다.
+    secret_values = [value for value in (*secrets, secret_key) if value]
     pii = (
         ["probe_in_langfuse"] * (OBS_PROBE in remote)
         + ["probe_in_local"] * (OBS_PROBE in local)
