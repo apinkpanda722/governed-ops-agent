@@ -54,3 +54,7 @@ smoke-mock:
 # live A·사용자 토큰 필요; 인증된 위조 Host 요청 421 또는 403 거절.
 smoke-host-header:
 	uv run --env-file .env python -m govops.tools.smoke host-header --user $(SMOKE_USER)
+
+.PHONY: costs-init
+costs-init:
+	uv run python -m govops.costs init
