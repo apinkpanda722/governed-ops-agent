@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "api-tasks-cli",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T16:23:43+0900",
+      "summary": "백그라운드 TaskService·소유자 전용 tasks API·운영 wiring·폴링 CLI·serve/ask 타깃을 TDD로 구현하고 신원 격리·토큰 비노출 검증 및 make verify 통과(Python 513개, web 15개).",
+      "completed_at": "2026-10-04T16:28:32+0900",
+      "usage": {
+        "input_tokens": 765226,
+        "cached_input_tokens": 701568,
+        "output_tokens": 7008,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
