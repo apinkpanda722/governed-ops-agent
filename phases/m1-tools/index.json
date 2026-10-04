@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "seed-extract",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T11:44:04+0900",
+      "summary": "TDD로 일회성 seed-extract CLI 구현; 신원·팀·금지 이름 검증, 해시 미복사, 결정론 출력·실패 복구·가짜 A 불변성 확인 및 make verify 전체 통과(276 passed, 1 skipped).",
+      "completed_at": "2026-10-04T11:48:00+0900",
+      "usage": {
+        "input_tokens": 270961,
+        "cached_input_tokens": 223104,
+        "output_tokens": 6606,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
