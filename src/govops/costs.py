@@ -8,10 +8,11 @@ import os
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
+from zoneinfo import ZoneInfo
 
 SUPPLIER_CAPS_USD: Mapping[str, float] = MappingProxyType(
     {"openai": 9.13, "anthropic": 11.47, "gemini": 7.29}
@@ -36,19 +37,32 @@ class Price:
 # A costs.py 기준, 재확인 필요 (M2 파일럿 전).
 PRICES: Mapping[str, Price] = MappingProxyType(
     {
-        f"openai.gpt-6-luna.{suffix}": Price(
-            service=f"openai.gpt-6-luna.{suffix}",
-            unit="token",
-            unit_price_usd=amount / 1_000_000,
-            source_url="https://developers.openai.com/api/docs/pricing",
-            checked_on="2026-09-30",
-        )
-        for suffix, amount in (
-            ("input", 0.10),
-            ("cached_input", 0.01),
-            ("cache_write", 0.125),
-            ("output", 0.50),
-        )
+        **{
+            f"openai.gpt-6-luna.{suffix}": Price(
+                service=f"openai.gpt-6-luna.{suffix}",
+                unit="token",
+                unit_price_usd=amount / 1_000_000,
+                source_url="https://developers.openai.com/api/docs/pricing",
+                checked_on="2026-09-30",
+            )
+            for suffix, amount in (
+                ("input", 0.10),
+                ("cached_input", 0.01),
+                ("cache_write", 0.125),
+                ("output", 0.50),
+            )
+        },
+        **{
+            f"google.gemini-3.8-flash.{suffix}": Price(
+                service=f"google.gemini-3.8-flash.{suffix}",
+                unit="token",
+                unit_price_usd=amount / 1_000_000,
+                source_url="https://ai.google.dev/gemini-api/docs/pricing",
+                checked_on="2026-10-01",
+                valid_until="2026-12-31",
+            )
+            for suffix, amount in (("input", 0.75), ("output", 3.75))
+        },
     }
 )
 
@@ -90,6 +104,29 @@ def token_cost_usd(
         * PRICES[f"openai.{model}.input"].unit_price_usd
         + cached_input_tokens * PRICES[f"openai.{model}.cached_input"].unit_price_usd
         + output_tokens * PRICES[f"openai.{model}.output"].unit_price_usd
+    )
+
+
+class PriceExpiredError(RuntimeError):
+    """The registered temporary price has expired."""
+
+
+def ensure_price_valid(service: str, *, on: date | None = None) -> None:
+    price = PRICES[service]
+    today = on if on is not None else datetime.now(ZoneInfo("Asia/Seoul")).date()
+    if price.valid_until and today > date.fromisoformat(price.valid_until):
+        raise PriceExpiredError(f"Price expired for {service}: {price.valid_until}")
+
+
+def gemini_cost_usd(
+    model: str, *, input_tokens: int, output_tokens: int, on: date | None = None
+) -> float:
+    _tokens(input_tokens, output_tokens)
+    for suffix in ("input", "output"):
+        ensure_price_valid(f"google.{model}.{suffix}", on=on)
+    return (
+        input_tokens * PRICES[f"google.{model}.input"].unit_price_usd
+        + output_tokens * PRICES[f"google.{model}.output"].unit_price_usd
     )
 
 

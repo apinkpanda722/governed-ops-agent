@@ -97,7 +97,7 @@ eval-meta-extract:
 eval-gen:
 	uv run python -m govops.eval.taskgen
 
-.PHONY: eval-cards eval-review-status
+.PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini
 # 사용자 실행
 eval-cards:
 	uv run python -m govops.eval.review_cli cards
@@ -105,3 +105,21 @@ eval-cards:
 # 사용자 실행
 eval-review-status:
 	uv run python -m govops.eval.review_cli status
+
+OBS ?= data/eval/observations.jsonl
+CSV ?= data/eval/human/scores.csv
+# 사용자 실행
+eval-human-sheet:
+	uv run --env-file .env python -m govops.eval.grading_cli human-sheet --observations $(OBS)
+
+# 사용자 실행
+eval-human-register:
+	uv run --env-file .env python -m govops.eval.grading_cli register-human --csv $(CSV)
+
+# 사용자 실행
+eval-gemini-grade:
+	uv run --env-file .env python -m govops.eval.grading_cli grade --observations $(OBS) --out data/eval/grading
+
+# 사용자 실행
+smoke-gemini:
+	uv run --env-file .env python -m govops.eval.grading_cli smoke

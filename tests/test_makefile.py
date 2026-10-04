@@ -124,3 +124,19 @@ def test_review_targets_are_user_only():
         )
         assert target in text.split(".PHONY:")[-1]
         assert target not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_grading_targets_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for name, command in [
+        ("eval-human-sheet", "human-sheet"),
+        ("eval-human-register", "register-human"),
+        ("eval-gemini-grade", "grade"),
+        ("smoke-gemini", "smoke"),
+    ]:
+        assert (
+            f"# 사용자 실행\n{name}:\n\tuv run --env-file .env python -m govops.eval.grading_cli {command}"
+            in text
+        )
+        assert name in text.split(".PHONY:")[-1]
+        assert name not in text.split("verify:\n")[1].split("\n\n")[0]
