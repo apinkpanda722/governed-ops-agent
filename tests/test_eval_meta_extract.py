@@ -279,3 +279,34 @@ def test_unreferenced_service_fact_is_kept_and_reference_errors_are_named(
         meta_extract.extract(a_root, tmp_path / "out", expected=EXPECTED)
     assert "doc fact_ids reference missing facts: 3 docs" in str(error.value)
     assert "f-service-missing" not in str(error.value)
+
+
+def test_doc_titles_are_extracted_without_changing_meta(a_root, tmp_path):
+    from govops.eval.doc_titles import load_doc_titles
+
+    plan = a_root / "data/synthetic/plan.jsonl"
+    rows = [json.loads(line) for line in plan.read_text().splitlines()]
+    for row in rows:
+        row["title_hint"] = f"[회의록] 합성팀 {row['doc_id']} 주제"
+    plan.write_text("\n".join(json.dumps(r) for r in rows))
+    out = tmp_path / "out"
+    meta_extract.extract(a_root, out, expected=EXPECTED)
+    titles = load_doc_titles(out / "doc_titles.json")
+    assert titles["syn-1"] == "[회의록] 합성팀 syn-1 주제" and len(titles) == 3
+    first = (out / "meta.json").read_bytes()
+    # 제목은 meta.json에 들어가지 않아서 meta.json의 해시(명세 provenance)가 바뀌지 않는다
+    assert "합성팀".encode() not in first
+    meta_extract.extract(a_root, tmp_path / "again", expected=EXPECTED)
+    assert (tmp_path / "again/doc_titles.json").read_bytes() == (
+        out / "doc_titles.json"
+    ).read_bytes()
+    assert (tmp_path / "again/meta.json").read_bytes() == first
+
+
+def test_banned_name_in_a_title_is_rejected(a_root, tmp_path):
+    plan = a_root / "data/synthetic/plan.jsonl"
+    rows = [json.loads(line) for line in plan.read_text().splitlines()]
+    rows[0]["title_hint"] = "[공지] FORBIDDEN_SAMPLE 안내"
+    plan.write_text("\n".join(json.dumps(r) for r in rows))
+    with pytest.raises(MetaValidationError):
+        meta_extract.extract(a_root, tmp_path / "out", expected=EXPECTED)

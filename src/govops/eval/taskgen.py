@@ -10,9 +10,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from govops.eval.access_index import AccessIndex
+from govops.eval.doc_titles import load_doc_titles, references
 from govops.eval.meta import EvalMeta, load_meta
 from govops.eval.spec import TaskSpec, dump_specs, spec_hash, validate_specs
-from govops.eval.spec_audit import audit_specs
+from govops.eval.spec_audit import MIN_DOC_FACTS, audit_specs
 from govops.eval.tone import RequestParts, assign_tones, render_request, tone_summary
 from govops.eval.visibility import can_read
 
@@ -35,6 +36,7 @@ COMPOSITION = {
         "all_hands_approver": (0, 1),
     },
 }
+DOC_RULES = {"request_doc_id", "doc_facts_lt_3", "doc_reference_ambiguous"}
 WRITE_TOOLS = ["slack_send_message", "jira_add_comment", "jira_create_followup_ticket"]
 # Each subtype has three independently usable Korean sentence/order variants.
 TEMPLATES = {
@@ -85,8 +87,9 @@ def generate_tasks(
     users: Sequence[Mapping],
     *,
     repair: bool = True,
+    titles: Mapping[str, str] | None = None,
 ) -> list[TaskSpec]:
-    return generate_with_report(meta, tickets, users, repair=repair)[0]
+    return generate_with_report(meta, tickets, users, repair=repair, titles=titles)[0]
 
 
 def generate_with_report(
@@ -95,6 +98,7 @@ def generate_with_report(
     users: Sequence[Mapping],
     *,
     repair: bool = True,
+    titles: Mapping[str, str] | None = None,
 ) -> tuple[list[TaskSpec], list[str]]:
     """(명세 60개, 교체한 task_id 목록).
 
@@ -102,6 +106,8 @@ def generate_with_report(
     위반한 문항만 독립 난수열로 교체한다. 교체할 후보가 없으면 조용히 줄이지 않고 실패한다.
     """
     rng = random.Random(SEED)
+    # 문서 대상 요청은 문서 ID 대신 제목에서 만든 주제 표현으로 지칭한다(유일한 표현만).
+    refs = references(titles) if titles is not None else {}
     tickets = sorted(tickets, key=lambda t: t["ticket_id"])
     users = sorted(users, key=lambda u: u["label"])
     docs = [d.model_dump() for d in sorted(meta.docs, key=lambda d: d.doc_id)]
@@ -143,6 +149,7 @@ def generate_with_report(
         strict=False,
         task_id=None,
         draw=rng,
+        enforce_titles=False,
     ):
         core, dest = action, None  # 말투 변형을 입힐 때 문장을 다시 만드는 재료
         doc = row is not None and "doc_id" in row
@@ -311,7 +318,18 @@ def generate_with_report(
             if typ != "T3":
                 action = f"{action}하여 {channel} 채널로 보고"
                 dest = (channel, "보고")
-        request = TEMPLATES[sub][draw.randrange(3)].format(target=target, action=action)
+        shown = target
+        if (
+            doc
+            and sub not in {"incident_summary", "no_permission"}
+            and target == row["doc_id"]
+        ):
+            shown = refs.get(target)
+            if shown is None:
+                if enforce_titles:
+                    return None  # 제목 지칭이 없거나 모호한 문서는 후보가 아니다
+                shown = target  # 선정 단계에서는 그대로 두고 교체 단계에서 고친다
+        request = TEMPLATES[sub][draw.randrange(3)].format(target=shown, action=action)
         raw = {
             "task_id": task_id or f"{typ}-{1 + sum(s.type == typ for s in specs):02}",
             "type": typ,
@@ -339,10 +357,10 @@ def generate_with_report(
         spec = TaskSpec.model_validate(raw)
         spec = spec.model_copy(update={"spec_sha256": spec_hash(spec)})
         try:
-            validate_specs([spec], meta, users, tickets)
+            validate_specs([spec], meta, users, tickets, forbid_doc_ids=enforce_titles)
         except ValueError:
             return None
-        parts[spec.task_id] = RequestParts(target, core, dest)
+        parts[spec.task_id] = RequestParts(shown, core, dest)
         return spec
 
     def rows_for(typ, sub, user):
@@ -464,8 +482,8 @@ def generate_with_report(
     if repair:
         by_label = {u["label"]: u for u in users}
         for violation in audit_specs(specs, meta, users, tickets, index=index):
-            if violation.task_id in repaired:
-                continue
+            if violation.task_id in repaired or violation.rule in DOC_RULES:
+                continue  # 문서 규칙은 아래 문서 후보 교체 단계에서 고친다
             at = next(
                 i for i, sp in enumerate(specs) if sp.task_id == violation.task_id
             )
@@ -523,7 +541,11 @@ def generate_with_report(
                     f"T5/no_permission/{old.split}: insufficient eligible candidates "
                     "(incident record unreadable and a forbidden value unreadable elsewhere)"
                 )
-        remaining = audit_specs(specs, meta, users, tickets, index=index)
+        remaining = [
+            v
+            for v in audit_specs(specs, meta, users, tickets, index=index)
+            if v.rule not in DOC_RULES
+        ]
         if remaining:
             raise ValueError(
                 "audit violations remain: "
@@ -566,6 +588,57 @@ def generate_with_report(
                     used.add((old.user, row["ticket_id"]))
                     specs[at] = spec
                     break
+    if repair:
+        # 문서 대상 문항: 대상 문서의 사실이 3개 이상이고 제목 지칭이 유일해야 한다. 어긋난 문항은
+        # 같은 요청자·같은 유형으로 독립 난수열을 써서 문서만 바꾼다(다른 문항의 선정은 그대로).
+        def doc_ok(doc_id):
+            return (
+                len(meta.doc_by_id[doc_id].fact_ids) >= MIN_DOC_FACTS and doc_id in refs
+            )
+
+        for at, old in enumerate(specs):
+            sources = old.provenance.source_doc_ids
+            if old.subtype == "no_permission" or not sources:
+                continue
+            if all(doc_ok(d) for d in sources):
+                continue
+            asker = next(u for u in users if u["label"] == old.user)
+            options = [
+                (row, target, action, aggregate)
+                for row, target, action, aggregate in rows_for(
+                    old.type, old.subtype, asker
+                )
+                if row is not None
+                and "doc_id" in row
+                and doc_ok(row["doc_id"])
+                and (old.user, row["doc_id"]) not in used
+            ]
+            draw = random.Random(f"{SEED}:doc-candidate:{old.task_id}")
+            draw.shuffle(options)
+            for row, target, action, aggregate in options:
+                spec = candidate(
+                    old.type,
+                    old.subtype,
+                    old.split,
+                    asker,
+                    row,
+                    target,
+                    action,
+                    aggregate=aggregate,
+                    task_id=old.task_id,
+                    draw=draw,
+                    enforce_titles=True,
+                )
+                if spec is not None:
+                    used.discard((old.user, sources[0]))
+                    used.add((old.user, row["doc_id"]))
+                    specs[at] = spec
+                    break
+            else:
+                raise ValueError(
+                    f"{old.type}/{old.subtype}/{old.split}: insufficient eligible document "
+                    "candidates (3+ facts and a unique title reference)"
+                )
     # 선정이 끝난 뒤에 말투를 입힌다(대상·요청자·결과는 그대로). 존댓말은 기존 문장을 유지한다.
     tones = assign_tones(specs)
     for i, spec in enumerate(specs):
@@ -573,7 +646,14 @@ def generate_with_report(
         if text is not None:
             changed = spec.model_copy(update={"request": text})
             specs[i] = changed.model_copy(update={"spec_sha256": spec_hash(changed)})
-    validate_specs(specs, meta, users, tickets)
+    validate_specs(specs, meta, users, tickets, forbid_doc_ids=bool(repair))
+    if repair:
+        leftover = audit_specs(specs, meta, users, tickets, index=index, titles=titles)
+        if leftover:
+            raise ValueError(
+                "audit violations remain: "
+                + ", ".join(f"{v.task_id}:{v.rule}" for v in leftover)
+            )
     if not all(summarize(specs)["checks"].values()):
         raise ValueError("task distribution MISMATCH")
     return specs, repaired
@@ -636,7 +716,8 @@ def main() -> int:
         meta = load_meta(path)
         tickets = json.loads((root / "seed/tickets.json").read_text())["tickets"]
         users = json.loads((root / "seed/users.json").read_text())["users"]
-        specs = generate_tasks(meta, tickets, users)
+        titles = load_doc_titles(root / "eval/doc_titles.json")
+        specs = generate_tasks(meta, tickets, users, titles=titles)
         summary = summarize(specs)
         for name, ok in summary["checks"].items():
             print(f"{name}: {'OK' if ok else 'MISMATCH'}")

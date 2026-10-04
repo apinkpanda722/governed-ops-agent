@@ -49,7 +49,7 @@ def _read_json(path: Path):
 
 def _extract(a_root: Path, out: Path, expected: dict) -> dict:
     a_root, out = a_root.resolve(), out.resolve()
-    names = ("meta.json", "meta.manifest.json")
+    names = ("meta.json", "meta.manifest.json", "doc_titles.json")
     if out.is_relative_to(a_root) or any(
         (out / name).resolve().is_relative_to(a_root) for name in names
     ):
@@ -63,8 +63,13 @@ def _extract(a_root: Path, out: Path, expected: dict) -> dict:
     ):
         raise MetaValidationError("invalid banned names list")
     docs = []
+    titles = {}
     for line in (syn / "plan.jsonl").read_text(encoding="utf-8").splitlines():
         raw = json.loads(line)
+        # 제목은 plan의 메타데이터다(본문을 읽지 않는다). meta.json에는 넣지 않는다(해시 불변).
+        title = raw.get("title_hint")
+        if isinstance(title, str) and title.strip():
+            titles[raw["doc_id"]] = title.strip()
         doc = {
             key: raw[key]
             for key in ("doc_id", "doc_type", "team", "fact_ids", "related_doc_ids")
@@ -176,6 +181,10 @@ def _extract(a_root: Path, out: Path, expected: dict) -> dict:
 
     if any(name in value for value in strings(payload) for name in banned["names"]):
         raise MetaValidationError("banned name in metadata")
+    if any(name in title for title in titles.values() for name in banned["names"]):
+        raise MetaValidationError("banned name in metadata")
+    if set(titles) - {d["doc_id"] for d in docs}:
+        raise MetaValidationError("titles reference unknown documents")
     counts = {
         f"{key[:-1]}_count": len(payload[key])
         for key in ("docs", "facts", "canaries", "injections", "tickets")
@@ -202,7 +211,17 @@ def _extract(a_root: Path, out: Path, expected: dict) -> dict:
         "expectation_checks": checks,
         "expectations_match": all(check["matches"] for check in checks.values()),
     }
-    _publish(out, {"meta.json": content, "meta.manifest.json": _json_bytes(report)})
+    titles_file = _json_bytes(
+        {"a_commit": meta.a_commit, "titles": dict(sorted(titles.items()))}
+    )
+    _publish(
+        out,
+        {
+            "meta.json": content,
+            "meta.manifest.json": _json_bytes(report),
+            "doc_titles.json": titles_file,
+        },
+    )
     if not report["a_commit_matches_expected"]:
         print("warning: A commit differs from expected commit", file=sys.stderr)
     return report

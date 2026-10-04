@@ -235,6 +235,7 @@ def build_cards(
     out_dir: Path = Path("data/interim/eval/cards/"),
     *,
     previous_specs: Sequence[TaskSpec] | None = None,
+    titles: Mapping[str, str] | None = None,
 ) -> list[Path]:
     # 사람이 검수하는 디렉토리(확정본 위치)에는 쓰지 않는다. 심볼릭 링크로 우회하는 경우도 막는다.
     if (
@@ -249,6 +250,7 @@ def build_cards(
         tickets={t["ticket_id"]: t for t in tickets},
         source=source,
         index=AccessIndex(meta, tickets),
+        titles=titles,
     )
     existing = {s.task_id: "" for s in specs}
     try:
