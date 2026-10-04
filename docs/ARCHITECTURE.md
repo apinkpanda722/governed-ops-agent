@@ -24,7 +24,7 @@ src/govops/
 ├── audit/        # 감사 로그 해시체인·서명 쓰기(유일한 쓰기 지점), audit-verify
 ├── obs/          # trace span, 전송 전 마스킹, 로컬 JSONL / Langfuse 출력
 ├── costs.py      # 공급사별 비용 원장·전체 기간 상한(호출 직전 누적액 검사)
-├── eval/         # 평가셋 생성·실행, TCR·정확도, Gemini 채점(게이트웨이 미경유, 별도 원장)
+├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
 ├── replay/       # 가짜 A MCP 서버(기록 재생), LLM 응답 기록·재생
 └── mocks/        # mock-jira·mock-slack FastAPI 서비스, 장애 주입, 관리 엔드포인트
 web/              # Next.js(App Router, TypeScript): 화면 4개 + BFF route handler, Tailwind, shadcn/ui
@@ -37,16 +37,22 @@ data/
 ├── contract/     # A 계약 스냅샷(도구 4개 v1) + A 커밋 해시 (커밋, 수정 금지)
 ├── seed/         # tickets.json·users.json(label·team·grade)·mock_jira_token_hashes.json·mock_slack_token_hashes.json·manifest.json(추출 A 커밋 해시·개수) (커밋)
 ├── replay/       # requests.json(기록 요청), a/recordings.jsonl(A 응답, syn-*만, 토큰·Authorization 없음); LLM 응답 기록(프롬프트 해시 포함)은 M2 (커밋)
-├── eval/         # 평가셋 60 task 정답 명세 (사람 검수 후 확정, 커밋)
+├── eval/         # 평가 메타데이터·60 task 명세
+│   ├── meta.json·meta.manifest.json  # 합성 메타데이터·추출 manifest
+│   ├── tasks.json·tasks.manifest.json  # 생성 명세·분포 및 검증 manifest
+│   ├── review/confirmed.json       # 사람이 작성한 해시 기반 확정본
+│   └── human/                      # scores.csv·human_sample.json 블라인드 사람 채점 표본
 ├── manifest/     # costs.jsonl·costs_grading.jsonl (커밋)
 ├── raw/          # 커밋 안 함
 └── interim/      # 커밋 안 함 (감사 서명 개인키 0600 등)
+    └── eval/cards/  # 오프라인 카드 HTML, data/interim/eval/cards/ (커밋 안 함)
 docs/results/     # 결과표, 가설 사전 등록, 감사 고정점 manifest (날짜·커밋 해시)
+└── human-grading-registration.json  # docs/results/human-grading-registration.json, 사람 CSV 해시 등록
 logs/             # 로컬 JSONL trace·감사 로그 (커밋 안 함)
 tests/
 ```
 
-`data/contract/`·`data/seed/`·`data/replay/`는 확정 경로다. `data/eval/` 하위 구조와 감사 로그 저장 경로는 미정(구현 phase에서 결정)이다. 계층 간 import 금지 규칙은 [AGENTS.md](../AGENTS.md#계층-경계)가 원본이다.
+`data/contract/`·`data/seed/`·`data/replay/`는 확정 경로다. `data/eval/` 하위 구조는 위와 같고, 감사 로그 저장 경로는 미정(구현 phase에서 결정)이다. 계층 간 import 금지 규칙은 [AGENTS.md](../AGENTS.md#계층-경계)가 원본이다.
 
 ## 배치도
 

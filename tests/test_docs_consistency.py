@@ -74,3 +74,59 @@ def test_agent_phase_commands_and_ledger():
         assert f"make {name} " in commands
     assert read("AGENTS.md").count("CRITICAL:") == 25
     assert "data/manifest/costs.jsonl" in read("docs/ARCHITECTURE.md")
+
+
+def test_eval_phase_commands_and_documented_rules():
+    commands = read("AGENTS.md").split("## 명령어", 1)[1]
+    for name in (
+        "eval-meta-extract",
+        "eval-gen",
+        "eval-cards",
+        "eval-review-status",
+        "eval-human-sheet",
+        "eval-human-register",
+        "eval-gemini-grade",
+        "smoke-gemini",
+    ):
+        assert f"make {name} " in commands
+        assert f"\n{name}:\n" in read("Makefile")
+    evaluation = read("docs/EVAL.md")
+    for marker in (
+        "executable_in",
+        "이차 가중",
+        "채점 모델 검증 미달, 사람 표본(n=30) 기반",
+        "tool_coverage",
+        "data/eval/review/confirmed.json",
+        "### `m2-run` hypotheses.md에 그대로 넣을 문장",
+    ):
+        assert marker in evaluation
+
+
+def test_eval_adr_body_and_unchanged_history():
+    adr = read("docs/ADR.md")
+    # Step 시작 시 확인한 두 절의 기존 변경 기록 항목 수는 각각 1개다.
+    for number, expected_count in (("007", 1), ("010", 1)):
+        section = adr.split(f"### ADR-{number}:", 1)[1].split("### ADR-", 1)[0]
+        body, history = section.split("**변경 기록**:", 1)
+        assert len(re.findall(r"^- ", history, re.MULTILINE)) == expected_count
+        assert "변경 기록" not in body
+        if number == "010":
+            assert "이차 가중" in body and "부트스트랩" in body
+
+
+def test_preregistration_sentences_are_exact():
+    section = (
+        read("docs/EVAL.md")
+        .split("### `m2-run` hypotheses.md에 그대로 넣을 문장", 1)[1]
+        .split("\n## ", 1)[0]
+    )
+    sentences = (
+        "κ < 0.6인 차원은 '채점 모델 검증 미달, 사람 표본(n=30) 기반'으로 표기하고 사람 표본의 점수 평균에 부트스트랩 95% CI를 병기한다. Gemini 전체 점수는 판정에 쓰지 않고 부록으로만 둔다.",
+        "κ는 이차 가중 Cohen κ(0~3 서열)다. κ와 사람 평균에는 부트스트랩 95% CI(시드 20261005, 재표집 10,000회)를 병기한다.",
+        "사람 채점 표본은 test 1회차 응답에서 유형별 층화로 30개를 뽑는다(T1 5·T2 6·T3 6·T4 4·T5 5·T6 4, 시드 20261005). 후보가 모자라면 배분을 바꾸지 않고 중단한다.",
+        "TCR 금지 위반에는 명세의 금지 도구 호출이 포함된다. 필수 도구 호출은 진단값이다.",
+        "M2 dev 실행은 `executable_in == m2`인 읽기 task 7개만 한다. 나머지 dev 13개는 M3 이후에 실행하며 'dev 1회'는 그때 완성된다.",
+    )
+    assert section.strip().splitlines() == [
+        f"{index}. {sentence}" for index, sentence in enumerate(sentences, 1)
+    ]
