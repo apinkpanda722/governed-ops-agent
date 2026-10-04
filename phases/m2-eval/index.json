@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "grader-tcr",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T18:05:45+0900",
+      "summary": "Observation JSONL 모델·결정론적 TCR 채점기·반복 실행 집계·절대 규칙 3개 판정을 합성 관측 TDD로 구현하고 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-04T18:10:53+0900",
+      "usage": {
+        "input_tokens": 623951,
+        "cached_input_tokens": 568832,
+        "output_tokens": 7238,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
