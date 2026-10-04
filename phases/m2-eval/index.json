@@ -31,6 +31,11 @@
       "step": 5,
       "name": "grader-accuracy",
       "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "docs-sync",
+      "status": "pending"
     }
   ]
 }

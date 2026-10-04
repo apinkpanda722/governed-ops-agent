@@ -14,7 +14,7 @@
 
 ## 작업
 
-정확도 채점 도구 일체를 만든다: 필수 fact 포함률(결정론), Gemini 루브릭 채점기(게이트웨이 미경유, 별도 원장), 가중 κ, 사람 채점 시트 생성기, 그리고 **사람 채점 CSV 해시가 커밋되기 전에는 Gemini 채점을 거부하는 게이트**. M2에서는 **절차·게이트·시트 생성기·합성 fixture 드라이런까지만** 만든다. 실제 사람 채점 30개와 Gemini 채점은 test 1회차 응답이 생긴 뒤 사용자가 한다. TDD로 테스트를 먼저 쓴다. 마지막에 이 phase의 문서를 동기화한다.
+정확도 채점 도구 일체를 만든다: 필수 fact 포함률(결정론), Gemini 루브릭 채점기(게이트웨이 미경유, 별도 원장), 가중 κ, 사람 채점 시트 생성기, 그리고 **사람 채점 CSV 해시가 커밋되기 전에는 Gemini 채점을 거부하는 게이트**와 **Gemini 단가 유효기간 이후 채점 거부 장치**. M2에서는 **절차·게이트·시트 생성기·합성 fixture 드라이런까지만** 만든다. 실제 사람 채점 30개와 Gemini 채점은 test 1회차 응답이 생긴 뒤 사용자가 한다. TDD로 테스트를 먼저 쓴다. 문서 동기화는 다음 step(`docs-sync`)에서 한다.
 
 ### 1. 필수 fact 포함률 — `src/govops/eval/accuracy.py`
 
@@ -33,7 +33,8 @@ def deliverable_text(obs: Observation) -> str | None  # 채점 대상 텍스트:
 - ```python
   def gemini_cost_usd(model: str, *, input_tokens: int, output_tokens: int) -> float
   ```
-  `token_cost_usd`와 같은 검증(음수·비정수 거부). `valid_until`이 지난 날짜에 호출하면 `PriceExpiredError`를 올린다(시계는 주입 가능하게: 기본 오늘, 테스트에서 고정). 기존 openai 함수의 동작과 기존 테스트는 바뀌지 않는다.
+  `token_cost_usd`와 같은 검증(음수·비정수 거부).
+- **A ADR-030의 단가 유효기간 거부 장치를 함께 옮긴다.** A `costs.py`의 `PriceExpiredError`와 `ensure_price_valid(service, *, on: date | None = None)`를 읽고 같은 동작으로 이식한다: 기본 날짜는 한국 날짜(`Asia/Seoul`)이고 `today > valid_until`이면 거부하므로 **2027-01-01부터 Gemini 채점이 거부된다**(Gemini 단가가 그날부터 바뀐다). `gemini_cost_usd`와 채점기의 호출 직전 예약 **둘 다** 이 검사를 통과해야 호출한다(검사 실패 시 Gemini 호출·예약 행 기록이 없다). 날짜는 주입 가능해야 한다(테스트에서 고정). 기존 openai 함수의 동작과 기존 테스트는 바뀌지 않는다.
 - `estimate_call_usd`는 건드리지 말고, 채점기는 `gemini_cost_usd`로 직접 상한 추정값(입력 상한 토큰·출력 상한 토큰)을 계산한다.
 
 ### 3. Gemini 루브릭 채점기 — `src/govops/eval/grading.py` (**`google.genai`를 import하는 유일한 파일**)
@@ -59,16 +60,24 @@ def build_prompt(spec: TaskSpec, text: str) -> str     # 순수 함수. 프롬�
 - 프롬프트에 사용자 요청·답변을 넣으므로 **채점 프롬프트·응답 원문을 로그·예외 메시지에 남기지 않는다**.
 - 모델 ID·반복 횟수·온도·`RUBRIC_VERSION`·프롬프트 해시는 결과 파일에 함께 기록한다(평가 전 freeze, 바꾸면 변경 기록을 남기는 규칙의 근거).
 
-### 4. 가중 κ와 폴백 — `src/govops/eval/kappa.py`
+### 4. 가중 κ·부트스트랩 CI·폴백 — `src/govops/eval/kappa.py`
 
 ```python
 def weighted_kappa(a: Sequence[int], b: Sequence[int], *, categories: Sequence[int] = (0,1,2,3)) -> float | None   # 이차 가중 Cohen's κ
-@dataclass(frozen=True) class KappaReport: per_dimension: dict[str, float | None]; n: int; trusted: dict[str, bool]; threshold: float   # threshold = 0.6
+BOOTSTRAP_SEED = 20261005; BOOTSTRAP_RESAMPLES = 10_000; CI_LEVEL = 0.95        # 상수로 고정, 테스트가 값을 단언
+def bootstrap_ci(values: Sequence[float], *, stat=mean) -> tuple[float, float]  # 백분위 부트스트랩 95% CI(고정 시드, 결정론)
+@dataclass(frozen=True) class DimensionResult:
+    kappa: float | None; kappa_ci: tuple[float, float] | None                   # 30쌍을 재표집한 κ의 95% CI(정의 불가 재표집은 제외하고 개수를 기록)
+    trusted: bool                                                              # kappa is not None and kappa >= 0.6
+    human_mean: float; human_mean_ci: tuple[float, float]                      # 사람 표본(n=30) 점수 평균과 부트스트랩 95% CI
+    label: str                                                                 # 아래 표기
+@dataclass(frozen=True) class KappaReport: per_dimension: dict[str, DimensionResult]; n: int; threshold: float   # 0.6
 def kappa_report(human: Mapping[str, RubricScore], gemini: Mapping[str, RubricScore]) -> KappaReport
+def final_dimension_source(report: KappaReport) -> dict[str, Literal["gemini","human_sample_only"]]
 ```
-- **이차 가중 Cohen κ**(0~3 서열, 가중 `(i-j)^2/(k-1)^2`)다. 한쪽 점수가 전부 같아 분산이 없어 κ를 정의할 수 없으면 `None`이고 `trusted`는 `False`(신뢰하지 않음)로 둔다.
-- **사전 등록 폴백**: 차원별 κ < 0.6이면 그 차원은 `trusted=False`이며, 최종 보고에서 해당 차원은 **사람 채점한 표본 30개의 사람 점수만으로** 보고하고 Gemini 점수는 참고로만 둔다(전체 task의 Gemini 점수로 그 차원을 판정하지 않는다). `final_dimension_source(report) -> dict[str, Literal["gemini","human_sample_only"]]`로 노출한다.
-- 알려진 값으로 검증한다: 완전 일치 → 1.0, 손으로 계산한 작은 사례(예: 표 하나)의 기대값, 완전 불일치 방향 → 음수, 분산 0 → `None`.
+- **이차 가중 Cohen κ**(0~3 서열, 가중 `(i-j)^2/(k-1)^2`)다. 한쪽 점수가 전부 같아 분산이 없어 κ를 정의할 수 없으면 `None`이고 `trusted=False`다.
+- **사전 등록 폴백(승인된 문장)**: 차원별 κ < 0.6이면 그 차원은 **"채점 모델 검증 미달, 사람 표본(n=30) 기반"** 으로 표기하고(`label`에 이 문자열을 그대로 쓴다) 그 차원의 보고 수치는 **사람 채점 표본 30개의 사람 점수 평균과 부트스트랩 95% CI를 병기**한다. **그 차원에서 Gemini 전체 점수는 판정에 쓰지 않고 부록으로만 둔다**(결과 파일에서 `appendix_gemini_only`로 분리). `trusted`인 차원은 Gemini 점수를 판정에 쓰되 κ와 κ의 CI를 함께 보고한다. 모든 차원에 대해 κ 값과 CI를 보고서에 항상 병기한다.
+- 알려진 값으로 검증한다: 완전 일치 → 1.0, 손으로 계산한 작은 사례의 기대값, 불일치 방향 → 음수, 분산 0 → `None`. `bootstrap_ci`는 같은 입력·시드에서 같은 값, 상수 입력이면 CI가 한 점, 구간이 평균을 포함하는 사례를 검증한다.
 
 ### 5. 사람 채점 시트 생성기·등록 게이트 — `src/govops/eval/human.py`
 
@@ -91,27 +100,16 @@ def load_human_scores(csv_path: Path) -> dict[str, RubricScore]
 
 - `python -m govops.eval.grading_cli human-sheet --observations PATH [--out data/eval/human]` — 시트 생성(Gemini와 무관).
 - `python -m govops.eval.grading_cli register-human --csv PATH` — 등록 파일 생성.
-- `python -m govops.eval.grading_cli grade --observations PATH --out DIR` — **가장 먼저 `require_registered`를 호출하고, 실패하면 Gemini 클라이언트도 원장도 만들지 않은 채 종료 코드 2로 끝난다.** 통과하면 `deliverable_text`가 있는 모든 test 관측을 `GRADER_REPEATS`회씩 채점하고(차원별 3회의 **중앙값**을 그 관측의 Gemini 점수로 쓴다), 결과 JSONL(관측별 3회 점수·중앙값·프롬프트 해시·모델·`RUBRIC_VERSION`), `kappa.json`(`KappaReport`, `final_dimension_source`)을 쓴다. 호출 직전 상한 검사 실패(`BudgetExceededError`) 시 그 지점까지의 결과를 남기고 비정상 종료한다.
+- `python -m govops.eval.grading_cli grade --observations PATH --out DIR` — **가장 먼저 `require_registered`를 호출하고, 실패하면 Gemini 클라이언트도 원장도 만들지 않은 채 종료 코드 2로 끝난다.** 통과하면 `deliverable_text`가 있는 모든 test 관측을 `GRADER_REPEATS`회씩 채점하고(차원별 3회의 **중앙값**을 그 관측의 Gemini 점수로 쓴다), 결과 JSONL(관측별 3회 점수·중앙값·프롬프트 해시·모델·`RUBRIC_VERSION`), `kappa.json`(`KappaReport` 전체: 차원별 κ·κ CI·`trusted`·사람 평균·평균 CI·`label`, 그리고 `final_dimension_source`)과 `report.json`(신뢰 차원은 Gemini 중앙값 집계, 미달 차원은 사람 표본 평균 ± CI를 판정 수치로 쓰고 Gemini 전체 점수는 `appendix_gemini_only`에 분리)을 쓴다. 호출 직전 상한 검사 실패(`BudgetExceededError`) 시 그 지점까지의 결과를 남기고 비정상 종료한다.
 - `python -m govops.eval.grading_cli smoke` — **실행 전에 고정한 기대값**을 코드 상수로 둔다: Gemini 1회 호출(합성 고정 입력), 응답이 JSON으로 파싱되어 세 점수가 0~3 정수, `costs_grading.jsonl`에 정산 행이 정확히 1개 늘고 그 `cost_usd`가 0.01 USD 미만, 사용 모델 ID가 `GRADER_MODEL`. 각 항목을 `PASS`/`FAIL`로 출력하고 하나라도 FAIL이면 종료 코드 1. 이 스모크는 게이트와 무관하며 결과를 평가 산출물로 저장하지 않는다.
 - Makefile 타깃(모두 `uv run --env-file .env python -m govops.eval.grading_cli ...`, 위에 "사용자 실행" 주석, `verify` 미호출): `eval-human-sheet`(`OBS=` 변수), `eval-human-register`(`CSV=` 변수), `eval-gemini-grade`(`OBS=` 변수), `smoke-gemini`. `.PHONY`·`tests/test_makefile.py` 반영(`live` 타깃은 `--env-file .env`를 쓴다는 기존 검사와 맞춘다).
-
-### 7. 문서 동기화
-
-- `/AGENTS.md`의 "명령어" 목록에 이 phase의 사용자 실행 타깃을 추가한다: `make eval-meta-extract`, `make eval-gen`, `make eval-cards`, `make eval-review-status`, `make eval-human-sheet`, `make eval-human-register`, `make eval-gemini-grade`, `make smoke-gemini`(각각 한 줄 설명, 기존 형식과 같게 `make <이름> # 설명(사용자 실행)`). **`CRITICAL:` 줄은 추가·삭제하지 않는다**(`tests/test_docs_consistency.py`가 개수 25를 검사한다).
-- `/docs/ARCHITECTURE.md`: `eval/` 줄과 `data/` 트리에 `data/eval/`(`meta.json`·`tasks.json`·`review/confirmed.json`·`human/`)과 모듈 구성을 한 줄씩 반영하고, `docs/results/human-grading-registration.json`을 적는다.
-- `/docs/EVAL.md`:
-  - "평가셋" 절에 **M2/M3 경계**를 적는다: 부작용 실행 경로는 M3에서 생기므로 M2의 dev 실행은 읽기 task(`executable_in == "m2"`: T1 + 읽기형 T5, dev 7개)만 한다. 부작용 task(T2·T3·T4·T6과 `other_team_channel`)는 명세·채점기까지만 만들고 실행은 M3 이후다. 명세에 `executable_in` 필드가 있다.
-  - "정확도" 절: κ는 **이차 가중 Cohen κ**이고, 사람 채점 표본은 **test 1회차 응답에서 유형별 층화 30개**(T1 5·T2 6·T3 6·T4 4·T5 5·T6 4, 시드 20261005)이며, 순서는 "test 1회차 응답 생성 → 사람 채점 → CSV 해시 커밋 → Gemini 채점"이다. κ < 0.6인 차원은 사람 채점 표본 30개의 사람 점수만으로 보고한다.
-  - "사람이 할 일" 표의 사람 채점 행 시점을 위 순서에 맞게 고친다.
-- `/docs/ADR.md`의 ADR-010 **본문**(결정 항목)에 위 κ 종류·표본 규칙·채점 순서를 반영한다. **ADR에는 "변경 기록" 줄을 새로 추가하지 않는다**(본문만 고친다).
-- `tests/test_docs_consistency.py`에 위 새 make 타깃이 AGENTS.md 명령어에 있고 EVAL.md에 `executable_in`과 "이차 가중"이 있는지 검사를 추가한다.
 
 ### 테스트 (`tests/test_eval_accuracy.py`, `tests/test_eval_kappa.py`, `tests/test_eval_human.py`, `tests/test_eval_grading.py`, `tests/test_costs.py` 확장)
 
 - 포함률: 정규화·부분 일치, `datetime` 변형, `derived_values`, `rubric_only` 제외, 대상 0개면 `rate is None`, `missing`에 값이 없다.
-- Gemini 단가: 합계 계산(손계산 기대값), 음수·비정수 거부, `valid_until` 이후 호출 거부(시계 주입), 기존 openai 계산 불변.
+- Gemini 단가: 합계 계산(손계산 기대값), 음수·비정수 거부, 2026-12-31은 허용·2027-01-01은 `PriceExpiredError`(날짜 주입), 채점기가 만료 시 Gemini 호출·예약 행 기록을 하지 않음, 기존 openai 계산 불변.
 - 채점기(가짜 `call` 주입): 프롬프트에 본문 센티널이 없고 fact·요청이 들어 있음, 프롬프트 해시 결정론, 정상 점수 파싱, 범위 밖·형식 오류 → `GradingError`, 호출 전 예약·호출 후 정산 행(성공·실패 모두), 상한 초과 시 `call`이 호출되지 않음, 오류·로그에 프롬프트·답변·키가 없음, `eval/grading.py` 외 파일에서 `google.genai`를 import하지 않음(계층 가드).
-- κ: 알려진 값, `None` 처리, 폴백 판정(κ 0.59 → 사람 표본만, 0.6 → gemini).
+- κ: 알려진 값, `None` 처리, 폴백 판정(κ 0.59 → 라벨 "채점 모델 검증 미달, 사람 표본(n=30) 기반"·사람 평균과 CI 병기·Gemini 전체 점수는 부록만, 0.6 → gemini 판정), 부트스트랩 결정론, `report.json`에서 미달 차원의 판정 수치가 Gemini 점수가 아님.
 - 사람 시트: 배분(30개, 유형별 개수), 시드 결정론(같은 입력 → 같은 선정), 후보 부족 → 명시적 오류, 시트에 Gemini 관련 열 없음, 행 순서가 유형순이 아님, `sample_rule_sha256` 안정성.
 - **드라이런(합성 fixture, 네트워크 없음)**: `tmp_path`에 `git init`(사용자 이름·이메일을 로컬 설정) → 합성 관측 생성 → 시트 생성 → 테스트가 점수를 채운 CSV 작성 → `register_human_grading` → **커밋 전에는 `grade`가 코드 2로 거부되고 Gemini 호출·원장 접근이 0회** → 커밋 후 가짜 Gemini로 `grade` 성공(κ 보고서 생성) → CSV를 한 글자 바꾸면 다시 거부 → 등록 파일만 수정해도 거부. 상한을 낮춘 임시 원장으로 `BudgetExceededError`에서 안전하게 멈추는 경로도 확인한다.
 - `smoke`는 가짜 `call`·임시 원장으로 PASS 경로와 각 FAIL 경로(범위 밖 점수, 비용 초과, 정산 행 없음)를 확인한다.
@@ -130,7 +128,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
    - 채점이 게이트웨이를 거치지 않고 별도 원장(`purpose="grading"`)에 호출 직전 상한 검사·예약·정산으로 기록되는가?
    - 사람 CSV 해시 커밋 전에는 Gemini 클라이언트가 만들어지지도 않는가?
    - 테스트·`make verify`가 키·네트워크 없이 통과하는가? `google.genai`가 `eval/grading.py`에만 있는가?
-   - AGENTS.md `CRITICAL:` 줄 수(25)가 그대로인가? ADR에 변경 기록 줄을 추가하지 않았는가?
+   - 단가 만료 거부(2027-01-01부터)가 단가 계산과 채점 호출 직전 양쪽에 걸려 있는가?
 3. 결과를 최종 응답(JSON)으로 보고한다. `phases/` 아래 파일은 수정하지 않고 git commit도 하지 않는다:
    - 성공 → `"status": "completed"`, `"summary": "산출물 한 줄 요약"`
    - 해결할 수 없는 실패 → `"status": "error"`, `"reason": "구체적 에러 내용"`
@@ -144,7 +142,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - 후보가 부족할 때 표본 배분을 임의로 바꾸지 마라. 이유: 층화 규칙은 사전 등록 대상이다.
 - 채점 프롬프트·답변 원문·API 키를 로그·예외·출력에 남기지 마라. 이유: 토큰·키 비노출 규칙, 평가 데이터 노출 방지.
 - `uv add`·`pip install`로 패키지를 설치하지 마라. 이유: 설치는 사용자가 한다(이미 설치되어 있어야 한다).
-- AGENTS.md의 `CRITICAL:` 줄을 추가·삭제하지 마라. ADR에 변경 기록 줄을 추가하지 마라. 이유: 문서 일관성 테스트와 프로젝트 문서 규칙.
+- 이 step에서 AGENTS.md·ARCHITECTURE.md·EVAL.md·ADR을 수정하지 마라. 이유: 문서 동기화는 다음 step(`docs-sync`)의 범위다. Makefile과 `tests/test_makefile.py` 변경은 이 step에서 한다.
 - `.env`와 A의 `data/interim/mcp/tokens.json`을 열거나 출력하지 마라. A 저장소를 수정하지 마라.
 - `scripts/`, `phases/`, `web/`, `data/contract/`를 수정하지 마라.
 - 기존 테스트를 깨뜨리지 마라.
