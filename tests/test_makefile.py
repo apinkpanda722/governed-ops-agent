@@ -117,9 +117,16 @@ def test_eval_gen_is_user_run_only():
 
 def test_review_targets_are_user_only():
     text = (REPO_ROOT / "Makefile").read_text()
-    for target, command in [("eval-cards", "cards"), ("eval-review-status", "status")]:
+    for target, comment, command in [
+        (
+            "eval-cards",
+            "# 읽기 전용 A 저장소(A_ROOT) 필요, 사용자 실행",
+            "cards --a-root $(A_ROOT)",
+        ),
+        ("eval-review-status", "# 사용자 실행", "status"),
+    ]:
         assert (
-            f"# 사용자 실행\n{target}:\n\tuv run python -m govops.eval.review_cli {command}"
+            f"{comment}\n{target}:\n\tuv run python -m govops.eval.review_cli {command}"
             in text
         )
         assert target in text.split(".PHONY:")[-1]
