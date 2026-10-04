@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "replay-fake-a",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T11:51:33+0900",
+      "summary": "TDD로 실제 MCP SDK 기반 가짜 A 서버·기록 형식 및 안전성 검증·replay 토큰 생성기·로컬 HTTP 테스트를 구현; 인증·계약·신원 분리·토큰 비노출·계층 경계 확인 및 make verify 전체 통과(372 passed, 1 skipped, 웹 15 passed).",
+      "completed_at": "2026-10-04T11:56:57+0900",
+      "usage": {
+        "input_tokens": 436455,
+        "cached_input_tokens": 380544,
+        "output_tokens": 9251,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
