@@ -1,17 +1,38 @@
-"""요청 문장 말투 변형: 반말·짧은 명령·존댓말(시드 기반 결정론).
+"""요청 문장 말투 배정: 반말·짧은 명령·존댓말(시드 기반 결정론).
 
-선정이 끝난 뒤에 말투를 입히므로 어떤 문항을 고르는지(대상·요청자·결과)는 바뀌지 않는다.
-존댓말은 기존 문장을 그대로 두어 해시가 변하지 않는다. 반말·짧은 명령만 요청 문장이 바뀐다.
+문항 선정이 끝난 뒤에 말투를 배정한다(대상·요청자·결과는 말투와 무관). 문장 자체는
+`request_text`의 말투별 템플릿으로 만든다.
 """
 
 import random
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+
+from govops.eval.request_text import (
+    BANMAL,
+    FORMAL,
+    SHORT,
+    TONE_LABELS,
+    TONES,
+    RequestParts,
+)
+from govops.eval.request_text import (
+    render_request as _render,
+)
 
 SEED = 20261005
-BANMAL, SHORT, FORMAL = "banmal", "short", "formal"
-TONES = (BANMAL, SHORT, FORMAL)
-TONE_LABELS = {BANMAL: "반말", SHORT: "짧은 명령", FORMAL: "존댓말"}
+__all__ = [
+    "BANMAL",
+    "FORMAL",
+    "SEED",
+    "SHORT",
+    "TONES",
+    "TONE_COUNTS",
+    "TONE_LABELS",
+    "RequestParts",
+    "assign_tones",
+    "render_request",
+    "tone_summary",
+]
 # 유형별 (반말, 짧은 명령, 존댓말) 개수. 합계 30/15/15 = 50/25/25 %.
 TONE_COUNTS = {
     "T1": (5, 2, 3),
@@ -21,29 +42,6 @@ TONE_COUNTS = {
     "T5": (6, 3, 3),
     "T6": (3, 2, 1),
 }
-SHORT_NOUN = {
-    "내용 요약": "요약",
-    "장애 조회": "조회",
-    "집계": "집계",
-    "티켓 요약": "요약",
-    "코멘트 작성": "코멘트",
-    "후속 티켓 생성": "후속 티켓",
-}
-SHORT_VERB = {"내용 요약": "요약해서", "집계": "집계해서"}
-BANMAL_TEMPLATES = (
-    "{target} {action}해줘.",
-    "{target} {action}해줄래?",
-    "{action}해줘. 대상은 {target}",
-)
-
-
-@dataclass(frozen=True)
-class RequestParts:
-    """요청 문장을 다시 만들 재료. dest = (채널, 동사: 보고|발송) 또는 None."""
-
-    target: str
-    core: str
-    dest: tuple[str, str] | None
 
 
 def _apportion(counts: Sequence[int], sizes: Sequence[int]) -> list[list[int]]:
@@ -79,20 +77,8 @@ def assign_tones(specs: Sequence) -> dict[str, str]:
     return result
 
 
-def render_request(tone: str, task_id: str, parts: RequestParts) -> str | None:
-    """반말·짧은 명령 문장. 존댓말은 None(기존 문장을 그대로 쓴다)."""
-    if tone == FORMAL:
-        return None
-    pick = random.Random(f"{SEED}:tone-variant:{task_id}")
-    target, core, dest = parts.target, parts.core, parts.dest
-    if tone == BANMAL:
-        action = core + (f"하여 {dest[0]} 채널로 {dest[1]}" if dest else "")
-        return pick.choice(BANMAL_TEMPLATES).format(target=target, action=action)
-    if dest:
-        verb = SHORT_VERB.get(core, SHORT_NOUN[core] + "해서")
-        return f"{target} {verb} {dest[0]}로 {dest[1]}"
-    noun = SHORT_NOUN[core]
-    return pick.choice((f"{target} {noun}", f"{noun} {target}"))
+def render_request(tone: str, task_id: str, parts: RequestParts) -> str:
+    return _render(tone, task_id, parts, seed=SEED)
 
 
 def tone_summary(specs: Sequence, tones: Mapping[str, str]) -> dict:

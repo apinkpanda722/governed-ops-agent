@@ -119,6 +119,13 @@ class Context:
         return self.source.team_name(code)
 
 
+def _t4_conditions(spec: TaskSpec, ctx: "Context") -> list[str]:
+    """집계 조건(담당 팀 코드, 상태 코드). 요청 문장이 아니라 근거 티켓에서 읽는다."""
+    ids = spec.provenance.source_ticket_ids
+    row = ctx.tickets.get(ids[0]) if ids else None
+    return [row["owner_team"], row["status"]] if row else []
+
+
 def _readable(user: Mapping[str, Any], row: Mapping[str, Any]) -> bool:
     return can_read(
         user, row["access_level"], row["access_teams"], row["access_min_grade"]
@@ -217,7 +224,7 @@ def build_content(spec: TaskSpec, ctx: Context) -> CardContent:
             f"{subject} 티켓의 후속 티켓 1건을 만든다(원 티켓 {subject}에 연결, 승인 후)."
         ]
     elif spec.type == "T4":
-        conditions = spec.request.split("`")[1::2][:2]
+        conditions = _t4_conditions(spec, ctx)
         count = next(
             (v.value for v in spec.derived_values if v.name == "visible_count"), "?"
         )
@@ -474,7 +481,7 @@ def build_content(spec: TaskSpec, ctx: Context) -> CardContent:
                 f"{label}{josa(label, '이/가')} 티켓 정보와 일치한다",
             )
     if spec.type == "T4":
-        conditions = spec.request.split("`")[1::2][:2]
+        conditions = _t4_conditions(spec, ctx)
         visible = [
             t["ticket_id"]
             for t in ctx.tickets.values()
