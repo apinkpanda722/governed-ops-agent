@@ -1,0 +1,53 @@
+{
+  "description": "권한으로 미리 필터링된 SQLite 원장을 단일 SELECT로 조회합니다. 허용 테이블과 컬럼: tickets(ticket_id, project_key, owner_team, title, ticket_type, status, priority, service, incident_id, reporter_id, assignee_id, created_at, resolved_at, story_points, access_level, access_teams, access_min_grade, is_anchor, fact_ids); approvals(approval_id, owner_team, category, title, amount_krw, status, requester_id, approver_id, submitted_at, decided_at, regulation_ref, access_level, access_teams, access_min_grade, is_anchor, fact_ids). SELECT 또는 SELECT로 끝나는 WITH만 허용되고 결과 행 수에는 서버 LIMIT이 적용됩니다.",
+  "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "sql": {
+        "description": "허용된 테이블만 읽는 단일 SELECT 문",
+        "maxLength": 2000,
+        "minLength": 1,
+        "title": "Sql",
+        "type": "string"
+      }
+    },
+    "required": [
+      "sql"
+    ],
+    "title": "RunSqlInput",
+    "type": "object"
+  },
+  "name": "run_sql",
+  "output_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "columns": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Columns",
+        "type": "array"
+      },
+      "rows": {
+        "items": {
+          "items": {},
+          "type": "array"
+        },
+        "title": "Rows",
+        "type": "array"
+      },
+      "truncated": {
+        "title": "Truncated",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "columns",
+      "rows",
+      "truncated"
+    ],
+    "title": "RunSqlOutput",
+    "type": "object"
+  },
+  "version": 1
+}

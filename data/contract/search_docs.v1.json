@@ -1,0 +1,113 @@
+{
+  "description": "권한으로 미리 필터링된 문서 청크를 M5 확정 hybrid 검색으로 찾습니다. 최대 8개 청크와 합계 6,000자의 근거를 반환합니다.",
+  "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "query": {
+        "description": "검색할 한국어 질문 또는 검색어",
+        "maxLength": 500,
+        "minLength": 1,
+        "title": "Query",
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "title": "SearchDocsInput",
+    "type": "object"
+  },
+  "name": "search_docs",
+  "output_schema": {
+    "$defs": {
+      "SearchDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "doc_id": {
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "is_current": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Current"
+          },
+          "section_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Key"
+          },
+          "section_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section Kind"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "doc_id",
+          "title",
+          "section_key",
+          "section_kind",
+          "is_current",
+          "text"
+        ],
+        "title": "SearchDocument",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "results": {
+        "items": {
+          "$ref": "#/$defs/SearchDocument"
+        },
+        "title": "Results",
+        "type": "array"
+      },
+      "truncated": {
+        "title": "Truncated",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "results",
+      "truncated"
+    ],
+    "title": "SearchDocsOutput",
+    "type": "object"
+  },
+  "version": 1
+}
