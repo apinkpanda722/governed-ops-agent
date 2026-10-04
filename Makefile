@@ -97,6 +97,17 @@ eval-meta-extract:
 eval-gen:
 	uv run python -m govops.eval.taskgen
 
+.PHONY: obs-up obs-down
+# 사용자 실행
+obs-up:
+	LITELLM_CONFIG_FILE=./litellm/config.obs.yaml docker compose --env-file .env -f infra/docker-compose.yml --profile obs up -d
+
+# 사용자 실행
+obs-down:
+	docker compose --env-file .env -f infra/docker-compose.yml --profile obs stop langfuse-web langfuse-worker clickhouse redis minio
+	LITELLM_CONFIG_FILE=./litellm/config.yaml docker compose --env-file .env -f infra/docker-compose.yml up -d litellm
+
+
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini
 # 사용자 실행
 eval-cards:

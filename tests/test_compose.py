@@ -134,7 +134,10 @@ def test_postgres_storage_healthcheck_and_credentials(compose: dict) -> None:
 
 def test_litellm_config_mount_dependencies_and_environment(compose: dict) -> None:
     litellm = compose["services"]["litellm"]
-    assert "./litellm/config.yaml:/app/config.yaml:ro" in litellm["volumes"]
+    assert (
+        "${LITELLM_CONFIG_FILE:-./litellm/config.yaml}:/app/config.yaml:ro"
+        in litellm["volumes"]
+    )
     assert litellm["command"] == ["--config", "/app/config.yaml", "--port", "4000"]
     assert litellm["depends_on"]["postgres"]["condition"] == "service_healthy"
     variables = {
@@ -143,7 +146,12 @@ def test_litellm_config_mount_dependencies_and_environment(compose: dict) -> Non
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
     }
-    assert litellm["environment"] == {v: "${" + v + "}" for v in variables}
+    assert litellm["environment"] == {
+        **{v: "${" + v + "}" for v in variables},
+        "LANGFUSE_HOST": "http://langfuse-web:3000",
+        "LANGFUSE_PUBLIC_KEY": "${LANGFUSE_PUBLIC_KEY:-}",
+        "LANGFUSE_SECRET_KEY": "${LANGFUSE_SECRET_KEY:-}",
+    }
 
 
 def test_init_script_creates_litellm_langfuse_and_govops_databases() -> None:
@@ -229,3 +237,18 @@ def test_slack_seed_is_mounted_read_only(compose: dict) -> None:
     assert (
         "../data/seed:/app/data/seed:ro" in compose["services"]["mock-slack"]["volumes"]
     )
+
+
+def test_obs_config_and_env():
+    base = yaml.safe_load((REPO_ROOT / "infra/litellm/config.yaml").read_text())
+    obs = yaml.safe_load((REPO_ROOT / "infra/litellm/config.obs.yaml").read_text())
+    assert obs["model_list"] == base["model_list"]
+    assert "litellm_settings" not in base
+    assert obs["litellm_settings"] == {
+        "success_callback": ["langfuse"],
+        "failure_callback": ["langfuse"],
+        "turn_off_message_logging": True,
+    }
+    text = (REPO_ROOT / ".env.example").read_text()
+    for key in ("LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"):
+        assert f"{key}=\n" in text

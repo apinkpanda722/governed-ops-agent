@@ -140,3 +140,18 @@ def test_grading_targets_user_only():
         )
         assert name in text.split(".PHONY:")[-1]
         assert name not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_obs_targets_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for name in ("obs-up", "obs-down"):
+        assert f"# 사용자 실행\n{name}:" in text
+        assert name not in text.split("verify:\n")[1].split("\n\n")[0]
+    assert (
+        "LITELLM_CONFIG_FILE=./litellm/config.obs.yaml docker compose --env-file .env"
+        in text
+    )
+    assert (
+        "--profile obs stop langfuse-web langfuse-worker clickhouse redis minio" in text
+    )
+    assert "up -d litellm" in text

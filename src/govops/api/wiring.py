@@ -11,6 +11,7 @@ from govops.api.startup import StartupError, verify_contract
 from govops.api.tasks import TaskService
 from govops.gateway.client import LiteLLMChatClient
 from govops.obs.jsonl import JsonlSink
+from govops.obs.langfuse import langfuse_sink_from_env
 from govops.obs.mask import register_secret_values
 from govops.obs.trace import configure
 from govops.tools.a_mcp import AMcpClient
@@ -26,7 +27,8 @@ async def open_task_service():
         for name, value in os.environ.items()
         if any(part in name.upper() for part in ("KEY", "SECRET", "PASSWORD", "TOKEN"))
     )
-    configure([JsonlSink()])
+    langfuse_sink = langfuse_sink_from_env()
+    configure([JsonlSink(), *([langfuse_sink] if langfuse_sink is not None else [])])
     for name in ("KODOCS_MCP_URL", "LITELLM_AGENT_KEY"):
         if not os.environ.get(name, "").strip():
             raise StartupError(name)

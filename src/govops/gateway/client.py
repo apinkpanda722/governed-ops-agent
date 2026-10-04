@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from collections.abc import Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -118,12 +119,20 @@ class LiteLLMChatClient:
     ) -> ChatResult:
         if not self._api_key or not self._api_key.strip():
             raise GatewayError("LITELLM_AGENT_KEY가 설정되지 않았습니다")
+        metadata = {
+            "task_id": task_id,
+            "trace_user_id": user_id,
+            "generation_name": "agent-primary",
+            "tags": ["govops"],
+        }
+        if re.fullmatch(r"[0-9a-f]{32}", task_id):
+            metadata["existing_trace_id"] = task_id
         body = {
             "model": "agent-primary",
             "messages": list(messages),
             "tools": list(tools),
             "user": user_id,
-            "metadata": {"task_id": task_id},
+            "metadata": metadata,
             "max_completion_tokens": max_output_tokens,
         }
         # UTF-8 bytes bound token count conservatively; doubled serialization
@@ -202,7 +211,7 @@ class LiteLLMChatClient:
                     messages=body["messages"],
                     tools=body["tools"],
                     user=user_id,
-                    extra_body={"metadata": {"task_id": task_id}},
+                    extra_body={"metadata": body["metadata"]},
                     max_completion_tokens=max_output_tokens,
                 )
             finally:
