@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "broker",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-04T11:48:00+0900",
+      "summary": "TDD로 broker 자격 증명 조회·known_users·안전한 예외와 환경 변수 설정 구현; 토큰 비노출·캐시 없음·계층 경계 검증 및 make verify 전체 통과(341 passed, 1 skipped, 웹 15 passed).",
+      "completed_at": "2026-10-04T11:51:33+0900",
+      "usage": {
+        "input_tokens": 337351,
+        "cached_input_tokens": 282240,
+        "output_tokens": 5569,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
