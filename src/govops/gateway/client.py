@@ -19,6 +19,7 @@ from openai import (
 )
 
 from govops.costs import CostLedger, estimate_call_usd, token_cost_usd
+from govops.obs.trace import set_attributes
 
 _MODEL = "gpt-6-luna"
 _IN_CALL: ContextVar[bool] = ContextVar("gateway_model_call", default=False)
@@ -155,6 +156,14 @@ class LiteLLMChatClient:
             )
             return _result(completion, usage, cost)
         finally:
+            set_attributes(
+                usage={
+                    "input": usage.input_tokens,
+                    "cached_input": usage.cached_input_tokens,
+                    "output": usage.output_tokens,
+                },
+                cost_usd=cost,
+            )
             # 성공·실패·취소와 관계없이 같은 예약 ID로 정산한다. 실패한 호출은 확인된
             # 사용량이 없으면 0으로 정산한다.
             await asyncio.shield(

@@ -144,7 +144,7 @@ def span(kind: SpanKind, name: str, **attributes: Any) -> Iterator[None]:
                     start_ts,
                     end_ts,
                     duration_ms,
-                    status,
+                    "error" if active.attributes.get("error_code") else status,
                     mask_attributes(active.attributes),
                 )
                 sink.emit(record)

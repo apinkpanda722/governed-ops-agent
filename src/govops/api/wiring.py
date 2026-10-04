@@ -10,6 +10,9 @@ from govops.agent.graph import build_graph
 from govops.api.startup import StartupError, verify_contract
 from govops.api.tasks import TaskService
 from govops.gateway.client import LiteLLMChatClient
+from govops.obs.jsonl import JsonlSink
+from govops.obs.mask import register_secret_values
+from govops.obs.trace import configure
 from govops.tools.a_mcp import AMcpClient
 from govops.tools.jira import JiraClient
 from govops.tools.registry import ToolRuntime
@@ -18,6 +21,12 @@ from govops.tools.slack import SlackClient
 
 @asynccontextmanager
 async def open_task_service():
+    register_secret_values(
+        value
+        for name, value in os.environ.items()
+        if any(part in name.upper() for part in ("KEY", "SECRET", "PASSWORD", "TOKEN"))
+    )
+    configure([JsonlSink()])
     for name in ("KODOCS_MCP_URL", "LITELLM_AGENT_KEY"):
         if not os.environ.get(name, "").strip():
             raise StartupError(name)
