@@ -34,13 +34,31 @@ def a_root(tmp_path):
         "facts": [{"fact_id": "f-2", "kind": "id", "value": "syn-service"}],
     }
     (seed / "events/one.yaml").write_text(yaml.safe_dump({"events": [source]}))
+    services = {
+        "services": [
+            {
+                "name": "core-gateway",
+                "owner_team": "platform",
+                "description": "SERVICE_DESCRIPTION_SENTINEL",
+                "facts": [
+                    {
+                        "fact_id": "f-service-core-gateway-slo",
+                        "kind": "text",
+                        "value": "합성 가용성 목표",
+                        "date": None,
+                    }
+                ],
+            }
+        ]
+    }
+    (seed / "services.yaml").write_text(yaml.safe_dump(services, allow_unicode=True))
     docs = [
         {
             "doc_id": f"syn-{n}",
             "doc_type": "meeting",
             "team": "platform",
             "access": {"level": "team", "teams": ["platform"], "min_grade": 1},
-            "fact_ids": ["f-1", "f-2"],
+            "fact_ids": ["f-1", "f-2", "f-service-core-gateway-slo"],
             "related_doc_ids": ["syn-1"],
             "canary_fact_id": "f-c" if n == 1 else None,
             "injection_id": "inj-1" if n == 2 else None,
@@ -151,12 +169,21 @@ def test_deterministic_read_only_and_no_body(a_root, tmp_path, monkeypatch, caps
     monkeypatch.setattr(Path, "open", original)
     assert snapshot(a_root) == before
     assert all(
-        b"BODY_SENTINEL" not in b and b"INJECTION_SENTINEL" not in b
+        b"BODY_SENTINEL" not in b
+        and b"INJECTION_SENTINEL" not in b
+        and b"SERVICE_DESCRIPTION_SENTINEL" not in b
         for b in first.values()
     )
     meta = load_meta(out / "meta.json")
     assert [d.doc_id for d in meta.docs] == ["syn-1", "syn-2", "syn-3"]
     assert meta.fact_by_id["f-c"].source_kind == "canary"
+    service = meta.fact_by_id["f-service-core-gateway-slo"]
+    assert (service.source_kind, service.source_id, service.owner_team) == (
+        "service",
+        "core-gateway",
+        "platform",
+    )
+    assert service.kind == "text" and service.value == "합성 가용성 목표"
     assert len(meta.tickets) == 1
     report = json.loads(first["meta.manifest.json"])
     assert report["meta_sha256"] == meta_sha256(out / "meta.json")
@@ -232,3 +259,23 @@ def test_publication_failure_restores_both_files(a_root, tmp_path, monkeypatch):
     with pytest.raises(MetaValidationError):
         meta_extract.extract(a_root, out, expected=EXPECTED)
     assert before == {p.name: p.read_bytes() for p in out.iterdir()}
+
+
+def test_missing_services_file_is_a_clear_error(a_root, tmp_path):
+    (a_root / "data/seed/services.yaml").unlink()
+    with pytest.raises(MetaValidationError, match="services"):
+        meta_extract.extract(a_root, tmp_path / "out", expected=EXPECTED)
+
+
+def test_unreferenced_service_fact_is_kept_and_reference_errors_are_named(
+    a_root, tmp_path
+):
+    plan = a_root / "data/synthetic/plan.jsonl"
+    rows = [json.loads(line) for line in plan.read_text().splitlines()]
+    for row in rows:
+        row["fact_ids"] = ["f-1", "f-2", "f-service-missing"]
+    plan.write_text("\n".join(json.dumps(r) for r in rows))
+    with pytest.raises(MetaValidationError) as error:
+        meta_extract.extract(a_root, tmp_path / "out", expected=EXPECTED)
+    assert "doc fact_ids reference missing facts: 3 docs" in str(error.value)
+    assert "f-service-missing" not in str(error.value)
