@@ -19,19 +19,21 @@ class SessionStore:
         self._clock = clock
         self._sessions: dict[str, tuple[str, float]] = {}
 
+    def _purge_expired(self, now: float) -> None:
+        for digest in [
+            d for d, (_, expires) in self._sessions.items() if now >= expires
+        ]:
+            del self._sessions[digest]
+
     def issue(self, user_id: str) -> tuple[str, float]:
+        now = self._clock()
+        self._purge_expired(now)
         token = secrets.token_urlsafe(32)
-        expires = self._clock() + self._ttl_seconds
+        expires = now + self._ttl_seconds
         self._sessions[hashlib.sha256(token.encode()).hexdigest()] = (user_id, expires)
         return token, expires
 
     def resolve(self, token: str) -> str | None:
-        digest = hashlib.sha256(token.encode()).hexdigest()
-        session = self._sessions.get(digest)
-        if session is None:
-            return None
-        user, expires = session
-        if self._clock() >= expires:
-            del self._sessions[digest]
-            return None
-        return user
+        self._purge_expired(self._clock())
+        session = self._sessions.get(hashlib.sha256(token.encode()).hexdigest())
+        return None if session is None else session[0]

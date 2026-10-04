@@ -215,6 +215,10 @@ async def test_not_found_passed_unchanged_and_long_result_truncated():
         (BudgetExceededError("secret"), "budget_exceeded"),
         (LedgerMissingError("secret"), "ledger_missing"),
         (GatewayError("secret"), "gateway_error"),
+        # 분류되지 않은 예외(깨진 원장 줄, 빈 choices 등)도 일반 코드로 종료한다.
+        (ValueError("secret"), "model_error"),
+        (IndexError("secret"), "model_error"),
+        (RuntimeError("secret"), "model_error"),
     ],
 )
 async def test_model_failure_retains_progress_without_exception(exc, code):

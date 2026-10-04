@@ -65,7 +65,9 @@ def _primary_rows(ledger: CostLedger) -> list[dict]:
         return [
             row
             for line in source
+            # 예약 행은 호출 전 추정액이므로 세지 않고 정산된 호출 행만 센다.
             if (row := json.loads(line))["purpose"] == "agent_primary"
+            and row.get("kind") != "reservation"
         ]
 
 

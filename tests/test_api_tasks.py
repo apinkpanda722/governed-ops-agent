@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from types import SimpleNamespace
 from uuid import uuid4
 
 import httpx
@@ -124,21 +125,35 @@ async def test_background_failure_concurrency_and_close(caplog):
             request = kwargs["messages"][-1]["content"]
             if request == "fail":
                 raise RuntimeError("EXCEPTION-SECRET")
+            if request == "crash":
+                # 모델 노드의 예외 처리 밖에서 그래프가 깨지는 경우(잘못된 응답 객체)
+                return SimpleNamespace(message=None)
             if request == "wait":
                 await asyncio.Event().wait()
             return reply(request)
 
     service = TaskService(build_graph(Chat(), FakeTools(), InMemorySaver()))
-    a = await service.start("a", "fail")
+    a = await service.start("a", "crash")
     b = await service.start("b", "answer")
+    c = await service.start("c", "fail")
     for _ in range(100):
-        first, second = await service.get("a", a), await service.get("b", b)
-        if first["status"] == "failed" and second["status"] == "completed":
+        first, second, third = (
+            await service.get("a", a),
+            await service.get("b", b),
+            await service.get("c", c),
+        )
+        if (
+            first["status"] == "failed"
+            and second["status"] == "completed"
+            and third["status"] == "failed"
+        ):
             break
         await asyncio.sleep(0.001)
     assert first["error"] == "internal_error"
+    # 모델 호출의 분류되지 않은 예외는 그래프가 model_error로 종료한다.
+    assert third["error"] == "model_error"
     assert second["answer"] == "answer"
-    assert "EXCEPTION-SECRET" not in repr(first) + caplog.text
+    assert "EXCEPTION-SECRET" not in repr(first) + repr(third) + caplog.text
     await service.start("a", "wait")
     await asyncio.sleep(0)
     await service.aclose()

@@ -187,3 +187,21 @@ def test_users(tmp_path):
             load_users(path)
     with pytest.raises(OSError):
         load_users(tmp_path / "missing")
+
+
+def test_expired_sessions_are_purged_on_issue_and_resolve():
+    now = [0.0]
+    store = SessionStore(ttl_seconds=10, clock=lambda: now[0])
+    old = [store.issue(f"demo-user-g{i}")[0] for i in range(5)]
+    assert len(store._sessions) == 5
+    now[0] = 11.0
+    token, _ = store.issue("demo-new-g1")
+    # 발급 시점에 만료된 세션 5개가 모두 정리되고 새 세션만 남는다.
+    assert len(store._sessions) == 1
+    assert store.resolve(token) == "demo-new-g1"
+    assert all(store.resolve(t) is None for t in old)
+    # 조회 시점에도 만료된 다른 세션이 정리된다.
+    other, _ = store.issue("demo-other-g1")
+    now[0] = 22.0
+    assert store.resolve("unknown-token") is None
+    assert len(store._sessions) == 0 and store.resolve(other) is None

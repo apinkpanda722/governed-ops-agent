@@ -45,9 +45,9 @@ Langfuse(profile `obs`)는 M2에서 기동한 뒤 다시 실측한다.
 - 건너뜀: `search_docs` 2건(platform·finance). 결과에 `syn-*`가 아닌 문서가 포함되어 기록 전체를 건너뛰었다(응답 편집 없음).
 - 저장 파일은 `data/replay/a/recordings.jsonl`. 검증 규칙(`syn-*`만, 토큰·Authorization 없음)을 통과한다.
 
-## 미확인
+## 이미지 확인
 
 | 항목 | 상태 |
 |---|---|
-| litellm 이미지 cosign 서명 검증(`v1.103.3`) | 사용자 확인 대기 |
-| minio digest 일치 확인 | 사용자 확인 대기 |
+| litellm 이미지 cosign 서명 검증(`v1.103.3`) | 통과(transparency log 오프라인 확인 포함, digest `sha256:e6e1c46cec92ab58b7ff95c790420aba9f05269b662a66c0dd11714171b9c64b`, 로컬 이미지 digest 일치) |
+| minio digest 일치 확인 | M2 obs 첫 기동 때 확인 |

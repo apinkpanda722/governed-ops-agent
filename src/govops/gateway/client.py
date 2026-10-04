@@ -1,5 +1,6 @@
 """에이전트 전용 LiteLLM 비동기 호출과 호출 전 비용 상한 검사."""
 
+import asyncio
 import json
 import logging
 import os
@@ -132,7 +133,47 @@ class LiteLLMChatClient:
         estimate = estimate_call_usd(
             _MODEL, input_tokens_upper=input_upper, max_output_tokens=max_output_tokens
         )
-        self._ledger.check_before_call(purpose="agent_primary", estimate_usd=estimate)
+        # 상한 검사와 예약 기록은 잠금 안에서 한 번에 한다(동시 호출의 합산 초과 방지).
+        reservation = await asyncio.to_thread(
+            self._ledger.reserve,
+            purpose="agent_primary",
+            model=_MODEL,
+            task_id=task_id,
+            estimate_usd=estimate,
+        )
+        usage = Usage(0, 0, 0)
+        cost = 0.0
+        try:
+            completion = await self._send(
+                body,
+                user_id=user_id,
+                task_id=task_id,
+                max_output_tokens=max_output_tokens,
+            )
+            usage, cost = _usage_and_cost(
+                completion, input_upper, max_output_tokens, estimate
+            )
+            return _result(completion, usage, cost)
+        finally:
+            # 성공·실패·취소와 관계없이 같은 예약 ID로 정산한다. 실패한 호출은 확인된
+            # 사용량이 없으면 0으로 정산한다.
+            await asyncio.shield(
+                asyncio.to_thread(
+                    self._ledger.settle,
+                    reservation,
+                    purpose="agent_primary",
+                    model=_MODEL,
+                    task_id=task_id,
+                    input_tokens=usage.input_tokens,
+                    cached_input_tokens=usage.cached_input_tokens,
+                    output_tokens=usage.output_tokens,
+                    cost_usd=cost,
+                )
+            )
+
+    async def _send(
+        self, body: dict, *, user_id: str, task_id: str, max_output_tokens: int
+    ):
         _protect_transport_logs()
         token = _IN_CALL.set(True)
         error = None
@@ -173,39 +214,45 @@ class LiteLLMChatClient:
         # are not attached as exception context.
         if error is not None:
             raise error
+        return completion
 
-        raw_usage = completion.usage
-        if (
-            raw_usage is None
-            or raw_usage.prompt_tokens is None
-            or raw_usage.completion_tokens is None
-        ):
-            usage = Usage(input_upper, 0, max_output_tokens)
-            cost = estimate
-        else:
-            details = raw_usage.prompt_tokens_details
-            usage = Usage(
-                raw_usage.prompt_tokens,
-                (details.cached_tokens or 0) if details else 0,
-                raw_usage.completion_tokens,
-            )
-            cost = token_cost_usd(
-                _MODEL,
-                input_tokens=usage.input_tokens,
-                cached_input_tokens=usage.cached_input_tokens,
-                output_tokens=usage.output_tokens,
-            )
-        self._ledger.record(
-            purpose="agent_primary",
-            model=_MODEL,
-            task_id=task_id,
+
+def _usage_and_cost(
+    completion, input_upper: int, max_output_tokens: int, estimate: float
+) -> tuple[Usage, float]:
+    raw_usage = getattr(completion, "usage", None)
+    estimated = (Usage(input_upper, 0, max_output_tokens), estimate)
+    if (
+        raw_usage is None
+        or raw_usage.prompt_tokens is None
+        or raw_usage.completion_tokens is None
+    ):
+        return estimated
+    details = raw_usage.prompt_tokens_details
+    usage = Usage(
+        raw_usage.prompt_tokens,
+        (details.cached_tokens or 0) if details else 0,
+        raw_usage.completion_tokens,
+    )
+    try:
+        cost = token_cost_usd(
+            _MODEL,
             input_tokens=usage.input_tokens,
             cached_input_tokens=usage.cached_input_tokens,
             output_tokens=usage.output_tokens,
-            cost_usd=cost,
         )
+    except (ValueError, TypeError):
+        return (
+            estimated  # 해석할 수 없는 사용량은 과소 계상하지 않고 추정액으로 정산한다
+        )
+    return usage, cost
+
+
+def _result(completion, usage: Usage, cost: float) -> ChatResult:
+    failure = None
+    try:
         message = completion.choices[0].message
-        return ChatResult(
+        result = ChatResult(
             message={
                 "role": "assistant",
                 "content": message.content,
@@ -222,3 +269,8 @@ class LiteLLMChatClient:
             usage=usage,
             cost_usd=cost,
         )
+    except (IndexError, AttributeError, TypeError):
+        failure = GatewayError("gateway malformed response")
+    if failure is not None:
+        raise failure
+    return result

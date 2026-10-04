@@ -3,6 +3,8 @@
 import os
 from contextlib import asynccontextmanager
 
+import httpx
+
 from govops.agent.checkpointer import open_checkpointer
 from govops.agent.graph import build_graph
 from govops.api.startup import StartupError, verify_contract
@@ -21,14 +23,26 @@ async def open_task_service():
             raise StartupError(name)
     a_client = AMcpClient(os.environ["KODOCS_MCP_URL"])
     await verify_contract(a_client)
-    tools = ToolRuntime(
-        a_client,
-        JiraClient(os.getenv("MOCK_JIRA_URL") or "http://127.0.0.1:8081"),
-        SlackClient(os.getenv("MOCK_SLACK_URL") or "http://127.0.0.1:8082"),
-    )
-    async with open_checkpointer(os.getenv("GOVOPS_DATABASE_URL") or None) as saver:
-        service = TaskService(build_graph(LiteLLMChatClient(), tools, saver))
-        try:
-            yield service
-        finally:
-            await service.aclose()
+    # Jira·Slack 클라이언트는 하나의 HTTP 클라이언트를 공유하고 서비스 종료 시 닫는다.
+    # A MCP 클라이언트는 호출마다 연결을 열고 닫으므로 보관하는 연결이 없다.
+    rest_client = httpx.AsyncClient(trust_env=False)
+    try:
+        tools = ToolRuntime(
+            a_client,
+            JiraClient(
+                os.getenv("MOCK_JIRA_URL") or "http://127.0.0.1:8081",
+                http_client=rest_client,
+            ),
+            SlackClient(
+                os.getenv("MOCK_SLACK_URL") or "http://127.0.0.1:8082",
+                http_client=rest_client,
+            ),
+        )
+        async with open_checkpointer(os.getenv("GOVOPS_DATABASE_URL") or None) as saver:
+            service = TaskService(build_graph(LiteLLMChatClient(), tools, saver))
+            try:
+                yield service
+            finally:
+                await service.aclose()
+    finally:
+        await rest_client.aclose()

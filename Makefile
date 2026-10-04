@@ -67,7 +67,7 @@ agent-key:
 .PHONY: db-init
 # compose 기동 후 실행, 이미 있으면 변경 없음
 db-init:
-	docker compose -f infra/docker-compose.yml exec -T postgres sh -c 'printf "%s\n" "SELECT '\''CREATE DATABASE govops'\'' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '\''govops'\'');" "\gexec" | psql --username "$$POSTGRES_USER" --dbname postgres --set ON_ERROR_STOP=1'
+	docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres sh -c 'printf "%s\n" "SELECT '\''CREATE DATABASE govops'\'' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '\''govops'\'');" "\gexec" | psql --username "$$POSTGRES_USER" --dbname postgres --set ON_ERROR_STOP=1'
 
 .PHONY: serve ask
 # compose·live A 기동 후, DEMO_LOGIN=true 필요

@@ -5,6 +5,7 @@ import fcntl
 import json
 import math
 import os
+import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -121,9 +122,56 @@ _FIELDS = {
 }
 
 
+_RESERVATION_FIELDS = {
+    "ts",
+    "kind",
+    "reservation_id",
+    "purpose",
+    "supplier",
+    "model",
+    "task_id",
+    "estimate_usd",
+}
+
+
+def _is_reservation(row: object) -> bool:
+    return isinstance(row, dict) and row.get("kind") == "reservation"
+
+
+def _validate_reservation(row: object, *, grading: bool) -> None:
+    if not isinstance(row, dict) or set(row) != _RESERVATION_FIELDS:
+        raise ValueError("invalid cost ledger reservation fields")
+    purpose = row["purpose"]
+    if not isinstance(purpose, str) or purpose not in PURPOSE_SUPPLIER:
+        raise ValueError("invalid cost ledger purpose")
+    if (purpose == "grading") != grading or row["supplier"] != PURPOSE_SUPPLIER[
+        purpose
+    ]:
+        raise ValueError("invalid cost ledger routing")
+    if not isinstance(row["reservation_id"], str) or not row["reservation_id"]:
+        raise ValueError("invalid reservation id")
+    _amount(row["estimate_usd"])
+    if not isinstance(row["model"], str) or not row["model"]:
+        raise ValueError("invalid model")
+    if row["task_id"] is not None and not isinstance(row["task_id"], str):
+        raise ValueError("invalid task_id")
+    if not isinstance(row["ts"], str):
+        raise TypeError("invalid timestamp")
+    if datetime.fromisoformat(row["ts"]).utcoffset() != UTC.utcoffset(None):
+        raise ValueError("timestamp must be UTC")
+
+
 def _validate(row: object, *, grading: bool) -> None:
-    if not isinstance(row, dict) or set(row) != _FIELDS:
+    # 정산 행은 예약 ID를 가질 수 있다(예약 도입 전 행은 없다).
+    if not isinstance(row, dict) or set(row) not in (
+        _FIELDS,
+        _FIELDS | {"reservation_id"},
+    ):
         raise ValueError("invalid cost ledger fields")
+    if "reservation_id" in row and (
+        not isinstance(row["reservation_id"], str) or not row["reservation_id"]
+    ):
+        raise ValueError("invalid reservation id")
     purpose = row["purpose"]
     if not isinstance(purpose, str) or purpose not in PURPOSE_SUPPLIER:
         raise ValueError("invalid cost ledger purpose")
@@ -195,36 +243,164 @@ class CostLedger:
             target.flush()
             os.fsync(target.fileno())
 
-    def _total(self, supplier: str) -> Decimal:
+    def _read_rows(self, source, *, grading: bool) -> list[dict]:
+        source.seek(0)
+        rows = []
+        for number, line in enumerate(source, 1):
+            try:
+                row = json.loads(line)
+                if _is_reservation(row):
+                    _validate_reservation(row, grading=grading)
+                else:
+                    _validate(row, grading=grading)
+            except (ValueError, TypeError, KeyError):
+                raise ValueError(f"Invalid cost ledger line {number}") from None
+            rows.append(row)
+        return rows
+
+    @staticmethod
+    def _tally(rows: list[dict], supplier: str) -> tuple[Decimal, Decimal]:
+        """(정산된 실제 금액, 아직 정산되지 않은 예약 추정액)."""
+        settled_ids = {
+            row["reservation_id"]
+            for row in rows
+            if not _is_reservation(row) and "reservation_id" in row
+        }
+        settled = Decimal(0)
+        pending = Decimal(0)
+        for row in rows:
+            if row["supplier"] != supplier:
+                continue
+            if _is_reservation(row):
+                if row["reservation_id"] not in settled_ids:
+                    pending += _amount(row["estimate_usd"])
+            else:
+                settled += _amount(row["cost_usd"])
+        return settled, pending
+
+    def _snapshot(self, supplier: str) -> tuple[Decimal, Decimal]:
         if supplier not in SUPPLIER_CAPS_USD:
             raise ValueError("unknown supplier")
         self._require_ledgers()
         grading = supplier == "gemini"
-        total = Decimal(0)
         with self._open(self.root / _FILENAMES[grading], "r") as source:
             fcntl.flock(source, fcntl.LOCK_SH)
-            for number, line in enumerate(source, 1):
-                try:
-                    row = json.loads(line)
-                    _validate(row, grading=grading)
-                except (ValueError, TypeError, KeyError):
-                    raise ValueError(f"Invalid cost ledger line {number}") from None
-                if row["supplier"] == supplier:
-                    total += _amount(row["cost_usd"])
-        return total
+            return self._tally(self._read_rows(source, grading=grading), supplier)
 
     def total_usd(self, supplier: str) -> float:
-        return float(self._total(supplier))
+        """정산된 실제 누적액(미정산 예약 제외)."""
+        return float(self._snapshot(supplier)[0])
+
+    def committed_usd(self, supplier: str) -> float:
+        """실제 누적액 + 미정산 예약액. 상한 검사는 이 값을 쓴다."""
+        settled, pending = self._snapshot(supplier)
+        return float(settled + pending)
 
     def check_before_call(self, *, purpose: str, estimate_usd: float) -> None:
+        """예약 없이 읽기만 하는 검사. 실제 호출은 reserve()로 원자적으로 예약한다."""
         supplier = PURPOSE_SUPPLIER[purpose]
         estimate = _amount(estimate_usd)
-        total = self._total(supplier)
+        settled, pending = self._snapshot(supplier)
+        self._enforce(supplier, settled + pending, estimate)
+
+    @staticmethod
+    def _enforce(supplier: str, committed: Decimal, estimate: Decimal) -> None:
         cap = Decimal(str(SUPPLIER_CAPS_USD[supplier]))
-        if total + estimate > cap:
+        if committed + estimate > cap:
             raise BudgetExceededError(
-                f"{supplier}: total={total}, estimate={estimate}, cap={cap}"
+                f"{supplier}: total={committed}, estimate={estimate}, cap={cap}"
             )
+
+    def reserve(
+        self,
+        *,
+        purpose: str,
+        model: str,
+        task_id: str | None,
+        estimate_usd: float,
+    ) -> str:
+        """상한 검사와 예약 행 기록을 파일 잠금 안에서 한 번에 한다.
+
+        정산되지 않은 예약(프로세스가 죽은 경우 등)은 삭제하지 않고 상한 쪽으로
+        보수적으로 계속 센다.
+        """
+        self._require_ledgers()
+        supplier = PURPOSE_SUPPLIER[purpose]
+        grading = purpose == "grading"
+        estimate = _amount(estimate_usd)
+        reservation_id = uuid.uuid4().hex
+        row = {
+            "ts": datetime.now(UTC).isoformat(),
+            "kind": "reservation",
+            "reservation_id": reservation_id,
+            "purpose": purpose,
+            "supplier": supplier,
+            "model": model,
+            "task_id": task_id,
+            "estimate_usd": float(estimate),
+        }
+        _validate_reservation(row, grading=grading)
+        line = json.dumps(row, ensure_ascii=False, allow_nan=False) + "\n"
+        with self._open(self.root / _FILENAMES[grading], "r+") as target:
+            fcntl.flock(target, fcntl.LOCK_EX)
+            settled, pending = self._tally(
+                self._read_rows(target, grading=grading), supplier
+            )
+            self._enforce(supplier, settled + pending, estimate)
+            target.seek(0, os.SEEK_END)
+            target.write(line)
+            target.flush()
+            os.fsync(target.fileno())
+        return reservation_id
+
+    def settle(
+        self,
+        reservation_id: str,
+        *,
+        purpose: str,
+        model: str,
+        task_id: str | None,
+        input_tokens: int,
+        output_tokens: int,
+        cached_input_tokens: int = 0,
+        cost_usd: float,
+    ) -> None:
+        """예약 ID로 실제 금액을 정산한다(실패한 호출은 0 또는 확인된 사용량)."""
+        self._require_ledgers()
+        grading = purpose == "grading"
+        row = {
+            "ts": datetime.now(UTC).isoformat(),
+            "purpose": purpose,
+            "supplier": PURPOSE_SUPPLIER[purpose],
+            "model": model,
+            "task_id": task_id,
+            "input_tokens": input_tokens,
+            "cached_input_tokens": cached_input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": cost_usd,
+            "reservation_id": reservation_id,
+        }
+        _validate(row, grading=grading)
+        line = json.dumps(row, ensure_ascii=False, allow_nan=False) + "\n"
+        with self._open(self.root / _FILENAMES[grading], "r+") as target:
+            fcntl.flock(target, fcntl.LOCK_EX)
+            rows = self._read_rows(target, grading=grading)
+            reserved = [
+                r
+                for r in rows
+                if _is_reservation(r) and r["reservation_id"] == reservation_id
+            ]
+            if len(reserved) != 1 or reserved[0]["purpose"] != purpose:
+                raise ValueError("unknown reservation")
+            if any(
+                not _is_reservation(r) and r.get("reservation_id") == reservation_id
+                for r in rows
+            ):
+                raise ValueError("reservation already settled")
+            target.seek(0, os.SEEK_END)
+            target.write(line)
+            target.flush()
+            os.fsync(target.fileno())
 
 
 def init_ledgers(root: Path | None = None) -> list[Path]:
