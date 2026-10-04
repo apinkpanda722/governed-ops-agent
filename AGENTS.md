@@ -62,7 +62,7 @@
 - CRITICAL: 데모 로그인은 `DEMO_LOGIN` 플래그일 때만 열고 127.0.0.1에만 바인드한다.
 - CRITICAL: checkpointer의 원문은 task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다(ADR-015).
 - 탐색 예산은 MAX_STEPS와 별도로 둔다. 새 정보 없는 도구 호출이 N회 연속이면 종료하고, 권한 판정은 에이전트에게 숨긴다(ADR-014).
-- 읽기 권한 거부는 "없음"과 구별되지 않게 응답하고, 쓰기 권한 거부는 명시적 "권한 없음"으로 응답한다.
+- 읽기 권한 거부와 읽을 수 없는 티켓에 대한 쓰기 요청(코멘트·후속 티켓)은 "없음"과 구별되지 않는 응답(mock-jira 404)이다. 명시적 "권한 없음"(403)은 존재가 공개된 mock-slack 채널(채널 목록은 공개 정보)의 쓰기·이력 조회에만 쓴다.
 - 모델 ID·설정은 평가 전에 freeze하고, 바꾸면 변경 기록을 남긴다.
 - 보고 수치는 live 모드(실제 A) 실행에서만 낸다. replay 모드는 CI·외부 검토자용이다. live 실행마다 A git HEAD·계약 스냅샷 해시·인덱스 이름을 기록한다(기준 `d2eec9c`, 다르면 경고).
 
@@ -75,4 +75,11 @@
 
 ## 명령어
 make verify      # ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest (Stop hook, execute.py, CI가 모두 이 명령을 부른다). API 키·네트워크 없이 통과한다.
-(명령은 해당 마일스톤에서 추가된다. docs/PRD.md 마일스톤 참고)
+make mock-tokens # 사용자별 mock-jira·mock-slack 토큰과 해시 매니페스트 생성(사용자 실행)
+make seed-extract # A 합성 티켓·사용자 시드 읽기 전용 추출(사용자 실행)
+make record-a # live A의 합성 응답 기록(사용자 실행)
+make smoke-contract # live A 도구 계약 일치 확인(사용자 실행)
+make smoke-identity # 두 사용자 신원별 티켓 가시성 확인(사용자 실행)
+make smoke-visibility # 38명 × 표본 티켓 가시성 대조(사용자 실행)
+make smoke-mock # mock 채널·권한·인증 확인(사용자 실행)
+make smoke-host-header # live A 인증된 위조 Host 헤더 거절 실측(사용자 실행)

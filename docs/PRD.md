@@ -25,6 +25,7 @@
 ## 도구
 - **읽기:** A MCP 도구 4개(`search_docs`·`lookup_id`·`run_sql`·`get_document`, v1 계약), mock Jira 티켓 조회·검색.
 - **부작용(3개, 모두 승인·멱등성 대상):** 메시지 발송(mock-slack), 티켓 코멘트(mock-jira), 티켓 생성(mock-jira). 티켓 생성은 기존 티켓의 후속 티켓으로만 한다(원 티켓 연결 필수).
+- 읽기 권한 거부와 읽을 수 없는 티켓에 대한 쓰기 요청(코멘트·후속 티켓)은 "없음"과 구별되지 않는 응답(mock-jira 404)이다. 명시적 "권한 없음"(403)은 존재가 공개된 mock-slack 채널(채널 목록은 공개 정보)의 쓰기·이력 조회에만 쓴다.
 - mock-slack 채널은 팀 채널 8개 + 전사 공지 1개다. 발송은 자기 팀 채널과 전사 공지만 허용한다. 전사 공지 발송만 같은 팀 4급 이상이 승인한다.
 
 ## 핵심 기능
@@ -55,11 +56,11 @@
 | M | 산출물 | 측정 | 사용자 작업 |
 |---|---|---|---|
 | M0 | 골격(하네스 복사), 설계 문서, compose(LiteLLM·Postgres·mock), Node 도구 체인, `make verify`에 ruff 추가 후 web 검사(`tsc`·`eslint`·`vitest`) 추가 | — | B 전용 API 키 3개 발급·`.env` 입력, Node·pnpm 설치(버전 고정) |
-| M1 | 에이전트 + mock + A MCP(live·replay) + 자격 증명 중개 + FastAPI(화면 없이 API·CLI), A 계약 스냅샷 복사, mock-jira 시드 | 동작 확인, 38명 × 표본 티켓 가시성 대조(live) | A 응답 기록 실행(합성 문서만), mock-jira 시드 추출 스크립트 실행, live A MCP 기동, 컨테이너→A Host 헤더 실측 |
-| M2 | Langfuse·trace·평가셋 60·TCR/정확도·응답 기록 재생 CI, 실행 계획표·탐색 예산 N 규칙 사전 등록(dev 전), live 실행의 A 버전 기록 | TCR(3회 평균·pass^3은 test), 정확도(분리), 용도별 task당 비용, 파일럿 실측으로 B 전체 비용 재추정 | A 합성 문서 메타데이터(정답 출처) 추출 스크립트 실행, Langfuse 기동·`docker stats` 실측, 정답 명세 60개 전수 검수, dev 실행 |
-| M3 | 타임아웃·재시도·서킷·호출 단위 fallback + outbox·메타데이터 표식 2단계 조회 + 장애 주입 F1~F11 | 장애 주입 하 중복 실행 0건, fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR | 장애 주입 live 실행 |
+| M1 | 두 phase(`m1-tools`, `m1-agent`)로 진행: 에이전트 + mock + A MCP(live·replay) + 자격 증명 중개 + FastAPI(화면 없이 API·CLI), A 계약 스냅샷 복사, mock-jira 시드 | 동작 확인, 38명 × 표본 티켓 가시성 대조(live) | A 응답 기록 실행(합성 문서만), mock-jira 시드 추출 스크립트 실행, live A MCP 기동, 컨테이너→A Host 헤더 실측 |
+| M2 | Langfuse·trace·평가셋 60·TCR/정확도·응답 기록 재생 CI, 실행 계획표·탐색 예산 N 규칙 사전 등록(dev 전), live 실행의 A 버전 기록 | TCR(3회 평균·pass^3은 test), 정확도(분리), 용도별 task당 비용, 파일럿 실측으로 B 전체 비용 재추정 | A 합성 문서 메타데이터(정답 출처) 추출 스크립트 실행, Langfuse 기동·`docker stats` 실측, 정답 명세 60개 전수 검수, dev 실행<br/>Langfuse 기동 전 Redis 7.4.11 이후 보안 수정 여부 재확인 |
+| M3 | 타임아웃·재시도·서킷·호출 단위 fallback + outbox·메타데이터 표식 2단계 조회 + 승인 노드 핵심(`interrupt`, 초안 해시 결합, `POST /tasks/{id}/approval`) + 장애 주입 F1~F11 | 재개 반복 → 부작용 1회, 장애 주입 하 중복 실행 0건, fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR | 승인 API를 통한 장애 주입 live 실행 |
 | M4 | LiteLLM 팀 키 + Guardrail v1(사전·사후) + 감사 로그 해시체인 | Guardrail 추가 지연·비용 | 감사 서명 개인키 생성(`data/interim/`, 0600) |
-| M5 | HITL(interrupt·승인 정책) + MAX_STEPS/COST + 탐색 예산(ADR-014) + checkpointer 보존 기간 삭제(ADR-015) + 웹 화면 3개(로그인·요청 진행·승인함) | 루프 차단 동작, 재개 반복 → 부작용 1회, T5 단계 수·p95 지연 탐색 예산 켬 대 끔 | — |
+| M5 | 전사 공지 승인자 정책 + MAX_STEPS/COST + 탐색 예산(ADR-014) + checkpointer 보존 기간 삭제(ADR-015) + 웹 화면 3개(로그인·요청 진행·승인함) | 루프 차단 동작, T5 단계 수·p95 지연 탐색 예산 켬 대 끔 | — |
 | M6 | 레드팀 120건 + 정상 대조 60(평가셋 재사용) + Guardrail v2(Anthropic 소형 분류 모델) 비교 | v1·v2 차단율, 정상 task 오탐률, 켬 대 끔 추가 지연·비용 | 레드팀 live 실행 |
 | M7 | 문서화, 기록 화면, 데모 영상, 방어 노트, 블로그<br/>데모 장면(약 3분 30초): 0 소개·배치도 / 1 플랫폼팀 3급 INC-2026-012 요약 발송, 처리 후 응답 유실 주입에도 1건 / 2 재무팀 3급 같은 요청 → 찾을 수 없음·발송 0 / 3 간접 인젝션 격리·승인 화면 수신처 / 4 전사 공지 같은 팀 4급 승인 / 5 `audit-verify` 꼬리 잘라내기 탐지 + trace + 수치<br/>블로그: "실제 API에 멱등 키가 없을 때 에이전트 부작용을 정확히 한 번 실행하기" | 체크리스트 전 항목 | 정확도 사람 채점 30개, 운영 대기열 검수, test 실행, 데모 촬영 |
 
