@@ -1,0 +1,281 @@
+{
+  "reviewer": "taserlee",
+  "reviewed_at": "2026-10-04",
+  "tasks": {
+    "T1-01": {
+      "status": "approved",
+      "spec_sha256": "491ff84621ca8501e4095b204af5c648c0dcbeb00fc41e48e1a6c6736cafa206",
+      "note": ""
+    },
+    "T1-02": {
+      "status": "approved",
+      "spec_sha256": "a2038002ed6bfc5d12f375aae1e0565f72c283fda4869b8403697a0457592f5f",
+      "note": ""
+    },
+    "T1-03": {
+      "status": "approved",
+      "spec_sha256": "8934cd869cbbbee6ca3ed448dda404337a6d2c3e7f53123efeb2303ee114ee4f",
+      "note": ""
+    },
+    "T1-04": {
+      "status": "approved",
+      "spec_sha256": "ed40e6e36d0a1c43ee7628c8012b76799158899912cbbb9e718e82eb723faf8a",
+      "note": ""
+    },
+    "T1-05": {
+      "status": "approved",
+      "spec_sha256": "74f6410417c1619b14dce4142cccc91ec5f45e953d2fbd36f43789806c993ba3",
+      "note": ""
+    },
+    "T1-06": {
+      "status": "approved",
+      "spec_sha256": "15554ed56d52aab55dbef0a8923b0d7fabaa3d47b99cd4247b9e6077e87a8bff",
+      "note": ""
+    },
+    "T1-07": {
+      "status": "approved",
+      "spec_sha256": "28610defd7384772240927cd80a2204c43cced6b6e78e0a8d7dbb50f7771c00c",
+      "note": ""
+    },
+    "T1-08": {
+      "status": "approved",
+      "spec_sha256": "ae01966d9f51dfada2ae52e77061cc7b86d7913b2941c93bea1cab3e012e8d61",
+      "note": ""
+    },
+    "T1-09": {
+      "status": "approved",
+      "spec_sha256": "453025e26228a54e03f1e864eb5c1ec54d1f4386f40e5cdd8fe835f3b2737d73",
+      "note": ""
+    },
+    "T1-10": {
+      "status": "approved",
+      "spec_sha256": "1b622bda3a2e00dae9058e618eb4a5ec5795ec6cdec56c03aa8d4d21113dc545",
+      "note": ""
+    },
+    "T2-01": {
+      "status": "approved",
+      "spec_sha256": "ea8525f3db182738c2388b6651e0d07a91f9fa90007ccdc171a4b552e7f66249",
+      "note": ""
+    },
+    "T2-02": {
+      "status": "approved",
+      "spec_sha256": "7b968ed87f86aae308caca10b88cadade9debccde88b131c6d78776cc6e14a6b",
+      "note": ""
+    },
+    "T2-03": {
+      "status": "approved",
+      "spec_sha256": "29eb5be45b309d7c67a9b19236120d93744ac3877e02c42042ba1e6e32d908c9",
+      "note": ""
+    },
+    "T2-04": {
+      "status": "approved",
+      "spec_sha256": "67ef3ecbcc3e619ee517c9d6fd76179ff2387f1af30f566b120ca6514f49614d",
+      "note": ""
+    },
+    "T2-05": {
+      "status": "approved",
+      "spec_sha256": "910904ef52d86e25be3dd5a9826135399b566305ac5ea778dc9cb96911be92c0",
+      "note": ""
+    },
+    "T2-06": {
+      "status": "approved",
+      "spec_sha256": "05a940e306159339aa01fc57a4ae4a6bcb4253c5717aab3f94883222009659ec",
+      "note": ""
+    },
+    "T2-07": {
+      "status": "approved",
+      "spec_sha256": "a7af317cba5864215c0eef9ad283b66c355f76ce0f3ce5bd58721dcb05350a83",
+      "note": ""
+    },
+    "T2-08": {
+      "status": "approved",
+      "spec_sha256": "e277de8dfdd7395eddbee33f31d292dbc9037045ffeaf4d9c536ea8caa3b80e5",
+      "note": "관련 서비스 deploy-control이 두 사건(evt-028, evt-031)에서 중복 — 채점상 서비스명이 두 몫. 수정 불필요, 기록만."
+    },
+    "T2-09": {
+      "status": "approved",
+      "spec_sha256": "62b31897c108288986ae557d3fa8d64bc1ea0a50fe71dd8616135e38b641e138",
+      "note": ""
+    },
+    "T2-10": {
+      "status": "approved",
+      "spec_sha256": "a498e003beb467ad68888a49e58c49ef45530dea03fa7deb1b69f542fbb4f6c2",
+      "note": ""
+    },
+    "T2-11": {
+      "status": "approved",
+      "spec_sha256": "f0ab4eb96a4ea692b174b79f714af0a344aa53ec89c654f32ae371eea509196a",
+      "note": "카드 문구 오류(직원가), 직급 방향 설명 필요"
+    },
+    "T2-12": {
+      "status": "approved",
+      "spec_sha256": "a2775936514777a25c13ac1833639ec58a192f46990c83003720153878f9ed08",
+      "note": "카드 문구 오류(직원가), 직급 방향 설명 필요"
+    },
+    "T3-01": {
+      "status": "approved",
+      "spec_sha256": "17e7501fff463d0d4e636b839f86563d16ed1a1557046e3d3c60d40bac8189df",
+      "note": ""
+    },
+    "T3-02": {
+      "status": "approved",
+      "spec_sha256": "caa4fe47d97b46dae62da00f0c0c7e7f4e5b93b62d54303289ad8584a8981f2b",
+      "note": ""
+    },
+    "T3-03": {
+      "status": "approved",
+      "spec_sha256": "09153d29ccf03bea2886cb570886b7e71b57929363e69c361683ad38c793822a",
+      "note": ""
+    },
+    "T3-04": {
+      "status": "approved",
+      "spec_sha256": "7669b0bf8a0c8c344371ee7b63c728d3e1c3372708be85969f3972b41e98673f",
+      "note": ""
+    },
+    "T3-05": {
+      "status": "approved",
+      "spec_sha256": "8de21ad75c8a6e1c982d3cf2224759d9c82b5fd8851723231aa818c311ab06a7",
+      "note": ""
+    },
+    "T3-06": {
+      "status": "approved",
+      "spec_sha256": "e366c57cfe9e702c77dcc6f3c3bdd2fe2ad5372102113ae9908df999242587ea",
+      "note": ""
+    },
+    "T3-07": {
+      "status": "approved",
+      "spec_sha256": "c9415be8137c914a73e2f06b7fa621e71584f01a3b2e2bce23e7ef9d4c48ffec",
+      "note": ""
+    },
+    "T3-08": {
+      "status": "approved",
+      "spec_sha256": "26f7009cd05d7d7e5cfb0f37d546ed353b4d8740216df687e4515c011e2dcb0f",
+      "note": ""
+    },
+    "T3-09": {
+      "status": "approved",
+      "spec_sha256": "c46c1850f3e527afdd4f0e8f686e674e9b9aef9ec682aa5675fca7064d8c80ac",
+      "note": "근거 발췌 중 syn-guide-008은 A 합성 문서 결함 — INC-2025-006(HRM-1001)과 INC-2026-010의 사실이 섞여 HRM-1001에 잘못 연결됨. 정답지(HRM-1002)는 티켓 데이터와 장애보고서로 확인됨."
+    },
+    "T3-10": {
+      "status": "approved",
+      "spec_sha256": "ed77052d292118b1bea20f8108637bee92dbf148fa27d74ab250139220cfb981",
+      "note": ""
+    },
+    "T3-11": {
+      "status": "approved",
+      "spec_sha256": "6688d3a528c1b3fd4bef2186965c61a7448f81314f0c6b51bb55c4067e44fd89",
+      "note": ""
+    },
+    "T3-12": {
+      "status": "approved",
+      "spec_sha256": "90bc2a4cfef726c173b604c1649a64ff84469f9ddd8ebc3718b022f5a56f28cf",
+      "note": ""
+    },
+    "T4-01": {
+      "status": "approved",
+      "spec_sha256": "6f5dc31d971588934227e5e48ef7117bdaae768ed5b83d86518945c829c72498",
+      "note": ""
+    },
+    "T4-02": {
+      "status": "approved",
+      "spec_sha256": "32470d42c7704e04bb3a0213d3c76dffe0df2b40190451413c632852b44923d7",
+      "note": ""
+    },
+    "T4-03": {
+      "status": "approved",
+      "spec_sha256": "7ff5cedac2ee6297b820b52c7039d7b78c46c23175d37ccf1b5c264f2d666422",
+      "note": ""
+    },
+    "T4-04": {
+      "status": "approved",
+      "spec_sha256": "855c77fb70cf1241639a2af3e2ee37070a1fbf6ad4d3acdfa30b172fd46fba40",
+      "note": ""
+    },
+    "T4-05": {
+      "status": "approved",
+      "spec_sha256": "2d5d7c186f406e97c593d4e8929966c1f80f34f6ec7597ec59b58749d1c29c7b",
+      "note": ""
+    },
+    "T4-06": {
+      "status": "approved",
+      "spec_sha256": "0c70df10933e5e5f040a4f0138d7b90f175888ec76e27a73d1bb9a4b35239714",
+      "note": ""
+    },
+    "T4-07": {
+      "status": "approved",
+      "spec_sha256": "1477996e9482abee0aea074f18dc5a2d6f8f086a484480c339d9d141a4eeff53",
+      "note": ""
+    },
+    "T4-08": {
+      "status": "approved",
+      "spec_sha256": "eccb4e6f8c23e6feb99e2835c0345935aa0f14dd4fcdf28d8e67dfcc235b898b",
+      "note": ""
+    },
+    "T5-01": {
+      "status": "needs_change",
+      "spec_sha256": "3e3ad70f366875c523b499e7b812f6602e6bf7dfb6b6da9d72ba2280c49e8a68",
+      "note": ""
+    },
+    "T5-02": {
+      "status": "needs_change",
+      "spec_sha256": "92787500462c71e5d64624c1b95dde338550965ce871056fc44564220bc8167b",
+      "note": ""
+    },
+    "T5-03": {
+      "status": "needs_change",
+      "spec_sha256": "0e29cf5411c44f7b175f6b8974f5f8388f472d61570a27d35c2976c4516090e5",
+      "note": ""
+    },
+    "T5-04": {
+      "status": "needs_change",
+      "spec_sha256": "a0a5c616d9a7b50c591eb4daad96e5a5cbdf5d61c26fa882a7973fe6b9a45e11",
+      "note": ""
+    },
+    "T5-05": {
+      "status": "approved",
+      "spec_sha256": "cb9e373543be579fa7263bb8ac8b113dc5e6187b6b88bb5651c71a41856af5e7",
+      "note": ""
+    },
+    "T5-06": {
+      "status": "approved",
+      "spec_sha256": "5ed47893adfd02d47c6441d1ab48629d9d2a6654d655ad6127e797110c133c2c",
+      "note": ""
+    },
+    "T5-07": {
+      "status": "approved",
+      "spec_sha256": "1b8d244ab519b66299111e4db681d5b63e9bed216a218ae822addb5d7f069c6f",
+      "note": ""
+    },
+    "T5-08": {
+      "status": "approved",
+      "spec_sha256": "8a5ba6955ce028f8ecdb2b6b45f6223cc216982ca7636748424ad08c6b55da95",
+      "note": "canary 금지 목록이 읽을 수 없는 27개 중 5개만 — 전부로 넓힐 것"
+    },
+    "T5-09": {
+      "status": "approved",
+      "spec_sha256": "962e4f804659a54634ef0efe64892bc0f3b6a6d2eef946ece02ed2390e76b47e",
+      "note": "canary 금지 5/30(T5-08과 같은 고정 목록) — 요청자가 읽을 수 없는 전부로. 인젝션 형식이 T5-08과 같은 system_notice — 3문항 형식 분산 필요."
+    },
+    "T5-10": {
+      "status": "approved",
+      "spec_sha256": "51c2598e3f16645ce86021c91688308b5a44e9b90f1ba5f23c799450cc2d9afb",
+      "note": "canary 금지 5/30(T5-08·09와 같은 고정 목록) — 요청자가 읽을 수 없는 전부로"
+    },
+    "T5-11": {
+      "status": "approved",
+      "spec_sha256": "de20588416e244f642f3be14e27207f611860e92e04b08ae05b39c115ccb0d8f",
+      "note": ""
+    },
+    "T5-12": {
+      "status": "approved",
+      "spec_sha256": "06f3150e2399d5ddcebe94f3a0d76b102a271de536b4799141b22a837c04c893",
+      "note": ""
+    },
+    "T6-02": {
+      "status": "approved",
+      "spec_sha256": "8a603b27d9c44e02e21c9cc119fb5c234d497298af7fff40b5c0f98fee2f20b1",
+      "note": ""
+    }
+  }
+}
