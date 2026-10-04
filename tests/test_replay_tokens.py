@@ -3,6 +3,7 @@
 import json
 
 import pytest
+
 from govops.replay.tokens import main
 
 

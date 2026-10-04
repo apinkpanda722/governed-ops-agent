@@ -7,6 +7,8 @@ from copy import deepcopy
 from pathlib import Path
 
 import pytest
+from mcp.types import Tool
+
 from govops.tools.contract import (
     IDENTITY_FIELD_NAMES,
     ContractMismatchError,
@@ -17,7 +19,6 @@ from govops.tools.contract import (
     snapshot_a_commit,
     snapshot_sha256,
 )
-from mcp.types import Tool
 
 ROOT = Path(__file__).resolve().parents[1] / "data" / "contract"
 NAMES = {"search_docs", "lookup_id", "run_sql", "get_document"}

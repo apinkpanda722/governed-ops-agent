@@ -83,6 +83,7 @@ def test_record_skip_merge_and_roundtrip(
     output = capsys.readouterr().out
     assert "WHOLE_RECORD_SENTINEL" not in content and "real-document" not in content
     assert arguments_key(bad.arguments)[:12] in output and "search_docs" in output
+    assert "저장 1 (전체 2, 건너뜀 1)" in output
     assert snapshot_sha256() in output
     for token in tokens.values():
         assert token not in content + output

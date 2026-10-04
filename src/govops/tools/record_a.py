@@ -65,7 +65,7 @@ async def _record(requests_file: Path, out: Path, url: str) -> None:
         merged[(entry.caller, entry.tool, arguments_key(entry.arguments))] = entry
         saved += 1
     write_recordings(out, merged.values())
-    print(f"저장 개수: {saved} (전체 {len(merged)})")
+    print(f"저장 {saved} (전체 {len(payload['requests'])}, 건너뜀 {len(skipped)})")
     print(f"건너뜀 목록: {json.dumps(skipped, ensure_ascii=False)}")
     print(f"A 계약 스냅샷 해시: {snapshot_sha256()}")
 

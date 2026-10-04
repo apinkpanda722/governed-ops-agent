@@ -1,0 +1,9 @@
+{
+  "a_commit": "d2eec9c08ffbd61cf8ab5d84d4dd817452d044cc",
+  "a_commit_matches_expected": true,
+  "expected_a_commit": "d2eec9c",
+  "ticket_count": 500,
+  "tickets_sha256": "04ffa7dbd2c3922373d735c755267749d7e7a7fabbd48c1686e7df44ee4f6257",
+  "user_count": 38,
+  "users_sha256": "c829a1ab2704eb4715c13a0caa1ef19b4e2929945279062f4a8a60bf7ab03f41"
+}

@@ -1,0 +1,232 @@
+{
+  "users": [
+    {
+      "grade": 1,
+      "label": "demo-data-ai-g1",
+      "team": "data-ai",
+      "token_sha256": "b2a28cc90688f385abb8d3cebe43cade6d067970f0b889da7978f470aee807f4"
+    },
+    {
+      "grade": 2,
+      "label": "demo-data-ai-g2",
+      "team": "data-ai",
+      "token_sha256": "e8f03e2291ea7e265ac699672bad02bf03a5382a113eda6c0f878095335646f5"
+    },
+    {
+      "grade": 3,
+      "label": "demo-data-ai-g3",
+      "team": "data-ai",
+      "token_sha256": "68cb06f1acdd902017b6bb1bd3c25af6e21f0888ed0a53b799595103d375a11b"
+    },
+    {
+      "grade": 4,
+      "label": "demo-data-ai-g4",
+      "team": "data-ai",
+      "token_sha256": "c443c5c939ce6997b4ca3680655d8f50bb859241506e6d40b28a8fd8cd6dd540"
+    },
+    {
+      "grade": 1,
+      "label": "demo-finance-g1",
+      "team": "finance",
+      "token_sha256": "9a7b62347e3d3533f4d1041951bd0e404c05d40c3548084d70db0155a1bfc6b5"
+    },
+    {
+      "grade": 2,
+      "label": "demo-finance-g2",
+      "team": "finance",
+      "token_sha256": "7b67722cd3edcf5275188a6f4743696ff3315de194e4f590de0de42d5df4d231"
+    },
+    {
+      "grade": 3,
+      "label": "demo-finance-g3",
+      "team": "finance",
+      "token_sha256": "aab577ea25f2127c63819d43e699eba8b606f4468247bf94287f61dfab0e5371"
+    },
+    {
+      "grade": 4,
+      "label": "demo-finance-g4",
+      "team": "finance",
+      "token_sha256": "9eede0fc3bb26d2f813d79cd0739984e4dc098b4fd307cd99b2f75d50febcd63"
+    },
+    {
+      "grade": 6,
+      "label": "demo-finance-g6",
+      "team": "finance",
+      "token_sha256": "0771a13fbbff0ddf4f49038b7fca81a65de311696b73ef8e04c3c6a69210879b"
+    },
+    {
+      "grade": 1,
+      "label": "demo-hr-g1",
+      "team": "hr",
+      "token_sha256": "f8d7c2af90183ab4f77e18be956d8e78fd6e12b9609cbc1f87bb13b1abd50d09"
+    },
+    {
+      "grade": 2,
+      "label": "demo-hr-g2",
+      "team": "hr",
+      "token_sha256": "bf71d1b36980e0699a277cfa05da726ae79587a7fb712cdd4f867f21d4fceaf5"
+    },
+    {
+      "grade": 3,
+      "label": "demo-hr-g3",
+      "team": "hr",
+      "token_sha256": "9b83ed3dc3d9221199bc5450250b2fe47016763bd3ef24be90e6fe0104bfa57c"
+    },
+    {
+      "grade": 4,
+      "label": "demo-hr-g4",
+      "team": "hr",
+      "token_sha256": "6359fa8f14a6946393a4e57ad1bef62c915e4211bfce11c253248bd1dca129cc"
+    },
+    {
+      "grade": 5,
+      "label": "demo-hr-g5",
+      "team": "hr",
+      "token_sha256": "0db0c248d8a1d0125941919632dd0cce48fcabdc6fcc0add8e9b817b1f96d932"
+    },
+    {
+      "grade": 1,
+      "label": "demo-legal-g1",
+      "team": "legal",
+      "token_sha256": "0a5b875678b5b422dd5df608f5dab2d8018973942ad5f493b59549d8b35821a7"
+    },
+    {
+      "grade": 2,
+      "label": "demo-legal-g2",
+      "team": "legal",
+      "token_sha256": "8a5d493ebfad8d8da0f1bb9f1f002e1a781c134d74f74561bc1c43fc3ca758ca"
+    },
+    {
+      "grade": 3,
+      "label": "demo-legal-g3",
+      "team": "legal",
+      "token_sha256": "069286a0fe2d9f9a86a546627681505ad280277aebf48ed638fe1402b7e83bf5"
+    },
+    {
+      "grade": 4,
+      "label": "demo-legal-g4",
+      "team": "legal",
+      "token_sha256": "ed2d49f42d41bb6862be568a6cee42600dfbe82c0b4e4a78b7dba3cd223eba88"
+    },
+    {
+      "grade": 5,
+      "label": "demo-legal-g5",
+      "team": "legal",
+      "token_sha256": "43e91b0d92d40ae98f7b1272284fe0ddef55ead599cd72163edc281c7130b74c"
+    },
+    {
+      "grade": 1,
+      "label": "demo-payments-g1",
+      "team": "payments",
+      "token_sha256": "8fbd563f7c598afff4587ea30749a23f4c5fd8be6345305a398444d81b87598a"
+    },
+    {
+      "grade": 2,
+      "label": "demo-payments-g2",
+      "team": "payments",
+      "token_sha256": "754f42077cf51259181a6f80b00af1e5777a94064fcecc97e8a7eaf2e68a0aa2"
+    },
+    {
+      "grade": 3,
+      "label": "demo-payments-g3",
+      "team": "payments",
+      "token_sha256": "f0ee4af9c481126f2bfee7f29190093ef4b30932b2c67b9968f52818a4c9cf24"
+    },
+    {
+      "grade": 4,
+      "label": "demo-payments-g4",
+      "team": "payments",
+      "token_sha256": "34d7d9d810f6e9aab4a285b0de40c5220f40c8e34e0847e49bf56db8fcb23fc7"
+    },
+    {
+      "grade": 5,
+      "label": "demo-payments-g5",
+      "team": "payments",
+      "token_sha256": "60f6b81d78a2e2d49b1c350580c1e68da18cd141ef0fe26b9f6514cbe301ec57"
+    },
+    {
+      "grade": 1,
+      "label": "demo-platform-g1",
+      "team": "platform",
+      "token_sha256": "bc1d578683bb3f3e5fd5d31679f7832ea3daa80fca9be48036f48fc2c1eb38a7"
+    },
+    {
+      "grade": 2,
+      "label": "demo-platform-g2",
+      "team": "platform",
+      "token_sha256": "35dac5eeaa96cc146cc9513a4953a52e4b3afd90ce888bcf668ea8c60937a6ce"
+    },
+    {
+      "grade": 3,
+      "label": "demo-platform-g3",
+      "team": "platform",
+      "token_sha256": "02902574bee29acb7ac8f07df36f3df2468caa1264e59211e16a1bfd21e70684"
+    },
+    {
+      "grade": 4,
+      "label": "demo-platform-g4",
+      "team": "platform",
+      "token_sha256": "958bcea7b605c159a1e88a0a45fac96e1ebeb4a9dde529c9e63fe6a3ca86a83c"
+    },
+    {
+      "grade": 6,
+      "label": "demo-platform-g6",
+      "team": "platform",
+      "token_sha256": "c7c78c16cf6af4af82859353240cb65fc6e70f7bb8794351a80b40a9e1f859a7"
+    },
+    {
+      "grade": 1,
+      "label": "demo-security-g1",
+      "team": "security",
+      "token_sha256": "24a7e2f48e18d2388a021bd4d282398f030caacba5f675eab821a8317c65596d"
+    },
+    {
+      "grade": 3,
+      "label": "demo-security-g3",
+      "team": "security",
+      "token_sha256": "d282684b3b1aeba1f4cea59054de3eba5ae3b40277bb5ad41977ab9a951b71ff"
+    },
+    {
+      "grade": 4,
+      "label": "demo-security-g4",
+      "team": "security",
+      "token_sha256": "e7b5fbeb82187bedce3292cf2f7e6838ea69fcf8e097de9c9fe11736203f8e3a"
+    },
+    {
+      "grade": 5,
+      "label": "demo-security-g5",
+      "team": "security",
+      "token_sha256": "9189623b154ca1c6a07e4921b7110492c82eb7b961100cc083af86efbf91e912"
+    },
+    {
+      "grade": 1,
+      "label": "demo-sre-g1",
+      "team": "sre",
+      "token_sha256": "daa225517830f683920a9a6c29659257b558939de836263263cdacfb5affc985"
+    },
+    {
+      "grade": 2,
+      "label": "demo-sre-g2",
+      "team": "sre",
+      "token_sha256": "8135ec6948df90d5eb0f24c38fb209e143379cc0d629c4de9a86bf8d6ace9709"
+    },
+    {
+      "grade": 3,
+      "label": "demo-sre-g3",
+      "team": "sre",
+      "token_sha256": "9b5d484e36b9cb7011d5a7fa349a82677c58d21619029666fbfceed397996e57"
+    },
+    {
+      "grade": 4,
+      "label": "demo-sre-g4",
+      "team": "sre",
+      "token_sha256": "1ad43bc7692b67435940ab9e7fd0fb0811202dac39de3111bb829b55c8ab1ff9"
+    },
+    {
+      "grade": 5,
+      "label": "demo-sre-g5",
+      "team": "sre",
+      "token_sha256": "177429316a99283ae4222d74b5b44fe33b812ae9e22f53399755fffe09a10fab"
+    }
+  ]
+}

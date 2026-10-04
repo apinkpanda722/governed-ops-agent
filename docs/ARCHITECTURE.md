@@ -85,7 +85,7 @@ flowchart LR
   SVC -.->|eval만, 게이트웨이 미경유| GEM
 ```
 
-- 에이전트 서비스가 호스트에 있는 이유: A MCP는 `127.0.0.1` 고정이고 MCP SDK가 이 경우 Host 헤더 검사를 켠다. 컨테이너에서 `host.docker.internal`로 붙으면 거절될 가능성이 크다. **확인 필요(구현 시 공식 문서로 확인): 컨테이너에서 A의 Host 헤더 검사가 거절하는지 M1에서 실측한다.** A는 고치지 않는다(ADR-004).
+- 에이전트 서비스가 호스트에 있는 이유: A MCP는 `127.0.0.1` 고정이고 MCP SDK가 이 경우 Host 헤더 검사를 켠다. 컨테이너에서 `host.docker.internal`로 붙으면 네트워크에는 도달하지만 인증된 요청도 Host 검사로 421 거절된다(M1 실측, ADR-004). A는 고치지 않는다.
 - 핵심 스택(LiteLLM·Postgres·mock 2개)은 Langfuse 없이 뜨고, 이때 trace는 로컬 JSONL로 남는다. Langfuse는 `docker compose --profile obs`로만 뜬다(ADR-009).
 - Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. M0 init은 `litellm`·`langfuse` DB만 만들고 checkpointer DB는 만들지 않는다(ADR-016). LangGraph checkpointer는 같은 인스턴스의 `govops` 앱 DB에 둔다. `m1-agent`에서 init 스크립트에 추가하고 기존 볼륨에는 멱등 `make db-init`을 제공한다. 연결 변수는 `GOVOPS_DATABASE_URL`이다(ADR-017).
 - web은 호스트에서 `cd web && pnpm dev`로 실행하고 compose에 넣지 않는다(ADR-016).

@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 import httpx
 import pytest
+
 from govops.replay.fake_a import create_app
 from govops.replay.recordings import RecordingSet
-
 from govops.tools.contract import diff_tools_list, load_snapshot
 
 FIXTURES = Path(__file__).parent / "fixtures" / "a_recordings"
