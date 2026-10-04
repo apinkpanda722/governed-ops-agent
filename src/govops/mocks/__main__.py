@@ -12,11 +12,12 @@ from govops.mocks.auth import TokenHashStore
 from govops.mocks.jira import JiraState
 from govops.mocks.seed import load_tickets
 from govops.mocks.service import create_admin_app, create_rest_app
+from govops.mocks.slack import SlackState
 
 
 async def _serve(
     service: str,
-    state: JiraState | None = None,
+    state: JiraState | SlackState | None = None,
     token_store: TokenHashStore | None = None,
 ) -> None:
     # 0.0.0.0 바인드는 컨테이너 안에서만 사용한다.
@@ -59,6 +60,23 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError):
             print(
                 "mock-jira startup failed: missing or invalid MOCK_JIRA_TOKEN_HASHES / MOCK_JIRA_TICKETS files",
+                file=sys.stderr,
+            )
+            return 1
+    if args.service == "slack":
+        try:
+            token_store = TokenHashStore.load(
+                Path(
+                    os.environ.get(
+                        "MOCK_SLACK_TOKEN_HASHES",
+                        "data/seed/mock_slack_token_hashes.json",
+                    )
+                )
+            )
+            state = SlackState()
+        except (OSError, ValueError):
+            print(
+                "mock-slack startup failed: missing or invalid MOCK_SLACK_TOKEN_HASHES file",
                 file=sys.stderr,
             )
             return 1

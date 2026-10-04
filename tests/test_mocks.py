@@ -83,7 +83,7 @@ def test_admin_invalid_command_exits(argv: list[str]) -> None:
 def test_runner_serves_both_apps_in_one_event_loop(
     service: str, monkeypatch, tmp_path
 ) -> None:
-    if service == "jira":
+    if service in {"jira", "slack"}:
         token = secrets.token_urlsafe(32)
         hashes = tmp_path / "hashes.json"
         hashes.write_text(
@@ -102,7 +102,7 @@ def test_runner_serves_both_apps_in_one_event_loop(
         )
         seed = tmp_path / "tickets.json"
         seed.write_text(json.dumps({"tickets": []}))
-        monkeypatch.setenv("MOCK_JIRA_TOKEN_HASHES", str(hashes))
+        monkeypatch.setenv(f"MOCK_{service.upper()}_TOKEN_HASHES", str(hashes))
         monkeypatch.setenv("MOCK_JIRA_TICKETS", str(seed))
     servers = []
     loops = []

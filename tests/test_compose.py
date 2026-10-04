@@ -222,3 +222,9 @@ def test_jira_seed_is_mounted_read_only(compose: dict) -> None:
     assert (
         "../data/seed:/app/data/seed:ro" in compose["services"]["mock-jira"]["volumes"]
     )
+
+
+def test_slack_seed_is_mounted_read_only(compose: dict) -> None:
+    assert (
+        "../data/seed:/app/data/seed:ro" in compose["services"]["mock-slack"]["volumes"]
+    )
