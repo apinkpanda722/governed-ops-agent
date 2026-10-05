@@ -10,7 +10,7 @@
 - API: FastAPI (`POST /tasks`, `GET /tasks/{id}`, `POST /tasks/{id}/approval`, 진행 SSE)
 - 도구 연결: MCP 클라이언트(streamable HTTP, A MCP live / 기록 재생용 가짜 A), mock-jira·mock-slack(FastAPI REST, compose)
 - 게이트웨이: LiteLLM proxy(팀별 가상 키, `async_pre_call_hook`·`async_post_call_success_hook` Guardrail)
-- LLM: 주 모델 OpenAI `gpt-6-luna`, fallback Anthropic Sonnet 계열(호출 단위, ID·가격 확인 필요), Guardrail v2 분류기 Anthropic Haiku 계열(ID·가격 확인 필요), 채점 Gemini `gemini-3.8-flash`(게이트웨이 미경유)
+- LLM: 주 모델 OpenAI `gpt-6-luna`, fallback Anthropic `claude-sonnet-5-5`(호출 단위, ADR-019), Guardrail v2 분류기 Anthropic Haiku 계열(ID·가격 확인 필요), 채점 Gemini `gemini-3.8-flash`(게이트웨이 미경유)
 - 관측: Langfuse v3 셀프호스팅(compose profile `obs`), 꺼져 있으면 로컬 JSONL trace
 - 저장소: Postgres(compose, 인스턴스 하나에 DB 분리)
 - 감사 로그: JSONL, SHA-256 해시체인 + Ed25519 서명
@@ -95,6 +95,7 @@ make obs-up # Langfuse obs 스택·LiteLLM 콜백 기동(사용자 실행)
 make obs-down # Langfuse 중지·기본 LiteLLM 설정 복원(사용자 실행)
 make smoke-obs # live task·Langfuse 연결·마스킹 검증(사용자 실행)
 make cost-report # 읽기 전용 비용 비율·계획 비용 재추정(사용자 실행)
+make smoke-fallback # LiteLLM fallback·원장 정산·장애 주입 백엔드 확인(사용자 실행)
 make smoke-agent # 두 사용자 live 조회·관찰·인용·비용 검증(사용자 실행)
 
 make eval-meta-extract # A 합성 평가 메타데이터와 문서 제목(doc_titles.json) 읽기 전용 추출(사용자 실행)

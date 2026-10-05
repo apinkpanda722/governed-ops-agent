@@ -32,7 +32,7 @@
 1. **신원 위임(자격 증명 중개):** 사용자는 B 세션 토큰으로 B에 인증하고, 중개 계층 `credential_for(user, audience)`가 호출 시점에 사용자의 A 토큰을 요청 헤더에만 붙인다. 데모 로그인은 IdP 대체 장치로 `DEMO_LOGIN` 플래그일 때만 127.0.0.1에서 연다(ADR-005).
 2. **HITL 승인:** LangGraph `interrupt()` + Postgres checkpointer. 승인·수정 후 승인·거부·만료(30분) 분기, 초안 해시에 묶인 승인. 발송 신원은 요청자이고 승인자는 본문만 수정한다(ADR-011).
 3. **부작용 멱등성:** outbox + 메타데이터 표식(marker) 2단계 조회로 "서버는 처리했는데 응답 유실"에서도 1회만 실행(ADR-006).
-4. **안정성:** Soft/Hard Timeout, 지수 백오프 + Jitter, Circuit Breaker, 호출 단위 모델 Fallback, MAX_STEPS + MAX_COST, MAX_STEPS와 별도의 탐색 예산(ADR-014)(도구 장애 처리 값은 ADR-018, 모델 호출 타임아웃은 게이트웨이 phase, 탐색·비용 한도는 M5에서 정한다).
+4. **안정성:** Soft/Hard Timeout, 지수 백오프 + Jitter, Circuit Breaker, 호출 단위 모델 Fallback(Anthropic `claude-sonnet-5-5`, ADR-019), MAX_STEPS + MAX_COST, MAX_STEPS와 별도의 탐색 예산(ADR-014)(도구 장애 처리 값은 ADR-018, 모델 호출 타임아웃은 ADR-019, 탐색·비용 한도는 M5에서 정한다).
 5. **게이트웨이·Guardrail:** 팀별 가상 키 + 사용자·task 메타데이터, 입력 차단 / 도구 결과 격리 / 출력 탐지 / 실행 직전 결정론 검사의 비대칭 구조. v2 분류기는 주 모델과 다른 회사(Anthropic 소형 모델)에 둔다(ADR-008).
 6. **감사 로그:** 해시체인 + Ed25519 서명, 실행마다 고정점(마지막 seq·hash 서명)을 `docs/results/` manifest에 커밋, `make audit-verify`(ADR-012).
 7. **관측·평가:** trace 하나 = task 하나(Langfuse 또는 JSONL), 평가셋 60 task, TCR·정확도 분리, golden trace CI(ADR-009·ADR-010).
