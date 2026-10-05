@@ -5,15 +5,15 @@
     {
       "step": 0,
       "name": "mock-faults",
-      "status": "error",
-      "started_at": "2026-10-05T13:53:42+0900",
-      "error_message": "[3회 시도 후 실패] 결과 JSON을 받지 못함 (exit 1): 2026-10-05T05:01:58.382765Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 426 Upgrade Required, url: ws://127.0.0.1:11434/api/codex/v1/responses\n2026-10-05T05:01:58.430043Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 426 Upgrade Required, url: ws://127.0.0.1:11434/api/codex/v1/responses\n",
-      "failed_at": "2026-10-05T14:02:02+0900",
+      "status": "completed",
+      "started_at": "2026-10-05T16:06:45+0900",
+      "summary": "mock 장애 주입 5종·순번 규칙·관리 CLI·본문 포함 상태 조회 구현, 관리 포트 격리 유지 및 make verify 통과(Python 1,317개·웹 15개 테스트).",
+      "completed_at": "2026-10-05T16:25:43+0900",
       "usage": {
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "attempts": 3
+        "input_tokens": 1557192,
+        "cached_input_tokens": 1479936,
+        "output_tokens": 11810,
+        "attempts": 1
       }
     },
     {
