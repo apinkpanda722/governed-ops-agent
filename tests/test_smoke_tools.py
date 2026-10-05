@@ -321,3 +321,83 @@ def test_contract_mismatch_and_cli(monkeypatch, capsys):
         monkeypatch.setattr(smoke, "_run", run)
         assert smoke.main(["contract"]) == (0 if ok else 1)
         assert "판정" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "duplicate,missing", [(False, False), (True, False), (False, True)]
+)
+def test_effects_fake_transport(monkeypatch, duplicate, missing):
+    monkeypatch.setattr(
+        smoke.credentials, "credential_for", lambda *args: "fake-smoke-key"
+    )
+    records = {}
+    posts = []
+
+    def handle(request):
+        path = request.url.path
+        kind = (
+            "messages"
+            if "channels" in path
+            else "comments"
+            if "comments" in path
+            else "tickets"
+        )
+        if request.method == "POST":
+            payload = json.loads(request.content)
+            assert "smoke" in str(payload)
+            posts.append(path)
+            item = {
+                **payload,
+                {
+                    "messages": "message_id",
+                    "comments": "comment_id",
+                    "tickets": "ticket_id",
+                }[kind]: {
+                    "messages": "message-1",
+                    "comments": "comment-1",
+                    "tickets": "PLT-9999",
+                }[kind],
+            }
+            records[path] = [item, item] if duplicate else [item]
+            return httpx.Response(
+                200,
+                json={"message": item}
+                if kind == "messages"
+                else {"comment": item}
+                if kind == "comments"
+                else item,
+            )
+        return httpx.Response(
+            200, json={kind: [] if missing else records.get(path, [])}
+        )
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
+            return await smoke.smoke_effects(
+                JiraClient("http://jira", http_client=http),
+                SlackClient("http://slack", http_client=http),
+                [
+                    ticket(
+                        ticket_id="PLT-1",
+                        access_level="team",
+                        access_teams=["platform"],
+                    )
+                ],
+                [{"label": "demo-platform-g3", "team": "platform", "grade": 3}],
+                user_id="demo-platform-g3",
+            )
+
+    result = asyncio.run(run())
+    assert result.ok is (not duplicate and not missing)
+    assert len(posts) == 3 and len(set(posts)) == 3
+    assert all(line.startswith(("PASS ", "FAIL ")) for line in result.lines)
+    assert "fake-smoke-key" not in repr(result)
+
+
+def test_effects_cli_safe_failure(monkeypatch, capsys):
+    async def fail(*args):
+        raise ValueError("secret-body-Authorization")
+
+    monkeypatch.setattr(smoke, "_run", fail)
+    assert smoke.main(["effects"]) == 1
+    assert capsys.readouterr().out == "FAIL effects\n"

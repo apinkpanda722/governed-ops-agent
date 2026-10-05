@@ -186,7 +186,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 1. **도구 이름**: A 계약은 `search_docs`, `lookup_id`, `run_sql`, `get_document`를 유지한다. 읽기는 `jira_get_ticket`, `jira_search_tickets`, 부작용은 `jira_add_comment`, `jira_create_followup_ticket`(필수 `parent_ticket_id`), `slack_send_message`다. B 이름 형식은 `{시스템}_{동사}_{대상}` snake_case다. 입력 스키마에 사용자·팀·직급 필드는 없다. 채널 이력·코멘트 목록·후속 티켓 목록 조회는 표식 조회용으로 도구 계층만 쓰고 모델에 노출하지 않는다. mock-slack 이력 조회는 자기 팀 채널·전사 공지만 허용하고 그 밖은 403이다.
 2. **mock 사용자 자격 증명**: 사용자 38명 × audience(`mock-jira`, `mock-slack`)별 토큰을 발급한다. 평문은 `data/interim/mock/tokens.json`(0600, 커밋 안 함), 해시 매니페스트는 `data/seed/mock_jira_token_hashes.json`·`data/seed/mock_slack_token_hashes.json`, 사용자 목록은 `data/seed/users.json`(label·team·grade)이며 해시와 사용자 목록은 커밋한다. mock은 토큰 해시로 인증해 team·grade를 정한다. broker가 평문 파일을 읽는 유일한 곳이다(`MOCK_TOKENS_FILE`, 기본 위 평문 경로).
 3. **mock-jira 쓰기 권한**: 읽을 수 없는 티켓의 코멘트·후속 티켓 요청은 존재하지 않는 티켓과 같은 404다(존재 비밀 우선). jira에는 읽기와 별개인 쓰기 권한 구분을 두지 않는다. 명시적 403 "권한 없음"은 존재가 공개된 대상인 mock-slack 채널의 쓰기·이력 조회에만 쓴다.
-4. **B 세션 토큰**: `POST /sessions`는 `DEMO_LOGIN` 플래그이고 127.0.0.1 클라이언트일 때만 열린다. 토큰은 `secrets.token_urlsafe(32)`이며 서버는 SHA-256 해시만 메모리에 두고 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이고 최종값은 M5에서 정한다. 인증 의존성이 `Authorization: Bearer`에서 `user_id`를 얻으며 승인자 신원도 같은 경로다. 다른 사용자의 task 조회는 404다.
+4. **B 세션 토큰**: `POST /sessions`는 `DEMO_LOGIN` 플래그이고 127.0.0.1 클라이언트일 때만 열린다. 토큰은 `secrets.token_urlsafe(32)`이며 서버는 SHA-256 해시만 메모리에 두고 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이고 최종값은 M5에서 정한다. 인증 의존성이 `Authorization: Bearer`에서 `user_id`를 얻으며 승인자 신원도 같은 경로다. 다른 사용자의 task 조회는 검사 통과 승인 대기 초안에 대한 승인자 정책을 만족할 때만 허용하고 나머지는 404다.
 5. **checkpointer DB**: 같은 Postgres 인스턴스에 새 DB `govops`(앱 DB)를 둔다. checkpointer와 outbox 테이블을 둔다(ADR-018). `m1-agent`에서 `infra/postgres/init/01-create-databases.sh`에 추가하고 기존 볼륨용 멱등 명령 `make db-init`을 둔다. 연결 환경 변수는 `GOVOPS_DATABASE_URL`이다. `make verify`는 Postgres 없이 통과해야 하므로 테스트는 in-memory saver를 쓰고 실제 Postgres는 사용자 스모크로 확인한다.
 **이유**: 계약 이름과 신원 없는 입력 스키마는 A 연동·사용자 신원 분리를 유지한다. audience별 mock 토큰과 해시 인증은 자격 증명의 대상 혼동을 막는다. 존재 자체가 기밀인 티켓은 쓰기에서도 존재를 알리지 않는다. 세션 해시 보관은 서버의 평문 토큰 보관을 줄이고, 앱 DB 분리는 checkpointer를 LiteLLM·Langfuse와 구분한다.
 **트레이드오프**: 사용자별·audience별 토큰 파일 관리가 필요하다. jira 쓰기 거부는 없는 티켓과 구분할 수 없다. 메모리 세션은 재시작 시 재로그인이 필요하다. 실제 Postgres 연동은 in-memory 테스트와 별도의 스모크로 검증한다.
@@ -215,7 +215,21 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 5. **장애 주입 인터페이스**: mock 관리 CLI `faults set/clear/stats`, `state --bodies`를 쓴다. 규칙은 엔드포인트별 요청 순번이고 종류는 지연·5xx(처리 전/후)·429·처리 후 응답 유실·조회 반영 지연이다. F10은 항상 F5(처리 후 응답 유실)와 결합한다(조회 반영 지연만으로는 표식 조회가 일어나지 않는다). F4(연결 수립 실패)는 서버가 아니라 클라이언트 쪽 전송 계층에서 주입한다. 관리 포트는 compose 내부 네트워크에만 연다.
 6. **감사 최소 구현**: `audit/`가 비체인 JSONL(`data/interim/audit/`, 0600)을 쓴다. 이벤트 이름은 ADR-012 기록 대상(초안·승인 요청·승인·수정·거부·만료·실행 시도·결과·표식 조회)이다. 실행 전 의도 기록 실패 시 부작용을 실행하지 않고, 결과 기록 실패는 재시도 후 `audit_gap`으로 표시한다. 해시체인·서명은 M4가 같은 인터페이스에 추가한다.
 7. **승인자 정책(M3에서 구현)**: 전사 공지(`announce`) 발송은 요청자 팀의 4급 이상이면서 **요청자 본인이 아닌** 사용자만 승인할 수 있다. 요청자가 4급 이상이어도 본인 승인은 403이다. 그 밖의 채널·티켓 작업은 요청자 본인만 승인하며 다른 사용자의 task는 404다. 순수 함수와 테스트는 M3, 승인함·화면은 M5다.
-8. **V15 발송 범위 검사(다음 phase에서 구현)**: 보낼 곳 독자 ⊆ 근거 열람 범위. 근거는 본문 또는 발췌가 모델 입력에 들어간 문서·티켓(`search_docs` 발췌, `get_document`, 티켓 조회 본문)이며 ID만 돌려준 `lookup_id` 결과는 제외한다. 열람 범위는 문서·티켓 ID와 접근 필드(`access_level`·`access_teams`·`access_min_grade`), 사용자 팀·직급만 담은 `data/seed/` 인덱스에서 읽고 인덱스에 없는 근거는 차단한다. 실행 중 검사는 문서 단위이고 평가 정답 선정(`eval.audience`)의 값 기준 판정보다 엄격하다. 잘못 막힌 건은 TCR 실패로 세고 dev 결과 문서에 건수를 보고한다. 에이전트는 `data/eval/`을 읽지 않는다.
+8. **V15 발송 범위 검사**: 보낼 곳 독자 ⊆ 근거 열람 범위. 근거는 도구 결과에서 비어 있지 않은 `text`를 가진 문서(`search_docs` 발췌·`get_document`·`lookup_id` 모두)와 레코드가 돌아온 티켓이다. `run_sql` 결과의 `ticket_id` 열 값도 티켓 근거에 포함한다. ID 없는 `run_sql` 결과(집계·열 값)는 V15 검사를 받지 않으며 T4 집계는 채점 쪽과 같이 범위 검사에서 제외한다. 열람 범위는 문서·티켓 ID와 접근 필드(`access_level`·`access_teams`·`access_min_grade`), 사용자 팀·직급만 담은 `data/seed/` 인덱스에서 읽고 인덱스에 없는 근거는 차단한다. 실행 중 검사는 문서 단위이고 평가 정답 선정(`eval.audience`)의 값 기준 판정보다 엄격하다. 잘못 막힌 건은 TCR 실패로 세고 dev 결과 문서에 건수를 보고한다. 에이전트는 `data/eval/`을 읽지 않는다.
+9. **접근 인덱스·시작 정리**: `data/seed/access_index.json`에 없는 문서(비합성 문서 포함)는 fail-closed로 차단한다. 생성기는 A의 커밋된 manifest·접근 정책에서 비합성 문서 100건을 합쳐 문서 300건·티켓 500건의 접근 전용 인덱스를 만든다. `make scope-index`는 사용자 실행 타깃이며 본문을 복사하지 않는다. 서비스 시작 정리는 checkpointer 전체 순회로 수백 건 규모를 전제하며 규모가 커지면 별도 테이블이 필요하다. 실행 중 task는 `interrupted`로 바꾸고 열린 outbox는 표식 조회만 한다.
+10. **수정·해시**: 수정 가능 필드는 메시지 `text`, 코멘트 `body`, 후속 티켓 `title`·`description`이다. 도구·수신 채널·티켓 ID·원 티켓 ID·우선순위와 그 밖의 필드는 불변이다. 수정 후 결정론 검사를 재실행하고 마스킹이 적용되면 마스킹본 해시로 승인을 결합한다. 수정본이 차단되면 원래 초안과 원래 해시로 승인 대기를 복원하고 `rejected_edit`에 막힌 이유를 표시한다. 만료 시각은 그대로다.
+11. **프로필**: `READ_ONLY`는 읽기 도구만, `WITH_WRITES`는 승인·outbox를 거치는 쓰기 경로를 포함한다. `GOVOPS_AGENT_PROFILE=read_only`가 기본이며 `writes`는 `WITH_WRITES`를 선택한다.
+12. **승인 API**: 승인자 GET은 결정론 검사를 통과한 승인 대기 초안만 보여 준다. 요청자 GET은 자신의 task 상태를 볼 수 있다.
+
+   | 상황 | 응답 |
+   |---|---|
+   | 승인·수정 승인·거부 접수 | 202 |
+   | 종료된 동일 해시·결정 재요청 | 200 (저장된 영수증) |
+   | 전사 공지 요청자 본인의 승인 POST | 403 |
+   | 다른 사용자·자격 없는 승인자·없는 task | 404 |
+   | 만료·상태 또는 초안 해시 충돌 | 409 |
+   | 불변 필드 수정·유효하지 않은 요청 | 422 |
+
 **이유**: 도구 장애 처리 값과 서비스별 서킷은 호출 경계를 명확히 한다. 원자적 outbox 선점과 메타데이터 표식 조회는 동시 실행·응답 유실의 중복을 줄인다. 불확실 상태는 발송 여부를 단정하지 않고, 실행 직전 감사 기록은 의도 없는 부작용을 막는다. 전사 공지의 본인 승인 금지는 직무 분리를 유지한다. 근거 열람 범위 검사는 조회 가능한 정보를 더 넓은 독자에게 발송하는 것을 막는다.
 **트레이드오프**: 비체인 감사는 M4 전까지 변조를 탐지하지 못한다. 클라이언트 쪽 F4 주입은 서버 쪽 연결 거부와 다르다. 대기보다 긴 조회 반영 지연은 중복을 막지 못한다(F10 한계 시연). 문서 단위 발송 범위 검사는 값 기준 평가보다 엄격해 정상 요청을 차단할 수 있으며 TCR 실패에 포함한다.
 **변경 기록**:

@@ -15,7 +15,11 @@ src/govops/
 │   ├── sessions.py·auth.py·users.py·startup.py·app.py  # M1 세션·인증·task API
 │   └── tasks.py·wiring.py·cli.py·smoke.py  # 백그라운드 task·운영 조립·CLI·사용자 스모크
 ├── agent/        # LangGraph 단일 에이전트: 상태·노드·그래프, 실행 전 결정론 검사, 승인 정책, MAX_STEPS/MAX_COST
-│   └── prompts.py·graph.py·checkpointer.py  # 한국어 프롬프트·읽기 그래프·DB 팩토리
+│   ├── draft.py  # 초안 타입·정규화 해시
+│   ├── checks.py  # 수신처·PII 결정론 검사
+│   ├── scope.py  # 구조 기반 근거·V15 발송 범위
+│   ├── approval.py  # 승인자 정책·본문 수정·승인 ID
+│   └── prompts.py·graph.py·checkpointer.py  # 한국어 프롬프트·읽기·쓰기 그래프·DB 팩토리
 ├── tools/        # 도구 계약(스키마·버전·부작용 여부), A MCP 클라이언트, mock REST 클라이언트, outbox·표식 조회, 타임아웃·재시도·서킷
 │   ├── markers.py  # 정규화 멱등 키·메타데이터 표식
 │   ├── resilience.py  # 도구 타임아웃·읽기 재시도·서비스별 서킷
@@ -25,6 +29,7 @@ src/govops/
 ├── gateway/      # LiteLLM 호출 클라이언트(에이전트의 유일한 모델 경로), LiteLLM 안에서 도는 Guardrail 훅 어댑터
 │   └── client.py·agent_key.py  # 비동기 모델 호출·전용 가상 키 발급
 ├── guardrails/   # 순수 Python 판정: 한국 형식 PII 정규식, 인젝션 패턴 사전, 팀별 정책 표 로더 (v2 분류기는 gateway 경유 호출)
+│   ├── policy.py  # 팀별 정책 로더
 │   └── pii.py    # 한국 형식 PII 판정
 ├── audit/        # 감사 로그 해시체인·서명 쓰기(유일한 쓰기 지점), audit-verify
 │   └── log.py  # M3 비체인 JSONL·AuditPort·결과 기록 재시도
@@ -33,6 +38,7 @@ src/govops/
 ├── costs.py      # 공급사별 비용 원장·전체 기간 상한(호출 직전 누적액 검사)
 ├── evalrun/      # 사용자 실행 dev 평가·관측·LLM/A record-through(dev.py), 탐색 예산 후보(explore.py)
 ├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·cards_content.py·cards_text.py·cards_assets.py·a_source.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
+│   ├── scope_index.py  # 접근 전용 인덱스 생성
 │   └── duplicates.py  # mock 상태 기반 중복·누락 집계
 ├── replay/       # 가짜 A MCP 서버, llm.py(LLM 응답 기록·재생), a_through.py·a_replay.py(A record-through·순차 재생)
 ├── golden.py     # 골든 기대값·자격·결정론 재생 조립
@@ -48,6 +54,9 @@ infra/
 data/
 ├── contract/     # A 계약 스냅샷(도구 4개 v1) + A 커밋 해시 (커밋, 수정 금지)
 ├── seed/         # tickets.json·users.json(label·team·grade)·mock_jira_token_hashes.json·mock_slack_token_hashes.json·manifest.json(추출 A 커밋 해시·개수) (커밋)
+│   └── access_index.json  # 문서·티켓 접근 전용 인덱스
+├── policy/
+│   └── team_policy.json  # 팀별 수신처·PII 정책
 ├── replay/       # requests.json, a/recordings.jsonl(A 응답, syn-*만, 토큰·Authorization 없음), llm/(LLM 응답·프롬프트 해시), a_run/(실행별 A 응답), golden/(expectations.json·status.json) (커밋)
 ├── eval/         # 평가 메타데이터·60 task 명세
 │   ├── meta.json·meta.manifest.json  # 합성 메타데이터·추출 manifest
@@ -142,20 +151,19 @@ flowchart LR
 
 ```mermaid
 stateDiagram-v2
-  [*] --> 계획_조회: POST /tasks (세션 사용자)
-  계획_조회 --> 계획_조회: 읽기 도구 호출 (재시도 안전)
-  계획_조회 --> 완료: 부작용 없는 task (T1) 답변
-  계획_조회 --> 거절: 권한 없음·없는 번호·허용 안 되는 요청 (T5)
-  계획_조회 --> 초안
+  [*] --> running: POST /tasks (세션 사용자)
+  running --> running: 읽기 도구 호출 (재시도 안전)
+  running --> completed: 부작용 없는 task (T1) 답변
+  running --> 초안
   초안 --> 결정론_검사
-  결정론_검사 --> 차단: 수신 채널 허용 목록 밖 / 금지 PII / 팀 정책상 발송 금지 / 보낼 곳 독자 범위가 근거 열람 범위보다 넓음
-  결정론_검사 --> 승인_대기: 통과 · 초안 해시 고정 · 승인 요청(멱등)
-  승인_대기 --> 실행: 승인 (승인자 정책 · 초안 해시 일치)
-  승인_대기 --> 수정본_검사: 수정 후 승인 (새 초안 해시)
+  결정론_검사 --> blocked: 수신 채널 허용 목록 밖 / 금지 PII / 팀 정책상 발송 금지 / 보낼 곳 독자 범위가 근거 열람 범위보다 넓음
+  결정론_검사 --> awaiting_approval: 통과 · 초안 해시 고정 · 승인 요청(멱등)
+  awaiting_approval --> 실행: 승인 (승인자 정책 · 초안 해시 일치)
+  awaiting_approval --> 수정본_검사: 수정 후 승인 (새 초안 해시)
   수정본_검사 --> 실행: 통과 · 새 초안 해시에 묶인 승인으로 실행
-  수정본_검사 --> 승인_대기: 실패 · 실행 안 함 · 검사 결과 표시
-  승인_대기 --> 거부됨: 거부
-  승인_대기 --> 만료됨: 30분 경과
+  수정본_검사 --> awaiting_approval: 실패 · 원래 초안·해시 복원 · rejected_edit 표시 · 만료 시각 유지
+  awaiting_approval --> rejected: 거부
+  awaiting_approval --> expired: 30분 경과
   state 실행 {
     [*] --> 감사_의도기록
     감사_의도기록 --> outbox_기록: 감사 쓰기 성공 (실패 시 실행 안 함)
@@ -169,34 +177,40 @@ stateDiagram-v2
     반영_대기 --> 표식_재조회: 대기 시간 경과
     표식_재조회 --> 성공: 표식 있음 (재발송 안 함)
     표식_재조회 --> 재시도_대기: 표식 없음 (2단계) · 발송 시도 남음 — 이때만 재발송
-    호출 --> 실패: 4xx 확정 실패
+    호출 --> failed: 4xx 확정 실패
     표식_조회 --> 불확실: 조회 불가
     표식_재조회 --> 불확실: 표식 없음 · 마지막 발송이 불확실 실패
-    재시도_대기 --> 실패: 보내지 않았음이 확실한 재시도 상한 · 첫 호출 전 서킷 열림
+    재시도_대기 --> failed: 보내지 않았음이 확실한 재시도 상한 · 첫 호출 전 서킷 열림
   }
-  실행 --> 완료: 성공 · 결과 감사 기록
-  실행 --> 실패: 실패 · 결과 감사 기록
-  실행 --> 불확실: 불확실 · 결과 감사 기록
-  불확실 --> [*]
-  완료 --> [*]
-  실패 --> [*]
-  거절 --> [*]
-  차단 --> [*]
-  거부됨 --> [*]
-  만료됨 --> [*]
+  실행 --> completed: 성공 · 결과 감사 기록
+  실행 --> failed: 실패 · 결과 감사 기록
+  실행 --> interrupted: 불확실 · 결과 감사 기록
+  running --> interrupted: 서비스 재시작
+  interrupted --> [*]
+  completed --> [*]
+  failed --> [*]
+  blocked --> [*]
+  rejected --> [*]
+  expired --> [*]
 ```
 
+그림의 초안·검사·실행 내부 상태는 처리 단계이며 task 응답의 상태는 `running`·`awaiting_approval`·`completed`·`failed`·`blocked`·`rejected`·`expired`·`interrupted`다.
+
 - MAX_STEPS·MAX_COST 초과는 어느 활성 상태에서든 실패로 끝난다(값은 M5에서 정한다).
-- 탐색 예산(ADR-014): MAX_STEPS와 별도로, `계획_조회`에서 새 정보 없는 호출(결과에 이전까지 없던 문서·티켓 ID가 없는 도구 호출)이 N회 연속이면 task를 종료한다. N은 dev trace 재생에서 성공한 dev task를 하나도 자르지 않는 값 중 최솟값이며, 규칙은 dev 실행 전에 사전 등록한다. 권한 판정은 계속 에이전트에게 숨긴다. 사람 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다.
+- 탐색 예산(ADR-014): MAX_STEPS와 별도로, `running`에서 새 정보 없는 호출(결과에 이전까지 없던 문서·티켓 ID가 없는 도구 호출)이 N회 연속이면 task를 종료한다. N은 dev trace 재생에서 성공한 dev task를 하나도 자르지 않는 값 중 최솟값이며, 규칙은 dev 실행 전에 사전 등록한다. 권한 판정은 계속 에이전트에게 숨긴다. 사람 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다.
 - 승인은 초안 내용 해시에 묶는다. 승인 시점의 해시와 실행할 초안의 해시가 다르면 실행하지 않는다(TOCTOU 방지).
 - 승인자 정책: 기본은 요청자 본인. **전사 공지 채널 발송만 요청자 팀 4급 이상이면서 요청자 본인이 아닌 사용자**가 승인한다(A 등급은 숫자가 클수록 상위). 승인자 신원은 세션에서 정한다.
-- V15는 모델 입력에 본문·발췌가 들어간 문서·티켓을 근거로 검사하며 ID만 반환한 `lookup_id`는 제외한다. 접근 필드와 사용자 팀·직급만 담은 `data/seed/` 인덱스에 없는 근거는 차단한다. 문서 단위 검사는 평가 정답의 값 기준 판정보다 엄격하고 잘못 막힌 건은 TCR 실패·dev 보고 대상이다. 에이전트는 `data/eval/`을 읽지 않는다(ADR-018, 다음 phase 구현).
+- V15 근거는 비어 있지 않은 `text`를 가진 문서(`search_docs`·`get_document`·`lookup_id`)와 레코드가 돌아온 티켓이다. `run_sql`의 `ticket_id` 열 값은 티켓 근거이며 ID 없는 집계·열 값은 범위 검사에서 제외한다. 접근 필드와 사용자 팀·직급만 담은 `data/seed/` 인덱스에 없는 근거는 차단한다. 문서 단위 검사는 평가 정답의 값 기준 판정보다 엄격하고 잘못 막힌 건은 TCR 실패·dev 보고 대상이다. 에이전트는 `data/eval/`을 읽지 않는다(ADR-018).
 - 전사 공지는 요청자가 4급 이상이어도 본인 승인은 403이다. 그 밖의 채널·티켓 작업은 요청자 본인만 승인하고 다른 사용자의 task는 404다(ADR-018).
 - 본인 승인의 의미: 결재가 아니라 "에이전트가 해석한 결과(수신처·초안·결정론 검사 결과)의 확인"이다. 직무 분리는 전사 공지에만 둔다.
 - 발송 신원은 요청자다(`credential_for(요청자)`). 승인자는 본문만 수정할 수 있고 수신처는 바꿀 수 없다(바꾸려면 거부 후 새 요청). 승인자와 수정 전후 초안 해시를 감사 로그에 남긴다.
-- 수정 후 승인은 수정본에 결정론 검사를 다시 돌린다. 통과하면 새 초안 해시에 묶인 승인으로 바로 실행하고, 실패하면 실행하지 않고 승인 대기로 되돌려 검사 결과를 보여 준다.
+- 수정 후 승인은 수정본에 결정론 검사를 다시 돌린다. 통과하면 새 초안 해시에 묶인 승인으로 바로 실행하고, 실패하면 원래 초안·원래 해시로 승인 대기를 복원하고 `rejected_edit`에 막힌 이유를 보여 준다. 만료 시각은 유지한다.
 - **부작용 도구는 재시도 전에 항상 표식 조회를 한다.** 조회는 2단계(조회 → 대기 → 재조회)이고, 표식이 있으면 성공, 두 번 모두 없을 때만 재시도다. 대기 시간은 2.0초다(ADR-018). 500·502·504 같은 5xx는 서버가 처리한 뒤 실패를 돌려줄 수 있으므로 바로 재시도하지 않는다. 바로 재시도해도 되는 것은 연결 수립 실패와 429(`Retry-After` 준수)뿐이다. 읽기 도구는 재시도해도 안전하다.
 - 읽기 도구의 재시도 값(횟수·백오프·서킷·Timeout)은 ADR-018을 따른다. 연결 수립 실패·429·타임아웃·5xx·전송 오류를 재시도한다.
+
+승인 API 응답은 접수 202, 종료된 동일 해시·결정의 영수증 재요청 200, 전사 공지 요청자 본인의 승인 POST만 403, 다른 사용자·자격 없음·없는 task 404, 만료·상태·해시 충돌 409, 잘못된 수정·요청 422다. 승인자 GET은 검사 통과 상태(`passed`·`masked`)의 승인 대기 초안만 보여 준다.
+
+`GOVOPS_AGENT_PROFILE=read_only`는 `READ_ONLY`, `writes`는 `WITH_WRITES`다. 시작 정리는 checkpointer 전체 순회이며 수백 건 규모를 전제한다. 규모가 커지면 별도 테이블이 필요하다.
 
 ## 도구와 부작용·멱등성
 
@@ -350,7 +364,7 @@ sequenceDiagram
 - 브라우저 JS는 토큰을 볼 수 없다. "자격 증명은 LLM·trace·브라우저에도 노출되지 않는다"를 웹 계층까지 이어 간다.
 - 데모 로그인은 IdP 대체 장치다. `DEMO_LOGIN` 플래그일 때만 열고 127.0.0.1에만 바인드한다. 신뢰 경계는 세션 발급 이후다(ADR-005).
 - 화면 4개: 로그인(데모 사용자 선택 = B 세션 발급), 요청·진행(SSE), 승인함(초안·수신처·결정론 검사 결과·수정 차이, 전사 공지는 요청자 팀 4급 이상, 요청자 본인 제외), 기록(task 상태, `audit-verify` 결과).
-- B 세션: `POST /sessions`는 `DEMO_LOGIN` 플래그와 127.0.0.1 클라이언트 조건에서만 열린다. `secrets.token_urlsafe(32)`로 발급하고 서버는 SHA-256 해시만 메모리에 두어 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이며 최종값은 M5에서 정한다. 인증 의존성은 `Authorization: Bearer`에서 요청자·승인자 `user_id`를 얻는다. 다른 사용자의 task 조회는 404다(ADR-017).
+- B 세션: `POST /sessions`는 `DEMO_LOGIN` 플래그와 127.0.0.1 클라이언트 조건에서만 열린다. `secrets.token_urlsafe(32)`로 발급하고 서버는 SHA-256 해시만 메모리에 두어 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이며 최종값은 M5에서 정한다. 인증 의존성은 `Authorization: Bearer`에서 요청자·승인자 `user_id`를 얻는다. 다른 사용자의 task 조회는 승인자 정책에 맞는 검사 통과 승인 대기 초안만 허용하고 나머지는 404다(ADR-018).
 - 쿠키 속성(`Secure`·`SameSite`)·CSRF 대책·세션 만료 시간은 미정(M5에서 결정)이다.
 
 M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec만 두며 연결은 M3에 둔다. `MAX_STEPS`는 폭주 방지용 임시 상수이며 최종값은 M5에서 정한다.

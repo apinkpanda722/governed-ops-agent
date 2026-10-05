@@ -9,9 +9,12 @@ import os
 import random
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from uuid import uuid4
 
 import httpx
 
+from govops.audit.log import AuditLog
 from govops.broker import credentials
 from govops.tools.a_mcp import AMcpClient, check_contract
 from govops.tools.contract import (
@@ -19,8 +22,12 @@ from govops.tools.contract import (
     snapshot_a_commit,
     snapshot_sha256,
 )
+from govops.tools.effects import EffectRequest, execute_effect
 from govops.tools.jira import JiraClient
+from govops.tools.markers import has_marker
+from govops.tools.outbox import InMemoryOutboxStore, OutboxState
 from govops.tools.registry import _ids
+from govops.tools.resilience import ToolPolicy
 from govops.tools.rest import ToolHttpError
 from govops.tools.slack import SlackClient
 
@@ -286,9 +293,92 @@ async def smoke_host_header(
     )
 
 
+async def smoke_effects(jira, slack, tickets, users, *, user_id) -> SmokeResult:
+    lines = []
+    try:
+        user = next(u for u in users if u["label"] == user_id)
+        chosen = min(
+            (
+                t
+                for t in tickets
+                if t["owner_team"] == user["team"] and expected_visible(user, t)
+            ),
+            key=lambda t: t["ticket_id"],
+        )
+        channel, ticket_id = "team-" + user["team"], chosen["ticket_id"]
+        cases = [
+            (
+                "slack_send_message",
+                {"channel": channel, "text": "smoke 합성 메시지"},
+                slack.channel_history,
+                channel,
+            ),
+            (
+                "jira_add_comment",
+                {"ticket_id": ticket_id, "body": "smoke 합성 코멘트"},
+                jira.ticket_comments,
+                ticket_id,
+            ),
+            (
+                "jira_create_followup_ticket",
+                {
+                    "parent_ticket_id": ticket_id,
+                    "title": "smoke 합성 후속 티켓",
+                    "description": "smoke 합성 점검",
+                    "priority": "low",
+                },
+                jira.ticket_children,
+                ticket_id,
+            ),
+        ]
+        outbox, policy = InMemoryOutboxStore(), ToolPolicy()
+        with TemporaryDirectory(prefix="govops-smoke-") as directory:
+            audit = AuditLog(Path(directory))
+            for tool, args, lookup, target in cases:
+                try:
+                    req = EffectRequest(
+                        "smoke-" + uuid4().hex, user_id, tool, args, "smoke-approved"
+                    )
+                    deps = {
+                        "jira": jira,
+                        "slack": slack,
+                        "outbox": outbox,
+                        "audit": audit,
+                        "policy": policy,
+                    }
+                    first = await execute_effect(req, **deps)
+                    row = next(
+                        r for r in outbox.rows.values() if r.task_id == req.task_id
+                    )
+                    visible = has_marker(
+                        await lookup(user_id, target), row.idempotency_key
+                    )
+                    second = await execute_effect(req, **deps)
+                    count = sum(
+                        has_marker([item], row.idempotency_key)
+                        for item in await lookup(user_id, target)
+                    )
+                    ok = (
+                        first.state == OutboxState.SUCCEEDED
+                        and first.sends == 1
+                        and not first.audit_gap
+                        and visible
+                        and second.reason == "already_succeeded"
+                        and second.sends == 0
+                        and not second.audit_gap
+                        and count == 1
+                    )
+                except Exception:  # noqa: BLE001 — never expose bodies or credentials
+                    ok = False
+                lines.append(("PASS " if ok else "FAIL ") + tool)
+    except Exception:  # noqa: BLE001
+        return SmokeResult(False, ["FAIL effects"])
+    return SmokeResult(all(line.startswith("PASS ") for line in lines), lines)
+
+
 async def _run(command, user_id):
     url = os.environ.get("KODOCS_MCP_URL")
-    if command != "mock" and not url:
+    if command not in {"mock", "effects"} and not url:
         return SmokeResult(False, ["KODOCS_MCP_URL이 필요합니다"])
     if command == "host-header":
         return await smoke_host_header(url, user_id=user_id)
@@ -299,6 +389,10 @@ async def _run(command, user_id):
     jira = JiraClient(os.environ.get("MOCK_JIRA_URL", "http://127.0.0.1:8081"))
     if command == "identity":
         return await smoke_identity(a, jira, tickets)
+    if command == "effects":
+        users = json.loads((_ROOT / "data/seed/users.json").read_text())["users"]
+        slack = SlackClient(os.environ.get("MOCK_SLACK_URL", "http://127.0.0.1:8082"))
+        return await smoke_effects(jira, slack, tickets, users, user_id=user_id)
     if command == "mock":
         slack = SlackClient(os.environ.get("MOCK_SLACK_URL", "http://127.0.0.1:8082"))
         return await smoke_mock(jira, slack, tickets)
@@ -311,14 +405,33 @@ async def _run(command, user_id):
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "command", choices=["contract", "identity", "visibility", "mock", "host-header"]
+        "command",
+        choices=[
+            "contract",
+            "identity",
+            "visibility",
+            "mock",
+            "host-header",
+            "effects",
+        ],
     )
-    parser.add_argument("--user", default=DEMO_USERS[0])
+    parser.add_argument("--user", default=os.environ.get("SMOKE_USER", DEMO_USERS[0]))
     args = parser.parse_args(argv)
+    previous_logging = logging.root.manager.disable
+    if args.command == "effects":
+        logging.disable(logging.CRITICAL)
     try:
         result = asyncio.run(_run(args.command, args.user))
     except Exception:  # noqa: BLE001
-        result = SmokeResult(False, ["스모크 실패: 시드·자격 증명·연결 설정 확인"])
+        result = SmokeResult(
+            False,
+            ["FAIL effects"]
+            if args.command == "effects"
+            else ["스모크 실패: 시드·자격 증명·연결 설정 확인"],
+        )
+    finally:
+        if args.command == "effects":
+            logging.disable(previous_logging)
     for line in result.lines:
         print(line)
     return 0 if result.ok else 1
