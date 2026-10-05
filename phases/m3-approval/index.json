@@ -1,0 +1,51 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-approval",
+  "steps": [
+    {
+      "step": 0,
+      "name": "claim-gap",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "access-index",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "checks-draft",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "scope-v15",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "approval-policy",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "graph-write-path",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "approval-api",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "tcr-approval",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "approval-docs-smoke",
+      "status": "pending"
+    }
+  ]
+}
