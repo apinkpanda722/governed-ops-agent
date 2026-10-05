@@ -117,7 +117,16 @@
     {
       "step": 8,
       "name": "approval-docs-smoke",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T21:44:42+0900",
+      "summary": "승인·V15·상태 전이·M4 감사 범위 문서를 갱신하고 사용자 실행 smoke-effects와 가짜 transport 회귀 테스트를 추가했으며 make verify 전체 통과(1879 passed, 1 skipped)를 확인했다.",
+      "completed_at": "2026-10-05T22:00:30+0900",
+      "usage": {
+        "input_tokens": 2062971,
+        "cached_input_tokens": 1965824,
+        "output_tokens": 8513,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-05T18:42:44+0900"
