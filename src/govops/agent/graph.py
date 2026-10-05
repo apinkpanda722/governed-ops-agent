@@ -120,6 +120,8 @@ class AgentState(TypedDict):
     created_at: str
     resume_value: Any
     edit_approver: str | None
+    approval_receipt: dict | None
+    effect_result: str | None
 
 
 def build_graph(
@@ -425,7 +427,10 @@ def build_graph(
         }
 
     def decide(state):
-        if clock() >= datetime.fromisoformat(state["expires_at"]):
+        value = state.get("resume_value")
+        if clock() >= datetime.fromisoformat(state["expires_at"]) or (
+            isinstance(value, dict) and value.get("decision") == "expired"
+        ):
             if not record(
                 state,
                 "approval.expired",
@@ -617,6 +622,7 @@ def build_graph(
 async def run_task(
     graph: CompiledStateGraph, *, task_id: str, user_id: str, request: str
 ) -> AgentState:
+    existing = await get_task(graph, task_id)
     state: AgentState = {
         "task_id": task_id,
         "user_id": user_id,
@@ -641,7 +647,8 @@ async def run_task(
         "awaiting_since": None,
         "expires_at": None,
         "effect": None,
-        "created_at": getattr(graph, "agent_clock", utc_now)().isoformat(),
+        "created_at": (existing or {}).get("created_at")
+        or getattr(graph, "agent_clock", utc_now)().isoformat(),
         "resume_value": None,
         "edit_approver": None,
     }

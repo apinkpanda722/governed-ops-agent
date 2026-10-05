@@ -158,3 +158,249 @@ async def test_background_failure_concurrency_and_close(caplog):
     await asyncio.sleep(0)
     await service.aclose()
     assert not service._tasks
+
+
+@async_test
+async def test_initial_checkpoint_and_restart_cleanup():
+    gate = asyncio.Event()
+
+    class Held:
+        async def complete(self, **kwargs):
+            await gate.wait()
+            return reply("합성 답변")
+
+    graph = build_graph(Held(), FakeTools(), InMemorySaver())
+    service = TaskService(graph)
+    ident = await service.start("a", "합성 요청")
+    state = (await graph.aget_state({"configurable": {"thread_id": ident}})).values
+    assert state["user_id"] == "a" and state["status"] == "running"
+    assert state["created_at"]
+    await service.aclose()
+    await graph.aupdate_state(
+        {"configurable": {"thread_id": ident}}, {"status": "running"}, as_node="model"
+    )
+    fresh = TaskService(graph)
+    await fresh.startup_cleanup()
+    result = await fresh.get("a", ident)
+    assert result["status"] == "interrupted"
+    assert result["retry_hint"] == "다시 요청해 주세요"
+    assert result["effect_result"] == "unknown"
+    assert await fresh.get("b", ident) is None
+
+
+@async_test
+async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
+    import json
+    from datetime import UTC, datetime, timedelta
+
+    from govops.agent.graph import WITH_WRITES, EffectDeps
+    from govops.agent.scope import ScopeIndex
+    from govops.agent.users import UserInfo
+    from govops.audit.log import AuditLog
+    from govops.guardrails.policy import TeamPolicy
+    from govops.tools.outbox import InMemoryOutboxStore
+    from govops.tools.resilience import ToolPolicy
+
+    users = {
+        u.label: u
+        for u in (
+            UserInfo("requester", "platform", 6),
+            UserInfo("approver", "platform", 4),
+            UserInfo("junior", "platform", 3),
+            UserInfo("other", "finance", 4),
+        )
+    }
+    now = [datetime(2026, 10, 5, tzinfo=UTC)]
+
+    class Slack:
+        def __init__(self):
+            self.sent = []
+
+        async def send_message(self, user_id, **args):
+            self.sent.append((user_id, args))
+            return {"message": {"message_id": "message-1"}}
+
+    slack = Slack()
+    tools = FakeTools()
+    tools.policy = ToolPolicy()
+    saver = InMemorySaver()
+    effects = EffectDeps(
+        SimpleNamespace(add_comment=None, create_followup=None),
+        slack,
+        InMemoryOutboxStore(),
+    )
+    audit = AuditLog(tmp_path)
+    graph = build_graph(
+        FakeChat(
+            *[
+                reply(
+                    calls=[
+                        call(
+                            "slack_send_message",
+                            json.dumps({"channel": "announce", "text": "합성 안내"}),
+                        )
+                    ]
+                )
+                for _ in range(8)
+            ]
+        ),
+        tools,
+        saver,
+        profile=WITH_WRITES,
+        effects=effects,
+        audit=audit,
+        scope=ScopeIndex({}, {}, tuple(users.values())),
+        policy=TeamPolicy({"platform": "block"}),
+        users=users,
+        clock=lambda: now[0],
+    )
+    service = TaskService(
+        graph, users=users, effects=effects, audit=audit, policy=tools.policy
+    )
+    sessions = SessionStore()
+    tokens = {u: sessions.issue(u)[0] for u in users}
+    app = create_app(
+        users=frozenset(users), sessions=sessions, demo_login=False, service=service
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1"
+    ) as client:
+
+        async def request(user, method, path, **kwargs):
+            return await client.request(
+                method,
+                path,
+                headers={"Authorization": "Bearer " + tokens[user]},
+                **kwargs,
+            )
+
+        async def waiting():
+            ident = await service.start("requester", "합성 공지")
+            await asyncio.gather(*service._tasks)
+            view = await service.get("requester", ident)
+            assert view["status"] == "awaiting_approval"
+            return ident, {"decision": "approve", "draft_sha256": view["draft_sha256"]}
+
+        ident, body = await waiting()
+        path = f"/tasks/{ident}"
+        view = await request("approver", "GET", path)
+        assert view.status_code == 200
+        assert view.json()["requester_label"] == "requester"
+        assert (
+            not {
+                "answer",
+                "cited_doc_ids",
+                "observed_doc_ids",
+                "messages",
+                "evidence_ids",
+            }
+            & view.json().keys()
+        )
+        for user, code in (("requester", 403), ("junior", 404), ("other", 404)):
+            assert (
+                await request(user, "POST", path + "/approval", json=body)
+            ).status_code == code
+        for user in ("junior", "other"):
+            assert (await request(user, "GET", path)).status_code == 404
+        assert (
+            await request(
+                "approver",
+                "POST",
+                path + "/approval",
+                json={**body, "draft_sha256": "0" * 64},
+            )
+        ).status_code == 409
+        for invalid in (
+            {**body, "user_id": "requester"},
+            {**body, "edited": {"text": "수정"}},
+            {
+                **body,
+                "decision": "edit_approve",
+                "edited": {"channel": "team-platform"},
+            },
+        ):
+            assert (
+                await request("approver", "POST", path + "/approval", json=invalid)
+            ).status_code == 422
+        responses = await asyncio.gather(
+            *[
+                request("approver", "POST", path + "/approval", json=body)
+                for _ in range(2)
+            ]
+        )
+        assert (
+            responses[0].status_code in (200, 202) and responses[1].status_code == 200
+        )
+        assert responses[0].json() == responses[1].json()
+        for _ in range(2):
+            again = await request("approver", "POST", path + "/approval", json=body)
+            assert again.status_code == 200 and again.json() == responses[0].json()
+        assert len(slack.sent) == 1 and slack.sent[0][0] == "requester"
+        assert (await request("approver", "GET", path)).status_code == 404
+        assert (
+            await request(
+                "approver",
+                "POST",
+                path + "/approval",
+                json={**body, "decision": "reject"},
+            )
+        ).status_code == 409
+        fresh = TaskService(
+            graph, users=users, effects=effects, audit=audit, policy=tools.policy
+        )
+        assert (await fresh.approve("approver", ident, **body))[1] == responses[
+            0
+        ].json()
+        ident, body = await waiting()
+        await fresh.startup_cleanup()
+        assert (await fresh.get("approver", ident))["status"] == "awaiting_approval"
+        config = {"configurable": {"thread_id": ident}}
+        for check in (
+            None,
+            {"status": "blocked", "reason": "pii_blocked_by_team_policy"},
+        ):
+            await graph.aupdate_state(config, {"check": check})
+            assert await fresh.get("approver", ident) is None
+        await graph.aupdate_state(
+            config, {"check": {"status": "passed", "reason": None}}
+        )
+        now[0] += timedelta(minutes=31)
+        assert (
+            await request("approver", "POST", f"/tasks/{ident}/approval", json=body)
+        ).status_code == 409
+        assert (await service.get("requester", ident))["status"] == "expired"
+        assert len(slack.sent) == 1
+        ident, _ = await waiting()
+        now[0] += timedelta(minutes=31)
+        assert (await service.get("requester", ident))["status"] == "expired"
+        assert await service.get("approver", ident) is None
+        ident, body = await waiting()
+        edited = {
+            **body,
+            "decision": "edit_approve",
+            "edited": {"text": "수정된 합성 안내"},
+        }
+        changed = await request(
+            "approver", "POST", f"/tasks/{ident}/approval", json=edited
+        )
+        assert changed.status_code == 202 and changed.json()["status"] == "completed"
+        assert slack.sent[-1][1]["text"] == "수정된 합성 안내"
+        assert (
+            await request("approver", "POST", f"/tasks/{ident}/approval", json=edited)
+        ).json() == changed.json()
+        ident, body = await waiting()
+        rejected = await request(
+            "approver",
+            "POST",
+            f"/tasks/{ident}/approval",
+            json={**body, "decision": "reject"},
+        )
+        assert rejected.status_code == 202 and rejected.json()["status"] == "rejected"
+        assert len(slack.sent) == 2
+        output = (
+            repr(saver.storage)
+            + repr(responses[0].json())
+            + "".join(p.read_text() for p in tmp_path.glob("*.jsonl"))
+        )
+        assert all(t not in output for t in tokens.values())
+    await service.aclose()

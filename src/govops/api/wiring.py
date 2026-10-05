@@ -6,17 +6,23 @@ from contextlib import asynccontextmanager
 import httpx
 
 from govops.agent.checkpointer import open_checkpointer
-from govops.agent.graph import build_graph
+from govops.agent.graph import READ_ONLY, WITH_WRITES, EffectDeps, build_graph
+from govops.agent.scope import ScopeIndex
+from govops.agent.users import load_users
 from govops.api.startup import StartupError, verify_contract
 from govops.api.tasks import TaskService
+from govops.audit.log import AuditLog
 from govops.gateway.client import LiteLLMChatClient
+from govops.guardrails.policy import load_team_policy
 from govops.obs.jsonl import JsonlSink
 from govops.obs.langfuse import langfuse_sink_from_env
 from govops.obs.mask import register_secret_values
 from govops.obs.trace import configure
 from govops.tools.a_mcp import AMcpClient
 from govops.tools.jira import JiraClient
+from govops.tools.outbox import InMemoryOutboxStore, PostgresOutboxStore
 from govops.tools.registry import ToolRuntime
+from govops.tools.resilience import ToolPolicy
 from govops.tools.slack import SlackClient
 
 
@@ -38,6 +44,7 @@ async def open_task_service():
     # A MCP 클라이언트는 호출마다 연결을 열고 닫으므로 보관하는 연결이 없다.
     rest_client = httpx.AsyncClient(trust_env=False)
     try:
+        policy = ToolPolicy()
         tools = ToolRuntime(
             a_client,
             JiraClient(
@@ -48,9 +55,39 @@ async def open_task_service():
                 os.getenv("MOCK_SLACK_URL") or "http://127.0.0.1:8082",
                 http_client=rest_client,
             ),
+            policy=policy,
         )
         async with open_checkpointer(os.getenv("GOVOPS_DATABASE_URL") or None) as saver:
-            service = TaskService(build_graph(LiteLLMChatClient(), tools, saver))
+            name = os.getenv("GOVOPS_AGENT_PROFILE") or "read_only"
+            if name not in {"read_only", "writes"}:
+                raise StartupError("GOVOPS_AGENT_PROFILE")
+            outbox = (
+                PostgresOutboxStore()
+                if os.getenv("GOVOPS_DATABASE_URL")
+                else InMemoryOutboxStore()
+            )
+            effects = EffectDeps(tools.jira, tools.slack, outbox)
+            audit = AuditLog()
+            users = load_users()
+            graph = build_graph(
+                LiteLLMChatClient(),
+                tools,
+                saver,
+                profile=WITH_WRITES if name == "writes" else READ_ONLY,
+                effects=effects,
+                audit=audit,
+                scope=ScopeIndex.load(),
+                policy=load_team_policy("data/policy/team_policy.json"),
+                users=users,
+            )
+            service = TaskService(
+                graph,
+                users=users,
+                effects=effects,
+                audit=audit,
+                policy=policy,
+            )
+            await service.startup_cleanup()
             try:
                 yield service
             finally:
