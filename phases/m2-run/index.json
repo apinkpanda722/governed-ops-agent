@@ -1,0 +1,41 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m2-run",
+  "steps": [
+    {
+      "step": 0,
+      "name": "llm-record-replay",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "a-record-through",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "grading-wiring",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "golden-trace",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "dev-runner",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "ci-workflow",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "prereg-docs",
+      "status": "pending"
+    }
+  ]
+}
