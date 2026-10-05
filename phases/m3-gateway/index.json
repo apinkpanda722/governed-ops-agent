@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "model-prices",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T23:05:23+0900",
+      "summary": "TDD로 Sonnet 5.5 단가·캐시 포함 비용 계산·엄격한 응답 모델 ID 매핑·미등록 모델 최대 비용 정산을 구현했으며, 계층 경계 확인과 make verify 전체 통과.",
+      "completed_at": "2026-10-05T23:18:31+0900",
+      "usage": {
+        "input_tokens": 1366479,
+        "cached_input_tokens": 1300736,
+        "output_tokens": 4358,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
