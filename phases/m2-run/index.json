@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "ci-workflow",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T11:54:25+0900",
+      "summary": "SHA·버전 고정 및 키 없는 GitHub Actions CI와 검사 테스트 5개 구현; make verify 통과(Python 1,279개, 미기록 1개 건너뜀, 웹 15개). Action SHA 해석은 첫 PR CI에서 사용자 확인 필요.",
+      "completed_at": "2026-10-05T12:10:59+0900",
+      "usage": {
+        "input_tokens": 1056740,
+        "cached_input_tokens": 1006976,
+        "output_tokens": 3586,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
