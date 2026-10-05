@@ -105,3 +105,4 @@ make eval-human-sheet # test 1회차 층화 표본 블라인드 채점 시트 �
 make eval-human-register # 사람 채점 CSV 해시 등록(사용자 실행)
 make eval-gemini-grade # 사람 채점 해시 커밋 확인 후 Gemini 채점(사용자 실행)
 make smoke-gemini # Gemini 채점·별도 비용 원장 스모크(사용자 실행)
+make eval-run-dev # live task·record-through·채점(사용자 실행)
