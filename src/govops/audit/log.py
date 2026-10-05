@@ -28,7 +28,21 @@ TOOLS = frozenset(
     {"jira_add_comment", "jira_create_followup_ticket", "slack_send_message"}
 )
 DECISIONS = frozenset({"approve", "edit_approve", "reject", "expired"})
-REASONS = frozenset({"audit_gap"})
+REASONS = frozenset(
+    {
+        "audit_gap",
+        "already_succeeded",
+        "already_failed",
+        "in_progress",
+        "audit_write_failed",
+        "circuit_open",
+        "connect",
+        "rate_limited",
+        "uncertain",
+        "definitive",
+        "unsent_confirmed",
+    }
+)
 _HASH = re.compile(r"[0-9a-f]{64}")
 _MOCK_ID = re.compile(r"(?:message-[0-9]+|comment-[0-9]+|[A-Z]{3}-[0-9]+)")
 _FIELD = re.compile(r"[a-z][a-z0-9_]*")

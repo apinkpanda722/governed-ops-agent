@@ -46,6 +46,8 @@ class ToolUnavailable(Exception):
 
 
 def classify(exc: Exception) -> FailureKind:
+    if isinstance(exc, (asyncio.CancelledError, KeyboardInterrupt)):
+        raise exc
     if isinstance(exc, ToolUnavailable):
         return FailureKind.CIRCUIT_OPEN
     if isinstance(exc, TimeoutError):
@@ -60,7 +62,9 @@ def classify(exc: Exception) -> FailureKind:
         return FailureKind.UNCERTAIN
     if status is not None and 400 <= status < 500:
         return FailureKind.DEFINITIVE
-    return FailureKind.DEFINITIVE
+    if kind == "protocol":
+        return FailureKind.DEFINITIVE
+    return FailureKind.UNCERTAIN
 
 
 class CircuitBreaker:
