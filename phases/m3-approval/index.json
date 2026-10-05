@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "approval-policy",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T19:51:50+0900",
+      "summary": "승인자 정책·본문 전용 수정 규칙·결정론적 승인 ID를 순수 함수로 구현하고, 정책 전체 조합·평가 승인 분기·계층 경계 테스트 및 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T20:06:30+0900",
+      "usage": {
+        "input_tokens": 1807762,
+        "cached_input_tokens": 1737600,
+        "output_tokens": 5213,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
