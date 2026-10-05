@@ -14,6 +14,7 @@ from govops.api.tasks import TaskService
 from govops.audit.log import AuditLog
 from govops.env import env_or
 from govops.gateway.client import LiteLLMChatClient
+from govops.gateway.faults import model_fault_mode
 from govops.guardrails.policy import load_team_policy
 from govops.obs.jsonl import JsonlSink
 from govops.obs.langfuse import langfuse_sink_from_env
@@ -29,6 +30,13 @@ from govops.tools.slack import SlackClient
 
 @asynccontextmanager
 async def open_task_service():
+    invalid_fault_mode = False
+    try:
+        invalid_fault_mode = model_fault_mode() is not None
+    except ValueError:
+        invalid_fault_mode = True
+    if invalid_fault_mode:
+        raise StartupError("GOVOPS_MODEL_FAULT_MODE is harness-only")
     register_secret_values(
         value
         for name, value in os.environ.items()

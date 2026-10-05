@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 
@@ -16,7 +17,10 @@ from govops.audit.log import EVENTS
 
 def append(log, **fields):
     return log.append(
-        "side_effect.attempt", task_id="task-1", actor_sub="demo-platform-g3", **fields
+        "side_effect.attempt",
+        task_id=uuid4().hex,
+        actor_sub="demo-platform-g3",
+        **fields,
     )
 
 
@@ -56,9 +60,13 @@ def test_events(tmp_path):
     log = AuditLog(tmp_path)
     assert len(EVENTS) == 9
     for event in EVENTS:
-        log.append(event, task_id="task-1", actor_sub="demo-platform-g3")
+        log.append(event, task_id=uuid4().hex, actor_sub="demo-platform-g3")
     with pytest.raises(ValueError):
-        log.append("unknown", task_id="task-1", actor_sub="demo-platform-g3")
+        log.append(
+            "unknown",
+            task_id=uuid4().hex,
+            actor_sub="demo-platform-g3",
+        )
 
 
 @pytest.mark.parametrize(
@@ -134,7 +142,10 @@ def test_failure_and_retry(tmp_path, monkeypatch):
     sink = Mock()
     sink.append.side_effect = AuditWriteError("Audit write failed")
     assert not append_with_retry(
-        sink, "side_effect.result", task_id="task-1", actor_sub="demo-platform-g3"
+        sink,
+        "side_effect.result",
+        task_id=uuid4().hex,
+        actor_sub="demo-platform-g3",
     )
     assert sink.append.call_count == 3
     sink.append.side_effect = [AuditWriteError("failed"), 1]
@@ -194,3 +205,33 @@ def test_directory_failure(tmp_path):
     with pytest.raises(AuditWriteError) as caught:
         AuditLog(file)
     assert caught.value.__cause__ is None
+
+
+def test_random_uuid_identifiers(tmp_path):
+    from uuid import UUID
+
+    # Seeded v4 UUIDs reproduce failures without replacing production uuid4.
+    rng = random.Random(731)
+    identifiers = [UUID(bytes=rng.randbytes(16), version=4).hex for _ in range(10000)]
+    log = AuditLog(tmp_path)
+    for task_id in identifiers:
+        log.append("side_effect.draft", task_id=task_id, actor_sub="demo-platform-g3")
+    assert [row["task_id"] for row in rows(tmp_path)] == identifiers
+
+
+@pytest.mark.parametrize(
+    "task_id,actor",
+    [
+        ("010-1234-5678", "demo-platform-g3"),
+        ("abc900101-1234567", "demo-platform-g3"),
+        ("a" * 31, "demo-platform-g3"),
+        ("a" * 33, "demo-platform-g3"),
+        ("G" * 32, "demo-platform-g3"),
+        ("a" * 32, "requester"),
+        ("a" * 32, "demo-platform"),
+    ],
+)
+def test_invalid_identifiers(tmp_path, task_id, actor):
+    with pytest.raises(AuditWriteError) as error:
+        AuditLog(tmp_path).append("side_effect.draft", task_id=task_id, actor_sub=actor)
+    assert isinstance(error.value, ValueError)

@@ -673,3 +673,101 @@ def test_unmapped_model_attribute_on_model_span(tmp_path):
     assert any(
         record.attributes.get("unmapped_model") is True for record in sink.records
     )
+
+
+@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+def test_fault_backend(tmp_path, mode):
+    from govops.gateway.faults import ModelFaultScript
+
+    costs.init_ledgers(tmp_path)
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        body = response()
+        body["model"] = "claude-sonnet-5-5"
+        return httpx.Response(200, json=body)
+
+    script = ModelFaultScript({2})
+    for _ in range(3):
+        result = run(tmp_path, handler, fault_script=script, fault_mode=mode)
+        assert result.fallback_used
+    assert [body["model"] for body in seen] == (
+        ["agent-primary", "agent-primary-down", "agent-primary"]
+        if mode == "down_alias"
+        else ["agent-primary"] * 3
+    )
+    assert [body.get("mock_testing_fallbacks") for body in seen] == (
+        [None, True, None] if mode == "mock_param" else [None] * 3
+    )
+    for body in seen:
+        body.pop("mock_testing_fallbacks", None)
+        body["model"] = "agent-primary"
+        body["metadata"].pop("generation_id")
+    assert seen[0] == seen[1] == seen[2]
+
+
+@pytest.mark.parametrize(
+    "calls,expected",
+    [({1}, [True, False, False]), ({2}, [False, True, False]), ("all", [True] * 3)],
+)
+def test_fault_script(calls, expected):
+    from govops.gateway.faults import ModelFaultScript
+
+    script = ModelFaultScript(calls)
+    assert [script.should_fail("a") for _ in range(3)] == expected
+    assert [script.should_fail("b") for _ in range(3)] == expected
+
+
+@pytest.mark.parametrize("value", [None, "", "mock_param", "down_alias", "invalid"])
+def test_fault_environment(monkeypatch, value):
+    from govops.gateway.faults import model_fault_mode
+
+    monkeypatch.delenv("GOVOPS_MODEL_FAULT_MODE", raising=False)
+    if value is not None:
+        monkeypatch.setenv("GOVOPS_MODEL_FAULT_MODE", value)
+    if value == "invalid":
+        with pytest.raises(ValueError):
+            model_fault_mode()
+    else:
+        assert model_fault_mode() == (value or None)
+
+
+@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+def test_fault_mode_without_script_is_normal(tmp_path, mode):
+    costs.init_ledgers(tmp_path)
+
+    def handler(request):
+        body = json.loads(request.content)
+        assert body["model"] == "agent-primary"
+        assert "mock_testing_fallbacks" not in body
+        return httpx.Response(200, json=response())
+
+    run(tmp_path, handler, fault_mode=mode)
+
+
+@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+def test_fault_respects_supplier_cap(tmp_path, mode):
+    from govops.gateway.faults import ModelFaultScript
+
+    costs.init_ledgers(tmp_path)
+    costs.CostLedger(tmp_path).record(
+        purpose="agent_fallback",
+        model="claude-sonnet-5-5",
+        task_id="old",
+        input_tokens=0,
+        output_tokens=0,
+        cost_usd=costs.SUPPLIER_CAPS_USD["anthropic"],
+    )
+
+    def handler(request):
+        body = json.loads(request.content)
+        assert body["model"] == "agent-primary-only"
+        assert "mock_testing_fallbacks" not in body
+        return httpx.Response(200, json=response())
+
+    run(tmp_path, handler, fault_script=ModelFaultScript("all"), fault_mode=mode)
+    assert (
+        costs.CostLedger(tmp_path).committed_usd("anthropic")
+        == costs.SUPPLIER_CAPS_USD["anthropic"]
+    )

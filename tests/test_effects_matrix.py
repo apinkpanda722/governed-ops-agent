@@ -7,6 +7,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -142,7 +143,7 @@ def setup(request, monkeypatch, tmp_path):
         "faults": faults,
         "app": app,
         "req": EffectRequest(
-            "syn-task", "demo-platform-g3", tool, args, "syn-approval"
+            uuid4().hex, "demo-platform-g3", tool, args, "syn-approval"
         ),
         "endpoint": endpoint,
         "js": js,
@@ -192,7 +193,7 @@ async def run(s, mode="normal", req=None, policy=None, reconcile=None):
 def counts(s):
     return count_effects(
         {"slack": s["ss"].report(bodies=True), "jira": s["js"].report(bodies=True)},
-        task_id="syn-task",
+        task_id=s["req"].task_id,
         expected=[Effect(kind=s["kind"], target=s["target"], count=1, structure={})],
     )
 
@@ -297,11 +298,11 @@ async def test_claim_reexecution(setup, state, reason, audit_failure, monkeypatc
     args = s["req"].args
     if s["req"].tool == "jira_create_followup_ticket":
         args = CreateFollowup.model_validate(args).model_dump()
-    key = idempotency_key("syn-task", s["req"].tool, args)
+    key = idempotency_key(s["req"].task_id, s["req"].tool, args)
     await s["outbox"].claim(
         OutboxRow(
             key,
-            "syn-task",
+            s["req"].task_id,
             s["req"].tool,
             s["target"],
             "a" * 64,
@@ -379,7 +380,7 @@ async def test_circuit_no_requests_after_open(setup):
         await run(
             s,
             req=EffectRequest(
-                f"syn-task-{i}",
+                uuid4().hex,
                 "demo-platform-g3",
                 s["req"].tool,
                 s["req"].args,
@@ -391,7 +392,7 @@ async def test_circuit_no_requests_after_open(setup):
     result, p, g = await run(
         s,
         req=EffectRequest(
-            "syn-final",
+            uuid4().hex,
             "demo-platform-g3",
             s["req"].tool,
             s["req"].args,
@@ -451,7 +452,7 @@ async def test_lookup_audit_gap_does_not_resend(setup):
 async def test_invalid_input_no_claim_or_call(setup):
     s = setup
     req = EffectRequest(
-        "syn-task",
+        s["req"].task_id,
         "demo-platform-g3",
         s["req"].tool,
         {**s["req"].args, "user_id": "injected"},
@@ -480,7 +481,7 @@ async def test_definitive_rejection_no_marker_lookup(setup):
     result, posts, gets = await run(
         s,
         req=EffectRequest(
-            "syn-task", "demo-platform-g3", s["req"].tool, args, "syn-approval"
+            s["req"].task_id, "demo-platform-g3", s["req"].tool, args, "syn-approval"
         ),
     )
     assert (result.state, posts, gets) == ("failed", 1, 0)

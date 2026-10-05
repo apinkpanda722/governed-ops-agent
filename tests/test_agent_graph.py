@@ -3,6 +3,7 @@ import copy
 import json
 from dataclasses import fields
 from functools import wraps
+from uuid import uuid4
 
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
@@ -381,8 +382,9 @@ async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeyp
         tools.outcomes.append(
             ToolOutcome({"columns": ["ticket_id"], "rows": [["SYN-1"]]}, False, ())
         )
+    write_id = uuid4().hex
     state = await run_task(
-        graph, task_id="write-1", user_id=user.label, request="안내를 보내 주세요"
+        graph, task_id=write_id, user_id=user.label, request="안내를 보내 주세요"
     )
     if mode in {"recipient", "pii", "scope", "audit", "audit_requested"}:
         assert state["status"] == (
@@ -398,7 +400,7 @@ async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeyp
         "decision": "approve",
         "draft_sha256": state["draft_sha256"],
     }
-    config = {"configurable": {"thread_id": "write-1"}}
+    config = {"configurable": {"thread_id": write_id}}
     if mode == "reject":
         decision["decision"] = "reject"
     elif mode == "expire":
@@ -561,7 +563,7 @@ async def test_invalid_write_proposals_return_model_error_without_effect(
         users={user.label: user},
     )
     state = await run_task(
-        graph, task_id="invalid-write", user_id=user.label, request="합성 안내"
+        graph, task_id=uuid4().hex, user_id=user.label, request="합성 안내"
     )
     assert state["status"] == "completed"
     assert state["steps"] == 2

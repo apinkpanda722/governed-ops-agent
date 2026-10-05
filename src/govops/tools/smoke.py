@@ -375,7 +375,7 @@ async def smoke_effects(jira, slack, tickets, users, *, user_id) -> SmokeResult:
                 policy.error = None
                 try:
                     req = EffectRequest(
-                        "smoke-" + uuid4().hex, user_id, tool, args, "smoke-approved"
+                        uuid4().hex, user_id, tool, args, "smoke-approved"
                     )
                     deps = {
                         "jira": jira,

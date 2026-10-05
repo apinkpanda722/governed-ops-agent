@@ -205,10 +205,10 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
     users = {
         u.label: u
         for u in (
-            UserInfo("requester", "platform", 6),
-            UserInfo("approver", "platform", 4),
-            UserInfo("junior", "platform", 3),
-            UserInfo("other", "finance", 4),
+            UserInfo("demo-requester-g3", "platform", 6),
+            UserInfo("demo-approver-g3", "platform", 4),
+            UserInfo("demo-junior-g3", "platform", 3),
+            UserInfo("demo-other-g3", "finance", 4),
         )
     }
     now = [datetime(2026, 10, 5, tzinfo=UTC)]
@@ -276,17 +276,17 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
             )
 
         async def waiting():
-            ident = await service.start("requester", "합성 공지")
+            ident = await service.start("demo-requester-g3", "합성 공지")
             await asyncio.gather(*service._tasks)
-            view = await service.get("requester", ident)
+            view = await service.get("demo-requester-g3", ident)
             assert view["status"] == "awaiting_approval"
             return ident, {"decision": "approve", "draft_sha256": view["draft_sha256"]}
 
         ident, body = await waiting()
         path = f"/tasks/{ident}"
-        view = await request("approver", "GET", path)
+        view = await request("demo-approver-g3", "GET", path)
         assert view.status_code == 200
-        assert view.json()["requester_label"] == "requester"
+        assert view.json()["requester_label"] == "demo-requester-g3"
         assert (
             not {
                 "answer",
@@ -297,22 +297,26 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
             }
             & view.json().keys()
         )
-        for user, code in (("requester", 403), ("junior", 404), ("other", 404)):
+        for user, code in (
+            ("demo-requester-g3", 403),
+            ("demo-junior-g3", 404),
+            ("demo-other-g3", 404),
+        ):
             assert (
                 await request(user, "POST", path + "/approval", json=body)
             ).status_code == code
-        for user in ("junior", "other"):
+        for user in ("demo-junior-g3", "demo-other-g3"):
             assert (await request(user, "GET", path)).status_code == 404
         assert (
             await request(
-                "approver",
+                "demo-approver-g3",
                 "POST",
                 path + "/approval",
                 json={**body, "draft_sha256": "0" * 64},
             )
         ).status_code == 409
         for invalid in (
-            {**body, "user_id": "requester"},
+            {**body, "user_id": "demo-requester-g3"},
             {**body, "edited": {"text": "수정"}},
             {
                 **body,
@@ -321,11 +325,13 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
             },
         ):
             assert (
-                await request("approver", "POST", path + "/approval", json=invalid)
+                await request(
+                    "demo-approver-g3", "POST", path + "/approval", json=invalid
+                )
             ).status_code == 422
         responses = await asyncio.gather(
             *[
-                request("approver", "POST", path + "/approval", json=body)
+                request("demo-approver-g3", "POST", path + "/approval", json=body)
                 for _ in range(2)
             ]
         )
@@ -334,13 +340,15 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
         )
         assert responses[0].json() == responses[1].json()
         for _ in range(2):
-            again = await request("approver", "POST", path + "/approval", json=body)
+            again = await request(
+                "demo-approver-g3", "POST", path + "/approval", json=body
+            )
             assert again.status_code == 200 and again.json() == responses[0].json()
-        assert len(slack.sent) == 1 and slack.sent[0][0] == "requester"
-        assert (await request("approver", "GET", path)).status_code == 404
+        assert len(slack.sent) == 1 and slack.sent[0][0] == "demo-requester-g3"
+        assert (await request("demo-approver-g3", "GET", path)).status_code == 404
         assert (
             await request(
-                "approver",
+                "demo-approver-g3",
                 "POST",
                 path + "/approval",
                 json={**body, "decision": "reject"},
@@ -349,32 +357,36 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
         fresh = TaskService(
             graph, users=users, effects=effects, audit=audit, policy=tools.policy
         )
-        assert (await fresh.approve("approver", ident, **body))[1] == responses[
+        assert (await fresh.approve("demo-approver-g3", ident, **body))[1] == responses[
             0
         ].json()
         ident, body = await waiting()
         await fresh.startup_cleanup()
-        assert (await fresh.get("approver", ident))["status"] == "awaiting_approval"
+        assert (await fresh.get("demo-approver-g3", ident))[
+            "status"
+        ] == "awaiting_approval"
         config = {"configurable": {"thread_id": ident}}
         for check in (
             None,
             {"status": "blocked", "reason": "pii_blocked_by_team_policy"},
         ):
             await graph.aupdate_state(config, {"check": check})
-            assert await fresh.get("approver", ident) is None
+            assert await fresh.get("demo-approver-g3", ident) is None
         await graph.aupdate_state(
             config, {"check": {"status": "passed", "reason": None}}
         )
         now[0] += timedelta(minutes=31)
         assert (
-            await request("approver", "POST", f"/tasks/{ident}/approval", json=body)
+            await request(
+                "demo-approver-g3", "POST", f"/tasks/{ident}/approval", json=body
+            )
         ).status_code == 409
-        assert (await service.get("requester", ident))["status"] == "expired"
+        assert (await service.get("demo-requester-g3", ident))["status"] == "expired"
         assert len(slack.sent) == 1
         ident, _ = await waiting()
         now[0] += timedelta(minutes=31)
-        assert (await service.get("requester", ident))["status"] == "expired"
-        assert await service.get("approver", ident) is None
+        assert (await service.get("demo-requester-g3", ident))["status"] == "expired"
+        assert await service.get("demo-approver-g3", ident) is None
         ident, body = await waiting()
         edited = {
             **body,
@@ -382,16 +394,18 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
             "edited": {"text": "수정된 합성 안내"},
         }
         changed = await request(
-            "approver", "POST", f"/tasks/{ident}/approval", json=edited
+            "demo-approver-g3", "POST", f"/tasks/{ident}/approval", json=edited
         )
         assert changed.status_code == 202 and changed.json()["status"] == "completed"
         assert slack.sent[-1][1]["text"] == "수정된 합성 안내"
         assert (
-            await request("approver", "POST", f"/tasks/{ident}/approval", json=edited)
+            await request(
+                "demo-approver-g3", "POST", f"/tasks/{ident}/approval", json=edited
+            )
         ).json() == changed.json()
         ident, body = await waiting()
         rejected = await request(
-            "approver",
+            "demo-approver-g3",
             "POST",
             f"/tasks/{ident}/approval",
             json={**body, "decision": "reject"},
@@ -413,7 +427,7 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
 )
 @pytest.mark.parametrize("channel", ["team-hr", "announce"])
 async def test_blocked_edit_restores_draft_and_allows_next_decision(
-    tmp_path, monkeypatch, next_decision, channel
+    tmp_path, next_decision, channel
 ):
     import json
     from datetime import UTC, datetime, timedelta
@@ -428,15 +442,14 @@ async def test_blocked_edit_restores_draft_and_allows_next_decision(
     from govops.tools.outbox import InMemoryOutboxStore
     from govops.tools.resilience import ToolPolicy
 
-    # Random UUID digits can match telephone PII and fail the audit before drafting.
-    monkeypatch.setattr(
-        "govops.api.tasks.uuid4", lambda: SimpleNamespace(hex="ab" * 16)
-    )
     users = {
         u.label: u
-        for u in (UserInfo("requester", "hr", 3), UserInfo("approver", "hr", 4))
+        for u in (
+            UserInfo("demo-requester-g3", "hr", 3),
+            UserInfo("demo-approver-g3", "hr", 4),
+        )
     }
-    actor = "requester" if channel == "team-hr" else "approver"
+    actor = "demo-requester-g3" if channel == "team-hr" else "demo-approver-g3"
     now = [datetime(2026, 10, 5, tzinfo=UTC)]
 
     class Slack:
@@ -482,9 +495,9 @@ async def test_blocked_edit_restores_draft_and_allows_next_decision(
     app = create_app(
         users=frozenset(users), sessions=sessions, demo_login=False, service=service
     )
-    ident = await service.start("requester", "합성 안내 발송")
+    ident = await service.start("demo-requester-g3", "합성 안내 발송")
     await asyncio.gather(*service._tasks)
-    original = await service.get("requester", ident)
+    original = await service.get("demo-requester-g3", ident)
     initial_state = await get_task(graph, ident)
     body = {
         "draft_sha256": original["draft_sha256"],
@@ -509,7 +522,7 @@ async def test_blocked_edit_restores_draft_and_allows_next_decision(
             blocked.status_code == 202
             and blocked.json()["status"] == "awaiting_approval"
         )
-        for user in {actor, "requester"}:
+        for user in {actor, "demo-requester-g3"}:
             response = await request(user, "GET")
             assert response.status_code == 200
             view = response.json()
@@ -559,7 +572,9 @@ async def test_blocked_edit_restores_draft_and_allows_next_decision(
         )
         if next_decision == "expire":
             now[0] += timedelta(minutes=21)
-            assert (await request("requester", "GET")).json()["status"] == "expired"
+            assert (await request("demo-requester-g3", "GET")).json()[
+                "status"
+            ] == "expired"
             assert (
                 await request(
                     actor,
@@ -600,7 +615,7 @@ async def test_blocked_edit_restores_draft_and_allows_next_decision(
             ).status_code == 409
             assert len(slack.sent) == (0 if next_decision == "reject" else 1)
             if slack.sent:
-                assert slack.sent[0][0] == "requester"
+                assert slack.sent[0][0] == "demo-requester-g3"
                 assert slack.sent[0][1]["text"] == (
                     "안전한 수정 안내"
                     if next_decision == "edit_approve"

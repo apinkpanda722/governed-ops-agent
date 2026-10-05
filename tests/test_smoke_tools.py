@@ -327,11 +327,6 @@ def test_contract_mismatch_and_cli(monkeypatch, capsys):
     "duplicate,missing", [(False, False), (True, False), (False, True)]
 )
 def test_effects_fake_transport(monkeypatch, duplicate, missing):
-    from types import SimpleNamespace
-
-    # 무작위 UUID의 숫자 부분이 감사 PII 검사에 걸리지 않게 입력을 고정한다.
-    identifiers = iter(prefix * 16 for prefix in ("ab", "ac", "ad"))
-    monkeypatch.setattr(smoke, "uuid4", lambda: SimpleNamespace(hex=next(identifiers)))
     monkeypatch.setattr(
         smoke.credentials, "credential_for", lambda *args: "fake-smoke-key"
     )
@@ -413,10 +408,6 @@ def test_effects_cli_safe_failure(monkeypatch, capsys):
 
 @pytest.mark.parametrize("stage", ["send", "lookup", "repeat", "count"])
 def test_effects_diagnostics(monkeypatch, stage):
-    from types import SimpleNamespace
-
-    identifiers = iter(prefix * 16 for prefix in ("ab", "ac", "ad"))
-    monkeypatch.setattr(smoke, "uuid4", lambda: SimpleNamespace(hex=next(identifiers)))
     monkeypatch.setattr(
         smoke.credentials, "credential_for", lambda *a: "sentinel-diagnostic-secret"
     )

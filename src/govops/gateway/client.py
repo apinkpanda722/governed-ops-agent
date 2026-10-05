@@ -29,6 +29,7 @@ from govops.costs import (
     response_cost_usd,
 )
 from govops.env import env_or
+from govops.gateway.faults import ModelFaultScript
 from govops.obs.trace import current_span_id, set_attributes
 
 _MODEL = "gpt-6-luna"
@@ -108,7 +109,15 @@ class LiteLLMChatClient:
         ledger: CostLedger | None = None,
         http_client: httpx.AsyncClient | None = None,
         timeout_s: float = 60.0,
+        fault_script: ModelFaultScript | None = None,
+        fault_mode: str | None = None,
     ):
+        if fault_mode not in {None, "mock_param", "down_alias"}:
+            raise ValueError("Invalid fault_mode")
+        if fault_script is not None and fault_mode is None:
+            raise ValueError("fault_script requires fault_mode")
+        self._fault_script = fault_script
+        self._fault_mode = fault_mode
         self._api_key = (
             api_key if api_key is not None else os.getenv("LITELLM_AGENT_KEY")
         )
@@ -153,6 +162,14 @@ class LiteLLMChatClient:
             "metadata": metadata,
             "max_completion_tokens": max_output_tokens,
         }
+        if self._fault_script is not None and self._fault_script.should_fail(task_id):
+            if self._fault_mode == "mock_param":
+                # OpenAI extra_body merges this flag into the JSON request root.
+                # Proxy acceptance requires user smoke verification; current docs:
+                # https://docs.litellm.ai/docs/proxy/reliability
+                body["mock_testing_fallbacks"] = True
+            else:
+                body["model"] = "agent-primary-down"
         # UTF-8 bytes bound token count conservatively; doubled serialization
         # plus fixed framing allowance covers per-message/tool protocol overhead.
         input_upper = (
@@ -190,6 +207,7 @@ class LiteLLMChatClient:
                 )
             except BudgetExceededError:
                 body["model"] = "agent-primary-only"
+                body.pop("mock_testing_fallbacks", None)
             else:
                 reservations.append(
                     (
@@ -265,7 +283,14 @@ class LiteLLMChatClient:
                     messages=body["messages"],
                     tools=body["tools"],
                     user=user_id,
-                    extra_body={"metadata": body["metadata"]},
+                    extra_body={
+                        "metadata": body["metadata"],
+                        **(
+                            {"mock_testing_fallbacks": True}
+                            if body.get("mock_testing_fallbacks")
+                            else {}
+                        ),
+                    },
                     max_completion_tokens=max_output_tokens,
                 )
             finally:
