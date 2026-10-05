@@ -1,6 +1,9 @@
 """검수 카드의 인라인 스타일·스크립트. 외부 리소스(CDN·폰트·이미지)를 쓰지 않는다."""
 
 STYLE = """
+.diff{border-left:4px solid #d97706;padding-left:10px;background:#fffbeb}
+details.same{margin:6px 0;color:#6b7280}
+details.same summary{cursor:pointer}
 body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;margin:0 auto;max-width:980px;padding:1.2em;color:#1b1f23;background:#fff}
 h1{font-size:1.4em}h2{font-size:1.15em;margin:.2em 0}h3{font-size:1em;margin:1em 0 .3em;color:#24468a}
 table{border-collapse:collapse;width:100%}td,th{border:1px solid #c5c9d0;padding:.35em .5em;text-align:left;overflow-wrap:anywhere;font-size:.92em}

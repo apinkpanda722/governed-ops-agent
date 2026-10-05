@@ -71,6 +71,83 @@ def _list(items: Sequence[str]) -> str:
     return "<ul>" + "".join("<li>" + i + "</li>" for i in items) + "</ul>"
 
 
+def _sections(content: CardContent) -> list[tuple[str, str]]:
+    """② 정답 ~ ⑥ 자동 점검. (제목, 본문 HTML). 이전 내용과 비교해 바뀐 칸만 강조하는 데 쓴다."""
+    result = []
+    body = _list(_e(s) for s in content.answer)
+    if content.approval:
+        body += "<p class=small>승인 시나리오</p>" + _list(
+            _e(s) for s in content.approval
+        )
+    if content.calc:
+        body += "<p class=small>계산 근거</p>" + _list(_e(s) for s in content.calc)
+    result.append(("② 정답", body))
+    body = ""
+    if content.facts or content.derived:
+        for fact in content.facts:
+            body += (
+                "<p><b>"
+                + _e(fact.label)
+                + "</b>: "
+                + _e(fact.value)
+                + ' <span class="small">('
+                + _e(fact.rule)
+                + ")</span></p>"
+            )
+            body += (
+                "".join(_evidence(item) for item in fact.evidence)
+                if fact.evidence
+                else '<p class="ng">본문에서 근거 위치를 찾지 못했습니다.</p>'
+            )
+        if content.derived:
+            body += _list(_e(d) for d in content.derived)
+    else:
+        body += "<p>없음 (내용 정확성이 아니라 올바른 처리 여부로 판정하는 문항)</p>"
+    result.append(("③ 답에 들어가야 할 내용", body))
+    if content.access:
+        body = _list(
+            f'<span class="{"ok" if line.readable else "ng"}">'
+            + ("읽을 수 있음" if line.readable else "읽을 수 없음")
+            + "</span> "
+            + _e(line.kind)
+            + " "
+            + _e(line.item_id)
+            + (" 「" + _e(line.title) + "」" if line.title else "")
+            + " — "
+            + _e(line.reason)
+            for line in content.access
+        )
+    else:
+        body = "<p>없음</p>"
+    result.append(("④ 권한", body))
+    body = ""
+    if content.forbidden:
+        for line in content.forbidden:
+            body += (
+                "<p>"
+                + _e(line.text)
+                + ' <span class="small">— '
+                + _e(line.reason)
+                + "</span></p>"
+            )
+            if line.evidence:
+                body += _evidence(line.evidence, bad=True)
+    else:
+        body = "<p>없음</p>"
+    result.append(("⑤ 답에 나오면 안 되는 것", body))
+    result.append(
+        (
+            "⑥ 자동 점검",
+            _list(
+                f'<span class="{"ok" if c.ok else "ng"}">{"✓" if c.ok else "✗"}</span> '
+                + _e(c.text)
+                for c in content.checks
+            ),
+        )
+    )
+    return result
+
+
 def _card(
     content: CardContent,
     state: str,
@@ -78,6 +155,7 @@ def _card(
     previous: str | None = None,
     carried: Carried | None = None,
     changed: bool = False,
+    previous_content: CardContent | None = None,
 ) -> str:
     spec = content.spec
     sha = spec_hash(spec)
@@ -140,69 +218,27 @@ def _card(
         + _e(spec.request)
         + "</div>"
     )
-    out += "<h3>② 정답</h3>" + _list(_e(s) for s in content.answer)
-    if content.approval:
-        out += "<p class=small>승인 시나리오</p>" + _list(
-            _e(s) for s in content.approval
-        )
-    if content.calc:
-        out += "<p class=small>계산 근거</p>" + _list(_e(s) for s in content.calc)
-    out += "<h3>③ 답에 들어가야 할 내용</h3>"
-    if content.facts or content.derived:
-        for fact in content.facts:
+    previous_sections = dict(_sections(previous_content)) if previous_content else None
+    for title, body in _sections(content):
+        if previous_sections is None:
+            out += f"<h3>{_e(title)}</h3>" + body
+        elif previous_sections.get(title) == body:
+            # 바뀌지 않은 칸은 접는다
             out += (
-                "<p><b>"
-                + _e(fact.label)
-                + "</b>: "
-                + _e(fact.value)
-                + ' <span class="small">('
-                + _e(fact.rule)
-                + ")</span></p>"
+                '<details class="same"><summary>'
+                + _e(title)
+                + " — 바뀌지 않음(펼치기)</summary>"
+                + body
+                + "</details>"
             )
+        else:
             out += (
-                "".join(_evidence(item) for item in fact.evidence)
-                if fact.evidence
-                else '<p class="ng">본문에서 근거 위치를 찾지 못했습니다.</p>'
+                '<div class="diff"><h3>'
+                + _e(title)
+                + ' <span class="tag">바뀜</span></h3>'
+                + body
+                + "</div>"
             )
-        if content.derived:
-            out += _list(_e(d) for d in content.derived)
-    else:
-        out += "<p>없음 (내용 정확성이 아니라 올바른 처리 여부로 판정하는 문항)</p>"
-    out += "<h3>④ 권한</h3>"
-    if content.access:
-        out += _list(
-            f'<span class="{"ok" if line.readable else "ng"}">'
-            + ("읽을 수 있음" if line.readable else "읽을 수 없음")
-            + "</span> "
-            + _e(line.kind)
-            + " "
-            + _e(line.item_id)
-            + (" 「" + _e(line.title) + "」" if line.title else "")
-            + " — "
-            + _e(line.reason)
-            for line in content.access
-        )
-    else:
-        out += "<p>없음</p>"
-    out += "<h3>⑤ 답에 나오면 안 되는 것</h3>"
-    if content.forbidden:
-        for line in content.forbidden:
-            out += (
-                "<p>"
-                + _e(line.text)
-                + ' <span class="small">— '
-                + _e(line.reason)
-                + "</span></p>"
-            )
-            if line.evidence:
-                out += _evidence(line.evidence, bad=True)
-    else:
-        out += "<p>없음</p>"
-    out += "<h3>⑥ 자동 점검</h3>" + _list(
-        f'<span class="{"ok" if c.ok else "ng"}">{"✓" if c.ok else "✗"}</span> '
-        + _e(c.text)
-        for c in content.checks
-    )
     out += (
         '<h3>⑦ 판정</h3><div class="judge">'
         + "".join(
@@ -286,6 +322,13 @@ def build_cards(
             )
         except ReviewFormatError:
             carried = {}
+    previous_contents: dict[str, CardContent] = {}
+    for old in previous_specs or []:
+        if old.task_id in changed_ids:
+            try:
+                previous_contents[old.task_id] = build_content(old, ctx)
+            except (KeyError, ValueError):
+                pass  # 이전 명세를 카드로 만들 수 없으면 바뀐 칸 비교를 건너뛴다
     rows = "".join(
         f'<tr data-task="{_e(c.spec.task_id)}" data-type="{_e(c.spec.type)}" '
         f'data-split="{_e(c.spec.split)}" data-exec="{_e(c.spec.executable_in)}" '
@@ -324,6 +367,8 @@ def build_cards(
         "정답의 근거입니다. 요청 문장만 바뀐 문항에는 이전 판정이 미리 채워져 있으니 새 문장만 확인하세요. 판정은 이 브라우저에만 임시 저장되고, 위의 저장 버튼으로 "
         "<code>confirmed.json</code>을 내려받아 <code>data/eval/review/</code>에 두어야 "
         "확정본으로 인정됩니다. 판정하지 않은 문항은 파일에 들어가지 않습니다.</p>"
+        "<p>직급은 숫자가 클수록 상위 직급입니다(1급이 가장 낮고 6급이 가장 높음). "
+        "다시 만들어진 문항은 바뀐 칸만 강조하고 바뀌지 않은 칸은 접어 두었습니다.</p>"
     )
     summary = (
         "<table><tr><th>문항</th><th>유형</th><th>구분</th><th>실행</th><th>자동 점검</th>"
@@ -348,6 +393,7 @@ def build_cards(
                 request_only.get(c.spec.task_id),
                 carried.get(c.spec.task_id),
                 c.spec.task_id in changed_ids,
+                previous_contents.get(c.spec.task_id),
             )
             for c in contents
         )

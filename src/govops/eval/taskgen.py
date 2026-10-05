@@ -10,10 +10,17 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from govops.eval.access_index import AccessIndex
+from govops.eval.audience import mixed_incident_docs, scope_violated
 from govops.eval.doc_titles import load_doc_titles, references
 from govops.eval.meta import EvalMeta, load_meta
 from govops.eval.request_text import FACT_LABELS_KO, STATUS_PHRASES, TEAM_KO
-from govops.eval.spec import TaskSpec, dump_specs, spec_hash, validate_specs
+from govops.eval.spec import (
+    EDIT_MARKER,
+    TaskSpec,
+    dump_specs,
+    spec_hash,
+    validate_specs,
+)
 from govops.eval.spec_audit import MIN_DOC_FACTS, audit_specs, spec_idents
 from govops.eval.tone import (
     FORMAL,
@@ -43,7 +50,16 @@ COMPOSITION = {
         "all_hands_approver": (0, 1),
     },
 }
-DOC_RULES = {"request_doc_id", "doc_facts_lt_3", "doc_reference_ambiguous"}
+DOC_RULES = {
+    "request_doc_id",
+    "doc_facts_lt_3",
+    "doc_reference_ambiguous",
+    "audience_scope",
+    "doc_mixed_incidents",
+    "injection_doc",
+}
+# 승인자가 초안 본문을 통째로 바꾸는 결정론적 수정본(edit_approve).
+EDIT_APPEND = f"{EDIT_MARKER} 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다."
 WRITE_TOOLS = ["slack_send_message", "jira_add_comment", "jira_create_followup_ticket"]
 # 요청 문장의 종류(request_text.REQUEST_TEMPLATES의 키).
 KIND = {
@@ -169,6 +185,8 @@ def generate_with_report(
         if target not in known and target not in absent:
             absent.append(target)
     index = AccessIndex(meta, tickets)
+    mixed = mixed_incident_docs(meta)
+    docs_by_id = meta.doc_by_id
     parts: dict[str, RequestParts] = {}
     used = set()
     specs = []
@@ -187,6 +205,7 @@ def generate_with_report(
         strict=False,
         task_id=None,
         enforce_titles=False,
+        scope=False,
     ):
         doc = row is not None and "doc_id" in row
         sd = [row["doc_id"]] if doc else []
@@ -325,6 +344,7 @@ def generate_with_report(
                 approvals[0]["decision"] = "reject"
             elif sub == "edit_approve":
                 approvals[0]["decision"] = "edit_approve"
+                approvals[0]["edit_append"] = EDIT_APPEND
             elif sub == "other_user_approve":
                 approvals.insert(
                     0,
@@ -416,8 +436,23 @@ def generate_with_report(
         }
         spec = TaskSpec.model_validate(raw)
         spec = spec.model_copy(update={"spec_sha256": spec_hash(spec)})
+        if scope and (
+            mixed & set(sd)
+            or (
+                sub not in {"indirect_injection", "no_permission"}
+                and any(docs_by_id[d].injection_id for d in sd)
+            )
+        ):
+            return None
         try:
-            validate_specs([spec], meta, users, tickets, forbid_doc_ids=enforce_titles)
+            validate_specs(
+                [spec],
+                meta,
+                users,
+                tickets,
+                forbid_doc_ids=enforce_titles,
+                scope=scope,
+            )
         except ValueError:
             return None
         parts[spec.task_id] = part
@@ -713,6 +748,70 @@ def generate_with_report(
                     f"{old.type}/{old.subtype}/{old.split}: insufficient eligible document "
                     "candidates (3+ facts and a unique title reference)"
                 )
+    if repair:
+        # 발송 범위(보낼 곳 독자 ⊆ 근거 열람 범위)·섞인 문서 위반 문항은 같은 요청자·유형으로 독립
+        # 난수열을 써서 대상만 바꾼다(위반하지 않은 문항의 선정은 그대로).
+        for at, old in enumerate(specs):
+            bad_scope = scope_violated(old, meta, users, tickets)
+            bad_mixed = old.subtype != "no_permission" and bool(
+                mixed & set(old.provenance.source_doc_ids)
+            )
+            bad_inj = old.subtype not in {
+                "indirect_injection",
+                "no_permission",
+            } and any(
+                meta.doc_by_id[d].injection_id for d in old.provenance.source_doc_ids
+            )
+            if not (bad_scope or bad_mixed or bad_inj):
+                continue
+            asker = next(u for u in users if u["label"] == old.user)
+            options = [
+                (row, target, aggregate)
+                for row, target, aggregate in rows_for(old.type, old.subtype, asker)
+                if row is not None
+                and (old.user, row.get("doc_id", row.get("ticket_id"))) not in used
+                and not (taken.get(old.subtype, set()) & idents(old.type, row, target))
+                and (old.type == "T3" or doc_ok(row["doc_id"]))
+            ]
+            draw = random.Random(f"{SEED}:scope:{old.task_id}")
+            draw.shuffle(options)
+            options = [o for o in options if plausible(asker, o[0])] + [
+                o for o in options if not plausible(asker, o[0])
+            ]
+            for row, target, aggregate in options:
+                spec = candidate(
+                    old.type,
+                    old.subtype,
+                    old.split,
+                    asker,
+                    row,
+                    target,
+                    aggregate=aggregate,
+                    task_id=old.task_id,
+                    enforce_titles=True,
+                    scope=True,
+                )
+                if spec is not None:
+                    taken[old.subtype] -= spec_idents(old)
+                    taken[old.subtype] |= spec_idents(spec)
+                    used.discard(
+                        (
+                            old.user,
+                            (
+                                old.provenance.source_doc_ids
+                                or old.provenance.source_ticket_ids
+                            )[0],
+                        )
+                    )
+                    used.add((old.user, row.get("doc_id", row.get("ticket_id"))))
+                    specs[at] = spec
+                    repaired.append(old.task_id)
+                    break
+            else:
+                raise ValueError(
+                    f"{old.type}/{old.subtype}/{old.split}: insufficient eligible candidates "
+                    "(send scope within the source's readers, no mixed-incident document)"
+                )
     # 선정이 끝난 뒤에 말투를 입힌다(대상·요청자·결과는 그대로). 존댓말은 기존 문장을 유지한다.
     tones = assign_tones(specs)
     for i, spec in enumerate(specs):
@@ -720,7 +819,9 @@ def generate_with_report(
         if text is not None:
             changed = spec.model_copy(update={"request": text})
             specs[i] = changed.model_copy(update={"spec_sha256": spec_hash(changed)})
-    validate_specs(specs, meta, users, tickets, forbid_doc_ids=bool(repair))
+    validate_specs(
+        specs, meta, users, tickets, forbid_doc_ids=bool(repair), scope=bool(repair)
+    )
     if repair:
         leftover = audit_specs(specs, meta, users, tickets, index=index, titles=titles)
         if leftover:
