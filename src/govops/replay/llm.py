@@ -84,9 +84,27 @@ def _safe(value: Any, *, tool_schema: bool = False) -> None:
             _safe(nested, tool_schema=tool_schema)
 
 
+def _order_free(message):
+    """도구 결과 메시지는 JSON 문자열이다. 키 순서는 live(A 응답 순서)와 기록(키 정렬 저장)이 달라도
+    같은 내용이므로, 요청 키에서는 정렬한 형태로 본다. 파싱되지 않는 문자열은 그대로 둔다."""
+    content = message.get("content") if isinstance(message, Mapping) else None
+    if (
+        isinstance(message, Mapping)
+        and message.get("role") == "tool"
+        and isinstance(content, str)
+    ):
+        try:
+            nested = json.loads(content)
+        except ValueError:
+            return message
+        if isinstance(nested, (dict, list)):
+            return {**message, "content": _canonical(nested)}
+    return message
+
+
 def _request(messages, tools, max_output_tokens) -> dict:
     return {
-        "messages": list(messages),
+        "messages": [_order_free(m) for m in messages],
         "tools": list(tools),
         "max_completion_tokens": max_output_tokens,
     }

@@ -196,3 +196,34 @@ def test_failed_atomic_replace_preserves_existing_file(tmp_path):
         second.finish()
     assert path.read_bytes() == before
     assert list(tmp_path.iterdir()) == [path]
+
+
+def test_tool_result_key_order_does_not_change_the_request_key():
+    """live는 A 응답의 키 순서로, 기록 파일은 키 정렬로 도구 결과를 담는다. 같은 내용이면 같은 키다."""
+    from govops.replay.llm import _hash, _request
+
+    live = {
+        "role": "tool",
+        "tool_call_id": "c1",
+        "content": '{"b": 1, "a": {"y": 2, "x": 3}}',
+    }
+    stored = {
+        "role": "tool",
+        "tool_call_id": "c1",
+        "content": '{"a":{"x":3,"y":2},"b":1}',
+    }
+    other = {
+        "role": "tool",
+        "tool_call_id": "c1",
+        "content": '{"a":{"x":3,"y":9},"b":1}',
+    }
+    base = [{"role": "user", "content": "q"}]
+    assert _hash(_request([*base, live], [], 1024)) == _hash(
+        _request([*base, stored], [], 1024)
+    )
+    assert _hash(_request([*base, live], [], 1024)) != _hash(
+        _request([*base, other], [], 1024)
+    )
+    # 문자열이 JSON이 아니면 그대로 비교한다
+    text = {"role": "tool", "tool_call_id": "c1", "content": "not json"}
+    assert _hash(_request([text], [], 1024)) != _hash(_request([live], [], 1024))
