@@ -43,6 +43,8 @@ class Observation(_Model):
     observed_ids: list[str]
     cited_doc_ids: list[str]
     tool_calls: list[ToolCallRecord]
+    # Runner retains structural result IDs only, never tool bodies.
+    tool_results: list[dict] = Field(default_factory=list)
     effects: list[ObservedEffect]
     effect_bodies: list[str]
     approvals: list[ApprovalRecord]
