@@ -27,7 +27,8 @@
     },
     {
       "dir": "m2-run",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-10-05T12:29:04+0900"
     }
   ]
 }
