@@ -54,7 +54,7 @@ _DOC_FORM = re.compile(
 )
 
 
-def _safe(value: Any) -> None:
+def _safe(value: Any, *, tool_schema: bool = False) -> None:
     text = _canonical(value)
     if _SECRET.search(text) or scrub_secrets(text) != text:
         raise RecordingRejected("credential in LLM recording")
@@ -64,14 +64,16 @@ def _safe(value: Any) -> None:
         raise RecordingRejected("non-synthetic document in LLM recording")
     if isinstance(value, Mapping):
         for key, child in value.items():
-            if key in {"doc_id", "document_id"} and (
-                not isinstance(child, str) or not child.startswith("syn-")
+            if (
+                not tool_schema
+                and key in {"doc_id", "document_id"}
+                and (not isinstance(child, str) or not child.startswith("syn-"))
             ):
                 raise RecordingRejected("non-synthetic document in LLM recording")
-            _safe(child)
+            _safe(child, tool_schema=tool_schema)
     elif isinstance(value, (list, tuple)):
         for child in value:
-            _safe(child)
+            _safe(child, tool_schema=tool_schema)
     elif isinstance(value, str):
         # Tool-result messages contain JSON as an opaque string.
         try:
@@ -79,7 +81,7 @@ def _safe(value: Any) -> None:
         except ValueError:
             return
         if isinstance(nested, (dict, list)):
-            _safe(nested)
+            _safe(nested, tool_schema=tool_schema)
 
 
 def _request(messages, tools, max_output_tokens) -> dict:
@@ -134,7 +136,10 @@ class RecordingChatClient:
             raise RecordingRejected("recording is closed")
         request = _request(messages, tools, max_output_tokens)
         try:
-            _safe(request)
+            _safe(request["messages"])
+            # Schema property names identify inputs, not returned document IDs.
+            # Credentials and synthetic string values are still screened.
+            _safe(request["tools"], tool_schema=True)
         except RecordingRejected:
             self._rejected = True
             raise
