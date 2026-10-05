@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "audit-min",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T17:19:26+0900",
+      "summary": "비체인 JSONL AuditLog·AuditPort·안전한 검증 오류·append_with_retry 구현, seq 연속성·동시성·해시 10,000개·권한 검증 및 make verify 통과(Python 1,403개·웹 15개).",
+      "completed_at": "2026-10-05T17:33:47+0900",
+      "usage": {
+        "input_tokens": 1170915,
+        "cached_input_tokens": 1120128,
+        "output_tokens": 5977,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
