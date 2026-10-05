@@ -1,0 +1,4632 @@
+{
+  "docs": {
+    "law-2200000111035": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000111091": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000111093": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000111097": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000111365": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000111403": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000111637": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000118161": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000131087": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000132645": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000134309": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000134947": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000135767": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000135887": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000135895": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000136721": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000139795": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000139835": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000140323": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148259": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148319": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148325": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148327": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148329": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148341": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148343": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148345": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148347": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148533": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148535": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148719": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148721": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148723": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148727": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148729": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148731": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148733": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148757": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148759": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148765": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148767": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148769": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148771": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148773": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148775": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148777": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000148779": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000149159": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000149437": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000149619": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000149621": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000149879": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150467": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150469": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150471": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150473": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150475": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150479": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150481": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150483": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150485": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150495": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150561": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150563": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150565": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150567": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150569": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150573": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150587": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150589": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150591": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150593": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150595": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150597": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150619": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150623": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150625": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150627": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150629": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150631": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150633": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150635": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150649": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150653": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000150989": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151383": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151385": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151389": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151391": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151393": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151395": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151397": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151399": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151401": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151403": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151801": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151803": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000151831": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000152495": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "law-2200000156139": {
+      "level": "public",
+      "min_grade": 0,
+      "teams": []
+    },
+    "syn-guide-001": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-guide-002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-003": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-guide-004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-005": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-guide-006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-guide-008": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-010": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-guide-011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-012": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-guide-013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-014": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-guide-015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-016": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-guide-017": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-018": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-guide-019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-020": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-guide-021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-guide-023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-guide-024": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-guide-025": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-guide-026": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-guide-027": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-guide-028": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-guide-029": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-guide-030": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-incident-001": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-incident-002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-003": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-incident-004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-005": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-incident-006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-007": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-008": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-incident-009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-010": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-incident-011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-012": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-incident-013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-014": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-incident-015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-016": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-incident-017": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-018": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-incident-019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-020": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-incident-021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-incident-023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-incident-025": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-meeting-001": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-meeting-002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-003": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-meeting-004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-005": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-meeting-006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-meeting-008": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-009": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-meeting-010": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-011": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-meeting-012": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-013": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-meeting-014": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-015": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-meeting-016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-017": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-018": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-meeting-019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-020": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-meeting-021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-meeting-023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-024": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-meeting-025": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-026": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-meeting-027": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-028": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-meeting-029": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-030": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-meeting-031": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-032": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-meeting-033": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-034": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-035": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-meeting-036": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-037": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-meeting-038": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-039": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-meeting-040": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-041": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-meeting-042": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-043": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-meeting-044": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-meeting-045": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-meeting-046": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-meeting-047": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-meeting-048": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-meeting-049": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-meeting-050": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-notice-001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-003": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-notice-004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-005": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-notice-006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-notice-008": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-009": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-notice-010": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-011": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-notice-012": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-013": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-notice-014": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-015": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-notice-016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-017": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-notice-018": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-notice-020": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-notice-021": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-notice-022": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-notice-023": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-notice-024": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-notice-025": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-runbook-001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-runbook-003": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-runbook-005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-006": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-runbook-007": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-008": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-runbook-009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-010": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-runbook-011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-012": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-runbook-013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-014": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-runbook-015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-017": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-runbook-018": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-019": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-runbook-020": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-021": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-runbook-022": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-023": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-runbook-024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-runbook-025": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-runbook-026": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-runbook-027": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-runbook-028": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-runbook-029": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-runbook-030": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-weekly-001": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-weekly-002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-003": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-weekly-004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-005": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-weekly-006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-007": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-008": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-weekly-009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-010": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-weekly-011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-012": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-weekly-013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-014": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-weekly-015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-016": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-weekly-017": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-018": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-weekly-019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-020": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "syn-weekly-021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "syn-weekly-023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-025": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-weekly-026": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-027": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-weekly-028": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-029": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "syn-weekly-030": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-031": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-weekly-032": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-033": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-weekly-034": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "syn-weekly-035": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "syn-weekly-036": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "sre"
+      ]
+    },
+    "syn-weekly-037": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "security"
+      ]
+    },
+    "syn-weekly-038": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "hr"
+      ]
+    },
+    "syn-weekly-039": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "finance"
+      ]
+    },
+    "syn-weekly-040": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    }
+  },
+  "generated_from": {
+    "a_commit": "d2eec9c08ffbd61cf8ab5d84d4dd817452d044cc",
+    "meta_sha256": "6c8e6f59489bcc58a196da57c78637f0afcb9dd2bece7b8bd0b85cbec043eb12",
+    "non_synthetic_doc_count": 100,
+    "tickets_sha256": "04ffa7dbd2c3922373d735c755267749d7e7a7fabbd48c1686e7df44ee4f6257"
+  },
+  "tickets": {
+    "DAI-1001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1003": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1005": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1008": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1010": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1012": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1013": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1014": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1017": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1018": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1020": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1025": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1026": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1027": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1028": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1029": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1030": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1031": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1032": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1033": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1034": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1035": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1036": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1037": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1038": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1039": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1040": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1041": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1042": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1043": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1044": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1045": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1046": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1047": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1048": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1049": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1050": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1051": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1052": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1053": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1054": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1055": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1056": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1057": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1058": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1059": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1060": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1061": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1062": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1063": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1064": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1065": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1066": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1067": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1068": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1069": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1070": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1071": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1072": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-1073": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1074": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-1075": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-2001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "DAI-2002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-2003": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "DAI-2004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "data-ai"
+      ]
+    },
+    "FIN-1001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1003": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1005": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1008": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1010": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1012": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1014": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1015": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1017": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1018": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1019": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1020": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1022": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1023": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1024": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1025": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1026": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1027": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1028": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1029": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1030": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1031": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1032": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-1033": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1034": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1035": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-1036": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-2001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "FIN-2002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-2003": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-2004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "finance"
+      ]
+    },
+    "FIN-2005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-1003": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-1005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1007": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1008": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1009": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-1010": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1012": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-1013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1014": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1017": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-1018": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1019": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-1020": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1021": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-1022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-1023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1025": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-1026": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-2001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-2002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "HRM-2003": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-2004": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "hr"
+      ]
+    },
+    "HRM-2005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1003": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1008": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1009": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1010": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1011": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1012": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1014": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1017": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1018": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1019": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1020": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1025": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1026": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-1027": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1028": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-1029": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-2001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "LGL-2002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-2003": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "legal"
+      ]
+    },
+    "LGL-2004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "legal"
+      ]
+    },
+    "PAY-1001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1003": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1007": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1008": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1010": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1012": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1014": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1015": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1016": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1017": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1018": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1020": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1022": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1025": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1026": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1027": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1028": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1029": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1030": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1031": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1032": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1033": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1034": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1035": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1036": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1037": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1038": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1039": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1040": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1041": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1042": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1043": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1044": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1045": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1046": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1047": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1048": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1049": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1050": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1051": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1052": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1053": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1054": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1055": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1056": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1057": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1058": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1059": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1060": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1061": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1062": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1063": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1064": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1065": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1066": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1067": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1068": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1069": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1070": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1071": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1072": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1073": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1074": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1075": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1076": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1077": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1078": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1079": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1080": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1081": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1082": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1083": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1084": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1085": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1086": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1087": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1088": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1089": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-1090": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-1234": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PAY-2001": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-2002": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "payments"
+      ]
+    },
+    "PAY-2003": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1003": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1006": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1008": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1009": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1010": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1011": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1012": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1014": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1017": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1018": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1020": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1023": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1024": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1025": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1026": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1027": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1028": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1029": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1030": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1031": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1032": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1033": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1034": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1035": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1036": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1037": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1038": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1039": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1040": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1041": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1042": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1043": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1044": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1045": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1046": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1047": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1048": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1049": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1050": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1051": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1052": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1053": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1054": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1055": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1056": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1057": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1058": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1059": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1060": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1061": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1062": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1063": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1064": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1065": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1066": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1067": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1068": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1069": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1070": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1071": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1072": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1073": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1074": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1075": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1076": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1077": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1078": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1079": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1080": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1081": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1082": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1083": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1084": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1085": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1086": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1087": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1088": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1089": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1090": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1091": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-1092": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-1093": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-2001": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-2002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-2003": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "platform"
+      ]
+    },
+    "PLT-2004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "PLT-2005": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "platform"
+      ]
+    },
+    "SEC-1001": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1002": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1003": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1006": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1008": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1010": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1011": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1012": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1014": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1016": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1017": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1018": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1019": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1020": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1021": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1022": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1025": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1026": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1027": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1028": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1029": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1030": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1031": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1032": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-1033": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-1034": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SEC-2001": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-2002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-2003": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-2004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "security"
+      ]
+    },
+    "SEC-2005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1002": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1003": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1004": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1005": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1006": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1007": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1008": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1009": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1010": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1011": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1012": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1013": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1014": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1015": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1016": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1017": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1018": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1019": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1020": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1021": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1022": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1023": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1024": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1025": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1026": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1027": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1028": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1029": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1030": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1031": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1032": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1033": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1034": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1035": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1036": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1037": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1038": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1039": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1040": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1041": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1042": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1043": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1044": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1045": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1046": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1047": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1048": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1049": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1050": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1051": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1052": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1053": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1054": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1055": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1056": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1057": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1058": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1059": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1060": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1061": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1062": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1063": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1064": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1065": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1066": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1067": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1068": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1069": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1070": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1071": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1072": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1073": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1074": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1075": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1076": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1077": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1078": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1079": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-1080": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-1081": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-2001": {
+      "level": "public",
+      "min_grade": 1,
+      "teams": []
+    },
+    "SRE-2002": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-2003": {
+      "level": "restricted",
+      "min_grade": 4,
+      "teams": [
+        "sre"
+      ]
+    },
+    "SRE-2004": {
+      "level": "team",
+      "min_grade": 1,
+      "teams": [
+        "sre"
+      ]
+    }
+  }
+}
