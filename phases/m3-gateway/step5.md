@@ -17,10 +17,11 @@
 2. **비용 메모**: 4.7 이후 Anthropic 모델은 새 토크나이저를 쓰므로 같은 텍스트에 토큰이 약 30% 더 나온다. 호출 전 추정은 입력 상한을 크게 잡으므로 보정 계수를 두지 않고, 실측 비용은 원장으로 확인한다.
 3. **모델 호출 타임아웃**(도구 호출의 Soft 3초/Hard 10초와 별개): 주 모델 15초, `num_retries` 0(같은 모델 재시도 없이 바로 fallback), fallback 모델 30초, 클라이언트 60초. 두 LiteLLM 설정 파일(`config.yaml`·`config.obs.yaml`)의 값은 같고 테스트로 고정한다.
 4. **원장**: fallback이 가능한 호출은 공급사별 예약 2건(OpenAI·Anthropic, 각 공급사 단가)을 잡고 응답 모델 기준으로 정산한다(응답한 쪽에 실제 비용, 다른 쪽은 0). OpenAI 상한 소진은 예산 중단이고, Anthropic 상한만 소진되면 fallback 없는 별칭(`agent-primary-only`)으로 호출한다.
-5. **응답 모델 ID 매핑**은 정확 일치 + 등록된 접두어(날짜 접미사 `-YYYYMMDD`·`-YYYY-MM-DD` 허용)이다. 매핑되지 않은 모델은 등록 모델 중 최대 단가로 두 예약 모두 정산하고 경보한다. dev manifest에 `unmapped_models`를 기록하고 하나라도 있으면 결과 문서에 표시한다. 호출마다 제공자 모델 ID를 `ChatResult.model`·LLM 기록 `response_model`·`models_seen`에 남긴다.
+5. **응답 모델 ID 매핑**은 정확 일치 + 등록된 접두어(날짜 접미사 `-YYYYMMDD`·`-YYYY-MM-DD` 허용)이다. 매핑되지 않은 모델은 등록 모델 중 최대 단가로 두 예약 모두 정산하고 경보한다. **미등록 응답 모델은 가장 비싼 단가로 양쪽 공급사에 모두 정산하므로 비용 보고가 과대 계상될 수 있다.** dev manifest에 `unmapped_models`를 기록하고 하나라도 있으면 결과 문서에 표시한다. 호출마다 제공자 모델 ID를 `ChatResult.model`·LLM 기록 `response_model`·`models_seen`에 남긴다.
 6. **모델 장애 주입(F6)**: 호출 번호 기준 스크립트(첫 호출만·둘째 호출만·전부 실패)를 두 백엔드로 구현한다 — `mock_testing_fallbacks` 요청 파라미터, 닫힌 포트를 가리키는 배포 `agent-primary-down` + fallbacks. 하네스에서만 쓰고 `GOVOPS_MODEL_FAULT_MODE`가 설정된 상태로는 일반 서비스가 시작되지 않는다. 사용할 백엔드는 `smoke-fallback` 결과로 사전 등록 문서에서 하나로 확정한다. chaos proxy는 쓰지 않는다.
 7. **환경 변수**: 빈 문자열·공백은 미설정으로 보고 기본값을 쓴다(`env_or`). `src` 전체에서 비어 있지 않은 기본값을 `environ.get`/`getenv`에 넘기는 패턴은 스캔 테스트가 막는다.
-8. **mock 변경 후 절차**: mock 코드가 바뀐 PR을 머지한 뒤에는 `docker compose -f infra/docker-compose.yml up -d --build mock-jira mock-slack`을 실행한다.
+8. **감사 식별자**: 감사 로그의 `task_id`(`^[0-9a-f]{32}$`)와 `actor_sub`(등록 사용자 라벨 형식)는 형식으로 검증하며 개인정보 정규식은 식별자·해시 필드에 적용하지 않는다(무작위 hex가 전화번호 규칙에 걸려 정상 기록이 거부되는 것을 막는다). 형식 밖 값은 거부한다.
+9. **mock 변경 후 절차**: mock 코드가 바뀐 PR을 머지한 뒤에는 `docker compose -f infra/docker-compose.yml up -d --build mock-jira mock-slack`을 실행한다.
 
 ### 기존 문서의 "확인 필요" 갱신
 

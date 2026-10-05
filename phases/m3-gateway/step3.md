@@ -2,10 +2,23 @@
 
 ## 읽어야 할 파일
 
+- (선행 결함 수정용) `/src/govops/audit/log.py`, `/tests/test_audit_log*.py`(감사 로그 테스트들), `/tests/test_api_tasks.py`, `/tests/test_smoke_tools.py`, `/src/govops/tools/smoke.py`, `/src/govops/guardrails/pii.py`, 커밋 `4b53fb2`와 `023a86d`의 테스트 변경(`git show`로 확인)
 - `/AGENTS.md`, `/docs/ADR.md` (ADR-007·008·009·018), `/docs/ARCHITECTURE.md` ("게이트웨이와 Guardrail 비대칭 구조", "상태 관리"의 비용 원장), `/docs/THREAT_MODEL.md` (F6)
 - `/src/govops/gateway/client.py`(이전 step 결과), `/infra/litellm/config.yaml`(`agent-primary-down`), `/src/govops/api/wiring.py`, `/src/govops/api/startup.py`, `/tests/test_gateway_client.py`, `/tests/test_api_wiring.py`, `/docs/THREAT_MODEL.md`(F6)
 
 ## 작업
+
+### 0. 선행: 감사 로그 식별자 검증 결함 수정
+
+**결함**: `audit/log.py`의 `append`가 `task_id`·`actor_sub`에 개인정보 정규식(`find_pii`)을 돌린다. `task_id`는 `uuid4().hex`(32자리 hex)라 숫자가 길게 이어지면 전화번호 규칙에 걸린다. 무작위 10만 개를 실제 `find_pii`로 돌리면 약 0.453%가 거부된다. 걸린 task는 초안 감사 기록이 실패해 `audit_write_failed`로 끝난다(dev·장애 주입·서비스에서 무작위 실패). `m3-effects`에서 해시 필드에 대해 고친 것과 같은 패턴의 재발이다.
+
+**수정** (테스트로 가리지 말고 코드를 고친다):
+1. 식별자는 **형식으로 검증하고 PII 검사를 하지 않는다**. `task_id`는 `^[0-9a-f]{32}$`, `actor_sub`는 등록 사용자 라벨 형식 `^demo-[a-z-]+-g[0-9]+$`(또는 `data/seed/users.json`의 라벨 목록)이다. 형식 밖이면 `AuditWriteError`(`ValueError` 하위)로 거부한다. smoke·진단 코드가 쓰는 ID도 같은 형식을 쓴다(`smoke-` 같은 접두어 ID 금지, `uuid4().hex`를 쓴다). 감사 로그에 `task_id`·`actor_sub`를 넘기는 모든 호출 지점(`agent/`·`api/`·`tools/`·smoke)이 이 형식을 지키는지 확인하고, 지키지 않는 곳은 호출 쪽을 고친다.
+2. **되돌릴 것**: 커밋 `4b53fb2`와 `023a86d`에서 무작위 `uuid4`를 고정 ID로 바꾸거나 `monkeypatch`한 테스트 변경(`tests/test_api_tasks.py`, smoke 관련 테스트 등)을 **되돌린다**. 테스트는 다시 무작위 ID로 돈다. 형식 변경 때문에 필요한 수정(예: 감사에 임의 문자열 `task_id`를 쓰던 기존 테스트를 32자리 hex로 바꾸는 것)은 허용하되, 입력을 고정해서 결함을 가리는 변경은 금지한다. 되돌린 목록을 최종 summary에 적는다.
+3. **회귀 테스트**: ① 시드를 고정한 무작위 `uuid4().hex` 10,000개가 모두 감사 `append`를 통과한다(`task_id` 필드). ② 형식 밖 식별자는 거부된다: 전화번호·주민번호가 섞인 `task_id`, `demo-` 형식이 아닌 `actor_sub`, 길이·문자가 다른 hex. ③ 허용 형식이면 PII 정규식을 돌리지 않는다는 점을 위 ①이 보장한다.
+4. 이 결함은 코드 수정이므로 ADR·문서 반영은 마지막 step(`gateway-docs`)이 한다.
+
+### 1. 모델 장애 주입 장치
 
 **모델 장애(F6) 주입 장치**를 `gateway/`에 만든다. 하네스(다음 phase)가 쓴다. TDD로 테스트를 먼저 쓴다.
 
@@ -56,6 +69,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 금지사항
 
+- 테스트에서 `uuid4`·난수를 고정(`monkeypatch`)해 무작위로 실패하는 결함을 가리지 마라. 이유: 무작위 입력에서만 나타나는 실패는 실제 결함이다(필요하면 사유를 주석으로 쓰고 같은 입력의 무작위 대량 테스트를 둔다).
 - 장애 주입 설정을 서비스가 시작되는 경로(환경 변수만으로)에서 활성화하지 마라. 이유: 일반 서비스에서 장애 주입이 켜지면 운영 호출이 의도치 않게 fallback으로 간다.
 - 하네스용 장애 주입 호출도 비용 원장·상한 검사를 우회하게 만들지 마라.
 - 실제 LiteLLM·공급사에 접속하는 테스트를 만들지 마라.
