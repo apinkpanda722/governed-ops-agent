@@ -271,6 +271,9 @@ async def test_audit_failure(setup, fail, state, posts):
     result, p, _ = await run(s)
     assert (result.state, p) == (state, posts)
     assert result.audit_gap == (fail == "side_effect.result")
+    if fail == "side_effect.result":
+        row = next(iter(s["outbox"].rows.values()))
+        assert row.audit_gap is True
     assert counts(s).missing == (posts == 0 or fail == "second")
     if fail != "side_effect.result":
         assert result.reason == "audit_write_failed"
@@ -288,7 +291,8 @@ async def test_audit_failure(setup, fail, state, posts):
         ("uncertain", "in_progress"),
     ],
 )
-async def test_claim_reexecution(setup, state, reason):
+@pytest.mark.parametrize("audit_failure", [False, True])
+async def test_claim_reexecution(setup, state, reason, audit_failure, monkeypatch):
     s = setup
     args = s["req"].args
     if s["req"].tool == "jira_create_followup_ticket":
@@ -305,8 +309,22 @@ async def test_claim_reexecution(setup, state, reason):
             OutboxState(state),
         )
     )
+    original = await s["outbox"].get(key)
+    updates = []
+    update = s["outbox"].update
+
+    async def tracked_update(key, **changes):
+        updates.append(changes)
+        return await update(key, **changes)
+
+    monkeypatch.setattr(s["outbox"], "update", tracked_update)
+    if audit_failure:
+        s["audit"].fail = "side_effect.result"
     result, p, g = await run(s)
     assert (p, g, result.reason) == (0, 0, reason)
+    assert result.audit_gap is audit_failure
+    assert await s["outbox"].get(key) == original
+    assert not updates
     event, fields = s["audit"].events[-1]
     assert (
         event == "side_effect.result"

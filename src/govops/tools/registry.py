@@ -95,7 +95,7 @@ def tool_specs() -> dict[str, ToolSpec]:
     return specs
 
 
-def agent_tool_definitions() -> list[dict]:
+def agent_tool_definitions(include_writes: bool = False) -> list[dict]:
     return [
         {
             "type": "function",
@@ -106,7 +106,7 @@ def agent_tool_definitions() -> list[dict]:
             },
         }
         for s in tool_specs().values()
-        if not s.side_effect
+        if include_writes or not s.side_effect
     ]
 
 

@@ -2,15 +2,23 @@
 
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
+from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictStr,
+    field_validator,
+    model_validator,
+)
 
 from govops.api.auth import current_user
 from govops.api.sessions import SessionStore
-from govops.api.tasks import TaskService
+from govops.api.tasks import ApprovalError, TaskService
 
 
 class Login(BaseModel):
@@ -27,6 +35,21 @@ class TaskRequest(BaseModel):
         if not value.strip():
             raise ValueError("Invalid request")
         return value
+
+
+class ApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    decision: Literal["approve", "reject", "edit_approve"]
+    draft_sha256: StrictStr = Field(pattern=r"^[0-9a-f]{64}$")
+    edited: dict[StrictStr, StrictStr] | None = None
+
+    @model_validator(mode="after")
+    def valid_edit(self):
+        if (self.decision == "edit_approve") != (self.edited is not None):
+            raise ValueError("Invalid edit")
+        if self.decision != "edit_approve" and "edited" in self.model_fields_set:
+            raise ValueError("Invalid edit")
+        return self
 
 
 def create_app(
@@ -87,6 +110,26 @@ def create_app(
             except ValueError:
                 raise HTTPException(status_code=422, detail="Invalid request") from None
             return {"task_id": task_id}
+
+        @app.post("/tasks/{task_id}/approval")
+        async def approve_task(
+            task_id: str,
+            body: ApprovalRequest,
+            request: Request,
+            user_id: str = Depends(current_user),
+        ):
+            try:
+                code, view = await request.app.state.task_service.approve(
+                    user_id, task_id, **body.model_dump()
+                )
+            except ApprovalError as error:
+                raise HTTPException(
+                    status_code=error.status_code,
+                    detail="Task not found"
+                    if error.status_code == 404
+                    else "Approval rejected",
+                ) from None
+            return JSONResponse(view, status_code=code)
 
         @app.get("/tasks/{task_id}")
         async def read_task(

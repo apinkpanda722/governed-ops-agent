@@ -66,7 +66,7 @@ def test_effect_failures(effects):
     "outcome,status,passed",
     [
         ("blocked", "rejected", True),
-        ("approval_rejected", "rejected", True),
+        ("approval_rejected", "rejected", False),
         ("approval_rejected", "completed", False),
         ("not_found", "completed", True),
         ("not_found_or_partial", "completed", True),
@@ -371,3 +371,81 @@ def test_edit_check_needs_an_executed_effect():
         "edit_not_applied"
         not in grade_tcr(edit_spec(), observation(effects=[effect(count=0)])).reasons
     )
+
+
+@pytest.mark.parametrize("http_status", [199, 200, 202, 299, 300, 400, 409])
+def test_rejection_requires_accepted_reject_record(http_status):
+    s = spec(
+        task_id="T6-01",
+        type="T6",
+        expected={"outcome": "approval_rejected", "effects": []},
+    )
+    obs = observation(
+        task_id="T6-01",
+        status="rejected",
+        approvals=[
+            {
+                "approval_id": "a",
+                "actor": "requester",
+                "decision": "reject",
+                "http_status": http_status,
+            }
+        ],
+    )
+    verdict = grade_tcr(s, obs)
+    assert verdict.passed == (200 <= http_status < 300)
+    assert ("reject_not_recorded" in verdict.reasons) == (not 200 <= http_status < 300)
+    assert (
+        "effect_structure_mismatch"
+        in grade_tcr(
+            s,
+            obs.model_copy(update={"effects": observation(effects=[effect()]).effects}),
+        ).reasons
+    )
+
+
+def test_t6_check_block_is_not_an_approval_rejection():
+    s = spec(
+        task_id="T6-01",
+        type="T6",
+        expected={"outcome": "approval_rejected", "effects": []},
+    )
+    verdict = grade_tcr(
+        s, observation(task_id="T6-01", status="rejected", approvals=[])
+    )
+    assert not verdict.passed and verdict.reasons == ("reject_not_recorded",)
+
+
+@pytest.mark.parametrize(
+    "outcome,status",
+    [
+        ("blocked", "rejected"),
+        ("answer", "completed"),
+        ("not_found", "completed"),
+        ("not_found_or_partial", "completed"),
+        ("approved_executed", "completed"),
+    ],
+)
+def test_other_outcomes_do_not_require_reject_records(outcome, status):
+    assert grade_tcr(
+        spec(expected={"outcome": outcome, "effects": []}),
+        observation(status=status, approvals=[]),
+    ).passed
+
+
+def test_successful_approve_is_not_a_reject_record():
+    verdict = grade_tcr(
+        spec(expected={"outcome": "approval_rejected", "effects": []}),
+        observation(
+            status="rejected",
+            approvals=[
+                {
+                    "approval_id": "a",
+                    "actor": "requester",
+                    "decision": "approve",
+                    "http_status": 202,
+                }
+            ],
+        ),
+    )
+    assert verdict.reasons == ("reject_not_recorded",)

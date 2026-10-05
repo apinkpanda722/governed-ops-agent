@@ -11,6 +11,9 @@ from uuid import uuid4
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import call, reply
+from test_effects_matrix import (
+    setup as effect_setup,  # noqa: F401 — parametrized ASGI fixture
+)
 
 from govops.agent.graph import build_graph
 from govops.api.app import create_app
@@ -396,3 +399,234 @@ def test_e2e_isolation(tmp_path, monkeypatch, serve_asgi, caplog, capsys):
             assert secret.encode() not in output, (
                 "secret leaked into public/persisted output"
             )
+
+
+def test_write_graph_calls_in_process_services_as_requester(effect_setup, monkeypatch):  # noqa: F811 — imported pytest fixture
+    from langgraph.types import Command
+    from test_agent_graph import FakeChat
+
+    from govops.agent.graph import WITH_WRITES, AgentContext, EffectDeps, run_task
+    from govops.agent.scope import AccessRow, ScopeIndex
+    from govops.agent.users import UserInfo
+    from govops.broker import credentials
+    from govops.guardrails.policy import TeamPolicy
+
+    s = effect_setup
+    requester = UserInfo("demo-platform-g3", "platform", 3)
+    approver = UserInfo("demo-platform-g4", "platform", 4)
+    received = []
+    credential = credentials.credential_for
+
+    def credential_spy(user, audience):
+        received.append((user, audience))
+        return credential(user, audience)
+
+    monkeypatch.setattr(credentials, "credential_for", credential_spy)
+
+    async def exercise():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=s["app"])
+        ) as http:
+            jira = JiraClient("http://synthetic", http_client=http)
+            slack = SlackClient("http://synthetic", http_client=http)
+            tools = ToolRuntime(None, jira, slack)
+            chat = FakeChat(
+                reply(calls=[call(s["req"].tool, json.dumps(s["req"].args))])
+            )
+            scope = ScopeIndex(
+                {}, {s["target"]: AccessRow("public", (), 0)}, (requester, approver)
+            )
+            graph = build_graph(
+                chat,
+                tools,
+                InMemorySaver(),
+                profile=WITH_WRITES,
+                effects=EffectDeps(jira, slack, s["outbox"]),
+                audit=s["audit"],
+                scope=scope,
+                policy=TeamPolicy({"platform": "block"}),
+                users={u.label: u for u in (requester, approver)},
+                clock=s["clock"].timestamp,
+            )
+            state = await run_task(
+                graph, task_id="syn-task", user_id=requester.label, request="합성 초안"
+            )
+            assert state["status"] == "awaiting_approval"
+            actor = approver if s["service"] == "slack" else requester
+            state = await graph.ainvoke(
+                Command(
+                    resume={
+                        "approver": actor.label,
+                        "decision": "approve",
+                        "draft_sha256": state["draft_sha256"],
+                    }
+                ),
+                {"configurable": {"thread_id": "syn-task"}},
+                context=AgentContext(requester.label),
+            )
+            assert state["status"] == "completed"
+            assert received == [(requester.label, "mock-" + s["service"])]
+            assert len(await s["outbox"].list_open()) == 0
+
+    asyncio.run(exercise())
+
+
+def test_approval_api_and_send_free_restart_recovery(
+    effect_setup,  # noqa: F811
+    monkeypatch,
+    tmp_path,
+):
+    import hashlib
+    from dataclasses import replace
+
+    from test_agent_graph import FakeChat
+
+    from govops.agent.graph import WITH_WRITES, EffectDeps
+    from govops.agent.scope import AccessRow, ScopeIndex
+    from govops.agent.users import UserInfo
+    from govops.broker import credentials
+    from govops.eval.duplicates import count_effects
+    from govops.eval.spec import Effect
+    from govops.mocks.auth import MockUser
+    from govops.tools.outbox import OutboxState
+
+    s = effect_setup
+    requester = UserInfo("demo-platform-g6", "platform", 6)
+    approver = UserInfo("demo-platform-g4", "platform", 4)
+    users = {u.label: u for u in (requester, approver)}
+    received = []
+    credential = credentials.credential_for
+    secret = credential(requester.label, "mock-" + s["service"])
+    rest_app = create_rest_app(
+        s["service"],
+        state=s["ss"] if s["service"] == "slack" else s["js"],
+        token_store=TokenHashStore(
+            (
+                (
+                    MockUser(requester.label, requester.team, requester.grade),
+                    hashlib.sha256(secret.encode()).hexdigest(),
+                ),
+            )
+        ),
+        faults=s["faults"],
+    )
+    trace_dir = tmp_path / "traces"
+    monkeypatch.setattr("govops.obs.trace._defaults", (JsonlSink(trace_dir),))
+
+    def spy(user, audience):
+        received.append((user, audience))
+        return credential(user, audience)
+
+    monkeypatch.setattr(credentials, "credential_for", spy)
+
+    async def exercise():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=rest_app)
+        ) as rest:
+            jira = JiraClient("http://synthetic", http_client=rest)
+            slack = SlackClient("http://synthetic", http_client=rest)
+            tools = ToolRuntime(None, jira, slack)
+            effects = EffectDeps(jira, slack, s["outbox"])
+            graph = build_graph(
+                FakeChat(reply(calls=[call(s["req"].tool, json.dumps(s["req"].args))])),
+                tools,
+                InMemorySaver(),
+                profile=WITH_WRITES,
+                effects=effects,
+                audit=s["audit"],
+                scope=ScopeIndex(
+                    {}, {s["target"]: AccessRow("public", (), 0)}, tuple(users.values())
+                ),
+                policy=TeamPolicy({"platform": "block"}),
+                users=users,
+                clock=s["clock"].timestamp,
+            )
+            service = TaskService(
+                graph,
+                users=users,
+                effects=effects,
+                audit=s["audit"],
+                policy=tools.policy,
+            )
+            ident = await service.start(requester.label, "합성 요청")
+            await asyncio.gather(*service._tasks)
+            waiting = await service.get(requester.label, ident)
+            actor = approver.label if s["service"] == "slack" else requester.label
+            sessions = SessionStore()
+            token, _ = sessions.issue(actor)
+            app = create_app(
+                users=frozenset(users),
+                sessions=sessions,
+                demo_login=False,
+                service=service,
+            )
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1"
+            ) as api:
+
+                async def approve():
+                    return await api.post(
+                        f"/tasks/{ident}/approval",
+                        headers={"Authorization": "Bearer " + token},
+                        json={
+                            "decision": "approve",
+                            "draft_sha256": waiting["draft_sha256"],
+                        },
+                    )
+
+                responses = await asyncio.gather(approve(), approve())
+                assert responses[0].json() == responses[1].json()
+                assert responses[0].json()["status"] == "completed"
+            assert received == [(requester.label, "mock-" + s["service"])]
+            key, row = next(iter(s["outbox"].rows.items()))
+            # Simulate an effect committed remotely but lost before checkpoint completion.
+            await s["outbox"].update(key, state=OutboxState.UNCERTAIN)
+            await graph.aupdate_state(
+                {"configurable": {"thread_id": ident}}, {"status": "running"}
+            )
+            fresh = TaskService(
+                graph,
+                users=users,
+                effects=effects,
+                audit=s["audit"],
+                policy=tools.policy,
+            )
+            await fresh.startup_cleanup()
+            view = await fresh.get(requester.label, ident)
+            assert view["status"] == "interrupted" and view["effect_result"] == "sent"
+            assert view["retry_hint"] == "다시 요청해 주세요"
+            assert received == [(requester.label, "mock-" + s["service"])] * 2
+            assert (await s["outbox"].get(key)).attempts == 1
+            # A different marker has never been sent; two absent lookups confirm that.
+            absent = replace(row, idempotency_key="0" * 64, state=OutboxState.UNCERTAIN)
+            await s["outbox"].claim(absent)
+            await fresh.startup_cleanup()
+            assert (await fresh.get(requester.label, ident))[
+                "effect_result"
+            ] == "not_sent"
+            assert (await s["outbox"].get(key)).attempts == 1
+            assert (await s["outbox"].get(absent.idempotency_key)).attempts == 1
+            assert all(
+                e[1].get("sends", 0) == 0
+                for e in s["audit"].events
+                if e[0] == "side_effect.result" and e[1].get("lookups", 0)
+            )
+            report = count_effects(
+                {
+                    "slack": s["ss"].report(bodies=True),
+                    "jira": s["js"].report(bodies=True),
+                },
+                task_id=ident,
+                expected=[
+                    Effect(kind=s["kind"], target=s["target"], count=1, structure={})
+                ],
+            )
+            assert report.duplicates == 0 and report.missing == 0
+            output = repr(graph.checkpointer.storage) + repr(responses[0].json())
+            output += "".join(p.read_text() for p in tmp_path.rglob("*.jsonl"))
+            assert all(value not in output for value in (token, secret))
+        await service.aclose()
+
+    from govops.guardrails.policy import TeamPolicy
+
+    asyncio.run(exercise())

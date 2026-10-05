@@ -201,3 +201,13 @@ def test_eval_run_dev_user_only():
     )
     assert "eval-run-dev" not in text.split("verify:\n")[1].split("\n\n")[0]
     assert "record-llm:" not in text
+
+
+def test_effects_smoke_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: smoke-effects" in text
+    assert (
+        "# compose mock·토큰 필요, 사용자 실행\nsmoke-effects:\n\tuv run --env-file .env python -m govops.tools.smoke effects --user $(SMOKE_USER)"
+        in text
+    )
+    assert "smoke-effects" not in text.split("verify:\n")[1].split("\n\n")[0]

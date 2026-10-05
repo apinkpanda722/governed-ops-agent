@@ -1,0 +1,134 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-approval",
+  "steps": [
+    {
+      "step": 0,
+      "name": "claim-gap",
+      "status": "completed",
+      "started_at": "2026-10-05T18:42:44+0900",
+      "summary": "선점 실패 호출의 감사 실패는 EffectResult.audit_gap에만 반영하도록 수정하고, 선점 성공·실패 회귀 테스트 및 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T18:55:40+0900",
+      "usage": {
+        "input_tokens": 1614691,
+        "cached_input_tokens": 1542272,
+        "output_tokens": 3463,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "access-index",
+      "status": "completed",
+      "started_at": "2026-10-05T18:55:41+0900",
+      "summary": "[가] A 커밋 자료의 비합성 문서 100건을 합쳐 문서 300건·티켓 500건의 접근 전용 인덱스, 생성 CLI·scope-index 타깃·재생성 및 경계 테스트를 추가하고 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T19:14:46+0900",
+      "usage": {
+        "input_tokens": 3063274,
+        "cached_input_tokens": 2971264,
+        "output_tokens": 8194,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "checks-draft",
+      "status": "completed",
+      "started_at": "2026-10-05T19:14:46+0900",
+      "summary": "초안 타입·정규화 해시, 사용자·팀 정책 로더, 수신처·PII 결정론 검사와 감사 이유 코드를 추가하고 회귀 테스트 및 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T19:31:07+0900",
+      "usage": {
+        "input_tokens": 2335069,
+        "cached_input_tokens": 2257280,
+        "output_tokens": 9386,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "scope-v15",
+      "status": "completed",
+      "started_at": "2026-10-05T19:31:07+0900",
+      "summary": "V15 발송 범위 검사·구조 기반 근거 추출·티켓 존재 비공개·감사 이유 코드를 구현하고, 권한 일관성·회귀 테스트와 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T19:48:50+0900",
+      "usage": {
+        "input_tokens": 1833047,
+        "cached_input_tokens": 1755264,
+        "output_tokens": 8614,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "approval-policy",
+      "status": "completed",
+      "started_at": "2026-10-05T19:51:50+0900",
+      "summary": "승인자 정책·본문 전용 수정 규칙·결정론적 승인 ID를 순수 함수로 구현하고, 정책 전체 조합·평가 승인 분기·계층 경계 테스트 및 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T20:06:30+0900",
+      "usage": {
+        "input_tokens": 1807762,
+        "cached_input_tokens": 1737600,
+        "output_tokens": 5213,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 5,
+      "name": "graph-write-path",
+      "status": "completed",
+      "started_at": "2026-10-05T20:06:30+0900",
+      "summary": "READ_ONLY 골든 해시를 보존하며 쓰기 그래프·결정론 검사·승인/수정/만료·outbox 실행과 run_sql 근거 추출을 구현하고, 재개 멱등성·요청자 신원 회귀 테스트 및 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T20:28:00+0900",
+      "usage": {
+        "input_tokens": 3023762,
+        "cached_input_tokens": 2923392,
+        "output_tokens": 16526,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 6,
+      "name": "approval-api",
+      "status": "completed",
+      "started_at": "2026-10-05T20:28:00+0900",
+      "summary": "승인 API·체크포인트 기반 상태·접근 시 만료·표식 조회 전용 시작 정리와 회귀 테스트를 구현하고 make verify 전체 통과(1851 passed)를 확인했다. 정리는 전체 체크포인트 순회로 수백 건 규모를 전제하며, 정책 파일 해시 감사는 허용 이벤트 부재로 생략했다.",
+      "completed_at": "2026-10-05T20:51:06+0900",
+      "usage": {
+        "input_tokens": 5060773,
+        "cached_input_tokens": 4951936,
+        "output_tokens": 17811,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 7,
+      "name": "tcr-approval",
+      "status": "completed",
+      "started_at": "2026-10-05T21:28:12+0900",
+      "summary": "TCR 거부 판정에 2xx reject 기록을 필수화하고, 수정 차단 뒤 원래 초안 복원·재승인·거부·만료 및 영수증 처리를 수정했으며 make verify 전체 통과(1874 passed)를 확인했다.",
+      "completed_at": "2026-10-05T21:44:42+0900",
+      "usage": {
+        "input_tokens": 2412853,
+        "cached_input_tokens": 2316288,
+        "output_tokens": 9017,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 8,
+      "name": "approval-docs-smoke",
+      "status": "completed",
+      "started_at": "2026-10-05T21:44:42+0900",
+      "summary": "승인·V15·상태 전이·M4 감사 범위 문서를 갱신하고 사용자 실행 smoke-effects와 가짜 transport 회귀 테스트를 추가했으며 make verify 전체 통과(1879 passed, 1 skipped)를 확인했다.",
+      "completed_at": "2026-10-05T22:00:30+0900",
+      "usage": {
+        "input_tokens": 2062971,
+        "cached_input_tokens": 1965824,
+        "output_tokens": 8513,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-05T18:42:44+0900",
+  "completed_at": "2026-10-05T22:00:30+0900"
+}

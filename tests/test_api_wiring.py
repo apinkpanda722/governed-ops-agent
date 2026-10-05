@@ -128,3 +128,32 @@ def test_server_lifespan_assembles_and_closes(monkeypatch):
         )
         assert response.status_code == 202
     assert events == ["open", ("demo-platform-g3", "조회"), "close"]
+
+
+@pytest.mark.parametrize("profile", ["read_only", "writes"])
+def test_wiring_approval_dependencies(
+    serve_asgi, a_tokens, monkeypatch, tmp_path, profile
+):
+    from govops.tools.outbox import InMemoryOutboxStore
+
+    path, _ = a_tokens
+    monkeypatch.setenv("KODOCS_MCP_TOKENS_FILE", str(path))
+    monkeypatch.setenv("LITELLM_AGENT_KEY", "synthetic-key")
+    monkeypatch.setenv("GOVOPS_DATABASE_URL", "")
+    monkeypatch.setenv("GOVOPS_AGENT_PROFILE", profile)
+    monkeypatch.setenv("AUDIT_DIR", str(tmp_path))
+    recordings = RecordingSet.load(Path(__file__).parent / "fixtures/a_recordings")
+    monkeypatch.setenv(
+        "KODOCS_MCP_URL",
+        serve_asgi(create_app(recordings=recordings, tokens_file=path)) + "/mcp",
+    )
+
+    async def run():
+        async with open_task_service() as service:
+            assert isinstance(service.effects.outbox, InMemoryOutboxStore)
+            assert service.audit.directory == tmp_path
+            assert len(service.users) == 38
+            assert service.graph.agent_profile.allow_writes == (profile == "writes")
+            assert service.policy is not None
+
+    asyncio.run(run())

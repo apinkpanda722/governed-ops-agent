@@ -242,3 +242,334 @@ async def test_max_steps():
     assert state["error"] == "max_steps"
     assert state["steps"] == len(chat.calls) == MAX_STEPS
     assert state["observed_ids"] == ["syn-seen"]
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "approve",
+        "reject",
+        "expire",
+        "edit",
+        "pii_edit",
+        "masked_edit",
+        "toctou",
+        "forbidden",
+        "recipient",
+        "pii",
+        "scope",
+        "audit",
+        "restart",
+        "crash",
+        "masked",
+        "hold",
+        "audit_requested",
+        "audit_approved",
+    ],
+)
+@async_test
+async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeypatch):
+    from datetime import UTC, datetime, timedelta
+
+    from langgraph.types import Command
+
+    from govops.agent.graph import WITH_WRITES, EffectDeps
+    from govops.agent.scope import AccessRow, ScopeIndex
+    from govops.agent.users import UserInfo
+    from govops.audit.log import AuditLog, AuditWriteError
+    from govops.guardrails.policy import TeamPolicy
+    from govops.tools.outbox import InMemoryOutboxStore
+    from govops.tools.resilience import ToolPolicy
+
+    class Slack:
+        def __init__(self):
+            self.sent = []
+
+        async def send_message(self, user_id, **kw):
+            self.sent.append((user_id, kw))
+            return {"message": {"message_id": "message-1"}}
+
+    user = UserInfo("demo-platform-g3", "platform", 3)
+    tools = FakeTools()
+    tools.policy = ToolPolicy()
+    slack = Slack()
+    chat = FakeChat(
+        reply(
+            calls=[
+                call(
+                    "slack_send_message",
+                    '{"channel":"team-platform","text":"합성 안내"}',
+                )
+            ]
+        )
+    )
+    now = [datetime(2026, 10, 5, tzinfo=UTC)]
+    saver = InMemorySaver()
+
+    class Jira:
+        async def add_comment(self, *args, **kw):
+            pytest.fail("Unexpected Jira effect")
+
+        async def create_followup(self, *args, **kw):
+            pytest.fail("Unexpected Jira effect")
+
+    deps = EffectDeps(jira=Jira(), slack=slack, outbox=InMemoryOutboxStore())
+    audit = AuditLog(tmp_path)
+    if mode == "audit":
+
+        def fail(*args, **kw):
+            raise AuditWriteError()
+
+        audit.append = fail
+    if mode in {"audit_requested", "audit_approved"}:
+        append = audit.append
+
+        def fail_event(event, **kw):
+            if (
+                event
+                == {
+                    "audit_requested": "approval.requested",
+                    "audit_approved": "approval.approved",
+                }[mode]
+            ):
+                raise AuditWriteError()
+            return append(event, **kw)
+
+        audit.append = fail_event
+    scope = ScopeIndex(
+        {},
+        {"SYN-1": AccessRow("restricted", ("platform",), 4)},
+        (user, UserInfo("demo-platform-g1", "platform", 1)),
+    )
+    if mode == "recipient":
+        chat.results[0] = reply(
+            calls=[
+                call("slack_send_message", '{"channel":"team-finance","text":"안내"}')
+            ]
+        )
+    if mode in {"pii", "masked"}:
+        chat.results[0] = reply(
+            calls=[
+                call(
+                    "slack_send_message",
+                    '{"channel":"team-platform","text":"010-1234-5678"}',
+                )
+            ]
+        )
+
+    def build():
+        return build_graph(
+            chat,
+            tools,
+            saver,
+            profile=WITH_WRITES,
+            effects=deps,
+            audit=audit,
+            scope=scope,
+            policy=TeamPolicy(
+                {"platform": "mask" if mode in {"masked", "masked_edit"} else "block"}
+            ),
+            users={user.label: user},
+            clock=lambda: now[0],
+        )
+
+    graph = build()
+    if mode == "scope":
+        chat.results.insert(
+            0, reply(calls=[call("run_sql", '{"sql":"SELECT ticket_id FROM tickets"}')])
+        )
+        tools.outcomes.append(
+            ToolOutcome({"columns": ["ticket_id"], "rows": [["SYN-1"]]}, False, ())
+        )
+    state = await run_task(
+        graph, task_id="write-1", user_id=user.label, request="안내를 보내 주세요"
+    )
+    if mode in {"recipient", "pii", "scope", "audit", "audit_requested"}:
+        assert state["status"] == (
+            "failed" if mode in {"audit", "audit_requested"} else "blocked"
+        )
+        assert not slack.sent
+        assert len(chat.calls) == (2 if mode == "scope" else 1)
+        return
+    assert state["status"] == "awaiting_approval"
+    assert not slack.sent
+    decision = {
+        "approver": user.label,
+        "decision": "approve",
+        "draft_sha256": state["draft_sha256"],
+    }
+    config = {"configurable": {"thread_id": "write-1"}}
+    if mode == "reject":
+        decision["decision"] = "reject"
+    elif mode == "expire":
+        now[0] += timedelta(minutes=31)
+    elif mode in {"edit", "pii_edit", "masked_edit"}:
+        decision.update(
+            decision="edit_approve",
+            edited={"text": "수정 안내" if mode == "edit" else "010-1234-5678"},
+        )
+    elif mode == "toctou":
+        decision["draft_sha256"] = "0" * 64
+    elif mode == "forbidden":
+        decision["approver"] = "other"
+    if mode == "restart":
+        graph = build()
+    if mode == "hold":
+        decision["decision"] = "hold"
+    if mode == "crash":
+        import govops.agent.graph as graph_module
+
+        original = graph_module.execute_effect
+
+        async def crash_after_effect(*args, **kw):
+            await original(*args, **kw)
+            raise RuntimeError("simulated process interruption")
+
+        monkeypatch.setattr(graph_module, "execute_effect", crash_after_effect)
+        with pytest.raises(RuntimeError, match="simulated"):
+            await graph.ainvoke(
+                Command(resume=decision), config, context=AgentContext(user.label)
+            )
+        monkeypatch.setattr(graph_module, "execute_effect", original)
+        graph = build()
+        state = await graph.ainvoke(None, config, context=AgentContext(user.label))
+    old_hash = state["draft_sha256"]
+    original_draft = state["draft"]
+    original_check = state["check"]
+    original_expiry = state["expires_at"]
+    original_since = state["awaiting_since"]
+    for _ in range(
+        0 if mode == "crash" else 4 if mode in {"approve", "restart"} else 1
+    ):
+        state = await graph.ainvoke(
+            Command(resume=decision), config, context=AgentContext(user.label)
+        )
+    expected = {
+        "reject": "rejected",
+        "expire": "expired",
+        "pii_edit": "awaiting_approval",
+        "toctou": "awaiting_approval",
+        "forbidden": "awaiting_approval",
+        "hold": "awaiting_approval",
+        "audit_approved": "failed",
+    }.get(mode, "completed")
+    assert state["status"] == expected
+    assert len(slack.sent) == (1 if expected == "completed" else 0)
+    if slack.sent:
+        assert slack.sent[0][0] == user.label
+        assert (
+            slack.sent[0][1]["metadata"]["govops_approval"]
+            == state["approvals"][-1]["approval_id"]
+        )
+    if mode == "pii_edit":
+        assert state["draft"] == original_draft
+        assert state["draft_sha256"] == old_hash
+        assert state["check"] == original_check
+        assert state["expires_at"] == original_expiry
+        assert state["awaiting_since"] == original_since
+        assert state["rejected_edit"]["reason"] == "pii_blocked_by_team_policy"
+        assert state["rejected_edit"]["after_sha256"] != old_hash
+    if mode in {"masked", "masked_edit"}:
+        assert state["check"]["status"] == "masked"
+        assert "010-1234-5678" not in slack.sent[0][1]["text"]
+    if mode == "masked_edit":
+        assert state["draft_sha256"] != old_hash
+        assert not state.get("rejected_edit")
+        assert state["edit_original"] is None
+    if mode == "edit":
+        assert slack.sent[0][1]["text"] == "수정 안내"
+        assert state["draft_sha256"] != old_hash
+    rows = [
+        json.loads(line)
+        for line in next(tmp_path.glob("*.jsonl")).read_text().splitlines()
+    ]
+    events = [row["event"] for row in rows]
+    assert events[:3] == [
+        "side_effect.draft",
+        "side_effect.draft",
+        "approval.requested",
+    ]
+    assert events.count("approval.requested") == 1
+    if slack.sent:
+        assert (
+            events.index("approval.approved")
+            < events.index("side_effect.attempt")
+            < events.index("side_effect.result")
+        )
+    assert all("text" not in row and "args" not in row for row in rows)
+
+
+def test_approval_node_only_interrupts_and_profiles_preserve_read_contract():
+    import ast
+    import inspect
+
+    from govops.agent.graph import READ_ONLY, WITH_WRITES
+
+    tree = ast.parse(inspect.getsource(build_graph))
+    node = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "approval"
+    )
+    assert len(node.body) == 1 and isinstance(node.body[0], ast.Return)
+    calls = [n for n in ast.walk(node) if isinstance(n, ast.Call)]
+    assert len(calls) == 1 and calls[0].func.id == "interrupt"
+    assert READ_ONLY.system_prompt == SYSTEM_PROMPT
+    assert READ_ONLY.tools == agent_tool_definitions()
+    assert len(WITH_WRITES.tools) == 9
+    assert all(
+        not find_identity_fields(d["function"]["parameters"]) for d in WITH_WRITES.tools
+    )
+
+
+@pytest.mark.parametrize(
+    "arguments,multiple",
+    [
+        ('{"channel":"team-platform"}', False),
+        ('{"channel":"team-platform","text":"안내","user_id":"other"}', False),
+        ('{"channel":"team-platform","text":"안내"}', True),
+    ],
+)
+@async_test
+async def test_invalid_write_proposals_return_model_error_without_effect(
+    tmp_path, arguments, multiple
+):
+    from govops.agent.graph import WITH_WRITES, EffectDeps
+    from govops.agent.scope import ScopeIndex
+    from govops.agent.users import UserInfo
+    from govops.audit.log import AuditLog
+    from govops.guardrails.policy import TeamPolicy
+    from govops.tools.outbox import InMemoryOutboxStore
+    from govops.tools.resilience import ToolPolicy
+
+    user = UserInfo("demo-platform-g3", "platform", 3)
+    tools = FakeTools()
+    tools.policy = ToolPolicy()
+    calls = [call("slack_send_message", arguments)]
+    if multiple:
+        calls.append(call("slack_send_message", arguments, id="call-2"))
+    chat = FakeChat(reply(calls=calls), reply("초안을 다시 확인해 주세요"))
+    graph = build_graph(
+        chat,
+        tools,
+        InMemorySaver(),
+        profile=WITH_WRITES,
+        effects=EffectDeps(None, None, InMemoryOutboxStore()),
+        audit=AuditLog(tmp_path),
+        scope=ScopeIndex({}, {}, (user,)),
+        policy=TeamPolicy({"platform": "block"}),
+        users={user.label: user},
+    )
+    state = await run_task(
+        graph, task_id="invalid-write", user_id=user.label, request="합성 안내"
+    )
+    assert state["status"] == "completed"
+    assert state["steps"] == 2
+    assert state["draft"] is None
+    assert not tools.calls
+    assert not list(tmp_path.glob("*.jsonl"))
+    assert all(
+        json.loads(m["content"])["error"]["code"] == "invalid_argument"
+        for m in chat.calls[1]["messages"]
+        if m["role"] == "tool"
+    )

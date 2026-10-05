@@ -132,6 +132,18 @@ test-outbox-pg:
 	uv run --env-file .env python -c 'import os, subprocess, sys; sys.exit(subprocess.call(["pytest", "tests/test_outbox_pg.py", "-q"]) if os.environ.get("GOVOPS_TEST_DATABASE_URL") else (print("GOVOPS_TEST_DATABASE_URL: 테스트 전용 DB URL 필요") or 1))'
 
 
+
+.PHONY: smoke-effects
+# compose mock·토큰 필요, 사용자 실행
+smoke-effects:
+	uv run --env-file .env python -m govops.tools.smoke effects --user $(SMOKE_USER)
+
+.PHONY: scope-index
+# 오프라인·결정론 생성. A의 커밋된 manifest·접근 정책만 읽으며 키·네트워크 불필요.
+scope-index:
+	uv run python -m govops.eval.scope_index --a-root "$(A_ROOT)"
+
+
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini
 # 읽기 전용 A 저장소(A_ROOT) 필요, 사용자 실행
 eval-cards:

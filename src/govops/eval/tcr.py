@@ -184,6 +184,11 @@ def grade_tcr(spec: TaskSpec, obs: Observation) -> TcrVerdict:
     }
     if obs.status not in allowed[spec.expected.outcome]:
         reasons.append("invalid_status")
+    if spec.expected.outcome == "approval_rejected" and not any(
+        record.decision == "reject" and 200 <= record.http_status < 300
+        for record in obs.approvals
+    ):
+        reasons.append("reject_not_recorded")
     if spec.expected.outcome == "answer" and not normalize(obs.answer or ""):
         reasons.append("empty_answer")
     called = {call.name for call in obs.tool_calls}
