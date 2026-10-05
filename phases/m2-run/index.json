@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "golden-trace",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T11:09:49+0900",
+      "summary": "7개 dev 골든 기대값·결정론 재생 하네스·자격/recorded_fail·안전성 검증 구현; make verify 통과(Python 1,242개, 미기록 1개 건너뜀, 웹 15개).",
+      "completed_at": "2026-10-05T11:30:23+0900",
+      "usage": {
+        "input_tokens": 3288271,
+        "cached_input_tokens": 3195776,
+        "output_tokens": 14241,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
