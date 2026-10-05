@@ -1,0 +1,36 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-effects",
+  "steps": [
+    {
+      "step": 0,
+      "name": "mock-faults",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "write-clients",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "resilience",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "audit-min",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "outbox-executor",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "effects-docs",
+      "status": "pending"
+    }
+  ]
+}
