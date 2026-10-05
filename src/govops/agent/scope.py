@@ -1,6 +1,7 @@
 """Deterministic outbound audience checks using an access-only seed index."""
 
 import json
+import re
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -116,6 +117,22 @@ class ScopeIndex:
 
 def evidence_ids(tool: str, payload: Mapping[str, Any]) -> set[str]:
     """Extract only records returned by known read-tool result structures."""
+    if tool == "run_sql":
+        columns = payload.get("columns", ())
+        rows = payload.get("rows", ())
+        if not isinstance(columns, (list, tuple)) or "ticket_id" not in columns:
+            return set()
+        if not isinstance(rows, (list, tuple)):
+            return set()
+        column = columns.index("ticket_id")
+        return {
+            row[column]
+            for row in rows
+            if isinstance(row, (list, tuple))
+            and len(row) > column
+            and isinstance(row[column], str)
+            and re.fullmatch(r"[A-Z]{3}-\d+", row[column])
+        }
     if tool == "get_document":
         records = (payload,)
     elif tool in {"lookup_id", "search_docs", "jira_search_tickets"}:

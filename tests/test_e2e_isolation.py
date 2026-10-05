@@ -11,6 +11,9 @@ from uuid import uuid4
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import call, reply
+from test_effects_matrix import (
+    setup as effect_setup,  # noqa: F401 — parametrized ASGI fixture
+)
 
 from govops.agent.graph import build_graph
 from govops.api.app import create_app
@@ -396,3 +399,73 @@ def test_e2e_isolation(tmp_path, monkeypatch, serve_asgi, caplog, capsys):
             assert secret.encode() not in output, (
                 "secret leaked into public/persisted output"
             )
+
+
+def test_write_graph_calls_in_process_services_as_requester(effect_setup, monkeypatch):  # noqa: F811 — imported pytest fixture
+    from langgraph.types import Command
+    from test_agent_graph import FakeChat
+
+    from govops.agent.graph import WITH_WRITES, AgentContext, EffectDeps, run_task
+    from govops.agent.scope import AccessRow, ScopeIndex
+    from govops.agent.users import UserInfo
+    from govops.broker import credentials
+    from govops.guardrails.policy import TeamPolicy
+
+    s = effect_setup
+    requester = UserInfo("demo-platform-g3", "platform", 3)
+    approver = UserInfo("demo-platform-g4", "platform", 4)
+    received = []
+    credential = credentials.credential_for
+
+    def credential_spy(user, audience):
+        received.append((user, audience))
+        return credential(user, audience)
+
+    monkeypatch.setattr(credentials, "credential_for", credential_spy)
+
+    async def exercise():
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=s["app"])
+        ) as http:
+            jira = JiraClient("http://synthetic", http_client=http)
+            slack = SlackClient("http://synthetic", http_client=http)
+            tools = ToolRuntime(None, jira, slack)
+            chat = FakeChat(
+                reply(calls=[call(s["req"].tool, json.dumps(s["req"].args))])
+            )
+            scope = ScopeIndex(
+                {}, {s["target"]: AccessRow("public", (), 0)}, (requester, approver)
+            )
+            graph = build_graph(
+                chat,
+                tools,
+                InMemorySaver(),
+                profile=WITH_WRITES,
+                effects=EffectDeps(jira, slack, s["outbox"]),
+                audit=s["audit"],
+                scope=scope,
+                policy=TeamPolicy({"platform": "block"}),
+                users={u.label: u for u in (requester, approver)},
+                clock=s["clock"].timestamp,
+            )
+            state = await run_task(
+                graph, task_id="syn-task", user_id=requester.label, request="합성 초안"
+            )
+            assert state["status"] == "awaiting_approval"
+            actor = approver if s["service"] == "slack" else requester
+            state = await graph.ainvoke(
+                Command(
+                    resume={
+                        "approver": actor.label,
+                        "decision": "approve",
+                        "draft_sha256": state["draft_sha256"],
+                    }
+                ),
+                {"configurable": {"thread_id": "syn-task"}},
+                context=AgentContext(requester.label),
+            )
+            assert state["status"] == "completed"
+            assert received == [(requester.label, "mock-" + s["service"])]
+            assert len(await s["outbox"].list_open()) == 0
+
+    asyncio.run(exercise())

@@ -27,6 +27,7 @@ EVENTS = frozenset(
 TOOLS = frozenset(
     {"jira_add_comment", "jira_create_followup_ticket", "slack_send_message"}
 )
+CHECK_RESULTS = frozenset({"passed", "masked", "blocked"})
 DECISIONS = frozenset({"approve", "edit_approve", "reject", "expired"})
 REASONS = frozenset(
     {
@@ -103,6 +104,8 @@ def _validate(fields: dict[str, Field]) -> None:
                 valid = value in TOOLS
             elif key == "decision":
                 valid = value in DECISIONS
+            elif key == "check_result":
+                valid = value in CHECK_RESULTS
             elif key == "reason":
                 valid = value in REASONS
             else:

@@ -290,3 +290,48 @@ def test_scope_audit_reasons_are_accepted(tmp_path):
             actor_sub=REQUESTER.label,
             reason=reason,
         )
+
+
+def test_sql_evidence_is_exact_ticket_column_only():
+    from govops.agent.scope import evidence_ids
+
+    assert evidence_ids(
+        "run_sql",
+        {"columns": ["ticket_id", "title"], "rows": [["SYN-1", "x"], ["bad", "SYN-2"]]},
+    ) == {"SYN-1"}
+    assert (
+        evidence_ids("run_sql", {"columns": ["status", "count"], "rows": [["open", 3]]})
+        == set()
+    )
+
+
+@pytest.mark.parametrize(
+    "columns,rows,reason",
+    [
+        (["ticket_id"], [["SYN-1"], ["SYN-2"]], "scope_wider_than_evidence"),
+        (["status", "count"], [["open", 2]], None),
+        (["ticket_id"], [["SYN-1"]], None),
+        (["ticket_id"], [["SYN-404"]], "evidence_scope_unknown"),
+    ],
+)
+def test_sql_outbound_scope(columns, rows, reason):
+    from govops.agent.scope import AccessRow
+
+    lower = UserInfo("demo-platform-g1", "platform", 1)
+    upper = UserInfo("demo-platform-g4", "platform", 4)
+    index = ScopeIndex(
+        {},
+        {
+            "SYN-1": AccessRow("team", ("platform",), 0),
+            "SYN-2": AccessRow("restricted", ("platform",), 4),
+        },
+        (lower, upper),
+    )
+    result = run_checks(
+        message(),
+        evidence=evidence_ids("run_sql", {"columns": columns, "rows": rows}),
+        requester=upper,
+        scope=index,
+        policy=TeamPolicy({"platform": "block"}),
+    )
+    assert result.reason == reason
