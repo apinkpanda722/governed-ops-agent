@@ -17,20 +17,27 @@ src/govops/
 ├── agent/        # LangGraph 단일 에이전트: 상태·노드·그래프, 실행 전 결정론 검사, 승인 정책, MAX_STEPS/MAX_COST
 │   └── prompts.py·graph.py·checkpointer.py  # 한국어 프롬프트·읽기 그래프·DB 팩토리
 ├── tools/        # 도구 계약(스키마·버전·부작용 여부), A MCP 클라이언트, mock REST 클라이언트, outbox·표식 조회, 타임아웃·재시도·서킷
+│   ├── markers.py  # 정규화 멱등 키·메타데이터 표식
+│   ├── resilience.py  # 도구 타임아웃·읽기 재시도·서비스별 서킷
+│   ├── outbox.py  # 해시 전용 in-memory·Postgres outbox
+│   └── effects.py  # 2단계 표식 조회 실행·재발송 없는 정리
 ├── broker/       # credential_for(user, audience) — 자격 증명을 꺼내는 유일한 지점
 ├── gateway/      # LiteLLM 호출 클라이언트(에이전트의 유일한 모델 경로), LiteLLM 안에서 도는 Guardrail 훅 어댑터
 │   └── client.py·agent_key.py  # 비동기 모델 호출·전용 가상 키 발급
 ├── guardrails/   # 순수 Python 판정: 한국 형식 PII 정규식, 인젝션 패턴 사전, 팀별 정책 표 로더 (v2 분류기는 gateway 경유 호출)
 │   └── pii.py    # 한국 형식 PII 판정
 ├── audit/        # 감사 로그 해시체인·서명 쓰기(유일한 쓰기 지점), audit-verify
+│   └── log.py  # M3 비체인 JSONL·AuditPort·결과 기록 재시도
 ├── obs/          # trace span, 전송 전 마스킹, 로컬 JSONL / Langfuse 출력
 │   └── trace.py·mask.py·jsonl.py·langfuse.py
 ├── costs.py      # 공급사별 비용 원장·전체 기간 상한(호출 직전 누적액 검사)
 ├── evalrun/      # 사용자 실행 dev 평가·관측·LLM/A record-through(dev.py), 탐색 예산 후보(explore.py)
 ├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·cards_content.py·cards_text.py·cards_assets.py·a_source.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
+│   └── duplicates.py  # mock 상태 기반 중복·누락 집계
 ├── replay/       # 가짜 A MCP 서버, llm.py(LLM 응답 기록·재생), a_through.py·a_replay.py(A record-through·순차 재생)
 ├── golden.py     # 골든 기대값·자격·결정론 재생 조립
 └── mocks/        # mock-jira·mock-slack FastAPI 서비스, 장애 주입, 관리 엔드포인트
+    └── faults.py  # 엔드포인트별 순번 장애 주입
 web/              # Next.js(App Router, TypeScript): 화면 4개 + BFF route handler, Tailwind, shadcn/ui
 infra/
 ├── postgres/init/01-create-databases.sh  # litellm·langfuse·govops 앱 DB 초기화 계획(ADR-017, m1-agent)
@@ -53,15 +60,16 @@ data/
 ├── manifest/     # costs.jsonl·costs_grading.jsonl (커밋)
 ├── raw/          # 커밋 안 함
 └── interim/      # 커밋 안 함 (감사 서명 개인키 0600 등)
+    ├── audit/      # 비체인 감사 JSONL, 0600(ADR-018)
     └── eval/cards/  # 오프라인 검수 카드 HTML 한 장(index.html: 목록·카드 60장·판정 저장), 본문 발췌 포함이라 커밋 안 함
 docs/results/     # 결과표, 가설 사전 등록, 감사 고정점 manifest (날짜·커밋 해시)
 └── human-grading-registration.json  # docs/results/human-grading-registration.json, 사람 CSV 해시 등록
-logs/             # 로컬 JSONL trace·감사 로그 (커밋 안 함)
+logs/             # 로컬 JSONL trace (커밋 안 함)
 └── traces/<task_id>.jsonl  # task별 마스킹 span
 tests/
 ```
 
-`data/contract/`·`data/seed/`·`data/replay/`는 확정 경로다. `data/eval/` 하위 구조는 위와 같고, 감사 로그 저장 경로는 미정(구현 phase에서 결정)이다. 계층 간 import 금지 규칙은 [AGENTS.md](../AGENTS.md#계층-경계)가 원본이다.
+`data/contract/`·`data/seed/`·`data/replay/`는 확정 경로다. `data/eval/` 하위 구조는 위와 같고, 감사 로그 저장 경로는 `data/interim/audit/`(0600)다(ADR-018). 계층 간 import 금지 규칙은 [AGENTS.md](../AGENTS.md#계층-경계)가 원본이다.
 
 ## 배치도
 
@@ -82,7 +90,7 @@ flowchart LR
   end
   subgraph Compose[B docker compose]
     LLM[LiteLLM proxy<br/>팀 가상 키 · Guardrail 훅]
-    PG[(Postgres<br/>LiteLLM DB · Langfuse DB · govops 앱 DB(checkpointer))]
+    PG[(Postgres<br/>LiteLLM DB · Langfuse DB · govops 앱 DB(checkpointer·outbox))]
     MJ[mock-jira]
     MS[mock-slack]
     subgraph OBS[profile obs]
@@ -111,7 +119,7 @@ flowchart LR
 - 핵심 스택(LiteLLM·Postgres·mock 2개)은 Langfuse 없이 뜨고, 이때 trace는 로컬 JSONL로 남는다. Langfuse는 `docker compose --profile obs`로만 뜬다(ADR-009).
 - Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. M0 init은 `litellm`·`langfuse` DB만 만들고 checkpointer DB는 만들지 않는다(ADR-016). LangGraph checkpointer는 같은 인스턴스의 `govops` 앱 DB에 둔다. `m1-agent`에서 init 스크립트에 추가하고 기존 볼륨에는 멱등 `make db-init`을 제공한다. 연결 변수는 `GOVOPS_DATABASE_URL`이다(ADR-017).
 - web은 호스트에서 `cd web && pnpm dev`로 실행하고 compose에 넣지 않는다(ADR-016).
-- mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`이다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. CLI는 `health`·`state`(상태 조회)·`reset`(초기화)을 제공하고, 장애 주입 명령 내용은 미정(M3에서 결정)이다.
+- mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`이다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. CLI는 `health`·`state`(상태 조회)·`reset`(초기화)을 제공하고, 장애 주입 명령은 `faults set/clear/stats`이며 `state --bodies`로 본문 포함 상태를 조회한다(ADR-018).
 - Docker VM은 약 16GB(A OpenSearch와 공유)다. 첫 기동 후 `docker stats`로 실측하고, 부족하면 Docker 메모리를 늘린다.
 
 ## A 연동 모드
@@ -128,7 +136,7 @@ flowchart LR
 
 ## 에이전트 상태 전이
 
-승인 노드 핵심(`interrupt`, 초안 해시 결합, `POST /tasks/{id}/approval`)은 M3에서 구현한다. M3 장애 주입의 중복 0건 검증에는 승인을 거치는 부작용 실행 경로가 필요하다. M5는 웹 화면(로그인·요청 진행·승인함), 전사 공지 승인자 정책, MAX_STEPS/COST, 탐색 예산(ADR-014), checkpointer 보존 기간 삭제(ADR-015)를 구현한다.
+승인 노드 핵심(`interrupt`, 초안 해시 결합, `POST /tasks/{id}/approval`)과 전사 공지 승인자 정책(요청자 팀 4급 이상, 요청자 본인 제외)은 M3에서 구현한다. M3 장애 주입의 중복 0건 검증에는 승인을 거치는 부작용 실행 경로가 필요하다. M5는 웹 화면(로그인·요청 진행·승인함), MAX_STEPS/COST, 탐색 예산(ADR-014), checkpointer 보존 기간 삭제(ADR-015)를 구현한다.
 
 승인 노드에는 `interrupt()`만 두고 실행은 별도 노드에 둔다. LangGraph는 `Command(resume=...)` 재개 시 멈춘 노드를 처음부터 다시 실행하므로, 실행을 승인 노드에 두면 재개할 때마다 부작용이 반복될 수 있다(ADR-011).
 
@@ -160,11 +168,16 @@ stateDiagram-v2
     표식_조회 --> 반영_대기: 표식 없음 (1단계)
     반영_대기 --> 표식_재조회: 대기 시간 경과
     표식_재조회 --> 성공: 표식 있음 (재발송 안 함)
-    표식_재조회 --> 재시도_대기: 표식 없음 (2단계) — 이때만 재발송
-    재시도_대기 --> 실패: 재시도 상한 · 서킷 열림 · Hard Timeout
+    표식_재조회 --> 재시도_대기: 표식 없음 (2단계) · 발송 시도 남음 — 이때만 재발송
+    호출 --> 실패: 4xx 확정 실패
+    표식_조회 --> 불확실: 조회 불가
+    표식_재조회 --> 불확실: 표식 없음 · 마지막 발송이 불확실 실패
+    재시도_대기 --> 실패: 보내지 않았음이 확실한 재시도 상한 · 첫 호출 전 서킷 열림
   }
   실행 --> 완료: 성공 · 결과 감사 기록
   실행 --> 실패: 실패 · 결과 감사 기록
+  실행 --> 불확실: 불확실 · 결과 감사 기록
+  불확실 --> [*]
   완료 --> [*]
   실패 --> [*]
   거절 --> [*]
@@ -176,12 +189,14 @@ stateDiagram-v2
 - MAX_STEPS·MAX_COST 초과는 어느 활성 상태에서든 실패로 끝난다(값은 M5에서 정한다).
 - 탐색 예산(ADR-014): MAX_STEPS와 별도로, `계획_조회`에서 새 정보 없는 호출(결과에 이전까지 없던 문서·티켓 ID가 없는 도구 호출)이 N회 연속이면 task를 종료한다. N은 dev trace 재생에서 성공한 dev task를 하나도 자르지 않는 값 중 최솟값이며, 규칙은 dev 실행 전에 사전 등록한다. 권한 판정은 계속 에이전트에게 숨긴다. 사람 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다.
 - 승인은 초안 내용 해시에 묶는다. 승인 시점의 해시와 실행할 초안의 해시가 다르면 실행하지 않는다(TOCTOU 방지).
-- 승인자 정책: 기본은 요청자 본인. **전사 공지 채널 발송만 같은 팀 4급 이상**이 승인한다(A 등급은 숫자가 클수록 상위). 승인자 신원은 세션에서 정한다.
+- 승인자 정책: 기본은 요청자 본인. **전사 공지 채널 발송만 요청자 팀 4급 이상이면서 요청자 본인이 아닌 사용자**가 승인한다(A 등급은 숫자가 클수록 상위). 승인자 신원은 세션에서 정한다.
+- V15는 모델 입력에 본문·발췌가 들어간 문서·티켓을 근거로 검사하며 ID만 반환한 `lookup_id`는 제외한다. 접근 필드와 사용자 팀·직급만 담은 `data/seed/` 인덱스에 없는 근거는 차단한다. 문서 단위 검사는 평가 정답의 값 기준 판정보다 엄격하고 잘못 막힌 건은 TCR 실패·dev 보고 대상이다. 에이전트는 `data/eval/`을 읽지 않는다(ADR-018, 다음 phase 구현).
+- 전사 공지는 요청자가 4급 이상이어도 본인 승인은 403이다. 그 밖의 채널·티켓 작업은 요청자 본인만 승인하고 다른 사용자의 task는 404다(ADR-018).
 - 본인 승인의 의미: 결재가 아니라 "에이전트가 해석한 결과(수신처·초안·결정론 검사 결과)의 확인"이다. 직무 분리는 전사 공지에만 둔다.
 - 발송 신원은 요청자다(`credential_for(요청자)`). 승인자는 본문만 수정할 수 있고 수신처는 바꿀 수 없다(바꾸려면 거부 후 새 요청). 승인자와 수정 전후 초안 해시를 감사 로그에 남긴다.
 - 수정 후 승인은 수정본에 결정론 검사를 다시 돌린다. 통과하면 새 초안 해시에 묶인 승인으로 바로 실행하고, 실패하면 실행하지 않고 승인 대기로 되돌려 검사 결과를 보여 준다.
-- **부작용 도구는 재시도 전에 항상 표식 조회를 한다.** 조회는 2단계(조회 → 대기 → 재조회)이고, 표식이 있으면 성공, 두 번 모두 없을 때만 재시도다. 대기 시간은 미정(M3에서 결정)이다. 500·502·504 같은 5xx는 서버가 처리한 뒤 실패를 돌려줄 수 있으므로 바로 재시도하지 않는다. 바로 재시도해도 되는 것은 연결 수립 실패와 429(`Retry-After` 준수)뿐이다. 읽기 도구는 재시도해도 안전하다.
-- 읽기 도구의 재시도 대상 오류와 값(횟수·백오프·서킷·Timeout)은 M3에서 정한다.
+- **부작용 도구는 재시도 전에 항상 표식 조회를 한다.** 조회는 2단계(조회 → 대기 → 재조회)이고, 표식이 있으면 성공, 두 번 모두 없을 때만 재시도다. 대기 시간은 2.0초다(ADR-018). 500·502·504 같은 5xx는 서버가 처리한 뒤 실패를 돌려줄 수 있으므로 바로 재시도하지 않는다. 바로 재시도해도 되는 것은 연결 수립 실패와 429(`Retry-After` 준수)뿐이다. 읽기 도구는 재시도해도 안전하다.
+- 읽기 도구의 재시도 값(횟수·백오프·서킷·Timeout)은 ADR-018을 따른다. 연결 수립 실패·429·타임아웃·5xx·전송 오류를 재시도한다.
 
 ## 도구와 부작용·멱등성
 
@@ -193,7 +208,7 @@ stateDiagram-v2
 | `get_document` | A MCP | 없음 | 불필요 | 읽기, 재시도 안전 |
 | `jira_get_ticket` | mock-jira | 없음 | 불필요 | 읽기, 재시도 안전 |
 | `jira_search_tickets` | mock-jira | 없음 | 불필요 | 읽기, 재시도 안전 |
-| `slack_send_message` | mock-slack | 있음 | 필요(전사 공지는 같은 팀 4급 이상) | outbox + 메시지 메타데이터 표식 → 재시도 전 채널 최근 이력에서 2단계 조회 |
+| `slack_send_message` | mock-slack | 있음 | 필요(전사 공지는 요청자 팀 4급 이상, 요청자 본인 제외) | outbox + 메시지 메타데이터 표식 → 재시도 전 채널 최근 이력에서 2단계 조회 |
 | `jira_add_comment` | mock-jira | 있음 | 필요 | outbox + 코멘트 메타데이터 표식 → 재시도 전 해당 티켓 코멘트 목록에서 2단계 조회 |
 | `jira_create_followup_ticket` | mock-jira | 있음 | 필요 | outbox + 티켓 메타데이터 표식 → 재시도 전 원 티켓의 하위(후속) 티켓 목록에서 2단계 조회 |
 
@@ -201,9 +216,10 @@ stateDiagram-v2
 - 표식은 본문이 아니라 메타데이터 필드에 둔다(본문 표식은 사용자에게 보이고 사람이 수정하면 사라진다). **확인 필요(구현 시 공식 문서로 확인): 실제 대응 필드(Slack 메시지 메타데이터, Jira 이슈 속성).** 조회는 채널 최근 이력·티켓 하위 목록으로 하고 검색 API는 쓰지 않는다(검색은 반영이 늦을 수 있다).
 - 2단계 조회: 조회 → 대기 → 재조회 후 둘 다 없을 때만 재발송한다. 대기보다 짧은 조회 반영 지연은 절대 규칙 대상이고, 긴 지연은 한계 시연으로 절대 규칙에서 뺀다(F10, 사전 등록).
 - outbox 순서: ① 감사 로그에 실행 의도 기록 → ② outbox에 멱등 키·상태 기록 → ③ 메타데이터 필드에 표식을 넣어 호출 → ④ 결과를 outbox·감사 로그에 기록. 같은 멱등 키가 이미 성공이면 호출하지 않는다.
+- POST마다 직전에 발송 번호를 포함한 실행 시도 감사 이벤트를 fail-closed로 기록한다. 결과 기록 실패는 재시도 후 `audit_gap`으로 표시한다. 조회 불가·마지막 불확실 실패는 불확실로 종료하고 재시작 정리는 표식 조회만 한다(ADR-018).
 - 핵심 장애는 "서버는 처리했는데 응답 유실"이다. 이때 재발송하면 중복, 포기하면 누락이므로 표식 조회로 판정한다.
 - 티켓 생성은 기존 티켓의 후속 티켓으로만 한다(원 티켓 연결 필수, 독립 티켓 생성은 범위 밖). 그래서 표식 조회 대상은 항상 원 티켓의 후속 티켓 목록이고 검색 API가 필요 없다.
-- 도구 이름은 위 표의 9개로 확정한다(ADR-017). A 계약 이름을 유지하며 B 도구는 `{시스템}_{동사}_{대상}` snake_case다. 표식 값 형식, 2단계 조회 대기 시간, outbox 저장소(Postgres 테이블 여부)는 미정(M3에서 결정)이다.
+- 도구 이름은 위 표의 9개로 확정한다(ADR-017). A 계약 이름을 유지하며 B 도구는 `{시스템}_{동사}_{대상}` snake_case다. 표식 값 형식, 2단계 조회 대기 시간, outbox 저장소는 ADR-018을 따른다.
 - `jira_create_followup_ticket` 입력 스키마는 `parent_ticket_id`를 필수로 둔다. 모든 도구 입력에 사용자·팀·직급 필드는 없다. 채널 이력·코멘트 목록·후속 티켓 목록 조회는 표식 조회용으로 도구 계층만 쓰고 모델에는 노출하지 않는다. mock-slack 이력은 자기 팀 채널·전사 공지만 허용하며 그 밖은 403이다.
 - "원 티켓 없이 티켓 생성 요구"를 레드팀·T5 거절 사례로 넣을지는 미정(M6에서 결정)이다.
 - mock 응답 비대칭: 읽기 권한 거부와 읽을 수 없는 티켓에 대한 쓰기 요청(코멘트·후속 티켓)은 "없음"과 구별되지 않는 응답(mock-jira 404)이다. 명시적 "권한 없음"(403)은 존재가 공개된 mock-slack 채널(채널 목록은 공개 정보)의 쓰기·이력 조회에만 쓴다.
@@ -286,11 +302,11 @@ Langfuse annotation queue는 셀프호스팅 3.225.11에서 API가 HTTP 200으�
 
 ## 감사 로그
 
-trace와 다르게 책임 추적용이다. 보안·부작용 사건을 전부 담고, 덧붙이기만 하며, 위변조를 탐지한다.
+trace와 다르게 책임 추적용이다. M3는 `audit/log.py`의 비체인 JSONL(`data/interim/audit/`, 0600)과 AuditPort로 부작용 생애주기를 기록한다. M4는 같은 인터페이스에 해시체인·서명을 추가해 보안·부작용 사건 전체의 위변조를 탐지한다(ADR-012·ADR-018).
 
 **기록 대상:** 부작용 생애주기 전부(초안, 승인 요청, 승인·수정·거부·만료, 실행 시도, 결과, 표식 조회), Guardrail 차단·격리, 쓰기 권한 거부, 인증 실패, 모델 호출마다 최소 기록(task, 사용자, 팀 키, 모델, fallback 여부, 비용, Guardrail 판정), 서비스 시작 시 정책 파일 해시. 승인·수정 사건에는 승인자와 수정 전후 초안 해시를 넣는다.
 
-**형식(JSONL 한 줄 = 사건 하나):**
+**M4 형식(JSONL 한 줄 = 사건 하나):**
 
 ```json
 {"seq": 42, "ts": "2026-10-20T10:15:03.120+09:00", "prev_hash": "<직전 줄 hash>",
@@ -303,11 +319,11 @@ trace와 다르게 책임 추적용이다. 보안·부작용 사건을 전부 �
 - `hash` = SHA-256(정규화 JSON: 키 정렬·공백 없음·UTF-8, `hash`·`sig` 제외). `sig` = Ed25519(`hash`).
 - 날짜별 파일로 나눠도 체인은 이어진다. 쓰는 곳은 B 서비스의 `audit/` 한 곳이다.
 - **원문 대신 내용 해시와 mock ID만** 남긴다(지울 수 없는 로그에 PII를 넣지 않는다).
-- 실행 전 의도 기록, 실행 후 결과 기록. 감사 로그 쓰기에 실패하면 부작용을 실행하지 않는다(fail-closed).
+- 실행 전 의도 기록, 실행 후 결과 기록. 실행 전 감사 로그 쓰기에 실패하면 부작용을 실행하지 않는다(fail-closed). 결과 기록 실패는 재시도 후 `audit_gap`으로 표시한다(ADR-018).
 - 고정점: 실행마다 마지막 `seq`·`hash`를 서명해 `docs/results/` manifest에 커밋한다. 체인만으로는 꼬리 잘라내기와 전체 재계산을 막지 못하기 때문이다.
 - 키: 개인키는 gitignore된 `data/interim/`에 0600(사용자 생성), 공개키만 커밋한다.
 - `make audit-verify`: 체인·서명·seq 빈틈·고정점을 검증한다.
-- 위 예시의 `event` 이름과 사건별 추가 필드 목록은 미정(M4에서 결정)이다.
+- M3 부작용 생애주기 이벤트는 ADR-018을 따른다. 해시체인·서명과 나머지 사건별 추가 필드는 M4에서 구현한다.
 
 ## BFF 인증 흐름 (httpOnly 쿠키)
 
@@ -333,7 +349,7 @@ sequenceDiagram
 
 - 브라우저 JS는 토큰을 볼 수 없다. "자격 증명은 LLM·trace·브라우저에도 노출되지 않는다"를 웹 계층까지 이어 간다.
 - 데모 로그인은 IdP 대체 장치다. `DEMO_LOGIN` 플래그일 때만 열고 127.0.0.1에만 바인드한다. 신뢰 경계는 세션 발급 이후다(ADR-005).
-- 화면 4개: 로그인(데모 사용자 선택 = B 세션 발급), 요청·진행(SSE), 승인함(초안·수신처·결정론 검사 결과·수정 차이, 전사 공지는 4급 이상만), 기록(task 상태, `audit-verify` 결과).
+- 화면 4개: 로그인(데모 사용자 선택 = B 세션 발급), 요청·진행(SSE), 승인함(초안·수신처·결정론 검사 결과·수정 차이, 전사 공지는 요청자 팀 4급 이상, 요청자 본인 제외), 기록(task 상태, `audit-verify` 결과).
 - B 세션: `POST /sessions`는 `DEMO_LOGIN` 플래그와 127.0.0.1 클라이언트 조건에서만 열린다. `secrets.token_urlsafe(32)`로 발급하고 서버는 SHA-256 해시만 메모리에 두어 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이며 최종값은 M5에서 정한다. 인증 의존성은 `Authorization: Bearer`에서 요청자·승인자 `user_id`를 얻는다. 다른 사용자의 task 조회는 404다(ADR-017).
 - 쿠키 속성(`Secure`·`SameSite`)·CSRF 대책·세션 만료 시간은 미정(M5에서 결정)이다.
 
@@ -341,7 +357,7 @@ M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec�
 
 ## 상태 관리
 - **에이전트 상태:** LangGraph state + 같은 Postgres 인스턴스의 `govops` 앱 DB checkpointer(`GOVOPS_DATABASE_URL`, ADR-017). `make verify` 테스트는 in-memory saver를 쓰며 실제 Postgres는 사용자 스모크로 확인한다. state에는 사용자 ID·초안·초안 해시·도구 결과가 들어가고 토큰은 들어가지 않는다. checkpointer는 실행에 필요한 원문을 두며, task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다. 삭제 명령과 테스트는 M5에 둔다(ADR-015).
-- **outbox:** 멱등 키별 상태(기록됨·성공·불확실·실패)와 표식. 저장 위치는 미정(M3에서 결정).
+- **outbox:** 멱등 키별 상태(기록됨·시도됨·불확실·성공·실패), 해시·mock ID·`audit_gap`을 같은 Postgres 인스턴스의 `govops` DB 테이블에 둔다(ADR-018).
 - **mock 상태:** mock 서비스 메모리 또는 파일. 관리 엔드포인트로 초기화한다. 장애 주입은 요청 순번 스크립트로 재현한다.
 - **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 호출 직전에 상한 검사와 예약 행 기록을 원장 잠금 안에서 한 번에 하고 호출 뒤 같은 예약 ID로 정산하며, 정산되지 않은 예약은 상한 쪽으로 계속 센다(ADR-007). 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007.
 - **비밀 값:** API 키는 `.env`에서만 읽는다. M1은 에이전트 전용 가상 키 1개(`LITELLM_AGENT_KEY`)를 쓰고 팀별 키는 M4에 둔다. LiteLLM 팀별 가상 키의 보관·주입 방식은 미정(M4에서 결정)이다.

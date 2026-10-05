@@ -29,6 +29,12 @@
       "dir": "m2-run",
       "status": "completed",
       "completed_at": "2026-10-05T12:29:04+0900"
+    },
+    {
+      "dir": "m3-effects",
+      "status": "completed",
+      "failed_at": "2026-10-05T14:02:02+0900",
+      "completed_at": "2026-10-05T18:18:17+0900"
     }
   ]
 }

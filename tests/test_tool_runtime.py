@@ -186,11 +186,6 @@ def test_real_layers(tmp_path, monkeypatch, serve_asgi, caplog, capsys):
     assert all(
         not audience_tokens[i] & audience_tokens[j] for i in range(3) for j in range(i)
     )
-    for cls, names in [
-        (JiraClient, ("add_comment", "create_followup_ticket")),
-        (SlackClient, ("send_message",)),
-    ]:
-        assert all(not hasattr(cls, name) for name in names)
 
 
 def test_rest_safe_failures_and_request_credentials(monkeypatch):
@@ -230,3 +225,214 @@ def test_rest_safe_failures_and_request_credentials(monkeypatch):
         assert calls == [("demo-platform-g3", "mock-jira")] * 3
 
     asyncio.run(exercise())
+
+
+@pytest.mark.parametrize(
+    "error_type,kind",
+    [
+        (httpx.ConnectError, "connect"),
+        (httpx.ConnectTimeout, "connect"),
+        (httpx.ReadTimeout, "timeout"),
+        (httpx.WriteTimeout, "timeout"),
+        (httpx.PoolTimeout, "transport"),
+        (httpx.ReadError, "transport"),
+        (httpx.RemoteProtocolError, "transport"),
+    ],
+)
+def test_write_transport_classification(monkeypatch, error_type, kind):
+    from govops.broker import credentials
+
+    monkeypatch.setattr(credentials, "credential_for", lambda *args: "test-secret")
+    requests = []
+
+    def handle(request):
+        requests.append(request)
+        assert request.extensions["timeout"]["read"] == 1.25
+        raise error_type("test-secret private-body", request=request)
+
+    async def exercise():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
+            client = SlackClient("http://slack", http_client=http)
+            with pytest.raises(ToolHttpError) as caught:
+                await client._post(
+                    "demo-platform-g3",
+                    "/channels/team-platform/messages",
+                    json={"text": "private-body", "metadata": {}},
+                    timeout=1.25,
+                )
+            assert caught.value.kind == kind
+            assert caught.value.code == "transport_error"
+            assert caught.value.retry_after is None
+            assert caught.value.__context__ is None
+            assert "test-secret" not in str(caught.value)
+            assert "private-body" not in str(caught.value)
+
+    asyncio.run(exercise())
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize(
+    "status,header,expected",
+    [
+        (429, "2", 2.0),
+        (429, "0.25", 0.25),
+        (429, "invalid", None),
+        (429, "-1", None),
+        (429, "NaN", None),
+        (429, "Infinity", None),
+        (429, "Wed, 21 Oct 2015 07:28:00 GMT", None),
+        (503, "2", None),
+    ],
+)
+def test_write_http_classification(monkeypatch, status, header, expected):
+    from govops.broker import credentials
+
+    monkeypatch.setattr(credentials, "credential_for", lambda *args: "test-secret")
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(
+            status, headers={"Retry-After": header}, content="private-body test-secret"
+        )
+
+    async def exercise():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
+            client = SlackClient("http://slack", http_client=http)
+            with pytest.raises(ToolHttpError) as caught:
+                await client.send_message(
+                    "demo-platform-g3", "team-platform", "합성", metadata={}
+                )
+            assert caught.value.kind == "http"
+            assert caught.value.retry_after == expected
+            assert "private-body" not in str(caught.value)
+            assert "test-secret" not in str(caught.value)
+
+    asyncio.run(exercise())
+    assert len(calls) == 1
+
+
+def test_markers():
+    import hashlib
+
+    from govops.tools.markers import has_marker, idempotency_key, make_marker
+
+    a = {"text": "가", "nested": {"z": ["é"], "a": 1}}
+    b = {"nested": {"a": 1, "z": ["e\u0301"]}, "text": "\u1100\u1161"}
+    key = idempotency_key("task", "tool", a)
+    assert key == idempotency_key("task", "tool", b)
+    canonical = json.dumps(
+        {"task_id": "task", "tool": "tool", "args": a},
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    assert key == hashlib.sha256(canonical.encode()).hexdigest()
+    assert len(key) == 64
+    for task, tool, args in [
+        ("other", "tool", a),
+        ("task", "other", a),
+        ("task", "tool", {"text": "나"}),
+    ]:
+        assert key != idempotency_key(task, tool, args)
+    for field in ("user", "user_id", "team", "team_id", "grade", "rank", "role"):
+        with pytest.raises(ValueError):
+            idempotency_key("task", "tool", {"nested": [{field: "spoof"}]})
+    marker = make_marker("task", key, "approval")
+    assert marker == {
+        "govops_idem": key,
+        "govops_task": "task",
+        "govops_approval": "approval",
+    }
+    assert has_marker(iter([{"metadata": marker}]), key)
+    assert not has_marker(
+        [{"text": key}, {"body": key}, {"description": key}, {"metadata": None}], key
+    )
+
+
+def test_write_clients_asgi(tmp_path, monkeypatch, caplog, capsys):
+    from govops.tools.jira import comment_id, followup_id
+    from govops.tools.markers import has_marker, idempotency_key, make_marker
+    from govops.tools.slack import message_id
+
+    caplog.set_level(logging.DEBUG)
+    users = tmp_path / "users.json"
+    users.write_text(
+        json.dumps(
+            {"users": [{"label": "demo-platform-g3", "team": "platform", "grade": 3}]}
+        )
+    )
+    private = tmp_path / "mock.json"
+    generate_tokens(users=users, plaintext=private, hash_dir=tmp_path)
+    monkeypatch.setenv("MOCK_TOKENS_FILE", str(private))
+    captures = [
+        Capture(
+            create_rest_app(
+                kind, state=state, token_store=TokenHashStore.load(tmp_path / filename)
+            )
+        )
+        for kind, state, filename in [
+            ("jira", JiraState([ticket()]), "mock_jira_token_hashes.json"),
+            ("slack", SlackState(), "mock_slack_token_hashes.json"),
+        ]
+    ]
+    key = idempotency_key("task", "write", {"text": "합성 본문"})
+    marker = make_marker("task", key, "approval")
+
+    async def exercise():
+        async with (
+            httpx.AsyncClient(transport=httpx.ASGITransport(app=captures[0])) as jh,
+            httpx.AsyncClient(transport=httpx.ASGITransport(app=captures[1])) as sh,
+        ):
+            jira, slack = (
+                JiraClient("http://jira", http_client=jh),
+                SlackClient("http://slack", http_client=sh),
+            )
+            user = "demo-platform-g3"
+            comment = await jira.add_comment(
+                user, "SYN-1", "합성 본문", metadata=marker
+            )
+            child = await jira.create_followup(
+                user,
+                "SYN-1",
+                title="합성 본문",
+                description="합성 본문",
+                priority="high",
+                metadata=marker,
+            )
+            message = await slack.send_message(
+                user, "team-platform", "합성 본문", metadata=marker
+            )
+            assert comment_id(comment).startswith("comment-")
+            assert followup_id(child) == "SYN-2"
+            assert message_id(message).startswith("message-")
+            for items, field in [
+                (await jira.ticket_comments(user, "SYN-1"), "body"),
+                (await jira.ticket_children(user, "SYN-1"), "title"),
+                (await slack.channel_history(user, "team-platform", limit=1), "text"),
+            ]:
+                assert len(items) == 1 and has_marker(items, key)
+                assert items[0][field] == "합성 본문"
+                assert items[0]["metadata"] == marker
+            output = (
+                repr([comment, child, message]) + repr(vars(jira)) + repr(vars(slack))
+            )
+            return output
+
+    output = asyncio.run(exercise()) + caplog.text + str(capsys.readouterr())
+    tokens = json.loads(private.read_text())["users"][0]["tokens"]
+    for capture, audience in zip(captures, ("mock-jira", "mock-slack"), strict=True):
+        for request in capture.requests:
+            headers = [
+                v for k, v in request["headers"] if k.lower() == b"authorization"
+            ]
+            assert headers == [("Bearer " + tokens[audience]).encode()]
+            if request["body"]:
+                payload = json.loads(request["body"])
+                assert payload["metadata"] == marker
+                for field in ("text", "body", "description"):
+                    if field in payload:
+                        assert payload[field] == "합성 본문"
+            assert all(t.encode() not in request["body"] for t in tokens.values())
+            assert all(t not in request["url"] for t in tokens.values())
+    assert all(t not in output for t in tokens.values())

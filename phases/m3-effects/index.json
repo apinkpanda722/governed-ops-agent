@@ -1,0 +1,92 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-effects",
+  "steps": [
+    {
+      "step": 0,
+      "name": "mock-faults",
+      "status": "completed",
+      "started_at": "2026-10-05T16:06:45+0900",
+      "summary": "mock 장애 주입 5종·순번 규칙·관리 CLI·본문 포함 상태 조회 구현, 관리 포트 격리 유지 및 make verify 통과(Python 1,317개·웹 15개 테스트).",
+      "completed_at": "2026-10-05T16:25:43+0900",
+      "usage": {
+        "input_tokens": 1557192,
+        "cached_input_tokens": 1479936,
+        "output_tokens": 11810,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "write-clients",
+      "status": "completed",
+      "started_at": "2026-10-05T16:25:43+0900",
+      "summary": "REST 오류 분류·Retry-After·재시도 없는 POST, 쓰기·표식 조회 클라이언트·효과 ID 헬퍼·멱등 키 유틸 구현; 에이전트 미연결·계층 경계 유지, make verify 통과(Python 1,334개·웹 15개).",
+      "completed_at": "2026-10-05T16:45:21+0900",
+      "usage": {
+        "input_tokens": 1793099,
+        "cached_input_tokens": 1720960,
+        "output_tokens": 7437,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "resilience",
+      "status": "completed",
+      "started_at": "2026-10-05T16:45:21+0900",
+      "summary": "도구 타임아웃·읽기 재시도·서비스별 서킷과 안전한 trace 구현, ToolRuntime 읽기 연결 및 make verify 통과(Python 1,359개·웹 15개).",
+      "completed_at": "2026-10-05T17:00:39+0900",
+      "usage": {
+        "input_tokens": 1031684,
+        "cached_input_tokens": 970624,
+        "output_tokens": 7835,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "audit-min",
+      "status": "completed",
+      "started_at": "2026-10-05T17:19:26+0900",
+      "summary": "비체인 JSONL AuditLog·AuditPort·안전한 검증 오류·append_with_retry 구현, seq 연속성·동시성·해시 10,000개·권한 검증 및 make verify 통과(Python 1,403개·웹 15개).",
+      "completed_at": "2026-10-05T17:33:47+0900",
+      "usage": {
+        "input_tokens": 1170915,
+        "cached_input_tokens": 1120128,
+        "output_tokens": 5977,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "outbox-executor",
+      "status": "completed",
+      "started_at": "2026-10-05T17:33:47+0900",
+      "summary": "해시 전용 InMemory·Postgres outbox, 2단계 표식 조회 실행기·재발송 없는 정리 함수, 중복·누락 집계와 장애 매트릭스 구현; 그래프 미연결, make verify 통과(Python 1,495개·웹 15개, Postgres 계약 1개 skip).",
+      "completed_at": "2026-10-05T18:00:35+0900",
+      "usage": {
+        "input_tokens": 4106771,
+        "cached_input_tokens": 3984000,
+        "output_tokens": 25195,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 5,
+      "name": "effects-docs",
+      "status": "completed",
+      "started_at": "2026-10-05T18:03:40+0900",
+      "summary": "ADR-018 추가 및 5개 문서에 M3 장애 처리·outbox·감사·승인자 정책·V15 결정을 반영; 코드·테스트 수정 없이 make verify 통과(Python 1,495개, 웹 15개, Postgres 계약 1개 skip).",
+      "completed_at": "2026-10-05T18:18:17+0900",
+      "usage": {
+        "input_tokens": 1577224,
+        "cached_input_tokens": 1483904,
+        "output_tokens": 7994,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-05T13:53:42+0900",
+  "completed_at": "2026-10-05T18:18:17+0900"
+}

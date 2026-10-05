@@ -9,6 +9,7 @@ from pathlib import Path
 import uvicorn
 
 from govops.mocks.auth import TokenHashStore
+from govops.mocks.faults import FaultH11Protocol
 from govops.mocks.jira import JiraState
 from govops.mocks.seed import load_tickets
 from govops.mocks.service import create_admin_app, create_rest_app
@@ -26,6 +27,7 @@ async def _serve(
             create_rest_app(service, state=state, token_store=token_store),
             host="0.0.0.0",
             port=8000,
+            http=FaultH11Protocol,
         )
     )
     admin = uvicorn.Server(

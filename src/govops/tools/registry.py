@@ -10,6 +10,7 @@ from govops.broker.credentials import Audience
 from govops.tools.a_mcp import AMcpClient
 from govops.tools.contract import load_snapshot
 from govops.tools.jira import JiraClient
+from govops.tools.resilience import ToolPolicy
 from govops.tools.slack import SlackClient
 
 TicketId = Annotated[str, Field(pattern=r"^[A-Z]{3}-\d+$")]
@@ -160,10 +161,18 @@ def _ids(payload: Any, keys: set[str]) -> tuple[str, ...]:
 
 
 class ToolRuntime:
-    def __init__(self, a_client: AMcpClient, jira: JiraClient, slack: SlackClient):
+    def __init__(
+        self,
+        a_client: AMcpClient,
+        jira: JiraClient,
+        slack: SlackClient,
+        *,
+        policy: ToolPolicy | None = None,
+    ):
         self.a_client = a_client
         self.jira = jira
         self.slack = slack
+        self.policy = policy if policy is not None else ToolPolicy()
 
     async def call(
         self, name: str, arguments: Mapping[str, Any], *, user_id: str
@@ -186,13 +195,17 @@ class ToolRuntime:
                 (),
             )
         if spec.audience == "kodocs-mcp":
-            result = await self.a_client.call_tool(user_id, name, dict(arguments))
+            result = await self.policy.call_read(
+                "a_mcp", lambda: self.a_client.call_tool(user_id, name, dict(arguments))
+            )
             return ToolOutcome(
                 result.payload, result.is_error, _ids(result.payload, {"doc_id"})
             )
         args = validated.model_dump()
         if name == "jira_get_ticket":
-            payload = await self.jira.get_ticket(user_id, **args)
+            payload = await self.policy.call_read(
+                "jira", lambda: self.jira.get_ticket(user_id, **args)
+            )
             if payload is None:
                 return ToolOutcome(
                     {"error": {"code": "not_found", "message": "Ticket not found"}},
@@ -200,5 +213,9 @@ class ToolRuntime:
                     (),
                 )
         else:
-            payload = {"tickets": await self.jira.search_tickets(user_id, **args)}
+            payload = {
+                "tickets": await self.policy.call_read(
+                    "jira", lambda: self.jira.search_tickets(user_id, **args)
+                )
+            }
         return ToolOutcome(payload, False, _ids(payload, {"ticket_id", "parent_id"}))

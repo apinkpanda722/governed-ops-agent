@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, StrictStr
 
 from govops.mocks.auth import TEAMS, MockUser, TokenHashStore, bearer_user
+from govops.mocks.faults import FaultState, is_visible, visible_at
 
 CHANNELS = tuple(
     {"channel_id": f"team-{team}", "kind": "team", "team": team}
@@ -38,12 +39,14 @@ class SlackState:
         counter: Iterator[int] | None = None,
     ):
         self.clock = clock
+        self.faults = FaultState()
         self._initial_counter = deepcopy(counter if counter is not None else count(1))
         self.lock = RLock()
         self.reset()
 
     def reset(self) -> None:
         with self.lock:
+            self.faults.reset()
             self.messages: dict[str, list[dict]] = {
                 channel["channel_id"]: [] for channel in CHANNELS
             }
@@ -61,7 +64,7 @@ class SlackState:
             raise HTTPException(status_code=403)
         return self.messages[channel_id]
 
-    def report(self) -> dict:
+    def report(self, *, bodies: bool = False) -> dict:
         with self.lock:
             return {
                 "channels": [
@@ -70,7 +73,11 @@ class SlackState:
                         "message_count": len(messages),
                         "messages": [
                             {
-                                **{k: deepcopy(v) for k, v in m.items() if k != "text"},
+                                **{
+                                    k: deepcopy(v)
+                                    for k, v in m.items()
+                                    if k != "text" or bodies
+                                },
                                 "text_sha256": hashlib.sha256(
                                     m["text"].encode("utf-8")
                                 ).hexdigest(),
@@ -126,6 +133,8 @@ def add_rest_routes(
                 "metadata": dict(body.metadata),
                 "created_at": state.timestamp(),
             }
+            if (deadline := visible_at(message["created_at"])) is not None:
+                message["visible_at"] = deadline
             messages.append(message)
             return {"message": deepcopy(message)}
 
@@ -142,13 +151,19 @@ def add_rest_routes(
         """Tool-layer marker lookup before retries; not an agent tool."""
         with state.lock:
             messages = state.authorized_channel(channel_id, user)
-            return {"messages": deepcopy(list(reversed(messages))[: min(limit, 100)])}
+            return {
+                "messages": deepcopy(
+                    [m for m in reversed(messages) if is_visible(m, state.timestamp())][
+                        : min(limit, 100)
+                    ]
+                )
+            }
 
 
 def add_admin_routes(app: FastAPI, state: SlackState) -> None:
     @app.get("/state")
-    def report() -> dict:
-        return state.report()
+    def report(bodies: bool = False) -> dict:
+        return state.report(bodies=bodies)
 
     @app.post("/reset")
     def reset() -> dict:

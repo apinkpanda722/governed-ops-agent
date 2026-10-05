@@ -21,6 +21,49 @@ class ToolResult:
 class AMcpError(Exception):
     """Safe transport or protocol failure without underlying request details."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        kind: str = "protocol",
+        status: int | None = None,
+        retry_after: float | None = None,
+    ):
+        self.kind = kind
+        self.status = status
+        self.retry_after = retry_after
+        super().__init__(message)
+
+
+def _failure(error: Exception) -> tuple[str, int | None, float | None]:
+    if isinstance(error, BaseExceptionGroup):
+        failures = [
+            _failure(child)
+            for child in error.exceptions
+            if isinstance(child, Exception)
+        ]
+        for failure in failures:
+            if failure[1] is not None and 400 <= failure[1] < 500:
+                return failure
+        for failure in failures:
+            if failure[0] != "protocol":
+                return failure
+    if isinstance(error, httpx2.HTTPStatusError):
+        from govops.tools.rest import _retry_after
+
+        return (
+            "http",
+            error.response.status_code,
+            _retry_after(error.response.headers.get("Retry-After")),
+        )
+    if isinstance(error, (httpx2.ConnectError, httpx2.ConnectTimeout)):
+        return ("connect", None, None)
+    if isinstance(error, (TimeoutError, httpx2.TimeoutException)):
+        return ("timeout", None, None)
+    if isinstance(error, httpx2.TransportError):
+        return ("transport", None, None)
+    return ("protocol", None, None)
+
 
 def _reason(error: Exception) -> str:
     if isinstance(error, BaseExceptionGroup):
@@ -61,6 +104,7 @@ class AMcpClient:
             unauthorized = unauthorized or response.status_code == 401
 
         reason = None
+        failure = ("protocol", None, None)
         try:
             async with (
                 httpx2.AsyncClient(
@@ -88,8 +132,11 @@ class AMcpClient:
             raise
         except Exception as error:  # noqa: BLE001 — sanitize all SDK exception details
             reason = "401 인증 실패" if unauthorized else _reason(error)
+            failure = ("http", 401, None) if unauthorized else _failure(error)
         # Raising outside except discards secret-bearing exception context.
-        raise AMcpError(reason)
+        raise AMcpError(
+            reason, kind=failure[0], status=failure[1], retry_after=failure[2]
+        )
 
     async def list_tools(self, user_id: str) -> list[dict]:
         return [
