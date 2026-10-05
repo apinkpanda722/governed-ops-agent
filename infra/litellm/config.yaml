@@ -3,10 +3,35 @@ model_list:
     litellm_params:
       model: openai/gpt-6-luna
       api_key: os.environ/OPENAI_API_KEY
+      timeout: 15
+      num_retries: 0
+  - model_name: agent-fallback
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 30
+      num_retries: 0
+  - model_name: agent-primary-only
+    litellm_params:
+      model: openai/gpt-6-luna
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 15
+      num_retries: 0
+  - model_name: agent-primary-down
+    litellm_params:
+      model: openai/gpt-6-luna
+      api_key: os.environ/OPENAI_API_KEY
+      api_base: http://127.0.0.1:9
+      timeout: 15
+      num_retries: 0
+
+router_settings:
+  fallbacks:
+    - agent-primary: [agent-fallback]
+    - agent-primary-down: [agent-fallback]
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/LITELLM_DATABASE_URL
 
-# fallback: Anthropic Sonnet 계열 — 확인 필요(구현 시 공식 문서로 확인): 모델 ID·가격
 # Guardrail 훅 자리: Guardrail은 M4

@@ -168,22 +168,23 @@ def test_init_script_creates_litellm_langfuse_and_govops_databases() -> None:
     assert "checkpointer" not in script.lower()
 
 
-def test_litellm_has_one_primary_model_and_environment_settings() -> None:
+def test_litellm_has_primary_model_and_environment_settings() -> None:
     path = REPO_ROOT / "infra/litellm/config.yaml"
     text = path.read_text(encoding="utf-8")
     config = yaml.safe_load(text)
-    assert len(config["model_list"]) == 1
+    assert len(config["model_list"]) == 4
     model = config["model_list"][0]
     assert model["model_name"]
     assert model["litellm_params"] == {
         "model": "openai/gpt-6-luna",
         "api_key": "os.environ/OPENAI_API_KEY",
+        "timeout": 15,
+        "num_retries": 0,
     }
     assert config["general_settings"] == {
         "master_key": "os.environ/LITELLM_MASTER_KEY",
         "database_url": "os.environ/LITELLM_DATABASE_URL",
     }
-    assert "확인 필요(구현 시 공식 문서로 확인): 모델 ID·가격" in text
     assert "Guardrail은 M4" in text
 
 
@@ -252,3 +253,37 @@ def test_obs_config_and_env():
     text = (REPO_ROOT / ".env.example").read_text()
     for key in ("LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"):
         assert f"{key}=\n" in text
+
+
+def test_gateway_fallback_configs_match():
+    from pathlib import Path
+
+    import yaml
+
+    configs = [
+        yaml.safe_load(Path(f"infra/litellm/{name}").read_text())
+        for name in ("config.yaml", "config.obs.yaml")
+    ]
+    assert configs[0]["model_list"] == configs[1]["model_list"]
+    expected = [
+        {"agent-primary": ["agent-fallback"]},
+        {"agent-primary-down": ["agent-fallback"]},
+    ]
+    for config in configs:
+        assert config["router_settings"]["fallbacks"] == expected
+        models = {m["model_name"]: m["litellm_params"] for m in config["model_list"]}
+        assert set(models) == {
+            "agent-primary",
+            "agent-fallback",
+            "agent-primary-only",
+            "agent-primary-down",
+        }
+        for name in ("agent-primary", "agent-primary-only", "agent-primary-down"):
+            assert models[name]["model"] == "openai/gpt-6-luna"
+            assert models[name]["timeout"] == 15
+            assert models[name]["num_retries"] == 0
+        assert models["agent-fallback"]["model"] == "anthropic/claude-sonnet-5-5"
+        assert models["agent-fallback"]["api_key"] == "os.environ/ANTHROPIC_API_KEY"
+        assert models["agent-fallback"]["timeout"] == 30
+        assert models["agent-primary-down"]["api_base"] == "http://127.0.0.1:9"
+        assert models["agent-primary-only"] == models["agent-primary"]

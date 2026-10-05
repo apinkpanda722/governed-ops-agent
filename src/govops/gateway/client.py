@@ -20,7 +20,14 @@ from openai import (
     OpenAIError,
 )
 
-from govops.costs import CostLedger, estimate_call_usd, token_cost_usd
+from govops.costs import (
+    BudgetExceededError,
+    CostLedger,
+    anthropic_cost_usd,
+    estimate_call_usd,
+    resolve_model,
+    response_cost_usd,
+)
 from govops.env import env_or
 from govops.obs.trace import current_span_id, set_attributes
 
@@ -72,6 +79,8 @@ class ChatResult:
     model: str
     usage: Usage
     cost_usd: float
+    fallback_used: bool = False
+    unmapped_model: bool = False
 
 
 class GatewayError(Exception):
@@ -160,15 +169,48 @@ class LiteLLMChatClient:
             task_id=task_id,
             estimate_usd=estimate,
         )
+        reservations = [(reservation, "agent_primary", _MODEL, "openai")]
         usage = Usage(0, 0, 0)
         cost = 0.0
+        response_model = _MODEL
+        supplier = None
+        unmapped = False
         try:
+            try:
+                fallback_reservation = await asyncio.to_thread(
+                    self._ledger.reserve,
+                    purpose="agent_fallback",
+                    model="claude-sonnet-5-5",
+                    task_id=task_id,
+                    estimate_usd=anthropic_cost_usd(
+                        "claude-sonnet-5-5",
+                        input_tokens=input_upper,
+                        output_tokens=max_output_tokens,
+                    ),
+                )
+            except BudgetExceededError:
+                body["model"] = "agent-primary-only"
+            else:
+                reservations.append(
+                    (
+                        fallback_reservation,
+                        "agent_fallback",
+                        "claude-sonnet-5-5",
+                        "anthropic",
+                    )
+                )
             completion = await self._send(
                 body,
                 user_id=user_id,
                 task_id=task_id,
                 max_output_tokens=max_output_tokens,
             )
+            response_model = getattr(completion, "model", None)
+            if not isinstance(response_model, str):
+                raise GatewayError("gateway malformed response")
+            resolved = resolve_model(response_model)
+            supplier = resolved.supplier
+            unmapped = not resolved.mapped
             usage, cost = _usage_and_cost(
                 completion, input_upper, max_output_tokens, estimate
             )
@@ -181,22 +223,25 @@ class LiteLLMChatClient:
                     "output": usage.output_tokens,
                 },
                 cost_usd=cost,
+                unmapped_model=unmapped,
+                fallback_used=supplier == "anthropic",
             )
-            # 성공·실패·취소와 관계없이 같은 예약 ID로 정산한다. 실패한 호출은 확인된
-            # 사용량이 없으면 0으로 정산한다.
-            await asyncio.shield(
-                asyncio.to_thread(
-                    self._ledger.settle,
-                    reservation,
-                    purpose="agent_primary",
-                    model=_MODEL,
-                    task_id=task_id,
-                    input_tokens=usage.input_tokens,
-                    cached_input_tokens=usage.cached_input_tokens,
-                    output_tokens=usage.output_tokens,
-                    cost_usd=cost,
+            for reserved, purpose, model, reserved_supplier in reservations:
+                charged = unmapped or supplier == reserved_supplier
+                settled_usage = usage if charged else Usage(0, 0, 0)
+                await asyncio.shield(
+                    asyncio.to_thread(
+                        self._ledger.settle,
+                        reserved,
+                        purpose=purpose,
+                        model=response_model if charged else model,
+                        task_id=task_id,
+                        input_tokens=settled_usage.input_tokens,
+                        cached_input_tokens=settled_usage.cached_input_tokens,
+                        output_tokens=settled_usage.output_tokens,
+                        cost_usd=cost if charged else 0.0,
+                    )
                 )
-            )
 
     async def _send(
         self, body: dict, *, user_id: str, task_id: str, max_output_tokens: int
@@ -216,7 +261,7 @@ class LiteLLMChatClient:
             )
             try:
                 completion = await sdk.chat.completions.create(
-                    model="agent-primary",
+                    model=body["model"],
                     messages=body["messages"],
                     tools=body["tools"],
                     user=user_id,
@@ -248,6 +293,12 @@ def _usage_and_cost(
     completion, input_upper: int, max_output_tokens: int, estimate: float
 ) -> tuple[Usage, float]:
     raw_usage = getattr(completion, "usage", None)
+    estimate, _ = response_cost_usd(
+        completion.model,
+        input_tokens=input_upper,
+        cached_input_tokens=0,
+        output_tokens=max_output_tokens,
+    )
     estimated = (Usage(input_upper, 0, max_output_tokens), estimate)
     if (
         raw_usage is None
@@ -262,8 +313,8 @@ def _usage_and_cost(
         raw_usage.completion_tokens,
     )
     try:
-        cost = token_cost_usd(
-            _MODEL,
+        cost, _ = response_cost_usd(
+            completion.model,
             input_tokens=usage.input_tokens,
             cached_input_tokens=usage.cached_input_tokens,
             output_tokens=usage.output_tokens,
@@ -295,6 +346,8 @@ def _result(completion, usage: Usage, cost: float) -> ChatResult:
             model=completion.model,
             usage=usage,
             cost_usd=cost,
+            fallback_used=resolve_model(completion.model).supplier == "anthropic",
+            unmapped_model=not resolve_model(completion.model).mapped,
         )
     except (IndexError, AttributeError, TypeError):
         failure = GatewayError("gateway malformed response")

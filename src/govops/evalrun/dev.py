@@ -95,6 +95,8 @@ class _Capture:
         self.errors = []
         self.results = []
         self.models = set()
+        self.unmapped_models = set()
+        self.fallback_used = False
 
     async def complete(self, **kwargs):
         try:
@@ -103,6 +105,9 @@ class _Capture:
             self.errors.append(error)
             raise
         self.models.add(result.model)
+        if result.unmapped_model:
+            self.unmapped_models.add(result.model)
+        self.fallback_used |= result.fallback_used
         return result
 
     async def call(self, name, arguments, **kwargs):
@@ -168,6 +173,7 @@ async def run_dev(
         contract_snapshot_sha256=snapshot_sha256(),
         fallback_used=False,
         models_seen=[],
+        unmapped_models=[],
         started_at=datetime.now(UTC).isoformat(),
         finished_at=None,
         trace_ids={},
@@ -242,6 +248,10 @@ async def run_dev(
                 manifest["models_seen"] = sorted(
                     set(manifest["models_seen"]) | response_capture.models
                 )
+                manifest["unmapped_models"] = sorted(
+                    set(manifest["unmapped_models"]) | response_capture.unmapped_models
+                )
+                manifest["fallback_used"] |= response_capture.fallback_used
                 manifest["infrastructure_failures"] += int(infra)
                 attempt = {
                     "attempt": number + 1,
