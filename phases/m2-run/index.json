@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "a-record-through",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T10:40:56+0900",
+      "summary": "A 공통 합성 검증·record-through·순차 재생 실행기와 안전성 테스트 구현; make verify 통과(Python 1,222개, 웹 15개).",
+      "completed_at": "2026-10-05T10:57:32+0900",
+      "usage": {
+        "input_tokens": 1578931,
+        "cached_input_tokens": 1516288,
+        "output_tokens": 7980,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
