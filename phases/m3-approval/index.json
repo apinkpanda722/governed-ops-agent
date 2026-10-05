@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "graph-write-path",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T20:06:30+0900",
+      "summary": "READ_ONLY 골든 해시를 보존하며 쓰기 그래프·결정론 검사·승인/수정/만료·outbox 실행과 run_sql 근거 추출을 구현하고, 재개 멱등성·요청자 신원 회귀 테스트 및 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T20:28:00+0900",
+      "usage": {
+        "input_tokens": 3023762,
+        "cached_input_tokens": 2923392,
+        "output_tokens": 16526,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
