@@ -1,4 +1,4 @@
-"""Read-only Jira REST client."""
+"""Jira REST reads and writes; execution policy belongs to the caller."""
 
 from urllib.parse import quote
 
@@ -49,3 +49,55 @@ class JiraClient(RestClient):
             missing_ok=True,
         )
         return None if result is None else result["tickets"]
+
+    async def add_comment(
+        self, user_id: str, ticket_id: str, body: str, *, metadata: dict[str, str]
+    ) -> dict:
+        return await self._post(
+            user_id,
+            "/tickets/" + quote(ticket_id, safe="") + "/comments",
+            json={"body": body, "metadata": metadata},
+        )
+
+    async def ticket_comments(self, user_id: str, ticket_id: str) -> list[dict]:
+        return (
+            await self._get(
+                user_id, "/tickets/" + quote(ticket_id, safe="") + "/comments"
+            )
+        )["comments"]
+
+    async def create_followup(
+        self,
+        user_id: str,
+        parent_ticket_id: str,
+        *,
+        title: str,
+        description: str | None,
+        priority: str | None,
+        metadata: dict[str, str],
+    ) -> dict:
+        return await self._post(
+            user_id,
+            "/tickets/" + quote(parent_ticket_id, safe="") + "/children",
+            json={
+                "title": title,
+                "description": description,
+                "priority": priority,
+                "metadata": metadata,
+            },
+        )
+
+    async def ticket_children(self, user_id: str, ticket_id: str) -> list[dict]:
+        return (
+            await self._get(
+                user_id, "/tickets/" + quote(ticket_id, safe="") + "/children"
+            )
+        )["tickets"]
+
+
+def comment_id(response: dict) -> str:
+    return response["comment"]["comment_id"]
+
+
+def followup_id(response: dict) -> str:
+    return response["ticket_id"]

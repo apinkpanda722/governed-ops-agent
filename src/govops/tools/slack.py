@@ -1,4 +1,4 @@
-"""Slack discovery and marker history, without sending methods."""
+"""Slack REST writes and tool-layer marker history."""
 
 from urllib.parse import quote
 
@@ -21,3 +21,16 @@ class SlackClient(RestClient):
                 params={"limit": limit},
             )
         )["messages"]
+
+    async def send_message(
+        self, user_id: str, channel: str, text: str, *, metadata: dict[str, str]
+    ) -> dict:
+        return await self._post(
+            user_id,
+            "/channels/" + quote(channel, safe="") + "/messages",
+            json={"text": text, "metadata": metadata},
+        )
+
+
+def message_id(response: dict) -> str:
+    return response["message"]["message_id"]
