@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "gateway-fallback",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T23:18:32+0900",
+      "summary": "gateway fallback·응답 모델별 정산·기록 구현을 유지하고 smoke-effects의 무작위 ID 실패를 서로 다른 고정 ID로 수정했으며 make verify 전체 통과; timeout·num_retries는 litellm_params, fallbacks는 router_settings에 설정.",
+      "completed_at": "2026-10-05T23:44:05+0900",
+      "usage": {
+        "input_tokens": 5640965,
+        "cached_input_tokens": 5524352,
+        "output_tokens": 10344,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
