@@ -38,7 +38,8 @@
     },
     {
       "dir": "m3-approval",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-10-05T22:00:30+0900"
     }
   ]
 }
