@@ -1,6 +1,6 @@
 {
   "reviewer": "taserlee",
-  "reviewed_at": "2026-10-04",
+  "reviewed_at": "2026-10-05",
   "tasks": {
     "T1-01": {
       "status": "approved",
@@ -59,13 +59,13 @@
     },
     "T2-02": {
       "status": "approved",
-      "spec_sha256": "7b968ed87f86aae308caca10b88cadade9debccde88b131c6d78776cc6e14a6b",
+      "spec_sha256": "1cbb29ea329b1c444db27da149dae8c4d0ec3e3ffea48945090c3c67345f9158",
       "note": ""
     },
     "T2-03": {
       "status": "approved",
-      "spec_sha256": "29eb5be45b309d7c67a9b19236120d93744ac3877e02c42042ba1e6e32d908c9",
-      "note": ""
+      "spec_sha256": "ded5826e23c2747c566967b956c51e247b93372faf17608421511d039e3c0b5d",
+      "note": "관련 서비스 people-portal 중복(두 사실) — 수정 불필요, 기록만"
     },
     "T2-04": {
       "status": "approved",
@@ -84,13 +84,13 @@
     },
     "T2-07": {
       "status": "approved",
-      "spec_sha256": "a7af317cba5864215c0eef9ad283b66c355f76ce0f3ce5bd58721dcb05350a83",
+      "spec_sha256": "68013059d9144cbe06d21c03f4d7e6d110c4580734e2ff169248b8868941014f",
       "note": ""
     },
     "T2-08": {
       "status": "approved",
       "spec_sha256": "e277de8dfdd7395eddbee33f31d292dbc9037045ffeaf4d9c536ea8caa3b80e5",
-      "note": "관련 서비스 deploy-control이 두 사건(evt-028, evt-031)에서 중복 — 채점상 서비스명이 두 몫. 수정 불필요, 기록만."
+      "note": ""
     },
     "T2-09": {
       "status": "approved",
@@ -105,12 +105,12 @@
     "T2-11": {
       "status": "approved",
       "spec_sha256": "f0ab4eb96a4ea692b174b79f714af0a344aa53ec89c654f32ae371eea509196a",
-      "note": "카드 문구 오류(직원가), 직급 방향 설명 필요"
+      "note": ""
     },
     "T2-12": {
       "status": "approved",
-      "spec_sha256": "a2775936514777a25c13ac1833639ec58a192f46990c83003720153878f9ed08",
-      "note": "카드 문구 오류(직원가), 직급 방향 설명 필요"
+      "spec_sha256": "c4d574ff551f55085313c5581aa98d9e288748129fed8b5095fd62147c2c56fb",
+      "note": ""
     },
     "T3-01": {
       "status": "approved",
@@ -134,7 +134,7 @@
     },
     "T3-05": {
       "status": "approved",
-      "spec_sha256": "8de21ad75c8a6e1c982d3cf2224759d9c82b5fd8851723231aa818c311ab06a7",
+      "spec_sha256": "b458414d1bb24e37ae85a40378c409247e78f05b0ee155eb62ca787369b89017",
       "note": ""
     },
     "T3-06": {
@@ -155,7 +155,7 @@
     "T3-09": {
       "status": "approved",
       "spec_sha256": "c46c1850f3e527afdd4f0e8f686e674e9b9aef9ec682aa5675fca7064d8c80ac",
-      "note": "근거 발췌 중 syn-guide-008은 A 합성 문서 결함 — INC-2025-006(HRM-1001)과 INC-2026-010의 사실이 섞여 HRM-1001에 잘못 연결됨. 정답지(HRM-1002)는 티켓 데이터와 장애보고서로 확인됨."
+      "note": ""
     },
     "T3-10": {
       "status": "approved",
@@ -213,22 +213,22 @@
       "note": ""
     },
     "T5-01": {
-      "status": "needs_change",
+      "status": "approved",
       "spec_sha256": "3e3ad70f366875c523b499e7b812f6602e6bf7dfb6b6da9d72ba2280c49e8a68",
       "note": ""
     },
     "T5-02": {
-      "status": "needs_change",
+      "status": "approved",
       "spec_sha256": "92787500462c71e5d64624c1b95dde338550965ce871056fc44564220bc8167b",
       "note": ""
     },
     "T5-03": {
-      "status": "needs_change",
+      "status": "approved",
       "spec_sha256": "0e29cf5411c44f7b175f6b8974f5f8388f472d61570a27d35c2976c4516090e5",
       "note": ""
     },
     "T5-04": {
-      "status": "needs_change",
+      "status": "approved",
       "spec_sha256": "a0a5c616d9a7b50c591eb4daad96e5a5cbdf5d61c26fa882a7973fe6b9a45e11",
       "note": ""
     },
@@ -250,17 +250,17 @@
     "T5-08": {
       "status": "approved",
       "spec_sha256": "8a5ba6955ce028f8ecdb2b6b45f6223cc216982ca7636748424ad08c6b55da95",
-      "note": "canary 금지 목록이 읽을 수 없는 27개 중 5개만 — 전부로 넓힐 것"
+      "note": ""
     },
     "T5-09": {
       "status": "approved",
       "spec_sha256": "962e4f804659a54634ef0efe64892bc0f3b6a6d2eef946ece02ed2390e76b47e",
-      "note": "canary 금지 5/30(T5-08과 같은 고정 목록) — 요청자가 읽을 수 없는 전부로. 인젝션 형식이 T5-08과 같은 system_notice — 3문항 형식 분산 필요."
+      "note": ""
     },
     "T5-10": {
       "status": "approved",
       "spec_sha256": "51c2598e3f16645ce86021c91688308b5a44e9b90f1ba5f23c799450cc2d9afb",
-      "note": "canary 금지 5/30(T5-08·09와 같은 고정 목록) — 요청자가 읽을 수 없는 전부로"
+      "note": ""
     },
     "T5-11": {
       "status": "approved",
@@ -272,9 +272,34 @@
       "spec_sha256": "06f3150e2399d5ddcebe94f3a0d76b102a271de536b4799141b22a837c04c893",
       "note": ""
     },
+    "T6-01": {
+      "status": "approved",
+      "spec_sha256": "720ff69acdd00f37af3f4f94ba71963b971c1a0dae3611729a0c9e9da920da41",
+      "note": ""
+    },
     "T6-02": {
       "status": "approved",
       "spec_sha256": "8a603b27d9c44e02e21c9cc119fb5c234d497298af7fff40b5c0f98fee2f20b1",
+      "note": ""
+    },
+    "T6-03": {
+      "status": "approved",
+      "spec_sha256": "aa048c36278880e54fc9d074099ef3bf2e91f1e371ed39dd8be894ce67bbc2de",
+      "note": ""
+    },
+    "T6-04": {
+      "status": "approved",
+      "spec_sha256": "7307dadc11b6f2738936b0533a3ad520d1c9a3aeb2904d224bea812857979c5b",
+      "note": ""
+    },
+    "T6-05": {
+      "status": "approved",
+      "spec_sha256": "481635bed0ba004d96693d987f9022bc3d63d30a4d8617f44f7b999ed20e1caf",
+      "note": ""
+    },
+    "T6-06": {
+      "status": "approved",
+      "spec_sha256": "350bd466ac2b7478f911cbb89308a636546a9dad8c16a48ae258b41d52fd2813",
       "note": ""
     }
   }
