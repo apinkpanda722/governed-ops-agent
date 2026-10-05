@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "env-helper",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T22:33:14+0900",
+      "summary": "env_or 기본값 처리·AST 회귀 검사·비밀 비노출 smoke-effects 진단·mock 재빌드 안내를 확인하고 승인 테스트의 무작위 ID 실패를 수정했으며 make verify 전체 통과.",
+      "completed_at": "2026-10-05T23:05:23+0900",
+      "usage": {
+        "input_tokens": 5331177,
+        "cached_input_tokens": 5159936,
+        "output_tokens": 11771,
+        "attempts": 2
+      }
     },
     {
       "step": 1,
@@ -32,5 +41,6 @@
       "name": "gateway-docs",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-05T22:33:14+0900"
 }
