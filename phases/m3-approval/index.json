@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "checks-draft",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T19:14:46+0900",
+      "summary": "초안 타입·정규화 해시, 사용자·팀 정책 로더, 수신처·PII 결정론 검사와 감사 이유 코드를 추가하고 회귀 테스트 및 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T19:31:07+0900",
+      "usage": {
+        "input_tokens": 2335069,
+        "cached_input_tokens": 2257280,
+        "output_tokens": 9386,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
