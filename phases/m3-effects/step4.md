@@ -10,6 +10,16 @@
 
 부작용 **outbox**와 **실행기**, 그리고 중복·누락 건수를 세는 순수 함수를 만든다. 에이전트 그래프에는 아직 연결하지 않는다(다음 phase). TDD로 테스트를 먼저 쓴다.
 
+### 분류 보정 (`tools/resilience.py` 수정)
+
+`classify`의 기존 동작 중 아래만 바꾼다. 발송이 2xx로 이미 반영됐는데 응답 본문이 깨지면 `rest.py`가 `ToolHttpError(200, "invalid_response")`를 던지므로, 이를 `DEFINITIVE`로 두면 실행기가 표식 조회 없이 `FAILED`("보내지 않았음이 확실")로 끝내는 결함이 생긴다.
+
+- 상태 코드가 **2xx인 `ToolHttpError`**(예: `invalid_response`)는 `UNCERTAIN`으로 분류한다.
+- **분류할 수 없는 예외**(위 어느 규칙에도 맞지 않는 `Exception`)도 `UNCERTAIN`으로 분류한다. 단 코드 오류를 숨기지 않도록 `asyncio.CancelledError`·`KeyboardInterrupt`는 분류하지 않고 그대로 올린다.
+- A MCP의 `kind="protocol"` 오류는 지금처럼 `DEFINITIVE`로 둔다(읽기 도구이며 재시도하지 않는다).
+- 4xx는 여전히 `DEFINITIVE`다.
+- 테스트(기존 `tests/test_resilience*.py`에 추가, 기존 분류표 테스트는 이 변경에 맞게만 고친다): ① 쓰기에서 mock이 반영한 뒤 2xx + 깨진 본문을 돌려주면 실행기가 표식 조회로 `SUCCEEDED`, 재발송 0, 효과 1 ② 알 수 없는 예외는 `UNCERTAIN` ③ 읽기에서 A `protocol` 오류는 재시도하지 않는다.
+
 ### outbox (`src/govops/tools/outbox.py`)
 
 ```python
@@ -128,6 +138,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - F10을 단독 시나리오로 만들거나 `/state`의 실제 건수 대신 조회 결과로 중복을 세지 마라.
 - `eval/duplicates.py`가 `mocks`를 import하게 하지 마라(보고서 dict만 받는다). 이유: 계층 경계.
 - 실시간 `sleep`에 의존하는 테스트를 만들지 마라.
+- 4xx나 A `protocol` 오류를 `UNCERTAIN`으로 바꾸지 마라. 이유: 서버가 확정 거절한 경우는 보내지 않았음이 확실하다.
 - `scripts/`, `phases/`, `web/`, `data/contract/`, `data/eval/`을 수정하지 마라.
 - `.env`와 A의 `data/interim/mcp/tokens.json`을 열거나 출력하지 마라. 토큰·키·접속 문자열을 로그·오류·테스트에 남기지 마라.
 - 기존 테스트를 깨뜨리지 마라. 계층 가드를 약화하지 마라.
