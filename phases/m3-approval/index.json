@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "scope-v15",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T19:31:07+0900",
+      "summary": "V15 발송 범위 검사·구조 기반 근거 추출·티켓 존재 비공개·감사 이유 코드를 구현하고, 권한 일관성·회귀 테스트와 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T19:48:50+0900",
+      "usage": {
+        "input_tokens": 1833047,
+        "cached_input_tokens": 1755264,
+        "output_tokens": 8614,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
