@@ -1,7 +1,7 @@
 """Approved effect execution, marker recovery, and send-free reconciliation."""
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from pydantic import ValidationError
 
@@ -77,9 +77,10 @@ async def _finish(
         sends=sends,
         lookups=lookups,
     )
-    if not ok:
+    if not ok and claimed:
         row = await outbox.update(row.idempotency_key, audit_gap=True)
-    return _result(row, sends, lookups, code)
+    result = _result(row, sends, lookups, code)
+    return replace(result, audit_gap=True) if not ok else result
 
 
 async def _lookup(row, *, user_id, jira, slack, policy, audit, outbox, sleep):
