@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "tcr-approval",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T21:28:12+0900",
+      "summary": "TCR 거부 판정에 2xx reject 기록을 필수화하고, 수정 차단 뒤 원래 초안 복원·재승인·거부·만료 및 영수증 처리를 수정했으며 make verify 전체 통과(1874 passed)를 확인했다.",
+      "completed_at": "2026-10-05T21:44:42+0900",
+      "usage": {
+        "input_tokens": 2412853,
+        "cached_input_tokens": 2316288,
+        "output_tokens": 9017,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
