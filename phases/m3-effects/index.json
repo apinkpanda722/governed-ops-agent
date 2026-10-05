@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "write-clients",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T16:25:43+0900",
+      "summary": "REST 오류 분류·Retry-After·재시도 없는 POST, 쓰기·표식 조회 클라이언트·효과 ID 헬퍼·멱등 키 유틸 구현; 에이전트 미연결·계층 경계 유지, make verify 통과(Python 1,334개·웹 15개).",
+      "completed_at": "2026-10-05T16:45:21+0900",
+      "usage": {
+        "input_tokens": 1793099,
+        "cached_input_tokens": 1720960,
+        "output_tokens": 7437,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
