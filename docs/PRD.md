@@ -26,13 +26,13 @@
 - **읽기:** A MCP 도구 4개(`search_docs`·`lookup_id`·`run_sql`·`get_document`, v1 계약), mock Jira 티켓 조회·검색.
 - **부작용(3개, 모두 승인·멱등성 대상):** 메시지 발송(mock-slack), 티켓 코멘트(mock-jira), 티켓 생성(mock-jira). 티켓 생성은 기존 티켓의 후속 티켓으로만 한다(원 티켓 연결 필수).
 - 읽기 권한 거부와 읽을 수 없는 티켓에 대한 쓰기 요청(코멘트·후속 티켓)은 "없음"과 구별되지 않는 응답(mock-jira 404)이다. 명시적 "권한 없음"(403)은 존재가 공개된 mock-slack 채널(채널 목록은 공개 정보)의 쓰기·이력 조회에만 쓴다.
-- mock-slack 채널은 팀 채널 8개 + 전사 공지 1개다. 발송은 자기 팀 채널과 전사 공지만 허용한다. 전사 공지 발송만 같은 팀 4급 이상이 승인한다.
+- mock-slack 채널은 팀 채널 8개 + 전사 공지 1개다. 발송은 자기 팀 채널과 전사 공지만 허용한다. 전사 공지 발송만 요청자 팀 4급 이상이면서 요청자 본인이 아닌 사용자가 승인한다(본인 승인은 403, ADR-018).
 
 ## 핵심 기능
 1. **신원 위임(자격 증명 중개):** 사용자는 B 세션 토큰으로 B에 인증하고, 중개 계층 `credential_for(user, audience)`가 호출 시점에 사용자의 A 토큰을 요청 헤더에만 붙인다. 데모 로그인은 IdP 대체 장치로 `DEMO_LOGIN` 플래그일 때만 127.0.0.1에서 연다(ADR-005).
 2. **HITL 승인:** LangGraph `interrupt()` + Postgres checkpointer. 승인·수정 후 승인·거부·만료(30분) 분기, 초안 해시에 묶인 승인. 발송 신원은 요청자이고 승인자는 본문만 수정한다(ADR-011).
 3. **부작용 멱등성:** outbox + 메타데이터 표식(marker) 2단계 조회로 "서버는 처리했는데 응답 유실"에서도 1회만 실행(ADR-006).
-4. **안정성:** Soft/Hard Timeout, 지수 백오프 + Jitter, Circuit Breaker, 호출 단위 모델 Fallback, MAX_STEPS + MAX_COST, MAX_STEPS와 별도의 탐색 예산(ADR-014)(값은 M3·M5에서 정한다).
+4. **안정성:** Soft/Hard Timeout, 지수 백오프 + Jitter, Circuit Breaker, 호출 단위 모델 Fallback, MAX_STEPS + MAX_COST, MAX_STEPS와 별도의 탐색 예산(ADR-014)(도구 장애 처리 값은 ADR-018, 모델 호출 타임아웃은 게이트웨이 phase, 탐색·비용 한도는 M5에서 정한다).
 5. **게이트웨이·Guardrail:** 팀별 가상 키 + 사용자·task 메타데이터, 입력 차단 / 도구 결과 격리 / 출력 탐지 / 실행 직전 결정론 검사의 비대칭 구조. v2 분류기는 주 모델과 다른 회사(Anthropic 소형 모델)에 둔다(ADR-008).
 6. **감사 로그:** 해시체인 + Ed25519 서명, 실행마다 고정점(마지막 seq·hash 서명)을 `docs/results/` manifest에 커밋, `make audit-verify`(ADR-012).
 7. **관측·평가:** trace 하나 = task 하나(Langfuse 또는 JSONL), 평가셋 60 task, TCR·정확도 분리, golden trace CI(ADR-009·ADR-010).
@@ -58,9 +58,9 @@
 | M0 | 골격(하네스 복사), 설계 문서, compose(LiteLLM·Postgres·mock), Node 도구 체인, `make verify`에 ruff 추가 후 web 검사(`tsc`·`eslint`·`vitest`) 추가 | — | B 전용 API 키 3개 발급·`.env` 입력, Node·pnpm 설치(버전 고정) |
 | M1 | 두 phase(`m1-tools`, `m1-agent`)로 진행: 에이전트 + mock + A MCP(live·replay) + 자격 증명 중개 + FastAPI(화면 없이 API·CLI), A 계약 스냅샷 복사, mock-jira 시드 | 동작 확인, 38명 × 표본 티켓 가시성 대조(live) | A 응답 기록 실행(합성 문서만), mock-jira 시드 추출 스크립트 실행, live A MCP 기동, 컨테이너→A Host 헤더 실측 |
 | M2 | 세 phase(`m2-eval` → `m2-obs` → `m2-run`)로 진행(사람 검수가 병목이라 평가셋을 먼저 만든다): Langfuse·trace·평가셋 60·TCR/정확도·응답 기록 재생 CI, 실행 계획표·탐색 예산 N 규칙 사전 등록(dev 전), live 실행의 A 버전 기록 | TCR(3회 평균·pass^3은 test), 정확도(분리), 용도별 task당 비용, 파일럿 실측으로 B 전체 비용 재추정 | A 합성 문서 메타데이터(정답 출처) 추출 스크립트 실행, Langfuse 기동·`docker stats` 실측, 정답 명세 60개 전수 검수, dev 실행<br/>Langfuse 기동 전 Redis 7.4.11 이후 보안 수정 여부 재확인<br/>golden trace용 `search_docs` 기록은 상위 결과가 모두 `syn-*`인 운영 질의로 고르고 건너뛴 비율을 보고한다(응답 편집 금지)<br/>`gpt-6-luna` 단가(A 확인일 2026-09-30)를 M2 파일럿 전에 공식 가격 페이지로 재확인 |
-| M3 | 타임아웃·재시도·서킷·호출 단위 fallback + outbox·메타데이터 표식 2단계 조회 + 승인 노드 핵심(`interrupt`, 초안 해시 결합, `POST /tasks/{id}/approval`) + task 소유자·상태를 checkpoint에 두고 서비스 시작 시 미완료 task 정리(`interrupted` 등) + 장애 주입 F1~F11 | 재개 반복 → 부작용 1회, 장애 주입 하 중복 실행 0건, fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR | 승인 API를 통한 장애 주입 live 실행 |
+| M3 | 타임아웃·재시도·서킷·호출 단위 fallback + outbox·메타데이터 표식 2단계 조회 + 승인 노드 핵심(`interrupt`, 초안 해시 결합, `POST /tasks/{id}/approval`) + task 소유자·상태를 checkpoint에 두고 서비스 시작 시 미완료 task 정리(`interrupted` 등) + 승인자 정책(전사 공지: 요청자 팀 4급 이상, 요청자 본인 제외) + 장애 주입 F1~F11 | 재개 반복 → 부작용 1회, 장애 주입 하 중복 실행 0건, 중복 건수·누락 건수·최종 상태, fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR | 승인 API를 통한 장애 주입 live 실행 |
 | M4 | LiteLLM 팀 키 + Guardrail v1(사전·사후) + 감사 로그 해시체인 | Guardrail 추가 지연·비용 | 감사 서명 개인키 생성(`data/interim/`, 0600) |
-| M5 | 전사 공지 승인자 정책 + MAX_STEPS/COST + 탐색 예산(ADR-014) + checkpointer 보존 기간 삭제(ADR-015) + 웹 화면 3개(로그인·요청 진행·승인함) | 루프 차단 동작, T5 단계 수·p95 지연 탐색 예산 켬 대 끔 | — |
+| M5 | MAX_STEPS/COST + 탐색 예산(ADR-014) + checkpointer 보존 기간 삭제(ADR-015) + 웹 화면 3개(로그인·요청 진행·승인함) | 루프 차단 동작, T5 단계 수·p95 지연 탐색 예산 켬 대 끔 | — |
 | M6 | 레드팀 120건 + 정상 대조 60(평가셋 재사용) + Guardrail v2(Anthropic 소형 분류 모델) 비교 | v1·v2 차단율, 정상 task 오탐률, 켬 대 끔 추가 지연·비용 | 레드팀 live 실행 |
 | M7 | 문서화, 기록 화면, 데모 영상, 방어 노트, 블로그<br/>데모 장면(약 3분 30초): 0 소개·배치도 / 1 플랫폼팀 3급 INC-2026-012 요약 발송, 처리 후 응답 유실 주입에도 1건 / 2 재무팀 3급 같은 요청 → 찾을 수 없음·발송 0 / 3 간접 인젝션 격리·승인 화면 수신처 / 4 전사 공지 같은 팀 4급 승인 / 5 `audit-verify` 꼬리 잘라내기 탐지 + trace + 수치<br/>블로그: "실제 API에 멱등 키가 없을 때 에이전트 부작용을 정확히 한 번 실행하기" | 체크리스트 전 항목 | 정확도 사람 채점 30개, 운영 대기열 검수, test 실행, 데모 촬영 |
 
