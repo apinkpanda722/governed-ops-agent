@@ -26,8 +26,10 @@ src/govops/
 ├── obs/          # trace span, 전송 전 마스킹, 로컬 JSONL / Langfuse 출력
 │   └── trace.py·mask.py·jsonl.py·langfuse.py
 ├── costs.py      # 공급사별 비용 원장·전체 기간 상한(호출 직전 누적액 검사)
+├── evalrun/      # 사용자 실행 dev 평가·관측·LLM/A record-through(dev.py), 탐색 예산 후보(explore.py)
 ├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·cards_content.py·cards_text.py·cards_assets.py·a_source.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
-├── replay/       # 가짜 A MCP 서버(기록 재생), LLM 응답 기록·재생
+├── replay/       # 가짜 A MCP 서버, llm.py(LLM 응답 기록·재생), a_through.py·a_replay.py(A record-through·순차 재생)
+├── golden.py     # 골든 기대값·자격·결정론 재생 조립
 └── mocks/        # mock-jira·mock-slack FastAPI 서비스, 장애 주입, 관리 엔드포인트
 web/              # Next.js(App Router, TypeScript): 화면 4개 + BFF route handler, Tailwind, shadcn/ui
 infra/
@@ -39,7 +41,7 @@ infra/
 data/
 ├── contract/     # A 계약 스냅샷(도구 4개 v1) + A 커밋 해시 (커밋, 수정 금지)
 ├── seed/         # tickets.json·users.json(label·team·grade)·mock_jira_token_hashes.json·mock_slack_token_hashes.json·manifest.json(추출 A 커밋 해시·개수) (커밋)
-├── replay/       # requests.json(기록 요청), a/recordings.jsonl(A 응답, syn-*만, 토큰·Authorization 없음); LLM 응답 기록(프롬프트 해시 포함)은 M2 (커밋)
+├── replay/       # requests.json, a/recordings.jsonl(A 응답, syn-*만, 토큰·Authorization 없음), llm/(LLM 응답·프롬프트 해시), a_run/(실행별 A 응답), golden/(expectations.json·status.json) (커밋)
 ├── eval/         # 평가 메타데이터·60 task 명세
 │   ├── meta.json·meta.manifest.json  # 합성 메타데이터·추출 manifest
 │   ├── doc_titles.json             # 문서 제목(plan.jsonl title_hint). 요청 문장의 문서 지칭용이며 meta.json 해시에 영향 없음
@@ -47,6 +49,7 @@ data/
 │   ├── review/confirmed.json       # 사람이 작성한 해시 기반 확정본
 │   ├── review/leak_confirmations.json  # 사람이 작성한 노출 후보 판정(절대 규칙 2)
 │   └── human/                      # scores.csv·human_sample.json 블라인드 사람 채점 표본
+├── results/      # dev/<run_id>/ 관측 JSONL·trace·채점·manifest·모든 시도 기록
 ├── manifest/     # costs.jsonl·costs_grading.jsonl (커밋)
 ├── raw/          # 커밋 안 함
 └── interim/      # 커밋 안 함 (감사 서명 개인키 0600 등)
@@ -61,6 +64,8 @@ tests/
 `data/contract/`·`data/seed/`·`data/replay/`는 확정 경로다. `data/eval/` 하위 구조는 위와 같고, 감사 로그 저장 경로는 미정(구현 phase에서 결정)이다. 계층 간 import 금지 규칙은 [AGENTS.md](../AGENTS.md#계층-경계)가 원본이다.
 
 ## 배치도
+
+구현 모듈: `replay.llm`·`replay.a_through`·`replay.a_replay`는 안전한 기록과 순차 재생, `govops/golden.py`는 골든 실행 조립, `evalrun.dev`는 사용자 실행 dev 러너, `evalrun.explore`는 구조 필드 기반 N 후보 계산을 맡는다.
 
 ```mermaid
 flowchart LR

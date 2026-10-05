@@ -34,6 +34,7 @@
 | 평가 | `eval/` | 평가셋·TCR·정확도·채점(Gemini 직접 호출) | `gateway`(채점은 게이트웨이를 거치지 않는다), `broker` |
 | mock | `mocks/` | mock-jira·mock-slack 서비스와 장애 주입 | `govops`의 다른 계층 전부(외부 시스템 역할) |
 | 기록 재생 | `replay/` | 가짜 A MCP 서버, LLM 응답 기록·재생 | `agent`, `api`, `broker` |
+| 평가 실행기 | `evalrun/` | 사용자 실행 dev 평가·관측·record-through | `broker`, `mocks`, `audit`, `guardrails`, LLM SDK; 다른 계층은 `evalrun` import 금지 |
 | 웹 | `web/` | 화면 4개, BFF route handler | 브라우저 코드에서 FastAPI 직접 호출 금지, 세션 토큰을 JS가 읽을 수 있는 곳(`NEXT_PUBLIC_*`, localStorage, 응답 본문)에 두지 않음 |
 
 ## 고정 제약
@@ -104,3 +105,4 @@ make eval-human-sheet # test 1회차 층화 표본 블라인드 채점 시트 �
 make eval-human-register # 사람 채점 CSV 해시 등록(사용자 실행)
 make eval-gemini-grade # 사람 채점 해시 커밋 확인 후 Gemini 채점(사용자 실행)
 make smoke-gemini # Gemini 채점·별도 비용 원장 스모크(사용자 실행)
+make eval-run-dev # live task·record-through·채점(사용자 실행)

@@ -121,6 +121,11 @@ obs-down:
 	LITELLM_CONFIG_FILE=./litellm/config.yaml docker compose --env-file .env -f infra/docker-compose.yml up -d litellm
 
 
+.PHONY: eval-run-dev
+# live A·LiteLLM·make agent-key·hypotheses.md 커밋 필요, 사용자 실행
+eval-run-dev:
+	uv run --env-file .env python -m govops.evalrun.dev
+
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini
 # 읽기 전용 A 저장소(A_ROOT) 필요, 사용자 실행
 eval-cards:

@@ -21,6 +21,7 @@ LAYERS = {
     "eval",
     "mocks",
     "replay",
+    "evalrun",
 }
 
 # AGENTS.md의 계층 경계 표가 규칙의 원본이다.
@@ -57,6 +58,16 @@ FORBIDDEN_IMPORTS: dict[str, set[str]] = {
     "mocks": {f"govops.{layer}" for layer in LAYERS - {"mocks"}},
     "replay": {"govops.agent", "govops.api", "govops.broker"},
 }
+
+FORBIDDEN_IMPORTS["evalrun"] = {
+    "govops.broker",
+    "govops.mocks",
+    "govops.audit",
+    "govops.guardrails",
+    *LLM_SDK,
+}
+for _layer in LAYERS - {"evalrun"}:
+    FORBIDDEN_IMPORTS[_layer].add("govops.evalrun")
 
 
 @dataclass(frozen=True)
@@ -119,6 +130,9 @@ def test_rules_cover_actual_layer_directories() -> None:
 @pytest.mark.parametrize(
     ("path", "source", "target"),
     [
+        ("evalrun/dev.py", "import govops.broker", "govops.broker"),
+        ("evalrun/dev.py", "import govops.mocks", "govops.mocks"),
+        ("agent/graph.py", "import govops.evalrun", "govops.evalrun"),
         ("api/client.py", "import govops.broker", "govops.broker"),
         ("api/client.py", "from govops.broker import x", "govops.broker"),
         ("api/client.py", "from ..broker import z", "govops.broker"),

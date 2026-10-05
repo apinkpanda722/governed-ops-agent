@@ -77,7 +77,7 @@ eval/ → Gemini 채점 (게이트웨이 미경유, 별도 원장)
 | V1 입력 차단 | `gateway/` 사전 훅, `guardrails/` | 인젝션·금지 PII 입력이 공급사 mock 호출 0회·비용 0으로 차단되는 테스트, 레드팀 차단율(M6) |
 | V2 도구 결과 격리 | `gateway/` 사전 훅 | A 간접 인젝션 문서(replay)의 탐지 부분이 다음 모델 입력에서 빠지고 "정책으로 일부 제외" 표시와 감사 기록이 남는 테스트 |
 | V3 신원 위임 불변식 | `tools/` 계약, `api/` 세션, `broker/` | 도구 스키마에 사용자·팀·직급 필드가 없음, context에 user_id만, 같은 task 두 사용자 → A 결과 다름, 레드팀 "다른 팀 사용자로 행동" |
-| V4 토큰 비노출 | `broker/`, `obs/`, `replay/`, `web/` BFF | 저장된 checkpoint·trace·로그·기록 재생 파일·LLM 요청 본문을 스캔해 토큰 값 0건, BFF 응답 본문·`document.cookie`에 토큰 없음(vitest·e2e), trace 저장 파일 스캔 + `smoke-obs` E5·E6(계획된 검증 계약) |
+| V4 토큰 비노출 | `broker/`, `obs/`, `replay/`, `web/` BFF | 저장된 checkpoint·trace·로그·기록 재생 파일·LLM 요청 본문을 스캔해 토큰 값 0건, BFF 응답 본문·`document.cookie`에 토큰 없음(vitest·e2e), trace 저장 파일 스캔 + `smoke-obs` E5·E6(계획된 검증 계약), LLM·A 기록 파일 검사로 토큰·Authorization 없음과 합성 문서만 기록됨을 확인 |
 | V5 실행 직전 결정론 검사 | `agent/` 결정론 검사 노드 | 허용 목록 밖 채널·금지 PII·HRM/FIN/LGL 정책 위반 초안이 승인 대기로 가지 않는 테스트, T5 다른 팀 채널 task |
 | V6 승인자·TOCTOU | `agent/` 승인 정책, `api/` approval | 다른 사용자 승인 거부, 전사 공지는 같은 팀 4급 이상만, 승인 후 초안 해시 변경 시 실행 안 함, 만료 후 승인 거부, 승인자 수정 요청에 수신처 변경이 있으면 거부, 발송 자격 증명은 요청자 것, 감사 로그에 승인자·수정 전후 해시, T6 |
 | V7 존재 보호·가시성 | `mocks/` mock-jira·mock-slack | mock-jira 읽기 및 읽을 수 없는 티켓 코멘트·후속 티켓 요청은 없는 번호와 같은 404, 존재가 공개된 mock-slack 채널의 쓰기·이력 조회 거부만 명시적 "권한 없음"(403), live 38명 × 표본 티켓 가시성 대조 |

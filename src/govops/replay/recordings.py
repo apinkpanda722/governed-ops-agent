@@ -84,6 +84,8 @@ def validate_recording(entry: Recording) -> None:
     walk(entry.caller)
     walk(entry.tool)
     walk(entry.arguments)
+    # Complete credential checks before a non-synthetic document can stop validation.
+    walk(entry.result)
     walk(entry.result, check_docs=True, result_root=True)
     invalid = False
     try:

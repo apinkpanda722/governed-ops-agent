@@ -10,12 +10,12 @@ from pathlib import Path
 from govops.broker.credentials import CredentialError, UnknownUserError, known_users
 from govops.replay.recordings import (
     Recording,
-    RecordingRejected,
     RecordingSet,
     arguments_key,
     validate_recording,
     write_recordings,
 )
+from govops.replay.synthetic import SkipStats, screen_recording
 from govops.tools.a_mcp import AMcpClient, AMcpError, check_contract
 from govops.tools.contract import ContractMismatchError, snapshot_sha256
 
@@ -47,25 +47,26 @@ async def _record(requests_file: Path, out: Path, url: str) -> None:
         for r in RecordingSet.load(out).entries()
     }
     skipped = []
-    saved = 0
+    stats = SkipStats()
     for request in payload["requests"]:
         result = await client.call_tool(
             request["caller"], request["tool"], request["arguments"]
         )
         entry = Recording(**request, result=result.payload, is_error=result.is_error)
-        try:
-            validate_recording(entry)
-        except RecordingRejected as error:
-            if not str(error).startswith("non-synthetic doc_id:"):
-                raise
+        outcome = screen_recording(entry)
+        stats.total += 1
+        if not outcome.recorded:
+            stats.skipped += 1
             skipped.append(
                 (entry.caller, entry.tool, arguments_key(entry.arguments)[:12])
             )
             continue
+        stats.recorded += 1
         merged[(entry.caller, entry.tool, arguments_key(entry.arguments))] = entry
-        saved += 1
     write_recordings(out, merged.values())
-    print(f"저장 {saved} (전체 {len(payload['requests'])}, 건너뜀 {len(skipped)})")
+    print(
+        f"저장 {stats.recorded} (전체 {len(payload['requests'])}, 건너뜀 {len(skipped)})"
+    )
     print(f"건너뜀 목록: {json.dumps(skipped, ensure_ascii=False)}")
     print(f"A 계약 스냅샷 해시: {snapshot_sha256()}")
 
