@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "effects-docs",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T18:03:40+0900",
+      "summary": "ADR-018 추가 및 5개 문서에 M3 장애 처리·outbox·감사·승인자 정책·V15 결정을 반영; 코드·테스트 수정 없이 make verify 통과(Python 1,495개, 웹 15개, Postgres 계약 1개 skip).",
+      "completed_at": "2026-10-05T18:18:17+0900",
+      "usage": {
+        "input_tokens": 1577224,
+        "cached_input_tokens": 1483904,
+        "output_tokens": 7994,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-05T13:53:42+0900"
