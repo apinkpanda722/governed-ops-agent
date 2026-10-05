@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "grading-wiring",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T10:57:32+0900",
+      "summary": "run_grade 채점 진입점에 자동 금지 목록을 연결하고 그래프→Observation→TCR·절대 규칙 통합 테스트 구현; make verify 통과(Python 1,229개, 웹 15개).",
+      "completed_at": "2026-10-05T11:09:49+0900",
+      "usage": {
+        "input_tokens": 1331240,
+        "cached_input_tokens": 1255936,
+        "output_tokens": 4978,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
