@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "dev-runner",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T11:30:23+0900",
+      "summary": "dev live record-through 실행기·실행 가드·인프라 재시도·매니페스트·골든 상태·탐색 예산 N 후보 계산 구현; make verify 통과(Python 1,274개, 미기록 1개 건너뜀, 웹 15개).",
+      "completed_at": "2026-10-05T11:54:25+0900",
+      "usage": {
+        "input_tokens": 4113674,
+        "cached_input_tokens": 3912576,
+        "output_tokens": 23888,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
