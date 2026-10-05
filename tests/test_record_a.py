@@ -13,6 +13,7 @@ from govops.replay.recordings import (
     arguments_key,
     write_recordings,
 )
+from govops.replay.synthetic import screen_recording
 from govops.tools.a_mcp import AMcpClient
 from govops.tools.contract import load_snapshot, snapshot_sha256
 from govops.tools.record_a import main
@@ -78,7 +79,11 @@ def test_record_skip_merge_and_roundtrip(
             out,
             [replace(good, result={"documents": [], "truncated": False}), preserved],
         )
-        assert main(["--requests", str(requests), "--out", str(out)]) == 0
+        with patch(
+            "govops.tools.record_a.screen_recording", wraps=screen_recording
+        ) as screen:
+            assert main(["--requests", str(requests), "--out", str(out)]) == 0
+            assert screen.call_count == 2
     content = (out / "recordings.jsonl").read_text()
     output = capsys.readouterr().out
     assert "WHOLE_RECORD_SENTINEL" not in content and "real-document" not in content

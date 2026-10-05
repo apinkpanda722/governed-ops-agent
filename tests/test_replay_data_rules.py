@@ -6,9 +6,17 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 from govops.replay.recordings import Recording, validate_recording
+from govops.replay.synthetic import screen_recording
 from govops.tools.contract import load_snapshot
 
 ROOT = Path(__file__).parents[1]
+
+
+def test_a_run_recordings():
+    # Per-task runs allow repeated calls and must satisfy the same safety rules.
+    for path in sorted((ROOT / "data/replay/a_run").glob("*.jsonl")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            assert screen_recording(Recording(**json.loads(line))).recorded
 
 
 def test_repository_recordings():
