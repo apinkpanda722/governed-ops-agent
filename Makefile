@@ -145,7 +145,7 @@ scope-index:
 	uv run python -m govops.eval.scope_index --a-root "$(A_ROOT)"
 
 
-.PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini
+.PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini smoke-fallback
 # 읽기 전용 A 저장소(A_ROOT) 필요, 사용자 실행
 eval-cards:
 	uv run python -m govops.eval.review_cli cards --a-root $(A_ROOT)
@@ -171,3 +171,7 @@ eval-gemini-grade:
 # 사용자 실행
 smoke-gemini:
 	uv run --env-file .env python -m govops.eval.grading_cli smoke
+
+# compose LiteLLM 기동(설정 반영: `docker compose up -d litellm`)·`.env` 키 필요, 사용자 실행, 소액 호출
+smoke-fallback:
+	uv run --env-file .env python -m govops.gateway.smoke fallback
