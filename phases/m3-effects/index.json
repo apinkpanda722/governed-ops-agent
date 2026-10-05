@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "outbox-executor",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T17:33:47+0900",
+      "summary": "해시 전용 InMemory·Postgres outbox, 2단계 표식 조회 실행기·재발송 없는 정리 함수, 중복·누락 집계와 장애 매트릭스 구현; 그래프 미연결, make verify 통과(Python 1,495개·웹 15개, Postgres 계약 1개 skip).",
+      "completed_at": "2026-10-05T18:00:35+0900",
+      "usage": {
+        "input_tokens": 4106771,
+        "cached_input_tokens": 3984000,
+        "output_tokens": 25195,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
