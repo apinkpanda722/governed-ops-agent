@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "approval-api",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T20:28:00+0900",
+      "summary": "승인 API·체크포인트 기반 상태·접근 시 만료·표식 조회 전용 시작 정리와 회귀 테스트를 구현하고 make verify 전체 통과(1851 passed)를 확인했다. 정리는 전체 체크포인트 순회로 수백 건 규모를 전제하며, 정책 파일 해시 감사는 허용 이벤트 부재로 생략했다.",
+      "completed_at": "2026-10-05T20:51:06+0900",
+      "usage": {
+        "input_tokens": 5060773,
+        "cached_input_tokens": 4951936,
+        "output_tokens": 17811,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
