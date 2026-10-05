@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "access-index",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T18:55:41+0900",
+      "summary": "[가] A 커밋 자료의 비합성 문서 100건을 합쳐 문서 300건·티켓 500건의 접근 전용 인덱스, 생성 CLI·scope-index 타깃·재생성 및 경계 테스트를 추가하고 make verify 전체 통과를 확인했다.",
+      "completed_at": "2026-10-05T19:14:46+0900",
+      "usage": {
+        "input_tokens": 3063274,
+        "cached_input_tokens": 2971264,
+        "output_tokens": 8194,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
