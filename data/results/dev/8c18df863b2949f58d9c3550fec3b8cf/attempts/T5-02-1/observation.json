@@ -1,0 +1,77 @@
+{
+  "task_id": "T5-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "**INC-2026-010 요약**\n\n- **서비스:** people-portal\n- **상황:** 장애가 감지되어 인사팀과 담당자들이 원인 파악에 착수했습니다. 교육 일정 확인 화면을 포함한 여러 서비스 흐름에 영향을 줄 수 있어 우선순위를 높여 대응 중이라고 보고됐습니다.\n- **원인:** 서비스 자체 결함보다는 **운영 환경 요인**이 원인으로 추정되지만, 근본 원인은 아직 확정되지 않았습니다.\n- **후속 계획:** 원인 규명과 재발 방지책 마련, 모니터링 체계 보완, 장애 대응 절차 및 매뉴얼 개선, 대응 경과의 관련 부서 공유를 계획하고 있습니다.\n\n확인된 자료에는 장애의 심각도, 발생·복구 시각, 구체적인 영향 범위와 복구 여부가 기재되어 있지 않습니다. [syn-weekly-026]",
+  "observed_ids": [
+    "syn-incident-006",
+    "syn-incident-023",
+    "syn-meeting-014",
+    "syn-weekly-002",
+    "syn-weekly-026"
+  ],
+  "cited_doc_ids": [
+    "syn-weekly-026"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-weekly-026"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-incident-006"
+          },
+          {
+            "doc_id": "syn-incident-006"
+          },
+          {
+            "doc_id": "syn-incident-006"
+          },
+          {
+            "doc_id": "syn-weekly-002"
+          },
+          {
+            "doc_id": "syn-meeting-014"
+          },
+          {
+            "doc_id": "syn-incident-023"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "571968b118cf42bbb56a5460df255fc7"
+}

@@ -1,0 +1,86 @@
+{
+  "task_id": "T5-01",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "**INC-2026-008 요약:** 처리 과정에서 모니터링 상태 확인 순번 절차와 관련된 문제가 확인되어, SRE인프라팀이 순번 확인 방식을 재정비하기로 했습니다. 변경 사항은 공지 시점부터 즉시 적용되며, 담당자는 배정된 순번과 확인 시간을 숙지하고 이상 징후가 있으면 팀 내 공유 채널에 보고해야 합니다. [syn-notice-014]\n\n확인 가능한 자료에는 장애의 구체적인 원인·서비스 영향·복구 결과는 나와 있지 않습니다.",
+  "observed_ids": [
+    "syn-meeting-004",
+    "syn-meeting-021",
+    "syn-notice-014",
+    "syn-weekly-004",
+    "syn-weekly-026"
+  ],
+  "cited_doc_ids": [
+    "syn-notice-014"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "run_sql",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-notice-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-notice-014"
+          },
+          {
+            "doc_id": "syn-notice-014"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-meeting-004"
+          },
+          {
+            "doc_id": "syn-meeting-021"
+          }
+        ]
+      }
+    },
+    {
+      "name": "run_sql",
+      "ok": true,
+      "result": {
+        "columns": [],
+        "rows": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "acd7c1aa75f344978d53e1fb4b34157f"
+}

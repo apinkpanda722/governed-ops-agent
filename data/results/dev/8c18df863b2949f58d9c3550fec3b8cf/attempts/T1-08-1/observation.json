@@ -1,0 +1,34 @@
+{
+  "task_id": "T1-08",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "**SEC-2005 요약**\n- **제목:** 보안 교육 자료 갱신\n- **유형 / 상태:** 작업 / 종료\n- **담당 팀:** 보안\n- **서비스:** security-center\n- **우선순위:** 낮음\n- **생성:** 2025-09-30 09:00 (KST)\n- **완료:** 2025-09-30 18:00 (KST)",
+  "observed_ids": [
+    "SEC-2005"
+  ],
+  "cited_doc_ids": [
+    "SEC-2005"
+  ],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "SEC-2005"
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "fdc77c2848bf47da93b67d89a79b1a8c"
+}
