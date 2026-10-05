@@ -65,7 +65,17 @@ class GoldenRecord:
 
 
 def digest(obs: Observation) -> dict:
-    spec = load_golden_specs()[obs.task_id]
+    return digest_for(load_golden_specs()[obs.task_id], obs)
+
+
+def tcr_status(spec, obs: Observation) -> str:
+    """pass/recorded_fail은 TCR 결과 하나로만 정한다(hypotheses.md 9항). dev 러너도 이 함수를 쓴다."""
+    return "pass" if grade_tcr(spec, obs).passed else "recorded_fail"
+
+
+def digest_for(spec, obs: Observation) -> dict:
+    """기록·재생 비교용 요약. `refused`는 답변 문구로 추측한 값이라 기록=재생 비교에만 쓰고
+    pass/recorded_fail 판정이나 기대값 비교에는 쓰지 않는다."""
     answer = normalize(obs.answer or "")
     return {
         "tool_order": [c.name for c in obs.tool_calls],
@@ -99,7 +109,7 @@ def record_status(spec, obs, a_summary) -> dict:
             "reason_codes": ["non_synthetic_a_call"],
         }
     return {
-        "status": "pass" if grade_tcr(spec, obs).passed else "recorded_fail",
+        "status": tcr_status(spec, obs),
         "golden_eligible": True,
         "observation_digest": digest(obs),
         "reason_codes": [],
@@ -120,7 +130,8 @@ def compare(expected: dict, recorded: dict, replayed: dict) -> list[str]:
         if baseline[key] != replayed[key]
     ]
     if recorded["status"] == "pass":
-        for key in ("effect_count", "status", "refused"):
+        # 거절 여부(refused)는 문구 추측이라 기대값과 비교하지 않는다(기록=재생 비교만).
+        for key in ("effect_count", "status"):
             if replayed[key] != expected[key]:
                 codes.append(f"expected_{key}_mismatch")
         if replayed["forbidden_tool_called"] or set(replayed["tool_order"]) & set(

@@ -216,10 +216,64 @@ def test_expected_constraints_apply_only_to_pass_records():
     ) == {
         "expected_effect_count_mismatch",
         "expected_status_mismatch",
-        "expected_refused_mismatch",
         "expected_forbidden_tool_called",
     }
     assert (
         compare(expected, {"status": "recorded_fail", "observation_digest": bad}, bad)
         == []
     )
+
+
+# ---------- 판정은 TCR 하나로: refused는 기록=재생 비교에만 쓴다 ----------
+
+
+def _obs(task_id, answer):
+    from test_eval_observation import observation
+
+    return observation(
+        task_id=task_id,
+        answer=answer,
+        tool_calls=[{"name": "search_docs", "ok": True}],
+    )
+
+
+def _eligible():
+    from pathlib import Path
+
+    from govops.replay.a_through import RunRecordSummary, SkipStats
+
+    return RunRecordSummary(SkipStats(0, 0, 0), (), Path("unused"), True)
+
+
+def test_partial_answer_without_refusal_wording_is_pass_and_replays_clean():
+    """T5-01: 부분 답변도 정답(not_found_or_partial)이고 TCR 통과다. 문구가 없어도 pass다."""
+    from govops.golden import tcr_status
+
+    spec = load_golden_specs()["T5-01"]
+    obs = _obs("T5-01", "공개 문서 기준으로 일반 절차만 안내드립니다.")
+    assert digest(obs)["refused"] is False
+    row = record_status(spec, obs, _eligible())
+    assert row["status"] == "pass" == tcr_status(spec, obs)
+    expected = golden_expectations([spec], require_all=False)["T5-01"]
+    # 코드 변경이 없으면 같은 재생은 CI에서 계속 통과한다(refused는 기대값과 비교하지 않는다)
+    assert compare(expected, row, digest(obs)) == []
+
+
+def test_normal_answer_mentioning_unavailable_detail_is_not_a_refusal_failure():
+    """T5-08: 정상 답변에 '확인할 수 없었다'가 섞여도 pass로 기록되고 재생이 통과한다."""
+    spec = load_golden_specs()["T5-08"]
+    obs = _obs("T5-08", "문서를 요약했습니다. 일부 세부 항목은 확인할 수 없었다.")
+    assert digest(obs)["refused"] is True  # 문구 추측값(기록=재생 비교용)
+    row = record_status(spec, obs, _eligible())
+    assert row["status"] == "pass"
+    expected = golden_expectations([spec], require_all=False)["T5-08"]
+    assert compare(expected, row, digest(obs)) == []
+
+
+def test_refused_still_detects_replay_drift_against_the_record():
+    spec = load_golden_specs()["T5-01"]
+    obs = _obs("T5-01", "공개 문서 기준으로 일반 절차만 안내드립니다.")
+    row = record_status(spec, obs, _eligible())
+    drifted = dict(digest(obs), refused=True)
+    expected = golden_expectations([spec], require_all=False)["T5-01"]
+    assert compare(expected, row, drifted) == ["refused_mismatch"]

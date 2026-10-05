@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import asdict
@@ -22,9 +23,9 @@ from govops.costs import BudgetExceededError, CostLedger, cost_report
 from govops.eval.meta import load_meta
 from govops.eval.run_grade import build_observation, grade_run
 from govops.eval.spec import TaskSpec
-from govops.eval.tcr import normalize
 from govops.evalrun.explore import NOTICE, candidate
 from govops.gateway.client import _MODEL, GatewayError, LiteLLMChatClient
+from govops.golden import digest_for, tcr_status
 from govops.obs.jsonl import JsonlSink
 from govops.obs.mask import register_secret_values, scrub_secrets
 from govops.obs.trace import trace
@@ -133,28 +134,6 @@ def _structure(value):
     if isinstance(value, list):
         return [_structure(child) for child in value if isinstance(child, (dict, list))]
     return {}
-
-
-def _digest(spec, obs):
-    answer = normalize(obs.answer or "")
-    return {
-        "tool_order": [call.name for call in obs.tool_calls],
-        "effect_count": 0,
-        "status": obs.status,
-        "refused": any(
-            marker in answer
-            for marker in (
-                "찾을 수 없",
-                "찾지 못",
-                "확인할 수 없",
-                "조회할 수 없",
-                "권한이 없",
-            )
-        ),
-        "forbidden_tool_called": bool(
-            {call.name for call in obs.tool_calls} & set(spec.forbidden.forbidden_tools)
-        ),
-    }
 
 
 async def run_dev(
@@ -304,15 +283,8 @@ async def run_dev(
                     reasons.append("llm_recording_rejected")
                 if infra:
                     reasons.append("infrastructure_failure")
-                observation_digest = _digest(spec, obs)
-                expected_refused = (
-                    spec.expected.outcome.startswith("not_found")
-                    or spec.expected.outcome == "blocked"
-                )
-                recorded_fail = (
-                    not grade.tcr.passed
-                    or observation_digest["refused"] != expected_refused
-                )
+                observation_digest = digest_for(spec, obs)
+                recorded_fail = tcr_status(spec, obs) == "recorded_fail"
                 status = {
                     "eligible": eligible,
                     "golden_eligible": eligible,
@@ -383,6 +355,32 @@ def _git(root, *args):
     return result.returncode, result.stdout.strip()
 
 
+A_INDEX_FILE = "src/kodocs/tools/deps.py"
+_A_INDEX = re.compile(r'^TOOL_INDEX\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
+
+
+def resolve_index_name(a_root, env_value: str) -> dict:
+    """A MCP 서버가 쓰는 인덱스 이름. A 저장소의 설정(`TOOL_INDEX`)을 읽기 전용으로 읽고, 읽을 수
+    없을 때만 사람이 적은 환경 변수 값을 쓴다(출처를 함께 남긴다). A 저장소는 수정하지 않는다."""
+    try:
+        found = _A_INDEX.search(
+            (Path(a_root) / A_INDEX_FILE).read_text(encoding="utf-8")
+        )
+    except OSError:
+        found = None
+    if found:
+        result = {
+            "index_name": found.group(1),
+            "index_name_source": f"a_repo:{A_INDEX_FILE}:TOOL_INDEX",
+        }
+        if env_value and env_value != found.group(1):
+            result["index_name_env_mismatch"] = (
+                True  # 사용자 입력이 A 설정과 다름(A 값을 기록)
+            )
+        return result
+    return {"index_name": env_value, "index_name_source": "env(사용자 입력)"}
+
+
 def git_metadata(root, a_root):
     relative = "docs/results/hypotheses.md"
     status_code, worktree_status = _git(root, "status", "--porcelain")
@@ -396,8 +394,8 @@ def git_metadata(root, a_root):
             root, "log", "-1", "--format=%H", "--", relative
         )[1],
         "a_git_head": _git(a_root, "rev-parse", "HEAD")[1],
-        "index_name": os.getenv("KODOCS_INDEX_NAME", ""),
     }
+    metadata.update(resolve_index_name(a_root, os.getenv("KODOCS_INDEX_NAME", "")))
     guard_live(metadata)
     if not metadata["a_git_head"] or not metadata["index_name"]:
         raise ValueError("A_ROOT·KODOCS_INDEX_NAME을 확인하세요")

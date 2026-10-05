@@ -461,3 +461,55 @@ def test_models_seen_includes_rejected_response(tmp_path):
 
     result = exercise(tmp_path, RejectedChat())
     assert result["manifest"]["models_seen"] == ["gpt-6-luna"]
+
+
+def test_dev_status_matches_the_golden_status_for_the_same_observation(tmp_path):
+    """dev 러너와 golden은 같은 판정 함수를 쓴다: 부분 답변(거절 문구 없음)도 TCR 통과면 pass."""
+    from test_eval_observation import observation
+
+    from govops.golden import load_golden_specs, tcr_status
+
+    class Partial(Chat):
+        async def complete(self, **kwargs):
+            result = await super().complete(**kwargs)
+            if result.message["tool_calls"]:
+                return result
+            return ChatResult(
+                {"content": "공개 문서 기준 일반 절차만 안내합니다", "tool_calls": []},
+                "gpt-6-luna",
+                Usage(1, 0, 1),
+                0.0,
+            )
+
+    result = exercise(tmp_path, Partial(), task="T5-01")
+    status = json.loads((tmp_path / "data/replay/golden/status.json").read_text())
+    row = status["T5-01"] if "T5-01" in status else status["tasks"]["T5-01"]
+    spec = load_golden_specs()["T5-01"]
+    obs = observation(
+        task_id="T5-01",
+        answer="공개 문서 기준 일반 절차만 안내합니다",
+        tool_calls=[{"name": "search_docs", "ok": True}],
+    )
+    assert row["status"] == tcr_status(spec, obs) == "pass"
+    assert row["recorded_fail"] is False
+    assert result["manifest"]["models_seen"] == ["gpt-6-luna"]
+
+
+def test_index_name_comes_from_a_settings_else_env_with_its_source(tmp_path):
+    from govops.evalrun.dev import A_INDEX_FILE, resolve_index_name
+
+    a_root = tmp_path / "a"
+    target = a_root / A_INDEX_FILE
+    target.parent.mkdir(parents=True)
+    target.write_text('TOOL_INDEX = "kodocs-m5-composite-structural"\n')
+    found = resolve_index_name(a_root, "")
+    assert found["index_name"] == "kodocs-m5-composite-structural"
+    assert found["index_name_source"].startswith("a_repo:")
+    assert "index_name_env_mismatch" not in found
+    # 사용자 입력이 A 설정과 다르면 A 값을 기록하고 불일치를 표시한다
+    assert resolve_index_name(a_root, "kodocs-other")["index_name_env_mismatch"] is True
+    # A 설정을 읽을 수 없으면 환경 변수 값과 출처를 함께 남긴다(A 저장소는 수정하지 않는다)
+    assert resolve_index_name(tmp_path / "none", "kodocs-m5-x-y") == {
+        "index_name": "kodocs-m5-x-y",
+        "index_name_source": "env(사용자 입력)",
+    }
