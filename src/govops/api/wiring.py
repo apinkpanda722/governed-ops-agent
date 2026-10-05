@@ -12,6 +12,7 @@ from govops.agent.users import load_users
 from govops.api.startup import StartupError, verify_contract
 from govops.api.tasks import TaskService
 from govops.audit.log import AuditLog
+from govops.env import env_or
 from govops.gateway.client import LiteLLMChatClient
 from govops.guardrails.policy import load_team_policy
 from govops.obs.jsonl import JsonlSink
@@ -48,17 +49,17 @@ async def open_task_service():
         tools = ToolRuntime(
             a_client,
             JiraClient(
-                os.getenv("MOCK_JIRA_URL") or "http://127.0.0.1:8081",
+                env_or("MOCK_JIRA_URL", "http://127.0.0.1:8081"),
                 http_client=rest_client,
             ),
             SlackClient(
-                os.getenv("MOCK_SLACK_URL") or "http://127.0.0.1:8082",
+                env_or("MOCK_SLACK_URL", "http://127.0.0.1:8082"),
                 http_client=rest_client,
             ),
             policy=policy,
         )
         async with open_checkpointer(os.getenv("GOVOPS_DATABASE_URL") or None) as saver:
-            name = os.getenv("GOVOPS_AGENT_PROFILE") or "read_only"
+            name = env_or("GOVOPS_AGENT_PROFILE", "read_only")
             if name not in {"read_only", "writes"}:
                 raise StartupError("GOVOPS_AGENT_PROFILE")
             outbox = (

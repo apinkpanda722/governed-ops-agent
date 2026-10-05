@@ -23,6 +23,7 @@ SMOKE_USER ?= demo-platform-g3
 
 .PHONY: mock-tokens seed-extract record-a smoke-contract smoke-identity smoke-visibility smoke-mock smoke-host-header
 
+# mock 코드가 바뀐 PR을 머지한 뒤에는 `docker compose -f infra/docker-compose.yml up -d --build mock-jira mock-slack`으로 mock 이미지를 다시 빌드한다.
 # users 시드 필요; mock 인증 토큰·해시 파일 생성.
 mock-tokens:
 	uv run python -m govops.mocks.tokens

@@ -21,6 +21,7 @@ from openai import (
 )
 
 from govops.costs import CostLedger, estimate_call_usd, token_cost_usd
+from govops.env import env_or
 from govops.obs.trace import current_span_id, set_attributes
 
 _MODEL = "gpt-6-luna"
@@ -102,9 +103,7 @@ class LiteLLMChatClient:
         self._api_key = (
             api_key if api_key is not None else os.getenv("LITELLM_AGENT_KEY")
         )
-        self._base_url = (
-            base_url or os.getenv("LITELLM_BASE_URL") or "http://127.0.0.1:4000"
-        )
+        self._base_url = base_url or env_or("LITELLM_BASE_URL", "http://127.0.0.1:4000")
         self._ledger = ledger if ledger is not None else CostLedger()
         self._http_client = http_client
         self._timeout_s = timeout_s

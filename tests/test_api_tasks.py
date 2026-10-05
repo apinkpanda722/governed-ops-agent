@@ -413,7 +413,7 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
 )
 @pytest.mark.parametrize("channel", ["team-hr", "announce"])
 async def test_blocked_edit_restores_draft_and_allows_next_decision(
-    tmp_path, next_decision, channel
+    tmp_path, monkeypatch, next_decision, channel
 ):
     import json
     from datetime import UTC, datetime, timedelta
@@ -428,6 +428,10 @@ async def test_blocked_edit_restores_draft_and_allows_next_decision(
     from govops.tools.outbox import InMemoryOutboxStore
     from govops.tools.resilience import ToolPolicy
 
+    # Random UUID digits can match telephone PII and fail the audit before drafting.
+    monkeypatch.setattr(
+        "govops.api.tasks.uuid4", lambda: SimpleNamespace(hex="ab" * 16)
+    )
     users = {
         u.label: u
         for u in (UserInfo("requester", "hr", 3), UserInfo("approver", "hr", 4))

@@ -20,6 +20,7 @@ from govops.agent.checkpointer import open_checkpointer
 from govops.agent.graph import build_graph, run_task
 from govops.agent.prompts import SYSTEM_PROMPT
 from govops.costs import BudgetExceededError, CostLedger, cost_report
+from govops.env import env_or
 from govops.eval.meta import load_meta
 from govops.eval.run_grade import build_observation, grade_run
 from govops.eval.spec import TaskSpec
@@ -509,10 +510,10 @@ async def _live(specs, metadata):
         tools = ToolRuntime(
             a_client,
             JiraClient(
-                os.getenv("MOCK_JIRA_URL") or "http://127.0.0.1:8081", http_client=rest
+                env_or("MOCK_JIRA_URL", "http://127.0.0.1:8081"), http_client=rest
             ),
             SlackClient(
-                os.getenv("MOCK_SLACK_URL") or "http://127.0.0.1:8082", http_client=rest
+                env_or("MOCK_SLACK_URL", "http://127.0.0.1:8082"), http_client=rest
             ),
         )
         return await run_dev(
@@ -543,7 +544,7 @@ def main(argv=None):
         metadata = git_metadata(
             ROOT,
             Path(
-                os.getenv("A_ROOT", "~/PycharmProjects/ko-docs-agentic-rag")
+                env_or("A_ROOT", "~/PycharmProjects/ko-docs-agentic-rag")
             ).expanduser(),
         )
         asyncio.run(_live(specs, metadata))

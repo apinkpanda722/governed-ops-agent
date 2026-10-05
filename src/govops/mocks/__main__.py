@@ -2,12 +2,12 @@
 
 import argparse
 import asyncio
-import os
 import sys
 from pathlib import Path
 
 import uvicorn
 
+from govops.env import env_or
 from govops.mocks.auth import TokenHashStore
 from govops.mocks.faults import FaultH11Protocol
 from govops.mocks.jira import JiraState
@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             token_store = TokenHashStore.load(
                 Path(
-                    os.environ.get(
+                    env_or(
                         "MOCK_JIRA_TOKEN_HASHES",
                         "data/seed/mock_jira_token_hashes.json",
                     )
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             state = JiraState(
                 load_tickets(
-                    Path(os.environ.get("MOCK_JIRA_TICKETS", "data/seed/tickets.json"))
+                    Path(env_or("MOCK_JIRA_TICKETS", "data/seed/tickets.json"))
                 )
             )
         except (OSError, ValueError):
@@ -69,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             token_store = TokenHashStore.load(
                 Path(
-                    os.environ.get(
+                    env_or(
                         "MOCK_SLACK_TOKEN_HASHES",
                         "data/seed/mock_slack_token_hashes.json",
                     )

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
+from govops.env import env_or
 from govops.guardrails.pii import find_pii
 
 EVENTS = frozenset(
@@ -131,7 +132,7 @@ class AuditLog:
         self.directory = Path(
             directory
             if directory is not None
-            else os.environ.get("AUDIT_DIR", "data/interim/audit")
+            else env_or("AUDIT_DIR", "data/interim/audit")
         ).resolve()
         self.clock = clock
         try:

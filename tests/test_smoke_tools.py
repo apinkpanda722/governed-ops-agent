@@ -400,4 +400,91 @@ def test_effects_cli_safe_failure(monkeypatch, capsys):
 
     monkeypatch.setattr(smoke, "_run", fail)
     assert smoke.main(["effects"]) == 1
-    assert capsys.readouterr().out == "FAIL effects\n"
+    assert (
+        capsys.readouterr().out
+        == "FAIL effects stage=send state=failed reason=exception error=ValueError status=uncertain\n"
+    )
+
+
+@pytest.mark.parametrize("stage", ["send", "lookup", "repeat", "count"])
+def test_effects_diagnostics(monkeypatch, stage):
+    monkeypatch.setattr(
+        smoke.credentials, "credential_for", lambda *a: "sentinel-diagnostic-secret"
+    )
+    records = {}
+    gets = 0
+
+    def handle(request):
+        nonlocal gets
+        path = request.url.path
+        if request.method == "POST":
+            if stage == "send":
+                return httpx.Response(403, text="sentinel-diagnostic-secret")
+            payload = json.loads(request.content)
+            item = {
+                **payload,
+                "message_id": "message-1",
+                "comment_id": "comment-1",
+                "ticket_id": "PLT-9999",
+            }
+            records[path] = item
+            return httpx.Response(200, json={"message": item, "comment": item, **item})
+        gets += 1
+        if stage == "lookup":
+            return httpx.Response(403, text="sentinel-diagnostic-secret")
+        kind = (
+            "messages"
+            if "channels" in path
+            else "comments"
+            if "comments" in path
+            else "tickets"
+        )
+        items = [records[path]]
+        if stage == "count" and gets % 2 == 0:
+            items *= 2
+        return httpx.Response(200, json={kind: items})
+
+    if stage == "repeat":
+        original = smoke.execute_effect
+
+        async def repeat(req, **deps):
+            result = await original(req, **deps)
+            if result.reason == "already_succeeded":
+                from dataclasses import replace
+
+                return replace(result, sends=1)
+            return result
+
+        monkeypatch.setattr(smoke, "execute_effect", repeat)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
+            return await smoke.smoke_effects(
+                JiraClient("http://sentinel-url", http_client=http),
+                SlackClient("http://sentinel-url", http_client=http),
+                [
+                    ticket(
+                        ticket_id="PLT-1",
+                        access_level="team",
+                        access_teams=["platform"],
+                    )
+                ],
+                [{"label": "demo-platform-g3", "team": "platform", "grade": 3}],
+                user_id="demo-platform-g3",
+            )
+
+    result = asyncio.run(run())
+    assert not result.ok
+    import re
+
+    assert all(
+        re.fullmatch(
+            r"FAIL (slack_send_message|jira_add_comment|jira_create_followup_ticket) stage="
+            + stage
+            + r" state=(failed|succeeded) reason=[a-z_]+ error=[A-Za-z]+ status=(403|[a-z_]+)",
+            line,
+        )
+        for line in result.lines
+    )
+    assert "sentinel" not in repr(result)
+    assert "smoke 합성" not in repr(result)
