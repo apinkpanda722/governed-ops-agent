@@ -32,7 +32,8 @@
     },
     {
       "dir": "m3-effects",
-      "status": "pending"
+      "status": "error",
+      "failed_at": "2026-10-05T14:02:02+0900"
     }
   ]
 }

@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "mock-faults",
-      "status": "pending"
+      "status": "error",
+      "started_at": "2026-10-05T13:53:42+0900",
+      "error_message": "[3회 시도 후 실패] 결과 JSON을 받지 못함 (exit 1): 2026-10-05T05:01:58.382765Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 426 Upgrade Required, url: ws://127.0.0.1:11434/api/codex/v1/responses\n2026-10-05T05:01:58.430043Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 426 Upgrade Required, url: ws://127.0.0.1:11434/api/codex/v1/responses\n",
+      "failed_at": "2026-10-05T14:02:02+0900",
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "attempts": 3
+      }
     },
     {
       "step": 1,
@@ -32,5 +41,6 @@
       "name": "effects-docs",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-05T13:53:42+0900"
 }
