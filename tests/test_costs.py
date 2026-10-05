@@ -42,7 +42,7 @@ def test_prices_and_constants(monkeypatch):
     assert costs.estimate_call_usd(
         "gpt-6-luna", input_tokens_upper=1000000, max_output_tokens=1000000
     ) == pytest.approx(0.6)
-    assert len(costs.PRICES) == 6
+    assert len(costs.PRICES) == 8
     for suffix, amount in [
         ("input", 0.1),
         ("cached_input", 0.01),
@@ -213,3 +213,102 @@ def test_gemini_prices_and_expiry():
         p = costs.PRICES[f"google.gemini-3.8-flash.{suffix}"]
         assert p.valid_until == "2026-12-31" and p.checked_on == "2026-10-01"
         assert p.source_url == "https://ai.google.dev/gemini-api/docs/pricing"
+
+
+@pytest.mark.parametrize("cached", [0, 200000, 1000000])
+def test_anthropic_prices_and_cost(cached):
+    for suffix, amount in [("input", 2), ("output", 10)]:
+        price = costs.PRICES[f"anthropic.claude-sonnet-5-5.{suffix}"]
+        assert price.unit_price_usd == amount / 1000000
+        assert (
+            price.source_url
+            == "https://platform.claude.com/docs/en/about-claude/pricing"
+        )
+        assert price.checked_on == "2026-10-05"
+        assert price.valid_until is None
+    assert "anthropic.claude-sonnet-5-5.cached_input" not in costs.PRICES
+    assert costs.anthropic_cost_usd(
+        "claude-sonnet-5-5",
+        input_tokens=1000000,
+        cached_input_tokens=cached,
+        output_tokens=1000000,
+    ) == pytest.approx(12)
+
+
+@pytest.mark.parametrize(
+    "model,supplier",
+    [
+        ("gpt-6-luna", "openai"),
+        ("claude-sonnet-5-5", "anthropic"),
+    ],
+)
+@pytest.mark.parametrize("suffix", ["", "-20261005", "-2026-10-05"])
+def test_resolve_registered_model(model, supplier, suffix):
+    resolved = costs.resolve_model(model + suffix)
+    assert resolved == costs.ResolvedModel(supplier, model, f"{supplier}.{model}", True)
+    amount, actual = costs.response_cost_usd(
+        model + suffix,
+        input_tokens=1000000,
+        cached_input_tokens=200000,
+        output_tokens=1000000,
+    )
+    assert actual == resolved
+    assert amount == pytest.approx(0.582 if supplier == "openai" else 12)
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        "",
+        "GPT-6-LUNA",
+        "Claude-sonnet-5-5",
+        "gpt-6",
+        "claude-sonnet-5",
+        "gpt-6-luna-preview",
+        "claude-sonnet-5-5-latest",
+        "gpt-6-luna-20261005-extra",
+        "prefix-gpt-6-luna",
+        "anthropic/claude-sonnet-5-5",
+        "gpt-6-luna-2026105",
+        "gpt-6-luna-2026-1-05",
+        "gpt-6-luna\n",
+    ],
+)
+def test_unmapped_response_uses_maximum_registered_cost(model):
+    assert costs.resolve_model(model) == costs.ResolvedModel(None, None, None, False)
+    amount, resolved = costs.response_cost_usd(
+        model,
+        input_tokens=1000000,
+        cached_input_tokens=200000,
+        output_tokens=1000000,
+    )
+    assert not resolved.mapped
+    assert amount == max(
+        costs.token_cost_usd(
+            "gpt-6-luna",
+            input_tokens=1000000,
+            cached_input_tokens=200000,
+            output_tokens=1000000,
+        ),
+        costs.anthropic_cost_usd(
+            "claude-sonnet-5-5",
+            input_tokens=1000000,
+            cached_input_tokens=200000,
+            output_tokens=1000000,
+        ),
+    )
+
+
+@pytest.mark.parametrize("counts", [(-1, 0, 0), (1, 2, 0), (True, 0, 0), (1, 0, 1.5)])
+def test_anthropic_and_response_reject_invalid_tokens(counts):
+    for calculate, model in [
+        (costs.anthropic_cost_usd, "claude-sonnet-5-5"),
+        (costs.response_cost_usd, "unknown"),
+    ]:
+        with pytest.raises(ValueError):
+            calculate(
+                model,
+                input_tokens=counts[0],
+                cached_input_tokens=counts[1],
+                output_tokens=counts[2],
+            )
