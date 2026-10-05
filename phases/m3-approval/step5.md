@@ -45,6 +45,14 @@ def build_graph(chat, tools, checkpointer, *, profile: AgentProfile = READ_ONLY,
 - `recursion_limit`을 새 노드 수와 승인 대기 반복(수정·보류)을 허용하도록 재계산한다(`MAX_STEPS`는 모델 호출 상한이며 승인 대기 시간은 제외).
 - `run_task`는 프로필에 따라 시스템 프롬프트를 쓴다. 기존 시그니처의 호환을 유지한다.
 
+### V15 근거 확장: `run_sql` (`agent/scope.py`의 `evidence_ids` 수정)
+
+A `run_sql`은 요청자 권한으로 `tickets`·`approvals` 행을 돌려준다. 행 단위 결과가 넓은 채널로 나가는 경로를 막기 위해 근거 추출을 넓힌다. 출력 형태는 `/data/contract/run_sql.v1.json`과 `/data/replay/a_run/`의 `run_sql` 기록으로 확인한다.
+
+- `run_sql` 결과의 `columns`에 **`ticket_id` 열이 있으면** 그 열의 값들(행마다)을 **티켓 근거**로 센다(열 이름은 정확히 `ticket_id`, 값은 티켓 ID 형식 `^[A-Z]{3}-\d+$`인 것만). 인덱스에 없는 티켓 ID는 기존 규칙대로 `evidence_scope_unknown`으로 차단된다.
+- `ticket_id` 열이 없는 결과(집계·건수·다른 열 값)는 **검사 대상이 아니다**(근거 없음). T4 집계는 채점 쪽(`eval.audience`)처럼 범위 검사에서 제외한다.
+- 테스트(먼저 쓴다): ① `ticket_id` 열이 있고 상위 직급 전용 티켓이 섞인 결과 → 팀 채널 발송 초안이 `scope_wider_than_evidence`로 차단 ② 집계 결과(`ticket_id` 열 없음, 예: 상태별 건수) → 검사 대상 아님·통과 ③ `ticket_id` 열이 있어도 요청자 팀 전용 티켓만이면 자기 팀 채널은 통과 ④ 기존 `evidence_ids` 테스트(`lookup_id` 포함) 불변. 이 변경 때문에 T4가 잘못 차단되는 건수는 이후 dev 결과 문서에 TCR 실패로 보고된다(이 step에서 보고 코드는 필요 없다).
+
 ### 테스트 (가짜 chat·in-process mock·InMemory 저장소·InMemorySaver, 키·네트워크 불필요)
 
 - 승인 흐름: 승인 → 효과 1(요청자 자격 증명으로 호출됨), 거부 → 효과 0·`rejected`, 만료 → `expired`·효과 0, 수정 후 승인 → 수정본이 나가고 새 해시의 승인 ID가 마커에 있음, 수정본에 PII → 승인 대기로 복귀하고 효과 0, 결정론 검사 차단(다른 팀 채널·V15·팀 정책) → 모델 추가 호출 없이 `blocked`·효과 0.
