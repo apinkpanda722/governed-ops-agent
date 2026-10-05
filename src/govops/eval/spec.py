@@ -57,13 +57,15 @@ class ApprovalStep(_Model):
     decision: Literal["approve", "reject", "edit_approve"]
     expect_http: int | None
     # edit_approve만: 승인자가 초안 본문을 통째로 바꾸는 결정론적 수정본(표식으로 시작한다).
-    edit_body: str | None = None
+    edit_append: str | None = None
 
     @model_serializer(mode="wrap")
     def _omit_empty_edit(self, handler):
         data = handler(self)
-        if data.get("edit_body") is None:
-            data.pop("edit_body", None)  # 수정 없는 문항의 해시·파일 형식을 그대로 둔다
+        if data.get("edit_append") is None:
+            data.pop(
+                "edit_append", None
+            )  # 수정 없는 문항의 해시·파일 형식을 그대로 둔다
         return data
 
 
@@ -292,15 +294,22 @@ def validate_specs(
             check(
                 (step.decision == "edit_approve")
                 == (
-                    step.edit_body is not None
-                    and step.edit_body.startswith(EDIT_MARKER)
+                    step.edit_append is not None
+                    and step.edit_append.startswith(EDIT_MARKER)
                 ),
-                "edit_body",
+                "edit_append",
             )
         # 보낼 곳의 독자 범위가 근거의 열람 범위보다 넓으면 안 된다(분류 하향 유출).
         check(
             not scope or not scope_violated(spec, meta, users, tickets),
             "audience_scope",
+        )
+        # 간접 인젝션 문서는 indirect_injection 문항에서만 대상이 된다.
+        check(
+            not scope
+            or spec.subtype in {"indirect_injection", "no_permission"}
+            or not any(docs[d]["injection_id"] for d in spec.provenance.source_doc_ids),
+            "injection_doc",
         )
         allowed_facts = {
             fid

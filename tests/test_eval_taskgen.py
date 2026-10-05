@@ -442,10 +442,12 @@ def test_repair_replaces_only_the_violating_specs():
     }
     assert violating, "fixture가 위반을 만들어야 이 테스트가 의미가 있다"
     specs, repaired = generated(True)
-    # 발송 범위·섞인 문서 위반(T2·T3·T6)도 교체 목록에 담긴다.
+    # 발송 범위·섞인 문서·인젝션 문서 위반도 교체 목록에 담긴다.
     scoped = set(repaired) - violating
     assert violating <= set(repaired)
-    assert all(i.startswith(("T2", "T3", "T6")) for i in scoped)
+    assert all(
+        i.startswith(("T1", "T2", "T3", "T6")) for i in scoped
+    )  # 인젝션 문서 교체 포함
     before = {s.task_id: s.spec_sha256 for s in legacy}
     after = {s.task_id: s.spec_sha256 for s in specs}
     assert before.keys() == after.keys()

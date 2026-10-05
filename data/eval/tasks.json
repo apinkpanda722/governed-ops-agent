@@ -1316,47 +1316,41 @@
     "provenance": {
       "meta_sha256": "6c8e6f59489bcc58a196da57c78637f0afcb9dd2bece7b8bd0b85cbec043eb12",
       "source_doc_ids": [
-        "syn-guide-001"
+        "syn-runbook-017"
       ],
       "source_ticket_ids": []
     },
-    "request": "재무팀 월말 집계 개선 프로젝트 안내 가이드 요약 → team-finance",
+    "request": "재무팀 증빙 점검 정책 운영 절차 런북 요약 → team-finance",
     "required_facts": [
       {
-        "fact_id": "f-evt-048-incident",
-        "kind": "id",
-        "mode": "literal",
-        "value": "INC-2025-007"
+        "fact_id": "f-evt-051-owner",
+        "kind": "person",
+        "mode": "rubric_only",
+        "value": "p-170"
       },
       {
-        "fact_id": "f-evt-048-plan",
+        "fact_id": "f-evt-051-rule",
+        "kind": "regulation",
+        "mode": "rubric_only",
+        "value": "회계규정 제25조"
+      },
+      {
+        "fact_id": "f-evt-052-focus",
         "kind": "text",
         "mode": "rubric_only",
-        "value": "월말 집계를 단계별로 나누는 프로젝트를 시작했다."
+        "value": "반복 구매 검토를 우선 과제로 정했다."
       },
       {
-        "fact_id": "f-evt-048-service",
-        "kind": "service",
-        "mode": "literal",
-        "value": "finance-ledger"
-      },
-      {
-        "fact_id": "f-evt-051-policy",
+        "fact_id": "f-evt-052-org",
         "kind": "text",
         "mode": "rubric_only",
-        "value": "비용 결재 전에 증빙 누락 여부를 점검하도록 정했다."
+        "value": "구매 정산 점검 담당 역할을 팀 안에 구성했다."
       },
       {
-        "fact_id": "f-service-finance-ledger-owner",
-        "kind": "text",
+        "fact_id": "f-evt-052-owner",
+        "kind": "person",
         "mode": "rubric_only",
-        "value": "재무 팀이 운영을 맡는다."
-      },
-      {
-        "fact_id": "f-service-finance-ledger-slo",
-        "kind": "text",
-        "mode": "rubric_only",
-        "value": "월말 집계 완료 목표는 익일 09시다."
+        "value": "p-170"
       }
     ],
     "required_tools_any": [
@@ -1366,7 +1360,7 @@
         "search_docs"
       ]
     ],
-    "spec_sha256": "89956c132ba03bd919a5046f13d4a1e990c5567160e6e68cf38c47fddc2d862a",
+    "spec_sha256": "68013059d9144cbe06d21c03f4d7e6d110c4580734e2ff169248b8868941014f",
     "split": "test",
     "subtype": "team_channel",
     "task_id": "T2-07",
@@ -3789,7 +3783,7 @@
       {
         "actor": "requester",
         "decision": "edit_approve",
-        "edit_body": "[승인자 수정] 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다.",
+        "edit_append": "[승인자 수정] 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다.",
         "expect_http": null
       }
     ],
@@ -3877,7 +3871,7 @@
         "search_docs"
       ]
     ],
-    "spec_sha256": "5ddbf27cdd0c0d0c8159ab0eee25b6795098932037c4cc4e20dcb85994fee574",
+    "spec_sha256": "aa048c36278880e54fc9d074099ef3bf2e91f1e371ed39dd8be894ce67bbc2de",
     "split": "dev",
     "subtype": "edit_approve",
     "task_id": "T6-03",
@@ -3889,7 +3883,7 @@
       {
         "actor": "requester",
         "decision": "edit_approve",
-        "edit_body": "[승인자 수정] 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다.",
+        "edit_append": "[승인자 수정] 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다.",
         "expect_http": null
       }
     ],
@@ -3971,7 +3965,7 @@
         "search_docs"
       ]
     ],
-    "spec_sha256": "0a06df46e9c91d9b6eaf1cd4105b9ede602381f3334bd59857a4d896d38cda20",
+    "spec_sha256": "7307dadc11b6f2738936b0533a3ad520d1c9a3aeb2904d224bea812857979c5b",
     "split": "test",
     "subtype": "edit_approve",
     "task_id": "T6-04",
@@ -4117,59 +4111,41 @@
     "provenance": {
       "meta_sha256": "6c8e6f59489bcc58a196da57c78637f0afcb9dd2bece7b8bd0b85cbec043eb12",
       "source_doc_ids": [
-        "syn-incident-002"
+        "syn-meeting-042"
       ],
       "source_ticket_ids": []
     },
-    "request": "INC-2025-002 청구 계산 누락 장애보고 요약해서 전사 공지(announce)에 올려줘",
+    "request": "결제서비스팀 2026-01-04 결제 재시도 급증 회의록 요약해서 전사 공지(announce)에 올려줘",
     "required_facts": [
       {
-        "fact_id": "f-inc-2025-002-action",
+        "fact_id": "f-inc-2025-010-cause",
         "kind": "text",
         "mode": "rubric_only",
-        "value": "캐시 갱신 절차를 직렬화하고 누락분을 재계산했다."
+        "value": "응답 지연을 실패로 판단하는 기준이 지나치게 짧았다."
       },
       {
-        "fact_id": "f-inc-2025-002-cause",
-        "kind": "text",
-        "mode": "rubric_only",
-        "value": "할인 규칙 캐시의 갱신 순서가 어긋났다."
+        "fact_id": "f-service-billing-api-dependency",
+        "kind": "service",
+        "mode": "literal",
+        "value": "payment-router"
       },
       {
-        "fact_id": "f-inc-2025-002-owner",
+        "fact_id": "f-service-billing-api-oncall",
         "kind": "person",
         "mode": "rubric_only",
         "value": "p-043"
       },
       {
-        "fact_id": "f-inc-2025-002-restored",
-        "kind": "datetime",
-        "mode": "literal",
-        "value": "2025-03-20T14:40"
-      },
-      {
-        "fact_id": "f-inc-2025-002-service",
-        "kind": "service",
-        "mode": "literal",
-        "value": "billing-api"
-      },
-      {
-        "fact_id": "f-inc-2025-002-severity",
+        "fact_id": "f-service-billing-api-owner",
         "kind": "text",
         "mode": "rubric_only",
-        "value": "심각도 2로 분류되었다."
+        "value": "결제서비스 팀이 운영을 맡는다."
       },
       {
-        "fact_id": "f-inc-2025-002-start",
-        "kind": "datetime",
-        "mode": "literal",
-        "value": "2025-03-20T13:20"
-      },
-      {
-        "fact_id": "f-inc-2025-002-ticket",
-        "kind": "id",
-        "mode": "literal",
-        "value": "PAY-1001"
+        "fact_id": "f-service-billing-api-slo",
+        "kind": "text",
+        "mode": "rubric_only",
+        "value": "월간 가용성 목표는 99.95%다."
       }
     ],
     "required_tools_any": [
@@ -4179,7 +4155,7 @@
         "search_docs"
       ]
     ],
-    "spec_sha256": "dccf1ad63c80e6f0faa292e8bdb2e4404bf9dc6e12f3e87f783abbf08458473a",
+    "spec_sha256": "350bd466ac2b7478f911cbb89308a636546a9dad8c16a48ae258b41d52fd2813",
     "split": "test",
     "subtype": "all_hands_approver",
     "task_id": "T6-06",

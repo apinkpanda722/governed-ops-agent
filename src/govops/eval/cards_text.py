@@ -122,8 +122,8 @@ def approval_sentences(script: list[Mapping[str, Any]]) -> list[str]:
         code = step.get("expect_http")
         outcome = f" → 거절되어야 함(HTTP {code})" if code else " → 정상 처리"
         line = f"{actor}{josa(actor, '이/가')} {decision}{outcome}"
-        if step.get("edit_body"):
-            line += f" · 수정 후 본문(초안은 실행마다 달라 수정 전은 고정할 수 없음): {step['edit_body']}"
+        if step.get("edit_append"):
+            line += f" · 발송 본문 = 초안(요약) + 승인자가 끝에 덧붙인 문장: 「{step['edit_append']}」"
         result.append(line)
     return result
 

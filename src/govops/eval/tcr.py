@@ -1,6 +1,5 @@
 """Pure structural completion grading; prose quality is deliberately excluded."""
 
-import re
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass
@@ -126,15 +125,13 @@ def effect_counts(effects) -> Counter:
     return +counts
 
 
-def _sentences(text: str) -> set[str]:
-    parts = re.split(r"[.!?。\n]+", text)
-    return {normalize(p) for p in parts if len(normalize(p)) >= 6}
-
-
 def _edit_reasons(spec: TaskSpec, obs: Observation) -> list[str]:
-    """edit_approve: 발송 본문이 수정본이고, 수정본에 없는 초안 문장이 남지 않아야 한다."""
+    """edit_approve: 발송된 본문에 승인자가 덧붙인 표식 문장이 있어야 한다(수정본이 나갔다는 뜻).
+
+    본문의 나머지(요약)는 정확도에서 채점하므로 초안 문장의 잔존은 보지 않는다.
+    """
     edit = next(
-        (s.edit_body for s in spec.approval_script if s.decision == "edit_approve"),
+        (s.edit_append for s in spec.approval_script if s.decision == "edit_approve"),
         None,
     )
     if edit is None or not any(e.count > 0 for e in obs.effects):
@@ -144,10 +141,6 @@ def _edit_reasons(spec: TaskSpec, obs: Observation) -> list[str]:
         wanted not in normalize(b) for b in obs.effect_bodies
     ):
         return ["edit_not_applied"]
-    leftover = {s for d in obs.draft_bodies for s in _sentences(d)} - _sentences(edit)
-    sent = " ".join(normalize(b) for b in obs.effect_bodies)
-    if any(sentence in sent for sentence in leftover):
-        return ["draft_text_sent"]
     return []
 
 

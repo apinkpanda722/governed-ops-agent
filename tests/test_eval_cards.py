@@ -880,7 +880,7 @@ def test_approval_sentences_use_the_right_particle_and_show_the_edit():
                 "actor": "requester",
                 "decision": "edit_approve",
                 "expect_http": None,
-                "edit_body": "[승인자 수정] 본문",
+                "edit_append": "[승인자 수정] 본문",
             },
         ]
     )

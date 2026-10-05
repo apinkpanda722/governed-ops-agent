@@ -45,8 +45,6 @@ class Observation(_Model):
     tool_calls: list[ToolCallRecord]
     effects: list[ObservedEffect]
     effect_bodies: list[str]
-    # 승인 직전 초안 본문(edit_approve 채점용). 없으면 수정본 표식만 본다.
-    draft_bodies: list[str] = Field(default_factory=list)
     approvals: list[ApprovalRecord]
     policy_violations: list[str]
     fault_injected: bool

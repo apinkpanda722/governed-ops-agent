@@ -16,6 +16,7 @@ from govops.eval.audience import (
 )
 from govops.eval.meta import EvalMeta
 from govops.eval.spec import EDIT_MARKER, TaskSpec, spec_hash
+from govops.eval.visibility import can_read
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -103,36 +104,36 @@ def test_mixed_incident_documents_exclude_meetings():
     assert mixed == {base["docs"][0]["doc_id"]}
 
 
-def test_edit_approve_specs_carry_a_deterministic_edit_body():
+def test_edit_approve_specs_carry_a_deterministic_edit_append():
     specs, _ = generated(True)
     edits = [s for s in specs if s.subtype == "edit_approve"]
     assert len(edits) == 2
     for spec in edits:
-        assert spec.approval_script[0].edit_body.startswith(EDIT_MARKER)
+        assert spec.approval_script[0].edit_append.startswith(EDIT_MARKER)
     for spec in specs:
         if spec.subtype != "edit_approve":
-            assert all(a.edit_body is None for a in spec.approval_script)
+            assert all(a.edit_append is None for a in spec.approval_script)
 
 
-def test_specs_without_an_edit_body_hash_and_dump_exactly_as_before():
+def test_specs_without_an_edit_append_hash_and_dump_exactly_as_before():
     specs, _ = generated(True)
     plain = next(s for s in specs if s.subtype == "reject")
     dumped = plain.model_dump()
-    assert all("edit_body" not in step for step in dumped["approval_script"])
+    assert all("edit_append" not in step for step in dumped["approval_script"])
     assert spec_hash(plain) == plain.spec_sha256
     TaskSpec.model_validate(dumped)
 
 
-def test_edit_body_is_required_exactly_for_edit_approve():
+def test_edit_append_is_required_exactly_for_edit_approve():
     from govops.eval.spec import SpecValidationError, validate_specs
 
     meta, tickets, users = fixture()
     specs, _ = generated(True)
     spec = next(s for s in specs if s.subtype == "edit_approve")
-    step = spec.approval_script[0].model_copy(update={"edit_body": "수정 표식 없음"})
+    step = spec.approval_script[0].model_copy(update={"edit_append": "수정 표식 없음"})
     broken = spec.model_copy(update={"approval_script": [step]})
     broken = broken.model_copy(update={"spec_sha256": spec_hash(broken)})
-    with pytest.raises(SpecValidationError, match="edit_body"):
+    with pytest.raises(SpecValidationError, match="edit_append"):
         validate_specs([broken], meta, users, tickets)
 
 
@@ -172,3 +173,35 @@ def test_real_corpus_changes_only_the_expected_specs():
         assert current[task_id] == sha, task_id
     for task_id, sha in pinned["changed"].items():
         assert current[task_id] != sha, task_id
+
+
+def test_injection_documents_are_only_targets_of_indirect_injection_specs():
+    from govops.eval.spec import SpecValidationError, validate_specs
+    from govops.eval.spec_audit import audit_specs
+
+    meta, tickets, users = fixture()
+    specs, _ = generated(True)
+    for spec in specs:
+        if spec.subtype != "indirect_injection":
+            assert not any(
+                meta.doc_by_id[d].injection_id for d in spec.provenance.source_doc_ids
+            ), spec.task_id
+    spec = next(s for s in specs if s.subtype == "doc_summary")
+    asker = next(u for u in users if u["label"] == spec.user)
+    injected = next(
+        d.doc_id
+        for d in meta.docs
+        if d.injection_id
+        and can_read(asker, d.access_level, d.access_teams, d.access_min_grade)
+    )
+    bad = spec.model_copy(
+        update={
+            "provenance": spec.provenance.model_copy(
+                update={"source_doc_ids": [injected]}
+            )
+        }
+    )
+    bad = bad.model_copy(update={"spec_sha256": spec_hash(bad)})
+    assert "injection_doc" in {v.rule for v in audit_specs([bad], meta, users, tickets)}
+    with pytest.raises(SpecValidationError, match="injection_doc"):
+        validate_specs([bad], meta, users, tickets)
