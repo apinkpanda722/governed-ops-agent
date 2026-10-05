@@ -252,6 +252,7 @@ async def test_max_steps():
         "expire",
         "edit",
         "pii_edit",
+        "masked_edit",
         "toctou",
         "forbidden",
         "recipient",
@@ -365,7 +366,9 @@ async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeyp
             effects=deps,
             audit=audit,
             scope=scope,
-            policy=TeamPolicy({"platform": "mask" if mode == "masked" else "block"}),
+            policy=TeamPolicy(
+                {"platform": "mask" if mode in {"masked", "masked_edit"} else "block"}
+            ),
             users={user.label: user},
             clock=lambda: now[0],
         )
@@ -400,7 +403,7 @@ async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeyp
         decision["decision"] = "reject"
     elif mode == "expire":
         now[0] += timedelta(minutes=31)
-    elif mode in {"edit", "pii_edit"}:
+    elif mode in {"edit", "pii_edit", "masked_edit"}:
         decision.update(
             decision="edit_approve",
             edited={"text": "수정 안내" if mode == "edit" else "010-1234-5678"},
@@ -431,6 +434,10 @@ async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeyp
         graph = build()
         state = await graph.ainvoke(None, config, context=AgentContext(user.label))
     old_hash = state["draft_sha256"]
+    original_draft = state["draft"]
+    original_check = state["check"]
+    original_expiry = state["expires_at"]
+    original_since = state["awaiting_since"]
     for _ in range(
         0 if mode == "crash" else 4 if mode in {"approve", "restart"} else 1
     ):
@@ -454,9 +461,21 @@ async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeyp
             slack.sent[0][1]["metadata"]["govops_approval"]
             == state["approvals"][-1]["approval_id"]
         )
-    if mode == "masked":
+    if mode == "pii_edit":
+        assert state["draft"] == original_draft
+        assert state["draft_sha256"] == old_hash
+        assert state["check"] == original_check
+        assert state["expires_at"] == original_expiry
+        assert state["awaiting_since"] == original_since
+        assert state["rejected_edit"]["reason"] == "pii_blocked_by_team_policy"
+        assert state["rejected_edit"]["after_sha256"] != old_hash
+    if mode in {"masked", "masked_edit"}:
         assert state["check"]["status"] == "masked"
         assert "010-1234-5678" not in slack.sent[0][1]["text"]
+    if mode == "masked_edit":
+        assert state["draft_sha256"] != old_hash
+        assert not state.get("rejected_edit")
+        assert state["edit_original"] is None
     if mode == "edit":
         assert slack.sent[0][1]["text"] == "수정 안내"
         assert state["draft_sha256"] != old_hash

@@ -145,11 +145,14 @@ class TaskService:
                         "check",
                         "expires_at",
                         "effect",
+                        "rejected_edit",
                     )
                 }
             )
-        if view.get("check"):
-            check = dict(view["check"])
+        for field in ("check", "rejected_edit"):
+            if not view.get(field):
+                continue
+            check = dict(view[field])
             check["message"] = {
                 "recipient_not_allowed": "허용되지 않은 수신처입니다",
                 "pii_blocked_by_team_policy": "개인정보를 제거해 주세요",
@@ -158,7 +161,7 @@ class TaskService:
                 "evidence_scope_unknown": "근거의 열람 범위를 확인할 수 없습니다",
                 "ticket_not_found": "티켓을 찾을 수 없습니다",
             }.get(check.get("reason"), "결정론 검사를 통과했습니다")
-            view["check"] = check
+            view[field] = check
         if approval:
             view["requester_label"] = state["user_id"]
         if state["status"] == "interrupted":
@@ -169,6 +172,9 @@ class TaskService:
         return view
 
     async def _expire(self, task_id, state):
+        if state["status"] == "awaiting_approval" and state.get("approval_receipt"):
+            await self._update(task_id, {"approval_receipt": None})
+            state = {**state, "approval_receipt": None}
         if (
             state["status"] == "awaiting_approval"
             and state.get("expires_at")
@@ -212,7 +218,7 @@ class TaskService:
             if permission != Decision.ALLOW:
                 raise ApprovalError(403 if permission == Decision.FORBIDDEN else 404)
             receipt = state.get("approval_receipt")
-            if receipt:
+            if receipt and state["status"] != "awaiting_approval":
                 if (receipt["draft_sha256"], receipt["decision"]) == (
                     draft_sha256,
                     decision,
@@ -254,6 +260,8 @@ class TaskService:
                         "decision": decision,
                         "view": view,
                     }
+                    if state["status"] != "awaiting_approval"
+                    else None
                 },
             )
             return 202, view

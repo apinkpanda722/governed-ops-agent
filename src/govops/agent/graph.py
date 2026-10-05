@@ -121,6 +121,8 @@ class AgentState(TypedDict):
     resume_value: Any
     edit_approver: str | None
     approval_receipt: dict | None
+    edit_original: dict | None
+    rejected_edit: dict | None
     effect_result: str | None
 
 
@@ -391,12 +393,20 @@ def build_graph(
             return failure()
         if result.status == "blocked":
             if state.get("edit_approver"):
-                return {**update, "status": "awaiting_approval", "edit_approver": None}
+                return {
+                    **state["edit_original"],
+                    "status": "awaiting_approval",
+                    "edit_approver": None,
+                    "edit_original": None,
+                    "rejected_edit": {"after_sha256": sha, "reason": result.reason},
+                }
             return {**update, "status": "blocked", "answer": result.message}
         if state.get("edit_approver"):
             return {
                 **update,
                 **accepted({**state, **update}, state["edit_approver"], "edit_approve"),
+                "edit_original": None,
+                "rejected_edit": None,
             }
         if not state.get("awaiting_since"):
             now = clock()
@@ -490,6 +500,11 @@ def build_graph(
                 "draft": serialize(draft),
                 "draft_sha256": sha,
                 "edit_approver": actor,
+                "edit_original": {
+                    "draft": state["draft"],
+                    "draft_sha256": state["draft_sha256"],
+                    "check": state["check"],
+                },
                 "resume_value": None,
             }
         if decision == "approve" and state["check"]["status"] != "blocked":
