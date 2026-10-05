@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "smoke-fallback",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T00:06:59+0900",
+      "summary": "사용자 실행 smoke-fallback CLI·Makefile 타깃과 가짜 transport·임시 원장·비밀 비노출 테스트를 구현했으며, 실제 API 호출 없이 계층 경계 확인 및 make verify 전체 통과.",
+      "completed_at": "2026-10-06T00:24:13+0900",
+      "usage": {
+        "input_tokens": 2238653,
+        "cached_input_tokens": 2167680,
+        "output_tokens": 6292,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
