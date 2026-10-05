@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, StrictStr
 
 from govops.mocks.auth import MockUser, TokenHashStore, bearer_user
+from govops.mocks.faults import FaultState, is_visible, visible_at
 from govops.mocks.seed import TICKET_FIELDS
 
 RESPONSE_FIELDS = (
@@ -63,12 +64,14 @@ class JiraState:
     ):
         self._seed = deepcopy(tickets)
         self.clock = clock
+        self.faults = FaultState()
         self._initial_counter = deepcopy(counter if counter is not None else count(1))
         self.lock = RLock()
         self.reset()
 
     def reset(self) -> None:
         with self.lock:
+            self.faults.reset()
             self.tickets = {
                 t["ticket_id"]: {**deepcopy(t), "parent_id": None, "metadata": {}}
                 for t in self._seed
@@ -87,7 +90,7 @@ class JiraState:
             raise HTTPException(status_code=404)
         return ticket
 
-    def report(self) -> dict:
+    def report(self, *, bodies: bool = False) -> dict:
         with self.lock:
             comments = [
                 {
@@ -102,6 +105,7 @@ class JiraState:
                         )
                     },
                     "body_sha256": _hash(c["body"]),
+                    **({"body": c["body"]} if bodies else {}),
                 }
                 for c in self.comments
             ]
@@ -117,6 +121,14 @@ class JiraState:
                         "created_at": ticket["created_at"],
                         "title_sha256": _hash(ticket["title"]),
                         "description_sha256": _hash(ticket["description"]),
+                        **(
+                            {
+                                "title": ticket["title"],
+                                "description": ticket["description"],
+                            }
+                            if bodies
+                            else {}
+                        ),
                     }
                 )
             return {
@@ -189,7 +201,12 @@ def add_rest_routes(
             state.visible_ticket(ticket_id, user)
             return {
                 "comments": deepcopy(
-                    [c for c in state.comments if c["ticket_id"] == ticket_id]
+                    [
+                        c
+                        for c in state.comments
+                        if c["ticket_id"] == ticket_id
+                        and is_visible(c, state.timestamp())
+                    ]
                 )
             }
 
@@ -205,6 +222,8 @@ def add_rest_routes(
                 "metadata": dict(body.metadata),
                 "created_at": state.timestamp(),
             }
+            if (deadline := visible_at(comment["created_at"])) is not None:
+                comment["visible_at"] = deadline
             state.comments.append(comment)
             return {"comment": deepcopy(comment)}
 
@@ -216,7 +235,9 @@ def add_rest_routes(
                 "tickets": [
                     _response(t)
                     for _, t in sorted(state.tickets.items())
-                    if t["parent_id"] == ticket_id and _readable(t, user)
+                    if t["parent_id"] == ticket_id
+                    and _readable(t, user)
+                    and is_visible(t, state.timestamp())
                 ]
             }
 
@@ -251,6 +272,8 @@ def add_rest_routes(
                 "parent_id": ticket_id,
                 "metadata": dict(body.metadata),
             }
+            if (deadline := visible_at(child["created_at"])) is not None:
+                child["visible_at"] = deadline
             state.tickets[child_id] = child
             state.child_ids.append(child_id)
             return _response(child)
@@ -258,8 +281,8 @@ def add_rest_routes(
 
 def add_admin_routes(app: FastAPI, state: JiraState) -> None:
     @app.get("/state")
-    def report() -> dict:
-        return state.report()
+    def report(bodies: bool = False) -> dict:
+        return state.report(bodies=bodies)
 
     @app.post("/reset")
     def reset() -> dict:
