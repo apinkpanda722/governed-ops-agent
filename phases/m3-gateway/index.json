@@ -1,0 +1,36 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-gateway",
+  "steps": [
+    {
+      "step": 0,
+      "name": "env-helper",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "model-prices",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "gateway-fallback",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "model-faults",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "smoke-fallback",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "gateway-docs",
+      "status": "pending"
+    }
+  ]
+}
