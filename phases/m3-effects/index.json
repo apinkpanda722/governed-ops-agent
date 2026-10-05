@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "resilience",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-05T16:45:21+0900",
+      "summary": "도구 타임아웃·읽기 재시도·서비스별 서킷과 안전한 trace 구현, ToolRuntime 읽기 연결 및 make verify 통과(Python 1,359개·웹 15개).",
+      "completed_at": "2026-10-05T17:00:39+0900",
+      "usage": {
+        "input_tokens": 1031684,
+        "cached_input_tokens": 970624,
+        "output_tokens": 7835,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
