@@ -1,0 +1,13 @@
+{
+  "HRM": {"pii": "block"},
+  "FIN": {"pii": "block"},
+  "LGL": {"pii": "block"},
+  "hr": {"pii": "block"},
+  "finance": {"pii": "block"},
+  "legal": {"pii": "block"},
+  "platform": {"pii": "mask"},
+  "payments": {"pii": "mask"},
+  "data-ai": {"pii": "mask"},
+  "sre": {"pii": "mask"},
+  "security": {"pii": "mask"}
+}

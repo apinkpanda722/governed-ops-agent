@@ -30,6 +30,9 @@ TOOLS = frozenset(
 DECISIONS = frozenset({"approve", "edit_approve", "reject", "expired"})
 REASONS = frozenset(
     {
+        "recipient_not_allowed",
+        "pii_blocked_by_team_policy",
+        "pii_masked",
         "audit_gap",
         "already_succeeded",
         "already_failed",
