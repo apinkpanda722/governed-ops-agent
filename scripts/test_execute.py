@@ -4,24 +4,22 @@ execute.py 리팩터링 안전망 테스트.
 """
 
 import json
-import os
 import subprocess
 import sys
-import textwrap
 import types
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
 import execute as ex
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def tmp_project(tmp_path):
@@ -50,8 +48,18 @@ def phase_dir(tmp_project):
         "project": "TestProject",
         "phase": "mvp",
         "steps": [
-            {"step": 0, "name": "setup", "status": "completed", "summary": "프로젝트 초기화 완료"},
-            {"step": 1, "name": "core", "status": "completed", "summary": "핵심 로직 구현"},
+            {
+                "step": 0,
+                "name": "setup",
+                "status": "completed",
+                "summary": "프로젝트 초기화 완료",
+            },
+            {
+                "step": 1,
+                "name": "core",
+                "status": "completed",
+                "summary": "핵심 로직 구현",
+            },
             {"step": 2, "name": "ui", "status": "pending"},
         ],
     }
@@ -94,6 +102,7 @@ def executor(tmp_project, phase_dir):
 # _stamp (= 이전 now_iso)
 # ---------------------------------------------------------------------------
 
+
 class TestStamp:
     def test_returns_kst_timestamp(self, executor):
         result = executor._stamp()
@@ -107,7 +116,9 @@ class TestStamp:
     def test_is_current_time(self, executor):
         before = datetime.now(ex.StepExecutor.TZ).replace(microsecond=0)
         result = executor._stamp()
-        after = datetime.now(ex.StepExecutor.TZ).replace(microsecond=0) + timedelta(seconds=1)
+        after = datetime.now(ex.StepExecutor.TZ).replace(microsecond=0) + timedelta(
+            seconds=1
+        )
         parsed = datetime.strptime(result, "%Y-%m-%dT%H:%M:%S%z")
         assert before <= parsed <= after
 
@@ -115,6 +126,7 @@ class TestStamp:
 # ---------------------------------------------------------------------------
 # _read_json / _write_json
 # ---------------------------------------------------------------------------
+
 
 class TestJsonHelpers:
     def test_roundtrip(self, tmp_path):
@@ -142,10 +154,10 @@ class TestJsonHelpers:
             ex.StepExecutor._read_json(tmp_path / "nope.json")
 
 
-
 # ---------------------------------------------------------------------------
 # _build_step_context
 # ---------------------------------------------------------------------------
+
 
 class TestBuildStepContext:
     def test_includes_completed_with_summary(self, phase_dir):
@@ -180,6 +192,7 @@ class TestBuildStepContext:
 # ---------------------------------------------------------------------------
 # _update_top_index
 # ---------------------------------------------------------------------------
+
 
 class TestUpdateTopIndex:
     def test_completed(self, executor, top_index):
@@ -231,15 +244,18 @@ class TestUpdateTopIndex:
 # progress_indicator (= 이전 Spinner)
 # ---------------------------------------------------------------------------
 
+
 class TestProgressIndicator:
     def test_context_manager(self):
         import time
+
         with ex.progress_indicator("test") as pi:
             time.sleep(0.15)
         assert pi.elapsed >= 0.1
 
     def test_elapsed_increases(self):
         import time
+
         with ex.progress_indicator("test") as pi:
             time.sleep(0.2)
         assert pi.elapsed > 0
@@ -248,6 +264,7 @@ class TestProgressIndicator:
 # ---------------------------------------------------------------------------
 # main() CLI 파싱 (mocked)
 # ---------------------------------------------------------------------------
+
 
 class TestMainCli:
     def test_no_args_exits(self):
@@ -275,6 +292,7 @@ class TestMainCli:
 # ---------------------------------------------------------------------------
 # _check_blockers (= 이전 main() error/blocked 체크)
 # ---------------------------------------------------------------------------
+
 
 class TestCheckBlockers:
     def _make_executor_with_steps(self, tmp_project, steps):
@@ -308,7 +326,12 @@ class TestCheckBlockers:
     def test_blocked_step_exits_2(self, tmp_project):
         steps = [
             {"step": 0, "name": "ok", "status": "completed"},
-            {"step": 1, "name": "stuck", "status": "blocked", "blocked_reason": "API key"},
+            {
+                "step": 1,
+                "name": "stuck",
+                "status": "blocked",
+                "blocked_reason": "API key",
+            },
         ]
         inst = self._make_executor_with_steps(tmp_project, steps)
         with pytest.raises(SystemExit) as exc_info:
@@ -319,6 +342,7 @@ class TestCheckBlockers:
 # ---------------------------------------------------------------------------
 # _build_preamble
 # ---------------------------------------------------------------------------
+
 
 class TestBuildPreamble:
     def test_includes_project_name(self, executor):
@@ -357,14 +381,17 @@ class TestBuildPreamble:
 # _checkout_branch / _check_clean_worktree (mocked)
 # ---------------------------------------------------------------------------
 
+
 def _mock_git_sequence(executor, responses):
     calls = []
+
     def fake_git(*args):
         calls.append(args)
         idx = len(calls) - 1
         if idx < len(responses):
             return responses[idx]
         return MagicMock(returncode=0, stdout="", stderr="")
+
     executor._run_git = fake_git
     return calls
 
@@ -374,40 +401,53 @@ class TestCheckoutBranch:
         assert executor._branch_name() == "feature/mvp"
 
     def test_already_on_branch(self, executor):
-        calls = _mock_git_sequence(executor, [MagicMock(returncode=0, stdout="feature/mvp\n", stderr="")])
+        calls = _mock_git_sequence(
+            executor, [MagicMock(returncode=0, stdout="feature/mvp\n", stderr="")]
+        )
         executor._checkout_branch()
         assert len(calls) == 1
 
     def test_branch_exists_checkout(self, executor):
-        calls = _mock_git_sequence(executor, [
-            MagicMock(returncode=0, stdout="main\n", stderr=""),
-            MagicMock(returncode=0, stdout="", stderr=""),
-            MagicMock(returncode=0, stdout="", stderr=""),
-        ])
+        calls = _mock_git_sequence(
+            executor,
+            [
+                MagicMock(returncode=0, stdout="main\n", stderr=""),
+                MagicMock(returncode=0, stdout="", stderr=""),
+                MagicMock(returncode=0, stdout="", stderr=""),
+            ],
+        )
         executor._checkout_branch()
         assert calls[-1] == ("checkout", "feature/mvp")
 
     def test_branch_not_exists_create(self, executor):
-        calls = _mock_git_sequence(executor, [
-            MagicMock(returncode=0, stdout="main\n", stderr=""),
-            MagicMock(returncode=1, stdout="", stderr="not found"),
-            MagicMock(returncode=0, stdout="", stderr=""),
-        ])
+        calls = _mock_git_sequence(
+            executor,
+            [
+                MagicMock(returncode=0, stdout="main\n", stderr=""),
+                MagicMock(returncode=1, stdout="", stderr="not found"),
+                MagicMock(returncode=0, stdout="", stderr=""),
+            ],
+        )
         executor._checkout_branch()
         assert calls[-1] == ("checkout", "-b", "feature/mvp")
 
     def test_checkout_fails_exits(self, executor):
-        _mock_git_sequence(executor, [
-            MagicMock(returncode=0, stdout="main\n", stderr=""),
-            MagicMock(returncode=1, stdout="", stderr=""),
-            MagicMock(returncode=1, stdout="", stderr="dirty tree"),
-        ])
+        _mock_git_sequence(
+            executor,
+            [
+                MagicMock(returncode=0, stdout="main\n", stderr=""),
+                MagicMock(returncode=1, stdout="", stderr=""),
+                MagicMock(returncode=1, stdout="", stderr="dirty tree"),
+            ],
+        )
         with pytest.raises(SystemExit) as exc_info:
             executor._checkout_branch()
         assert exc_info.value.code == 1
 
     def test_no_git_exits(self, executor):
-        _mock_git_sequence(executor, [MagicMock(returncode=1, stdout="", stderr="not a git repo")])
+        _mock_git_sequence(
+            executor, [MagicMock(returncode=1, stdout="", stderr="not a git repo")]
+        )
         with pytest.raises(SystemExit) as exc_info:
             executor._checkout_branch()
         assert exc_info.value.code == 1
@@ -435,14 +475,17 @@ class TestCheckCleanWorktree:
 # _commit_code / _commit_meta (mocked)
 # ---------------------------------------------------------------------------
 
+
 class TestCommit:
     def _fake_git(self, executor, staged=True):
         calls = []
+
         def fake_git(*args):
             calls.append(args)
             if args[:2] == ("diff", "--cached"):
                 return MagicMock(returncode=1 if staged else 0)
             return MagicMock(returncode=0, stdout="", stderr="")
+
         executor._run_git = fake_git
         return calls
 
@@ -470,25 +513,48 @@ class TestCommit:
 # _parse_usage / _invoke_codex / _verify (mocked)
 # ---------------------------------------------------------------------------
 
-CODEX_EVENTS = "\n".join([
-    json.dumps({"type": "thread.started", "thread_id": "t"}),
-    json.dumps({"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10}}),
-    "not json",
-    json.dumps({"type": "turn.completed", "usage": {"input_tokens": 5, "cached_input_tokens": 0, "output_tokens": 1}}),
-])
+CODEX_EVENTS = "\n".join(
+    [
+        json.dumps({"type": "thread.started", "thread_id": "t"}),
+        json.dumps(
+            {
+                "type": "turn.completed",
+                "usage": {
+                    "input_tokens": 100,
+                    "cached_input_tokens": 40,
+                    "output_tokens": 10,
+                },
+            }
+        ),
+        "not json",
+        json.dumps(
+            {
+                "type": "turn.completed",
+                "usage": {
+                    "input_tokens": 5,
+                    "cached_input_tokens": 0,
+                    "output_tokens": 1,
+                },
+            }
+        ),
+    ]
+)
 
 
 class TestParseUsage:
     def test_sums_turn_completed(self):
         assert ex.StepExecutor._parse_usage(CODEX_EVENTS) == {
-            "input_tokens": 105, "cached_input_tokens": 40, "output_tokens": 11,
+            "input_tokens": 105,
+            "cached_input_tokens": 40,
+            "output_tokens": 11,
         }
 
     def test_empty(self):
         assert ex.StepExecutor._parse_usage("") == {
-            "input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0,
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
         }
-
 
 
 class TestDetectUsageLimit:
@@ -504,7 +570,9 @@ class TestDetectUsageLimit:
         assert ex.detect_usage_limit("", "") is None
 
     def test_checks_every_stream(self):
-        assert ex.detect_usage_limit("", "usage limit, try again at 9:05 AM") == "9:05 AM"
+        assert (
+            ex.detect_usage_limit("", "usage limit, try again at 9:05 AM") == "9:05 AM"
+        )
 
 
 class TestInvokeCodex:
@@ -514,11 +582,14 @@ class TestInvokeCodex:
             if payload is not None:
                 out_file.write_text(json.dumps(payload))
             return MagicMock(returncode=returncode, stdout=CODEX_EVENTS, stderr="")
+
         return fake_run
 
     def test_invokes_codex_with_sandbox_and_schema(self, executor):
         payload = {"status": "completed", "summary": "done", "reason": None}
-        with patch("subprocess.run", side_effect=self._run_writing_result(executor, payload)) as mock_run:
+        with patch(
+            "subprocess.run", side_effect=self._run_writing_result(executor, payload)
+        ) as mock_run:
             executor._invoke_codex({"step": 2, "name": "ui"}, "PREAMBLE\n")
 
         cmd = mock_run.call_args[0][0]
@@ -534,7 +605,9 @@ class TestInvokeCodex:
 
     def test_returns_result_with_usage(self, executor):
         payload = {"status": "completed", "summary": "done", "reason": None}
-        with patch("subprocess.run", side_effect=self._run_writing_result(executor, payload)):
+        with patch(
+            "subprocess.run", side_effect=self._run_writing_result(executor, payload)
+        ):
             result = executor._invoke_codex({"step": 2, "name": "ui"}, "p")
         assert result["status"] == "completed"
         assert result["summary"] == "done"
@@ -543,36 +616,49 @@ class TestInvokeCodex:
 
     def test_saves_output_json(self, executor):
         payload = {"status": "completed", "summary": "done", "reason": None}
-        with patch("subprocess.run", side_effect=self._run_writing_result(executor, payload)):
+        with patch(
+            "subprocess.run", side_effect=self._run_writing_result(executor, payload)
+        ):
             executor._invoke_codex({"step": 2, "name": "ui"}, "p")
         data = json.loads((executor._phase_dir / "step2-output.json").read_text())
         assert data["step"] == 2
         assert data["exitCode"] == 0
 
     def test_missing_result_is_error(self, executor):
-        with patch("subprocess.run", side_effect=self._run_writing_result(executor, None, returncode=1)):
+        with patch(
+            "subprocess.run",
+            side_effect=self._run_writing_result(executor, None, returncode=1),
+        ):
             result = executor._invoke_codex({"step": 2, "name": "ui"}, "p")
         assert result["status"] == "error"
         assert "결과 JSON" in result["reason"]
 
     def test_stale_result_is_removed_before_run(self, executor):
         (executor._phase_dir / "step2-result.json").write_text(
-            json.dumps({"status": "completed", "summary": "old", "reason": None}))
-        with patch("subprocess.run", side_effect=self._run_writing_result(executor, None, returncode=1)):
+            json.dumps({"status": "completed", "summary": "old", "reason": None})
+        )
+        with patch(
+            "subprocess.run",
+            side_effect=self._run_writing_result(executor, None, returncode=1),
+        ):
             result = executor._invoke_codex({"step": 2, "name": "ui"}, "p")
         assert result["status"] == "error"
 
     def test_usage_limit_is_reported_separately_from_generic_error(self, executor):
         limit = '{"type":"error","message":"You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 10:23 PM."}'
+
         def fake_run(cmd, **kwargs):
             return MagicMock(returncode=1, stdout=limit, stderr="")
+
         with patch("subprocess.run", side_effect=fake_run):
             result = executor._invoke_codex({"step": 2, "name": "ui"}, "p")
         assert result["status"] == "usage_limit"
         assert result["resume_at"] == "10:23 PM"
 
     def test_timeout_is_error_not_crash(self, executor):
-        err = subprocess.TimeoutExpired(cmd="codex", timeout=1800, output=b"", stderr=b"")
+        err = subprocess.TimeoutExpired(
+            cmd="codex", timeout=1800, output=b"", stderr=b""
+        )
         with patch("subprocess.run", side_effect=err):
             result = executor._invoke_codex({"step": 2, "name": "ui"}, "p")
         assert result["status"] == "error"
@@ -586,16 +672,25 @@ class TestInvokeCodex:
 
 class TestVerify:
     def test_pass_returns_none(self, executor):
-        with patch("subprocess.run", return_value=MagicMock(returncode=0, stdout="ok", stderr="")) as mock_run:
+        with patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=0, stdout="ok", stderr=""),
+        ) as mock_run:
             assert executor._verify() is None
         assert mock_run.call_args[0][0] == ["make", "verify"]
 
     def test_fail_returns_output(self, executor):
-        with patch("subprocess.run", return_value=MagicMock(returncode=2, stdout="FAILED test_x", stderr="")):
+        with patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=2, stdout="FAILED test_x", stderr=""),
+        ):
             assert "FAILED test_x" in executor._verify()
 
     def test_timeout_returns_message(self, executor):
-        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="make", timeout=600)):
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="make", timeout=600),
+        ):
             assert "타임아웃" in executor._verify()
 
 
@@ -603,8 +698,13 @@ class TestVerify:
 # _execute_single_step / _execute_all_steps (mocked)
 # ---------------------------------------------------------------------------
 
+
 def _step(executor, num):
-    return next(s for s in json.loads(executor._index_file.read_text())["steps"] if s["step"] == num)
+    return next(
+        s
+        for s in json.loads(executor._index_file.read_text())["steps"]
+        if s["step"] == num
+    )
 
 
 class TestExecuteSingleStep:
@@ -612,14 +712,20 @@ class TestExecuteSingleStep:
         results = list(results)
         verify_results = list(verify_results or [])
         executor._invoke_codex = MagicMock(side_effect=results)
-        executor._verify = MagicMock(side_effect=verify_results or [None] * len(results))
+        executor._verify = MagicMock(
+            side_effect=verify_results or [None] * len(results)
+        )
         executor._commit_code = MagicMock()
         executor._commit_meta = MagicMock()
         executor._update_top_index = MagicMock()
 
     def _res(self, status, summary="", reason=None):
-        return {"status": status, "summary": summary, "reason": reason,
-                "usage": {"input_tokens": 10, "cached_input_tokens": 0, "output_tokens": 1}}
+        return {
+            "status": status,
+            "summary": summary,
+            "reason": reason,
+            "usage": {"input_tokens": 10, "cached_input_tokens": 0, "output_tokens": 1},
+        }
 
     def test_completed_and_verified_commits(self, executor):
         self._wire(executor, [self._res("completed", "UI 완료")])
@@ -627,14 +733,21 @@ class TestExecuteSingleStep:
         s = _step(executor, 2)
         assert s["status"] == "completed"
         assert s["summary"] == "UI 완료"
-        assert s["usage"] == {"input_tokens": 10, "cached_input_tokens": 0, "output_tokens": 1, "attempts": 1}
+        assert s["usage"] == {
+            "input_tokens": 10,
+            "cached_input_tokens": 0,
+            "output_tokens": 1,
+            "attempts": 1,
+        }
 
     def test_elapsed_is_measured(self, executor, capsys):
         self._wire(executor, [self._res("completed", "UI 완료")])
         with patch.object(ex, "progress_indicator") as pi:
             pi.return_value.__enter__.return_value = types.SimpleNamespace(elapsed=0.0)
+
             def set_elapsed(*a):
                 pi.return_value.__enter__.return_value.elapsed = 42.0
+
             pi.return_value.__exit__.side_effect = set_elapsed
             executor._execute_single_step({"step": 2, "name": "ui"})
         assert "[42s]" in capsys.readouterr().out
@@ -642,9 +755,11 @@ class TestExecuteSingleStep:
         executor._commit_meta.assert_called_once_with(2, "completed")
 
     def test_self_report_rejected_when_verify_fails(self, executor):
-        self._wire(executor,
-                   [self._res("completed", "a"), self._res("completed", "b")],
-                   verify_results=["`make verify` 실패: FAILED test_x", None])
+        self._wire(
+            executor,
+            [self._res("completed", "a"), self._res("completed", "b")],
+            verify_results=["`make verify` 실패: FAILED test_x", None],
+        )
         executor._execute_single_step({"step": 2, "name": "ui"})
         prompt_on_retry = executor._invoke_codex.call_args_list[1][0][1]
         assert "FAILED test_x" in prompt_on_retry
@@ -654,7 +769,9 @@ class TestExecuteSingleStep:
         assert s["usage"]["input_tokens"] == 20
 
     def test_final_failure_does_not_commit_code(self, executor):
-        self._wire(executor, [self._res("error", reason="boom")] * ex.StepExecutor.MAX_RETRIES)
+        self._wire(
+            executor, [self._res("error", reason="boom")] * ex.StepExecutor.MAX_RETRIES
+        )
         with pytest.raises(SystemExit) as exc_info:
             executor._execute_single_step({"step": 2, "name": "ui"})
         assert exc_info.value.code == 1
@@ -676,10 +793,21 @@ class TestExecuteSingleStep:
         executor._commit_code.assert_not_called()
         executor._verify.assert_not_called()
 
-
     def test_usage_limit_stops_without_retry_or_error_record(self, executor, capsys):
-        self._wire(executor, [{"status": "usage_limit", "resume_at": "10:23 PM",
-                               "usage": {"input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0}}])
+        self._wire(
+            executor,
+            [
+                {
+                    "status": "usage_limit",
+                    "resume_at": "10:23 PM",
+                    "usage": {
+                        "input_tokens": 0,
+                        "cached_input_tokens": 0,
+                        "output_tokens": 0,
+                    },
+                }
+            ],
+        )
         with pytest.raises(SystemExit) as exc_info:
             executor._execute_single_step({"step": 2, "name": "ui"})
         assert exc_info.value.code == 3
@@ -700,6 +828,7 @@ class TestExecuteAllSteps:
     def test_records_started_at(self, executor):
         def complete(step):
             executor._update_step(step["step"], status="completed")
+
         executor._execute_single_step = MagicMock(side_effect=complete)
         executor._execute_all_steps()
         assert "started_at" in _step(executor, 2)
