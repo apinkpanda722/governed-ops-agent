@@ -47,16 +47,7 @@
     {
       "step": 3,
       "name": "dev-run-m3",
-      "status": "blocked",
-      "started_at": "2026-10-06T13:55:52+0900",
-      "blocked_reason": "M2 러너 수정 지시가 충돌합니다. 작업 0.1은 evalrun/dev.py의 _structure를 공용 모듈로 옮기고 import하도록 변경하라고 요구하지만, 읽기 목록·작업 2·금지사항은 같은 파일의 수정을 금지합니다. 현재 _structure와 _Capture는 dev.py에 있습니다. 공용 추출 함수 사용을 위한 최소 변경을 예외로 허용하는지 확인이 필요합니다. 파일 변경과 실제 서비스 호출은 하지 않았습니다.",
-      "blocked_at": "2026-10-06T13:59:49+0900",
-      "usage": {
-        "input_tokens": 102652,
-        "cached_input_tokens": 63872,
-        "output_tokens": 490,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 4,
