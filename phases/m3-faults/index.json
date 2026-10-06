@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "chaos-a",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T23:57:08+0900",
+      "summary": "chaos_a.py에 루프백 장애 6종·합성 토큰 클라이언트·F11 복수 조건 판정 구현, a_mcp.py에 자격 공급자 주입 추가. 신규 tests/test_chaos_a.py 20건: test_measured_modes_and_credential_isolation(실측·토큰 격리), test_read_retries_then_open_circuit_stops_requests(재시도·서킷), test_judge_independent_conditions(조건별 판정), test_delay_exceeding_default_hard_deadline_runs_the_real_read_path(10초 제한), test_judge_is_weak_when_few_required_values_remain_outside_request·test_judge_limit_request_has_few_evidence_values_and_sparse_required_facts(탐지 한계). 기존 테스트 수정 없음. make verify 통과(Python 2316 passed·1 skipped, 웹 검사·vitest 15 passed), 계층·CRITICAL 규칙 확인; 금지 파일 수정·커밋 없음, phases 기존 diff 보존.",
+      "completed_at": "2026-10-07T00:27:29+0900",
+      "usage": {
+        "input_tokens": 4234169,
+        "cached_input_tokens": 4055168,
+        "output_tokens": 14290,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
