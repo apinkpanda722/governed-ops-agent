@@ -1,0 +1,134 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-runner",
+  "steps": [
+    {
+      "step": 0,
+      "name": "observation-m3",
+      "status": "completed",
+      "started_at": "2026-10-06T13:02:59+0900",
+      "summary": "M3 Observation 어댑터와 실제 mock 보고서 기반 TDD 테스트 구현 완료; 계층 경계 준수 및 make verify 통과(Python 2044개, 웹 15개).",
+      "completed_at": "2026-10-06T13:15:19+0900",
+      "usage": {
+        "input_tokens": 1861411,
+        "cached_input_tokens": 1773952,
+        "output_tokens": 6006,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "mock-admin",
+      "status": "completed",
+      "started_at": "2026-10-06T13:15:19+0900",
+      "summary": "MockAdmin CLI 래퍼와 가짜 실행기 기반 TDD 테스트 구현 완료; 계층 경계·출력 원문 비노출 준수 및 make verify 통과(Python 2060개, 웹 15개).",
+      "completed_at": "2026-10-06T13:27:12+0900",
+      "usage": {
+        "input_tokens": 1414101,
+        "cached_input_tokens": 1346816,
+        "output_tokens": 4325,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "approval-driver",
+      "status": "completed",
+      "started_at": "2026-10-06T13:27:13+0900",
+      "summary": "In-process ASGI ApprovalDriver와 승인·거부·수정·권한·타임아웃 TDD 테스트 구현 완료; 계층 경계 준수 및 make verify 통과(Python 2073개, 웹 15개).",
+      "completed_at": "2026-10-06T13:44:06+0900",
+      "usage": {
+        "input_tokens": 3888957,
+        "cached_input_tokens": 3788288,
+        "output_tokens": 11479,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "dev-run-m3",
+      "status": "completed",
+      "started_at": "2026-10-06T14:00:08+0900",
+      "summary": "M3 WITH_WRITES dev 20 러너·preflight·공용 도구 추적·주입 조립 구현 완료; Compose 이미지는 <project>-<service>(govops-mock-jira·govops-mock-slack), 계층 경계 준수 및 make verify 통과(Python 2115개, 웹 15개).",
+      "completed_at": "2026-10-06T14:25:07+0900",
+      "usage": {
+        "input_tokens": 7039326,
+        "cached_input_tokens": 6877056,
+        "output_tokens": 34951,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "golden-m3",
+      "status": "completed",
+      "started_at": "2026-10-06T14:25:07+0900",
+      "summary": "M3 골든 14개 기대값·writes 재생 하네스·profile/digest·결정성 검증 구현 완료; 고정 시드 시각의 오탐 수정, make verify 통과(Python 2125개, 웹 15개).",
+      "completed_at": "2026-10-06T14:50:01+0900",
+      "usage": {
+        "input_tokens": 6629390,
+        "cached_input_tokens": 6492672,
+        "output_tokens": 20010,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 5,
+      "name": "prereg-m3",
+      "status": "completed",
+      "started_at": "2026-10-06T14:50:01+0900",
+      "summary": "M3 사전 등록 문서·14개 골든 기대값·이전 dev 결과 보존 증거와 TDD 테스트 작성 완료; 계층 경계 준수 및 make verify 통과(Python 2142개, 웹 15개).",
+      "completed_at": "2026-10-06T15:04:47+0900",
+      "usage": {
+        "input_tokens": 2808861,
+        "cached_input_tokens": 2737024,
+        "output_tokens": 7154,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 6,
+      "name": "trace-isolation",
+      "status": "completed",
+      "started_at": "2026-10-06T15:11:26+0900",
+      "summary": "task 시도별 캡처 격리·종료·late 호출 집계와 tool_trace_mismatch의 N 계산 제외·등록 보류를 TDD로 구현; 계층 경계 준수 및 make verify 통과(Python 2146개, 웹 15개).",
+      "completed_at": "2026-10-06T15:29:44+0900",
+      "usage": {
+        "input_tokens": 2910806,
+        "cached_input_tokens": 2844416,
+        "output_tokens": 10691,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 7,
+      "name": "smoke-approval",
+      "status": "completed",
+      "started_at": "2026-10-06T16:08:21+0900",
+      "summary": "make smoke-approval과 평가와 분리된 합성 승인·거부 smoke, 안전한 차단·실패·비용 출력 및 TDD 테스트 구현 완료; 계층 경계 준수, make verify 통과(Python 2156개, 웹 15개).",
+      "completed_at": "2026-10-06T16:26:05+0900",
+      "usage": {
+        "input_tokens": 3760429,
+        "cached_input_tokens": 3652352,
+        "output_tokens": 12656,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 8,
+      "name": "runner-docs",
+      "status": "completed",
+      "started_at": "2026-10-06T16:26:05+0900",
+      "summary": "ADR-020·아키텍처·평가·PRD·명령어 문서 갱신 완료; 새 명령 설명에 맞춰 문서 일관성 단언 1개 갱신, make verify 통과(Python 2156개·웹 15개).",
+      "completed_at": "2026-10-06T16:39:06+0900",
+      "usage": {
+        "input_tokens": 1794253,
+        "cached_input_tokens": 1707776,
+        "output_tokens": 5639,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-06T13:02:59+0900",
+  "completed_at": "2026-10-06T16:39:06+0900"
+}

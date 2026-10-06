@@ -265,8 +265,9 @@ def test_prereg_docs_match_implemented_boundaries():
         "results/",
     ):
         assert marker in architecture
-    assert "make eval-run-dev # live task·record-through·채점(사용자 실행)" in read(
-        "AGENTS.md"
+    assert (
+        "make eval-run-dev # dev 20 `WITH_WRITES` live 실행·골든 record-through·채점·절대 규칙 판정(사용자 실행)"
+        in read("AGENTS.md")
     )
     assert "| 평가 실행기 | `evalrun/`" in read("AGENTS.md")
     for path in ("docs/ADR.md", "docs/EVAL.md"):

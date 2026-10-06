@@ -107,8 +107,9 @@ make eval-human-sheet # test 1회차 층화 표본 블라인드 채점 시트 �
 make eval-human-register # 사람 채점 CSV 해시 등록(사용자 실행)
 make eval-gemini-grade # 사람 채점 해시 커밋 확인 후 Gemini 채점(사용자 실행)
 make smoke-gemini # Gemini 채점·별도 비용 원장 스모크(사용자 실행)
-make eval-run-dev # live task·record-through·채점(사용자 실행)
+make eval-run-dev # dev 20 `WITH_WRITES` live 실행·골든 record-through·채점·절대 규칙 판정(사용자 실행)
 
 make test-outbox-pg # 테스트 전용 Postgres outbox 검증(사용자 실행)
 make scope-index # A 커밋 접근 정책·비합성 문서 합친 접근 인덱스 생성(사용자 실행)
 make smoke-effects # compose mock·토큰·시드 필요, 부작용 표식·멱등성 검증(사용자 실행)
+make smoke-approval # 평가와 분리된 합성 승인·거부 스모크(사용자 실행)

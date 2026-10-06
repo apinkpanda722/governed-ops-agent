@@ -45,10 +45,18 @@ def test_registered_expectations_match_specs():
         "T5-02",
         "T5-05",
         "T5-08",
+        "T2-01",
+        "T3-01",
+        "T3-07",
+        "T4-01",
+        "T6-01",
+        "T6-03",
+        "T5-11",
     )
     specs = load_golden_specs()
-    assert len(specs) == 7
-    assert all(s.split == "dev" and s.executable_in == "m2" for s in specs.values())
+    assert set(specs) == set(GOLDEN_TASKS)
+    assert all(s.split == "dev" for s in specs.values())
+    assert all(s.executable_in in {"m2", "m3"} for s in specs.values())
     assert json.loads(
         (GOLDEN / "expectations.json").read_text()
     ) == golden_expectations(specs.values())
@@ -120,10 +128,18 @@ def test_optional_live_golden_replay(tmp_path, monkeypatch):
                     a_dir=A,
                     mock_executor=runtime,
                     graph_factory=build_graph,
+                    profile=row.get("profile", "read_only"),
+                    mock_state=lambda jira=jira, slack=slack: {
+                        "jira": jira.report(bodies=True),
+                        "slack": slack.report(bodies=True),
+                    },
                 )
                 assert compare(expectations[task_id], row, digest(obs)) == []
-                assert jira.comments == jira.child_ids == []
-                assert all(c["message_count"] == 0 for c in slack.report()["channels"])
+                if row.get("profile", "read_only") == "read_only":
+                    assert jira.comments == jira.child_ids == []
+                    assert all(
+                        c["message_count"] == 0 for c in slack.report()["channels"]
+                    )
 
     asyncio.run(exercise())
 

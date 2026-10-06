@@ -95,3 +95,13 @@ def test_ci_only_installs_dependencies_and_runs_verify(workflow):
     assert not re.search(
         r"docker|compose|make serve|record|smoke|eval-run|eval-gemini", text
     )
+
+
+def test_ci_checkout_fetches_full_history(workflow):
+    _, parsed = workflow
+    steps = parsed["jobs"]["verify"]["steps"]
+    checkout = next(
+        s for s in steps if s.get("uses", "").startswith("actions/checkout@")
+    )
+    # git 이력에 의존하는 테스트(`git log --diff-filter=A`)는 얕은 복제에서 다른 커밋을 돌려준다.
+    assert checkout.get("with") == {"fetch-depth": 0}

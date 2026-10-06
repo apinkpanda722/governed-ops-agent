@@ -128,9 +128,9 @@ obs-down:
 
 
 .PHONY: eval-run-dev
-# live A·LiteLLM·make agent-key·hypotheses.md 커밋 필요, 사용자 실행
+# live A·LiteLLM·mock·Postgres·hypotheses-m3.md 커밋 필요, dev 20 WITH_WRITES, 사용자 실행
 eval-run-dev:
-	uv run --env-file .env python -m govops.evalrun.dev
+	uv run --env-file .env python -m govops.evalrun.dev_m3
 
 .PHONY: test-outbox-pg
 # compose Postgres 기동·make db-init 후 사용자 실행, 테스트 전용 DB URL 필요
@@ -148,6 +148,12 @@ smoke-effects:
 # 오프라인·결정론 생성. A의 커밋된 manifest·접근 정책만 읽으며 키·네트워크 불필요.
 scope-index:
 	uv run python -m govops.eval.scope_index --a-root "$(A_ROOT)"
+
+
+.PHONY: smoke-approval
+# live A·LiteLLM·compose mock·Postgres·`.env` 필요, 실제 호출 수 센트, 사용자 실행
+smoke-approval:
+	uv run --env-file .env python -m govops.evalrun.dev_m3 --smoke
 
 
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini smoke-fallback
