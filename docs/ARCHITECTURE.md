@@ -15,6 +15,7 @@ src/govops/
 │   ├── sessions.py·auth.py·users.py·startup.py·app.py  # M1 세션·인증·task API
 │   └── tasks.py·wiring.py·cli.py·smoke.py  # 백그라운드 task·build_task_service 서비스 조립·CLI·사용자 스모크
 ├── agent/        # LangGraph 단일 에이전트: 상태·노드·그래프, 실행 전 결정론 검사, 승인 정책, MAX_STEPS/MAX_COST
+│   ├── org_info.py  # 8팀 대응표·티켓 열거형·결정론적 조직 정보 절
 │   ├── draft.py  # 초안 타입·정규화 해시
 │   ├── checks.py  # 수신처·PII 결정론 검사
 │   ├── scope.py  # 구조 기반 근거·V15 발송 범위
@@ -46,7 +47,7 @@ src/govops/
 │   ├── driver.py  # 세션 인증 in-process ASGI 승인 계획 실행
 │   ├── preflight.py  # mock 이미지·LiteLLM 배포·서비스 확인
 │   ├── tool_trace.py  # 자격 증명 없는 공용 도구 호출·구조 ID 추출
-│   └── dev_m3.py  # dev 20 WITH_WRITES 실행·task별 캡처·절대 규칙·모델 혼합 보고
+│   └── dev_m3.py  # dev 20 writes_org 실행·task별 캡처·절대 규칙·모델 혼합 보고
 ├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·cards_content.py·cards_text.py·cards_assets.py·a_source.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
 │   ├── scope_index.py  # 접근 전용 인덱스 생성
 │   └── duplicates.py  # mock 상태 기반 중복·누락 집계
@@ -142,9 +143,9 @@ flowchart LR
 - mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`이다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. CLI는 `health`·`state`(상태 조회)·`reset`(초기화)을 제공하고, 장애 주입 명령은 `faults set/clear/stats`이며 `state --bodies`로 본문 포함 상태를 조회한다(ADR-018). mock 코드가 바뀐 PR을 머지한 뒤에는 `docker compose -f infra/docker-compose.yml up -d --build mock-jira mock-slack`으로 mock 이미지를 다시 빌드한다.
 - Docker VM은 약 16GB(A OpenSearch와 공유)다. 첫 기동 후 `docker stats`로 실측하고, 부족하면 Docker 메모리를 늘린다.
 
-평가 실행기 `evalrun/dev_m3.py`는 `api/wiring.py`의 `build_task_service`로 서비스를 조립하며 `audit`·`guardrails`를 직접 import하지 않는다. `observe.py`는 초안 대신 mock 상태로 효과를 센다. `mock_admin.py`는 내부 관리 CLI를 호출하고 `driver.py`는 인증된 세션으로 실제 승인 API를 거친다. live dev는 Postgres 필수이며, in-process ASGI 경로는 실제 서버 프로세스·세션 TTL을 검증하지 않는다. `preflight.py`가 낡은 mock 이미지·미반영 LiteLLM 설정·서비스 장애를 막는다(ADR-020).
+평가 실행기 `evalrun/dev_m3.py`는 `api/wiring.py`의 `build_task_service`로 서비스를 조립하며 `audit`·`guardrails`를 직접 import하지 않는다. `observe.py`는 초안 대신 mock 상태로 효과를 센다. `mock_admin.py`는 내부 관리 CLI를 호출하고 `driver.py`는 인증된 세션으로 실제 승인 API를 거친다. dev 20은 `PROFILES["writes_org"]`로 실행하고 공식 채점은 `m3-grading`이다(ADR-021). 등록 묶음은 `hypotheses-m3.md`·`data/replay/golden/expectations.json`·`m3-dev-supersedes.json`과 `hypotheses-m3-prompt.md`·`m3-dev2-supersedes.json` 두 개다(등록 문서·supersedes 파일은 `docs/results/` 아래). 각 묶음이 등록 커밋에 존재하지 않거나 이후 바뀌면 `hypotheses_m3_not_committed`·`hypotheses_m3_prompt_not_committed`로 중단하며 청결한 작업 트리도 검사한다. manifest에는 각 등록 파일의 sha256·등록 커밋과 `supersedes`(두 번째 파일)·`previous_supersedes`(첫 번째 파일)를 남긴다. `m3-dev-supersedes.json` ← `m3-dev2-supersedes.json` 사슬로 이전 결과를 보존한다. live dev는 Postgres 필수이며, in-process ASGI 경로는 실제 서버 프로세스·세션 TTL을 검증하지 않는다. `preflight.py`가 낡은 mock 이미지·미반영 LiteLLM 설정·서비스 장애를 막는다(ADR-020).
 
-골든 대상은 `hypotheses-m3.md`에 등록한 14개다. record-through는 이 14개만 수행하고 `profile`은 `read_only` 또는 `writes`로 저장한다. 쓰기 재생은 도구 순서·부작용 종류·대상·건수·종료 상태·거절·금지 도구 호출·승인자와 결정 순서를 비교하며 승인 ID·mock ID는 제외한다. `evalrun/tool_trace.py`는 도구 결과의 구조 ID를 추출한다. `evalrun/dev_m3.py`는 task 시도별 캡처를 격리하고 늦은 호출은 `late_tool_calls`로만 센다. `tool_trace_mismatch` task는 N 계산에서 제외하며 하나라도 있으면 결과 첫머리에 표시하고 원인 확인 전 N 등록을 보류한다(`n_registration_blocked`).
+골든 대상은 `hypotheses-m3.md`에 등록한 14개다. record-through는 이 14개만 수행하고 `profile`은 `read_only`·`writes`·`writes_org`로 저장한다. 두 번째 실행 직후 골든 14개를 `writes_org`로 재기록하고 `expectations.json`은 그대로 둔다(ADR-021). 쓰기 재생은 도구 순서·부작용 종류·대상·건수·종료 상태·거절·금지 도구 호출·승인자와 결정 순서를 비교하며 승인 ID·mock ID는 제외한다. `evalrun/tool_trace.py`는 도구 결과의 구조 ID를 추출한다. `evalrun/dev_m3.py`는 task 시도별 캡처를 격리하고 늦은 호출은 `late_tool_calls`로만 센다. `tool_trace_mismatch` task는 N 계산에서 제외하며 하나라도 있으면 결과 첫머리에 표시하고 원인 확인 전 N 등록을 보류한다(`n_registration_blocked`).
 
 ## A 연동 모드
 | 모드 | A 쪽 | 용도 | 보고 수치 |
@@ -225,7 +226,7 @@ stateDiagram-v2
 
 승인 API 응답은 접수 202, 종료된 동일 해시·결정의 영수증 재요청 200, 전사 공지 요청자 본인의 승인 POST만 403, 다른 사용자·자격 없음·없는 task 404, 만료·상태·해시 충돌 409, 잘못된 수정·요청 422다. 승인자 GET은 검사 통과 상태(`passed`·`masked`)의 승인 대기 초안만 보여 준다.
 
-`GOVOPS_AGENT_PROFILE=read_only`는 `READ_ONLY`, `writes`는 `WITH_WRITES`다. 시작 정리는 checkpointer 전체 순회이며 수백 건 규모를 전제한다. 규모가 커지면 별도 테이블이 필요하다.
+`PROFILES`는 읽기 전용 프로필 레지스트리이며 레이블은 `read_only`·`writes`·`writes_org`다. `GOVOPS_AGENT_PROFILE`은 이 세 값을 받으며 기본값은 `read_only`다. `read_only`는 `READ_ONLY`, `writes`는 `WITH_WRITES`, `writes_org`는 `WITH_WRITES_ORG`의 레지스트리 프로필이다. `writes_org`는 기존 쓰기 프롬프트에 `agent/org_info.py`의 조직 정보 절만 추가하고 도구 정의를 공유한다. 기존 두 프로필의 프롬프트 해시는 보존한다(ADR-021). 시작 정리는 checkpointer 전체 순회이며 수백 건 규모를 전제한다. 규모가 커지면 별도 테이블이 필요하다.
 
 ## 도구와 부작용·멱등성
 
