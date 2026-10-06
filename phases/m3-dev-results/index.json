@@ -1,0 +1,26 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-dev-results",
+  "steps": [
+    {
+      "step": 0,
+      "name": "golden-entry",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "tool-trace-def",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "grading-rules",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "regrade-dev",
+      "status": "pending"
+    }
+  ]
+}
