@@ -1,0 +1,11 @@
+{
+  "previous_commit": "632bffaab96931c0c0c9c079515576bbd90380eb",
+  "previous_files": {
+    "docs/results/2026-10-05-m2-dev-live.md": "795256f8fd6420e96db920d65dec237f27c36dba57a7a32e86337492f410ca0b",
+    "grades.json": "ae1cfb84c880f0b1ba2a1954c4192dfecf8d7961e7a4c405a485f55dbb4498f1",
+    "manifest.json": "78c549e128d2ee3cb2cd809a8f930626a31b28ab298aedeb68940353ea7892c8",
+    "observations.jsonl": "f73ee6d7367ab9616e4e249ab177732885868905e14037b010ca5169e8b09249"
+  },
+  "previous_run_id": "8c18df863b2949f58d9c3550fec3b8cf",
+  "reason": "2026-10-06: 도구 정의·시스템 프롬프트가 WITH_WRITES로 바뀌어 고정 문장 5와 §10에 따라 dev 전체를 처음부터 다시 실행한다. 이전 결과 7개는 보존한다."
+}

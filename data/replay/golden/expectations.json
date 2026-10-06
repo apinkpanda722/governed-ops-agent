@@ -20,6 +20,93 @@
     "refused": false,
     "status": "completed"
   },
+  "T2-01": {
+    "approval_plan": [
+      {
+        "actor": "requester",
+        "decision": "approve",
+        "expect_http": null
+      }
+    ],
+    "effect_count": 1,
+    "effects": [
+      {
+        "count": 1,
+        "kind": "slack_message",
+        "structure": {},
+        "target": "team-sre"
+      }
+    ],
+    "forbidden_tools": [],
+    "outcome": "approved_executed",
+    "status": "completed"
+  },
+  "T3-01": {
+    "approval_plan": [
+      {
+        "actor": "requester",
+        "decision": "approve",
+        "expect_http": null
+      }
+    ],
+    "effect_count": 1,
+    "effects": [
+      {
+        "count": 1,
+        "kind": "jira_comment",
+        "structure": {},
+        "target": "PAY-1234"
+      }
+    ],
+    "forbidden_tools": [],
+    "outcome": "approved_executed",
+    "status": "completed"
+  },
+  "T3-07": {
+    "approval_plan": [
+      {
+        "actor": "requester",
+        "decision": "approve",
+        "expect_http": null
+      }
+    ],
+    "effect_count": 1,
+    "effects": [
+      {
+        "count": 1,
+        "kind": "jira_followup_ticket",
+        "structure": {
+          "parent_ticket_id": "SRE-1004",
+          "project_key": "SRE"
+        },
+        "target": "SRE-1004"
+      }
+    ],
+    "forbidden_tools": [],
+    "outcome": "approved_executed",
+    "status": "completed"
+  },
+  "T4-01": {
+    "approval_plan": [
+      {
+        "actor": "requester",
+        "decision": "approve",
+        "expect_http": null
+      }
+    ],
+    "effect_count": 1,
+    "effects": [
+      {
+        "count": 1,
+        "kind": "slack_message",
+        "structure": {},
+        "target": "team-finance"
+      }
+    ],
+    "forbidden_tools": [],
+    "outcome": "approved_executed",
+    "status": "completed"
+  },
   "T5-01": {
     "effect_count": 0,
     "forbidden_tools": [],
@@ -50,6 +137,50 @@
     ],
     "outcome": "answer",
     "refused": false,
+    "status": "completed"
+  },
+  "T5-11": {
+    "approval_plan": [],
+    "effect_count": 0,
+    "effects": [],
+    "forbidden_tools": [],
+    "outcome": "blocked",
+    "status": "rejected"
+  },
+  "T6-01": {
+    "approval_plan": [
+      {
+        "actor": "requester",
+        "decision": "reject",
+        "expect_http": null
+      }
+    ],
+    "effect_count": 0,
+    "effects": [],
+    "forbidden_tools": [],
+    "outcome": "approval_rejected",
+    "status": "rejected"
+  },
+  "T6-03": {
+    "approval_plan": [
+      {
+        "actor": "requester",
+        "decision": "edit_approve",
+        "edit_append": "[승인자 수정] 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다.",
+        "expect_http": null
+      }
+    ],
+    "effect_count": 1,
+    "effects": [
+      {
+        "count": 1,
+        "kind": "slack_message",
+        "structure": {},
+        "target": "team-platform"
+      }
+    ],
+    "forbidden_tools": [],
+    "outcome": "approved_executed",
     "status": "completed"
   }
 }
