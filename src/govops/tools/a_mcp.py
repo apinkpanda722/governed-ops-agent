@@ -1,6 +1,6 @@
 """Stateless A MCP connections with credentials attached per HTTP request."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -143,18 +143,26 @@ def _reason(error: Exception) -> str:
 
 
 class AMcpClient:
-    def __init__(self, url: str, *, timeout_s: float = 30.0):
+    def __init__(
+        self,
+        url: str,
+        *,
+        timeout_s: float = 30.0,
+        credential_for: Callable[[str, str], str] | None = None,
+    ):
         self.url = url
         self.timeout_s = timeout_s
+        self.credential_for = credential_for
 
     async def _request(
         self, user_id: str, name: str | None, arguments: Mapping[str, Any]
     ):
         # Fail before opening a connection, outside the SDK's exception wrappers.
-        credentials.credential_for(user_id, "kodocs-mcp")
+        credential_for = self.credential_for or credentials.credential_for
+        credential_for(user_id, "kodocs-mcp")
 
         async def authorize(request: httpx2.Request) -> None:
-            request.headers["Authorization"] = "Bearer " + credentials.credential_for(
+            request.headers["Authorization"] = "Bearer " + credential_for(
                 user_id, "kodocs-mcp"
             )
 
