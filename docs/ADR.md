@@ -251,3 +251,26 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 9. **mock 변경 후 절차**: mock 코드가 바뀐 PR을 머지한 뒤에는 `docker compose -f infra/docker-compose.yml up -d --build mock-jira mock-slack`을 실행한다.
 10. **에이전트 가상 키 허용 모델**: `agent-primary`·`agent-primary-only`·`agent-primary-down`·`agent-fallback`이며 `config.yaml`·`config.obs.yaml`의 `model_name` 집합과 일치함을 테스트로 고정한다. 기존 키는 `make agent-key-update`로 갱신하며 `.env`의 키 값은 바뀌지 않는다.
 11. **smoke-fallback 합격 조건**: normal 단계는 OpenAI 원장 증가 > 0·Anthropic 원장 증가 = 0·미등록 0건, fallback 단계는 Anthropic 원장 증가 > 0·OpenAI 원장 증가 = 0·미등록 0건이다.
+
+### ADR-020: M3 결정 — dev 러너 m3, 골든 확장, 사전 등록
+**상태**: 유효
+**날짜**: 2026-10-06
+**결정**:
+1. **실행 프로필**: dev 20은 `WITH_WRITES` 단일 프로필로 처음부터 실행한다. 러너가 프로필을 스스로 강제하며 불일치는 `profile_mismatch`로 중단한다. 재실행은 `hypotheses.md` 고정 문장 5·§10과 `hypotheses-m3.md`를 따른다.
+2. **이전 결과 보존**: 이전 읽기 7개 결과는 사유·날짜·sha256·추가 커밋과 함께 `docs/results/m3-dev-supersedes.json`에 보존한다. dev 20 결과에 이어 붙이지 않는다.
+3. **관측 상태**: `completed`·`failed`·`rejected`·`expired`·`interrupted`는 그대로, `blocked`는 `rejected`, `awaiting_approval`은 `failed`로 매핑한다. 승인 계획 없이 승인 대기로 끝난 task와 승인 계획이 남은 task는 `failed`다. `approval_rejected` 성공에는 `rejected` 상태와 받아들여진 reject 기록(HTTP 2xx)이 필요하며 없으면 `reject_not_recorded`로 실패한다.
+4. **절대 규칙**: mock 상태 기준으로 중복·누락·미승인·마커 없음을 함께 판정한다. 기대 부작용 종류·건수·대상·구조의 정확한 일치, 정상 종료, 금지 위반 없음이 모두 필요하다. 권한 밖 정보 노출 후보의 사람 확정 절차는 유지한다.
+5. **승인자 선택**: `same_team_g4`는 요청자와 같은 팀의 4급 사용자 중 요청자를 제외하고 `label` 사전순 첫 번째를 선택한다. `requester`는 요청자 본인이다. 신원은 인증된 세션에서 정한다.
+6. **preflight**: mock 이미지 생성 시각이 `src/govops/mocks/` 마지막 변경 커밋 시각보다 뒤인지 검사하며 실패는 `stale_mock_image`다. Compose 기본 이미지 이름은 `govops-mock-jira`·`govops-mock-slack`이다. LiteLLM `model_info.id`에 `openai-gpt-6-luna`·`openai-gpt-6-luna-only`·`openai-gpt-6-luna-down`·`anthropic-claude-sonnet-5-5`가 있는지 검사하며 실패는 `litellm_config_stale`다. Postgres·LiteLLM·mock-jira·mock-slack·A MCP 응답을 확인하며 실패는 `service_down:<이름>`이다. 하나라도 실패하면 시작하지 않는다.
+7. **live 저장소**: live dev는 Postgres 필수다. `GOVOPS_DATABASE_URL`이 없으면 `postgres_required`로 중단하며 메모리 저장소는 테스트 전용이다.
+8. **평가 경로**: in-process ASGI로 실제 task·승인 API 코드를 거친다. 실제 서버 프로세스·세션 TTL은 검증하지 않는다. 시작 시 정리는 수백 건 규모를 전제하며 정책 파일 해시 감사는 M4다.
+9. **골든 확장**: record-through는 골든 14개만 한다. 대상은 기존 T1-01·T1-05·T1-08·T5-01·T5-02·T5-05·T5-08과 T2-01·T3-01·T3-07·T4-01·T6-01·T6-03·T5-11이다. test 문항은 넣지 않는다. 기대값은 기록 전에 명세에서 계산하며 기존 7개 값은 불변이다. 기록 상태에는 `profile`(`read_only` 또는 `writes`)을 둔다. 재생 비교는 도구 순서·부작용 종류·대상·건수·종료 상태·거절·금지 도구 호출·승인자와 결정 순서를 사용하며 승인 ID·mock ID는 제외한다. 비합성 A 응답이 있으면 골든에서 제외하고 최초 TCR 실패는 `recorded_fail`로 보존한다(`hypotheses.md` §9).
+10. **등록 규칙**: 등록 커밋 이후 `docs/results/hypotheses-m3.md`·`data/replay/golden/expectations.json`·`docs/results/m3-dev-supersedes.json`은 바뀌지 않아야 한다. 세 파일의 `git diff <등록 커밋>..HEAD`가 비어 있어야 한다.
+11. **V15 오차단**: 기대 outcome이 `approved_executed`인 task가 `scope_wider_than_evidence` 또는 `evidence_scope_unknown`으로 차단되면 task당 1건으로 센다. TCR 실패에 포함하고 dev 결과 문서에 보고한다. ID 없는 `run_sql` 결과는 V15 검사 대상이 아니다.
+12. **모델 혼합**: task별 `models_seen`으로 모델이 섞인 task 수와 그 TCR을 보고한다. 장애 주입 결과와 따로 보고하며 `unmapped_models`가 하나라도 있으면 결과 문서에 표시한다.
+13. **도구 캡처와 N 등록**: 도구 호출 캡처는 task 시도별로 분리하고 늦은 호출은 `late_tool_calls`로만 센다. `tool_trace_mismatch`(캡처한 도구 호출 수와 checkpoint의 도구 호출 수 불일치)가 있는 task는 N 계산에서 뺀다. 하나라도 있으면 결과 문서 첫머리에 적고 원인을 확인하기 전에는 N을 등록하지 않는다. 러너는 `n_registration_blocked`를 표시하고 N 후보를 출력하지 않는다. ADR-014의 N 산출 규칙은 유지한다.
+14. **환경 최신성**: 옛 mock 이미지나 LiteLLM 설정이 반영되지 않은 환경에서는 preflight가 실행을 막는다.
+15. **조립 경계**: 평가 실행기는 `audit`·`guardrails`를 직접 import하지 않고 `api.wiring.build_task_service`로 서비스를 조립한다.
+
+**이유**: 단일 프로필과 등록 파일 고정은 dev 실행 단위를 재현 가능하게 한다. mock 상태·승인 기록·task별 캡처는 효과와 탐색 예산의 판정 근거를 일치시킨다. 환경 검사는 구현과 실행 환경의 불일치를 막는다.
+**트레이드오프**: in-process ASGI 평가는 서버 프로세스·세션 TTL을 검증하지 못한다. 도구 캡처 불일치가 있으면 N 등록이 보류된다. V15의 문서 단위 범위 검사는 값 기준 평가보다 엄격해 정상 요청을 차단할 수 있다.
