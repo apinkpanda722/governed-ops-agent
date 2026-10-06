@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "golden-m3",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T14:25:07+0900",
+      "summary": "M3 골든 14개 기대값·writes 재생 하네스·profile/digest·결정성 검증 구현 완료; 고정 시드 시각의 오탐 수정, make verify 통과(Python 2125개, 웹 15개).",
+      "completed_at": "2026-10-06T14:50:01+0900",
+      "usage": {
+        "input_tokens": 6629390,
+        "cached_input_tokens": 6492672,
+        "output_tokens": 20010,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
