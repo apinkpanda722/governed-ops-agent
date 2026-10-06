@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "profile-org",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T19:35:31+0900",
+      "summary": "WITH_WRITES_ORG·읽기 전용 프로필 레지스트리와 골든/API 이름 해석 추가; 기존 해시·골든 14개 보존, make verify 통과(Python 2196 passed, 웹 15 passed).",
+      "completed_at": "2026-10-06T19:53:50+0900",
+      "usage": {
+        "input_tokens": 2787026,
+        "cached_input_tokens": 2704768,
+        "output_tokens": 7718,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
