@@ -328,7 +328,10 @@ def test_all_twenty_actual_graph_tool_trace_and_manifest(tmp_path, monkeypatch):
     status = json.loads((tmp_path / "data/replay/golden/status.json").read_text())
     assert set(status) == set(GOLDEN_TASKS)
     assert all(s["profile"] == "writes" for s in status.values())
-    assert not (tmp_path / "data/replay/llm/T2-01.jsonl").exists()
+    assert all(
+        (tmp_path / "data/replay/llm" / f"{key}.jsonl").exists() for key in GOLDEN_TASKS
+    )
+    assert not (tmp_path / "data/replay/llm/T2-02.jsonl").exists()
 
 
 @pytest.mark.parametrize(

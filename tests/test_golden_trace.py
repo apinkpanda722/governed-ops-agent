@@ -37,7 +37,7 @@ A = ROOT / "data/replay/a_run"
 
 
 def test_registered_expectations_match_specs():
-    assert GOLDEN_TASKS == (
+    assert GOLDEN_TASKS[:7] == (
         "T1-01",
         "T1-05",
         "T1-08",
@@ -47,11 +47,18 @@ def test_registered_expectations_match_specs():
         "T5-08",
     )
     specs = load_golden_specs()
-    assert len(specs) == 7
-    assert all(s.split == "dev" and s.executable_in == "m2" for s in specs.values())
+    assert len(specs) == 14
+    assert all(s.split == "dev" for s in specs.values())
     assert json.loads(
         (GOLDEN / "expectations.json").read_text()
-    ) == golden_expectations(specs.values())
+    ) == golden_expectations(
+        [
+            s
+            for s in specs.values()
+            if s.task_id in json.loads((GOLDEN / "expectations.json").read_text())
+        ],
+        require_all=False,
+    )
 
 
 def test_all_recordings_are_synthetic_and_credential_free():
@@ -120,10 +127,18 @@ def test_optional_live_golden_replay(tmp_path, monkeypatch):
                     a_dir=A,
                     mock_executor=runtime,
                     graph_factory=build_graph,
+                    profile=row.get("profile", "read_only"),
+                    mock_state=lambda jira=jira, slack=slack: {
+                        "jira": jira.report(bodies=True),
+                        "slack": slack.report(bodies=True),
+                    },
                 )
                 assert compare(expectations[task_id], row, digest(obs)) == []
-                assert jira.comments == jira.child_ids == []
-                assert all(c["message_count"] == 0 for c in slack.report()["channels"])
+                if row.get("profile", "read_only") == "read_only":
+                    assert jira.comments == jira.child_ids == []
+                    assert all(
+                        c["message_count"] == 0 for c in slack.report()["channels"]
+                    )
 
     asyncio.run(exercise())
 

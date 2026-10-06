@@ -208,3 +208,23 @@ def append_with_retry(
         except AuditWriteError:
             pass
     return False
+
+
+class MemoryAuditLog:
+    """Offline replay sink with the same event and field validation as JSONL."""
+
+    def __init__(self):
+        self.records: list[dict] = []
+
+    def append(
+        self, event: str, *, task_id: str, actor_sub: str, **fields: Field
+    ) -> int:
+        if event not in EVENTS:
+            raise _InvalidAuditField("Audit event rejected")
+        _validate(fields)
+        if not _TASK_ID.fullmatch(task_id) or not _ACTOR_SUB.fullmatch(actor_sub):
+            raise _InvalidAuditField("Audit identifier rejected")
+        self.records.append(
+            {"event": event, "task_id": task_id, "actor_sub": actor_sub, **fields}
+        )
+        return len(self.records)
