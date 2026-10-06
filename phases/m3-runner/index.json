@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "mock-admin",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T13:15:19+0900",
+      "summary": "MockAdmin CLI 래퍼와 가짜 실행기 기반 TDD 테스트 구현 완료; 계층 경계·출력 원문 비노출 준수 및 make verify 통과(Python 2060개, 웹 15개).",
+      "completed_at": "2026-10-06T13:27:12+0900",
+      "usage": {
+        "input_tokens": 1414101,
+        "cached_input_tokens": 1346816,
+        "output_tokens": 4325,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
