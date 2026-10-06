@@ -8,6 +8,8 @@
 
 ## 작업
 
+**수정할 파일**(이 목록이 전부다): 신규 `src/govops/evalrun/faults_smoke.py`, 신규 테스트 `tests/test_evalrun_faults_smoke.py`, 수정 `Makefile`(`smoke-faults` 타깃 추가만). 계층: `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 import할 수 없다(`tools`·`gateway`·`replay`는 가능). mock 토큰은 기존 `tools/smoke.py`와 같은 방식(환경 변수·기존 토큰 로더)으로 읽고 값은 출력하지 않는다.
+
 **배경**: 사용자가 실행하는 `make smoke-faults`를 만든다. 154회 live 실행 전에 **실제 mock 컨테이너·LiteLLM에서 장애 부품이 작동하는지**와 `down_alias` 지연을 측정한다. 코드 테스트는 가짜 실행기로만 한다. TDD.
 
 ### `make smoke-faults` (사용자 실행, `govops.evalrun.faults_smoke` 같은 모듈)
@@ -48,6 +50,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 금지사항
 
+- 위 "수정할 파일" 목록 밖의 파일을 수정하지 마라. 목록 밖 수정이 필요해 보이면 임의로 고치지 말고 `blocked`로 보고한다(FP-054). 이유: step 범위 누락은 멈춰서 설계에서 고친다.
 - 스모크를 하네스 step의 테스트나 `make verify`에서 실행하지 마라. 이유: 실제 mock·LiteLLM·Docker 호출은 사용자가 실행한다. 코드 테스트는 가짜 실행기로만 한다.
 - 스모크가 실존 이름·실제 메시지 본문을 만들지 마라. 합성 ID·합성 문구만 쓴다(AGENTS.md CRITICAL).
 - 주입한 장애가 시험하려는 경로를 타지 않는 시나리오를 만들지 마라(FP-005). 이유: 장애가 방어 로직을 실행시키지 않으면 중복 0이 아무 일도 안 일어나서 저절로 나온다. 시나리오마다 그 경로가 실제로 실행됐다는 증거(조회 호출 수 > 0, 대기 발생, 재시도 횟수)를 단언한다. F10은 항상 F5와 결합한다.

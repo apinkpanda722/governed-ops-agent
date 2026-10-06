@@ -77,6 +77,11 @@
       "step": 7,
       "name": "faults-docs",
       "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "mask-identifiers",
+      "status": "pending"
     }
   ],
   "created_at": "2026-10-06T22:14:51+0900"

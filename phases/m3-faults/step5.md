@@ -8,6 +8,8 @@
 
 ## 작업
 
+**수정할 파일**(이 목록이 전부다): 신규 `docs/results/hypotheses-m3-faults.md`, 신규 테스트 `tests/test_prereg_faults.py`, 수정 `src/govops/evalrun/faults.py`(등록 파일 sha256을 manifest에 기록하고 등록 파일이 커밋되지 않았으면 시작하지 않는 가드만 추가)와 그 테스트(`tests/test_evalrun_faults.py`에 추가). 시나리오 상수 파일(`fault_scenarios.py`)은 읽기만 한다.
+
 **배경**: 장애 주입 결과를 보기 **전에** 가설·표본·기대 결과를 `docs/results/hypotheses-m3-faults.md`에 사전 등록한다. 이 파일은 이 step이 **새로 만드는** 사전 등록 파일이다(이후 수정 금지, 수정하면 새 등록). 값은 이전 step의 코드 상수를 그대로 옮기고, 코드와 어긋나면 안 된다. TDD: 일치 테스트를 먼저 쓴다.
 
 ### `docs/results/hypotheses-m3-faults.md` 구성
@@ -28,6 +30,7 @@
 ### 일치 테스트·가드 (`tests/test_prereg_faults.py`)
 
 - 등록 파일의 표(시나리오·변형·n)가 코드 상수와 **정확히 일치**한다(파일을 파싱해 비교, 손으로 적은 숫자 금지). 합계 154·분모 132가 상수에서 계산한 값과 같다.
+- **이 step 실행 중에는 등록 파일이 아직 커밋되지 않은 상태다**(execute.py가 step 완료 뒤에 커밋한다). 따라서 "커밋 이후 변경 금지" 테스트는 파일이 아직 한 번도 커밋되지 않았으면 통과해야 하고, `hypotheses_m3_faults_not_committed` 가드는 테스트에서 가짜 git(주입)으로 검증한다. 기존 `tests/test_prereg_m3.py`의 패턴을 따른다.
 - 등록 파일이 한 번 커밋된 뒤 변경되면 실패하는 가드(`git log --diff-filter=...` 방식은 CI 얕은 복제에서 달라진다 — FP-032, CI는 `fetch-depth: 0`이다. 기존 `test_prereg_m3.py`의 가드 패턴을 그대로 따른다).
 - 하네스(`evalrun/faults.py`)가 등록 파일의 sha256을 manifest에 기록하고, 등록 파일이 **커밋되지 않았으면** `hypotheses_m3_faults_not_committed`로 시작하지 않는다(기존 `hypotheses_m3_not_committed` 패턴 재사용, 이 가드는 `evalrun/faults.py`에서 구현·테스트).
 
@@ -51,6 +54,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 금지사항
 
+- 위 "수정할 파일" 목록 밖의 파일을 수정하지 마라. 목록 밖 수정이 필요해 보이면 임의로 고치지 말고 `blocked`로 보고한다(FP-054). 이유: step 범위 누락은 멈춰서 설계에서 고친다.
 - 이 step에서 만든 등록 파일 외의 `docs/results/` 사전 등록 파일을 수정하지 마라(`hypotheses*.md`·`n-registration-m3.md`·`*-supersedes.json`·결과 문서). 이유: 등록 이후 변경 금지다. 결과 문서는 live 실행 뒤에 쓴다.
 - 등록 파일에 결과·성능 수치(실행해 본 값)를 적지 마라. 이유: 사전 등록이다. 추정 소요(약 75~80분, 비용 $0.5 미만)는 계획으로만 쓰고 결과처럼 쓰지 않는다.
 - 시나리오 상수(`fault_scenarios.py`)의 값을 이 step에서 바꾸지 마라. 어긋남이 보이면 상수가 아니라 등록 파일을 상수에 맞춘다. 상수 자체에 문제가 있으면 `blocked`로 보고한다(FP-043).

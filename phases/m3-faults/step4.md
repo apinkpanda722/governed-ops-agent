@@ -3,11 +3,13 @@
 ## 읽어야 할 파일
 
 - `/AGENTS.md`, `/docs/ADR.md`(ADR-018·019·020·021), `/docs/EVAL.md`, `/docs/THREAT_MODEL.md`("F1~F11" 표), `/docs/results/hypotheses.md`, `/docs/results/hypotheses-m3.md`, `/docs/results/2026-10-06-m3-dev2-live.md`, `/.claude/skills/failure-patterns/SKILL.md`
-- `/src/govops/evalrun/dev_m3.py`(프로필 강제·preflight·등록 묶음 가드·manifest·supersedes·`infrastructure_failure`·재실행 규칙), `/src/govops/evalrun/driver.py`, `/src/govops/evalrun/observe.py`, `/src/govops/evalrun/preflight.py`, `/src/govops/evalrun/mock_admin.py`(이전 step의 `faults_set`), `/src/govops/tools/fault_transport.py`(이전 step), `/src/govops/replay/chaos_a.py`(이전 step), `/src/govops/eval/run_grade.py`(`grade_run`·`guard_grading_rules`·`m3-grading`), `/src/govops/eval/`(절대 규칙·중복·누락 집계), `/src/govops/agent/`(`graph`·`Command(resume=...)`), `/src/govops/api/`(`POST /tasks/{id}/approval` 멱등), `/Makefile`, `/tests/test_evalrun_dev_m3.py`, `/tests/test_effects_matrix.py`
+- `/src/govops/mocks/faults.py`(**읽기 전용 참고**: 엔드포인트 이름·액션 종류 값만 본다. `evalrun`에서 `govops.mocks`를 import하지 않는다), `/src/govops/evalrun/dev_m3.py`(프로필 강제·preflight·등록 묶음 가드·manifest·supersedes·`infrastructure_failure`·재실행 규칙), `/src/govops/evalrun/driver.py`, `/src/govops/evalrun/observe.py`, `/src/govops/evalrun/preflight.py`, `/src/govops/evalrun/mock_admin.py`(이전 step의 `faults_set`), `/src/govops/tools/fault_transport.py`(이전 step), `/src/govops/replay/chaos_a.py`(이전 step), `/src/govops/eval/run_grade.py`(`grade_run`·`guard_grading_rules`·`m3-grading`), `/src/govops/eval/`(절대 규칙·중복·누락 집계), `/src/govops/agent/`(`graph`·`Command(resume=...)`), `/src/govops/api/`(`POST /tasks/{id}/approval` 멱등), `/Makefile`, `/tests/test_evalrun_dev_m3.py`, `/tests/test_effects_matrix.py`
 - 근거(원자료): `data/eval/`의 dev 20 명세에서 T2-01·02·03, T3-01·02·07·08(표본 풀, 전사 공지 제외 7개), `data/results/dev/26c8553905bb4396b20ef2b2ff6399f1/manifest.json`(실행 시간 20개 task 6분 38초), `docs/results/hypotheses-m3.md`(장애 주입 표본 원안이 있으면 대조)
 - **외부 계약 실측**: 이전 step들의 실측(mock `faults set` stdin 방식·F4 클라이언트 주입·A 5xx/429 복원). mock 서비스 규칙은 **재시작 전까지 남는다**(앞선 비정상 종료 시 다음 실행에 영향). 서킷은 30초 half-open이라 실행 사이에 상태가 새면 다음 실행에 영향을 준다. 드라이버 `max_wait`는 180초다.
 
 ## 작업
+
+**수정할 파일**(이 목록이 전부다): 신규 `src/govops/evalrun/faults.py`·`src/govops/evalrun/fault_scenarios.py`, 신규 테스트 `tests/test_evalrun_faults.py`·`tests/test_fault_scenarios.py`, 수정 `Makefile`(`eval-faults` 타깃 추가만), 수정 `src/govops/evalrun/dev_m3.py`(하네스가 재사용할 공용 조립 함수를 노출하는 경우에만, 동작 불변·기존 dev_m3 테스트 수정 없이 통과). 계층: `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 import할 수 없다. `agent`·`api`·`tools`·`gateway`·`replay`·`eval`은 import할 수 있다.
 
 **배경**: 장애 주입 하네스 `evalrun/faults.py`와 `make eval-faults`를 만든다. 사전 등록 파일(`hypotheses-m3-faults.md`)은 다음 step이 만들므로 **이 step에서는 `docs/results/`를 수정하지 않는다**. 시나리오 표는 코드 상수로 먼저 두고, 다음 step이 그 상수와 등록 파일의 일치를 테스트한다. 실제 live 실행은 하지 않는다(가짜 환경으로만 검증). TDD.
 
@@ -50,6 +52,7 @@
 - 계획 결정론: 같은 시드·풀에서 같은 154개 계획, 분모 132, 시나리오별 n 합계. 등록 밖 입력은 `plan_mismatch`.
 - `stale_faults`·종료 시 clear·`--resume`: 중간에 중단한 실행에서 `--resume`이 끝난 기록을 건드리지 않고 남은 것만 실행하며 `interruptions`가 기록된다. 표본을 고르는 옵션이 없음을 단언(인자 파서 검사).
 - F11: 합성 토큰만 쓰고 `KODOCS_MCP_TOKENS_FILE`을 읽지 않으며, chaos 서버 출력에 토큰이 없다.
+- **`credential_for` 비주입**: `api/wiring.py`와 `evalrun/dev_m3.py`(운영 조립·dev 러너)는 `AMcpClient(...)` 생성 시 `credential_for` 인자를 넘기지 않고 broker 기본 경로를 쓴다(소스를 AST로 읽어 `AMcpClient` 호출의 키워드 인자에 `credential_for`가 없음을 단언). 이 주입은 장애 하네스의 F11 경로(합성 토큰)에서만 쓴다: `evalrun/faults.py`의 F11 클라이언트 조립만 `credential_for`를 넘기고, 같은 파일의 비F11 경로(live A)는 넘기지 않음을 단언한다.
 - 보고 형식: 시나리오별 5개 지표가 모두 나오고, 토큰·본문 원문이 보고·manifest·로그에 없다.
 
 ## Acceptance Criteria
@@ -74,6 +77,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 - 결과를 본 뒤 표본을 고르거나 일부만 다시 돌리는 옵션(`--only`·`--rerun-failed` 등)을 만들지 마라(FP-043). 이유: 결과에 따른 재실행은 선택 편향이다. 재개(`--resume`)는 같은 시드·순서로 남은 계획만 실행한다.
 - `docs/results/`의 어떤 파일도 만들거나 수정하지 마라(이 step에서는). 이유: 사전 등록 파일은 다음 step이 만들고 가드한다. 상수와 등록 파일의 일치는 다음 step 테스트가 강제한다.
+- 위 "수정할 파일" 목록 밖의 파일을 수정하지 마라. 목록 밖 수정이 필요해 보이면 임의로 고치지 말고 `blocked`로 보고한다(FP-054). 이유: step 범위 누락은 멈춰서 설계에서 고친다.
 - 하네스 코드·테스트에서 실제 A·LiteLLM·mock·Docker에 접속하지 마라. 이유: `make verify`는 키·네트워크 없이 통과해야 하고 live 실행은 사용자가 한다.
 - F11 경로(chaos A 서버·클라이언트·하네스)에서 `KODOCS_MCP_TOKENS_FILE`과 실제 A 사용자 토큰을 읽거나 보내지 마라. 합성 토큰만 쓴다. chaos 서버는 요청 헤더(특히 `Authorization`)를 기록·출력·저장하지 않는다. 이유: 장애를 주입하는 서버는 외부 프로세스 역할이고 실제 자격 증명이 닿으면 안 된다(AGENTS.md CRITICAL: 토큰을 로그·trace에 남기지 않는다). 테스트로 강제한다.
 - 주입한 장애가 시험하려는 경로를 타지 않는 시나리오를 만들지 마라(FP-005). 이유: 장애가 방어 로직을 실행시키지 않으면 중복 0이 아무 일도 안 일어나서 저절로 나온다. 시나리오마다 그 경로가 실제로 실행됐다는 증거(조회 호출 수 > 0, 대기 발생, 재시도 횟수)를 단언한다. F10은 항상 F5와 결합한다.
