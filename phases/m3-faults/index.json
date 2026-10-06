@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "golden-switch",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T22:14:51+0900",
+      "summary": "writes_org 단일 레지스트리·API/골든 기본값 전환, .env.example 설명 갱신, M2 run_dev·_live·main 삭제 완료; make verify 통과(Python 2211 passed·1 skipped, 웹 typecheck·eslint 통과, vitest 15 passed), 골든 14개 재생 통과(T3-01 recorded_fail 동일 재현·13개 pass). 초기 실패 4건: tests/test_agent_graph.py::test_profile_registry_and_recorded_hashes, tests/test_regolden.py::test_saved_golden_status_matches_all_fourteen_dev_grades, tests/test_regolden.py::test_regolden_uses_manifest_rules_without_registration_guard, tests/test_regolden.py::test_regolden_original_run_is_unchanged; 각각 커밋된 writes_org 헤더 해시·두 번째 실행 채점/manifest/status 기준으로 교체(지정된 test_evalrun_regolden.py는 없어 실제 test_regolden.py 사용). 추가 테스트 변경: test_golden_trace.py::test_optional_live_golden_replay는 새 기본값·기록 실패 동일성, test_golden_m3.py::test_manifest_profile_default_and_validation 및 exercise 기반 재생 테스트는 새 프로필, test_golden_harness.py::test_synthetic_record_replays_actual_a_response는 새 기본값 조립, test_api_wiring.py::test_wiring_approval_dependencies는 옛 프로필 거절, test_api_wiring_build.py::test_environment_profile_selection은 정상·잘못된 값·빈 값 기본값 검증, test_evalrun_dev_m3.py::test_profile_mismatch는 등록되지 않은 프로필 주입, test_env_defaults.py::test_variable_defaults는 A_ROOT 검증 대상을 현재 M3 실행 경로로 이동. test_evalrun_dev.py에서 제거된 실행 경로 전용 test_one_run_artifacts_and_replay·test_retry·test_tcr_failure_no_retry·test_seed_mismatch_stops_before_task·test_budget_no_retry·test_non_synthetic_a_excludes_task·test_runner_with_real_mock_runtime·test_observations_remain_grader_readable·test_retry_observation_denominator_is_one·test_models_seen_includes_rejected_response·test_dev_status_matches_the_golden_status_for_the_same_observation·test_mixed_response_models_in_manifest_and_recording·test_unmapped_response_model_in_manifest 삭제; 공용 헬퍼 테스트 유지. READ_ONLY 고정 해시 단언 삭제; READ_ONLY 객체는 그래프 기본값·단위 테스트, WITH_WRITES는 조직 프로필 구성·단위 테스트, WITH_WRITES_ORG와 _Capture는 현재 프로필·M3 사용 때문에 유지(객체 삭제 없음). 남은 read_only/writes 참조는 거절·불일치 테스트, 과거 등록 검증, 읽기 전용 처리 명칭·유지 객체이며 Makefile에 M2 실행 타깃 없음. 계층 경계·기술 스택 확인 완료, 기록·결과·사전등록·금지 경로 수정 및 git commit 없음; phases의 기존 diff는 건드리지 않음.",
+      "completed_at": "2026-10-06T22:35:04+0900",
+      "usage": {
+        "input_tokens": 6438608,
+        "cached_input_tokens": 6278272,
+        "output_tokens": 11525,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -42,5 +51,6 @@
       "name": "faults-docs",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-06T22:14:51+0900"
 }
