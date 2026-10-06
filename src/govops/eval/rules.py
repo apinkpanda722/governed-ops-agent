@@ -5,6 +5,7 @@ from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
+from govops.eval.access_index import AccessIndex
 from govops.eval.meta import EvalMeta
 from govops.eval.observation import Observation
 from govops.eval.spec import TaskSpec
@@ -166,8 +167,11 @@ def summarize_rules(reports: Sequence[RuleReport]) -> RuleSummary:
 
 
 def unreadable_ids_for(
-    user: Mapping, meta: EvalMeta, tickets: Sequence[Mapping]
+    user: Mapping, meta: EvalMeta, tickets: Sequence[Mapping], *, grading_rules: str
 ) -> frozenset[str]:
+    if grading_rules not in {"registered", "m3-grading"}:
+        raise ValueError("unknown_grading_rules")
+    index = AccessIndex(meta, tickets)
     records = [*(doc.model_dump() for doc in meta.docs), *tickets]
     return frozenset(
         record.get("doc_id", record.get("ticket_id"))
@@ -177,5 +181,11 @@ def unreadable_ids_for(
             record["access_level"],
             record["access_teams"],
             record["access_min_grade"],
+        )
+        and (
+            grading_rules == "registered"
+            or not index.value_visible(
+                user, record.get("doc_id", record.get("ticket_id"))
+            )
         )
     )

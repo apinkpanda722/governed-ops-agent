@@ -22,15 +22,16 @@ from govops.api.sessions import SessionStore
 from govops.api.tasks import TaskService
 from govops.audit.log import MemoryAuditLog
 from govops.eval.observation import ApprovalRecord, Observation, ObservedEffect
-from govops.eval.run_grade import build_observation
+from govops.eval.run_grade import build_observation, grade_run
 from govops.eval.spec import TaskSpec
-from govops.eval.tcr import grade_tcr, normalize
+from govops.eval.tcr import normalize
+from govops.evalrun.tool_trace import observation_calls
 from govops.gateway.client import _MODEL
 from govops.guardrails.policy import load_team_policy
 from govops.replay.a_replay import ReplayToolExecutor
 from govops.replay.llm import ReplayChatClient, RerecordRequired
 from govops.tools.outbox import InMemoryOutboxStore
-from govops.tools.registry import agent_tool_definitions
+from govops.tools.registry import _WRITES, agent_tool_definitions
 
 GOLDEN_TASKS = (
     "T1-01",
@@ -109,9 +110,20 @@ def digest(obs: Observation) -> dict:
     return digest_for(load_golden_specs()[obs.task_id], obs)
 
 
-def tcr_status(spec, obs: Observation) -> str:
+def tcr_status(spec, obs: Observation, *, meta, tickets, users, grading_rules) -> str:
     """pass/recorded_fail은 TCR 결과 하나로만 정한다(hypotheses.md 9항). dev 러너도 이 함수를 쓴다."""
-    return "pass" if grade_tcr(spec, obs).passed else "recorded_fail"
+    return (
+        "pass"
+        if grade_run(
+            spec=spec,
+            obs=obs,
+            meta=meta,
+            tickets=tickets,
+            users=users,
+            grading_rules=grading_rules,
+        ).tcr.passed
+        else "recorded_fail"
+    )
 
 
 def digest_for(spec, obs: Observation) -> dict:
@@ -119,7 +131,21 @@ def digest_for(spec, obs: Observation) -> dict:
     pass/recorded_fail 판정이나 기대값 비교에는 쓰지 않는다."""
     answer = normalize(obs.answer or "")
     result = {
-        "tool_order": [c.name for c in obs.tool_calls],
+        "tool_order": [
+            c.name
+            for c in obs.tool_calls
+            if c.name not in _WRITES
+            or any(
+                e.kind
+                == {
+                    "slack_send_message": "slack_message",
+                    "jira_add_comment": "jira_comment",
+                    "jira_create_followup_ticket": "jira_followup_ticket",
+                }[c.name]
+                and e.count > 0
+                for e in obs.effects
+            )
+        ],
         "effect_count": sum(e.count for e in obs.effects),
         "status": obs.status,
         "refused": obs.status == "rejected"
@@ -151,7 +177,9 @@ def digest_for(spec, obs: Observation) -> dict:
     return result
 
 
-def record_status(spec, obs, a_summary, *, profile=None) -> dict:
+def record_status(
+    spec, obs, a_summary, *, meta, tickets, users, grading_rules, profile=None
+) -> dict:
     """Freeze the initial TCR outcome; skipped A calls exclude the entire task."""
     if profile not in {None, "read_only", "writes"}:
         raise ValueError("invalid_profile")
@@ -166,7 +194,14 @@ def record_status(spec, obs, a_summary, *, profile=None) -> dict:
         }
     return {
         "profile": profile or "read_only",
-        "status": tcr_status(spec, obs),
+        "status": tcr_status(
+            spec,
+            obs,
+            meta=meta,
+            tickets=tickets,
+            users=users,
+            grading_rules=grading_rules,
+        ),
         "golden_eligible": True,
         "observation_digest": digest_for(spec, obs),
         "reason_codes": [],
@@ -486,7 +521,7 @@ def _write_observation(spec, state, calls, approvals, reports):
         answer=state["answer"],
         observed_ids=list(state["observed_ids"]),
         cited_doc_ids=list(state["cited_doc_ids"]),
-        tool_calls=calls,
+        tool_calls=observation_calls(state, calls),
         effects=effects,
         effect_bodies=bodies,
         approvals=approvals,

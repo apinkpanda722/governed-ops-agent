@@ -7,6 +7,7 @@ from dataclasses import replace
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import call, reply
+from test_regolden import grading_data
 
 from govops.agent.graph import build_graph, run_task
 from govops.agent.prompts import SYSTEM_PROMPT
@@ -94,13 +95,26 @@ def test_synthetic_record_replays_actual_a_response(tmp_path):
             )
             == []
         )
-        assert record_status(spec, obs, summary)["status"] == "pass"
+        assert (
+            record_status(
+                spec, obs, summary, **grading_data(), grading_rules="registered"
+            )["status"]
+            == "pass"
+        )
         failed_obs = obs.model_copy(update={"status": "failed"})
-        failed_row = record_status(spec, failed_obs, summary)
+        failed_row = record_status(
+            spec, failed_obs, summary, **grading_data(), grading_rules="registered"
+        )
         assert failed_row["status"] == "recorded_fail"
         assert compare({}, failed_row, digest(failed_obs)) == []
         assert "answer" not in digest(obs)
-        assert record_status(spec, obs, replace(summary, golden_eligible=False)) == {
+        assert record_status(
+            spec,
+            obs,
+            replace(summary, golden_eligible=False),
+            **grading_data(),
+            grading_rules="registered",
+        ) == {
             "status": "excluded",
             "golden_eligible": False,
             "reason_codes": ["non_synthetic_a_call"],
@@ -192,7 +206,12 @@ def test_skipped_actual_a_call_excludes_task(tmp_path):
         summary = recorder.finish()
         assert not summary.golden_eligible and summary.stats.skipped == 1
         assert summary.path.read_text() == ""
-        assert record_status(spec, None, summary)["status"] == "excluded"
+        assert (
+            record_status(
+                spec, None, summary, **grading_data(), grading_rules="registered"
+            )["status"]
+            == "excluded"
+        )
 
     asyncio.run(exercise())
 
@@ -252,8 +271,14 @@ def test_partial_answer_without_refusal_wording_is_pass_and_replays_clean():
     spec = load_golden_specs()["T5-01"]
     obs = _obs("T5-01", "공개 문서 기준으로 일반 절차만 안내드립니다.")
     assert digest(obs)["refused"] is False
-    row = record_status(spec, obs, _eligible())
-    assert row["status"] == "pass" == tcr_status(spec, obs)
+    row = record_status(
+        spec, obs, _eligible(), **grading_data(), grading_rules="registered"
+    )
+    assert (
+        row["status"]
+        == "pass"
+        == tcr_status(spec, obs, **grading_data(), grading_rules="registered")
+    )
     expected = golden_expectations([spec], require_all=False)["T5-01"]
     # 코드 변경이 없으면 같은 재생은 CI에서 계속 통과한다(refused는 기대값과 비교하지 않는다)
     assert compare(expected, row, digest(obs)) == []
@@ -264,7 +289,9 @@ def test_normal_answer_mentioning_unavailable_detail_is_not_a_refusal_failure():
     spec = load_golden_specs()["T5-08"]
     obs = _obs("T5-08", "문서를 요약했습니다. 일부 세부 항목은 확인할 수 없었다.")
     assert digest(obs)["refused"] is True  # 문구 추측값(기록=재생 비교용)
-    row = record_status(spec, obs, _eligible())
+    row = record_status(
+        spec, obs, _eligible(), **grading_data(), grading_rules="registered"
+    )
     assert row["status"] == "pass"
     expected = golden_expectations([spec], require_all=False)["T5-08"]
     assert compare(expected, row, digest(obs)) == []
@@ -273,7 +300,9 @@ def test_normal_answer_mentioning_unavailable_detail_is_not_a_refusal_failure():
 def test_refused_still_detects_replay_drift_against_the_record():
     spec = load_golden_specs()["T5-01"]
     obs = _obs("T5-01", "공개 문서 기준으로 일반 절차만 안내드립니다.")
-    row = record_status(spec, obs, _eligible())
+    row = record_status(
+        spec, obs, _eligible(), **grading_data(), grading_rules="registered"
+    )
     drifted = dict(digest(obs), refused=True)
     expected = golden_expectations([spec], require_all=False)["T5-01"]
     assert compare(expected, row, drifted) == ["refused_mismatch"]

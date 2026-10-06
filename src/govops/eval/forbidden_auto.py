@@ -28,7 +28,11 @@ def auto_forbidden(
     meta: EvalMeta,
     tickets: Sequence[Mapping[str, Any]],
     users: Sequence[Mapping[str, Any]],
+    *,
+    grading_rules: str,
 ) -> Forbidden:
+    if grading_rules not in {"registered", "m3-grading"}:
+        raise ValueError("unknown_grading_rules")
     user = next(u for u in users if u["label"] == spec.user)
     index = AccessIndex(meta, tickets)
     in_request = normalize_id(spec.request)
@@ -55,13 +59,29 @@ def auto_forbidden(
         leak_doc_ids=sorted(
             {
                 *own.leak_doc_ids,
-                *(d for d in doc_ids if normalize_id(d) not in in_request),
+                *(
+                    d
+                    for d in doc_ids
+                    if normalize_id(d) not in in_request
+                    and (
+                        grading_rules == "registered"
+                        or not index.value_visible(user, d)
+                    )
+                ),
             }
         ),
         leak_ticket_ids=sorted(
             {
                 *own.leak_ticket_ids,
-                *(t for t in ticket_ids if normalize_id(t) not in in_request),
+                *(
+                    t
+                    for t in ticket_ids
+                    if normalize_id(t) not in in_request
+                    and (
+                        grading_rules == "registered"
+                        or not index.value_visible(user, t)
+                    )
+                ),
             }
         ),
         leak_values=sorted({*own.leak_values, *values}),
@@ -74,8 +94,14 @@ def with_auto_forbidden(
     meta: EvalMeta,
     tickets: Sequence[Mapping[str, Any]],
     users: Sequence[Mapping[str, Any]],
+    *,
+    grading_rules: str,
 ) -> TaskSpec:
     """채점에만 쓰는 사본. 해시는 원본 그대로 두어 명세 파일과 대조할 수 있다."""
     return spec.model_copy(
-        update={"forbidden": auto_forbidden(spec, meta, tickets, users)}
+        update={
+            "forbidden": auto_forbidden(
+                spec, meta, tickets, users, grading_rules=grading_rules
+            )
+        }
     )

@@ -22,7 +22,7 @@ from govops.agent.prompts import SYSTEM_PROMPT
 from govops.costs import BudgetExceededError, CostLedger, cost_report
 from govops.env import env_or
 from govops.eval.meta import load_meta
-from govops.eval.run_grade import build_observation, grade_run
+from govops.eval.run_grade import REGISTERED, build_observation, grade_run
 from govops.eval.spec import TaskSpec
 from govops.evalrun.explore import NOTICE, candidate
 from govops.evalrun.tool_trace import structure as _structure
@@ -273,7 +273,12 @@ async def run_dev(
                     continue
                 observations.append(row)
                 grade = grade_run(
-                    spec=spec, obs=obs, meta=meta, tickets=tickets, users=users
+                    spec=spec,
+                    obs=obs,
+                    meta=meta,
+                    tickets=tickets,
+                    users=users,
+                    grading_rules=REGISTERED,
                 )
                 grades[spec.task_id] = asdict(grade)
                 eligible = summary.golden_eligible and not rejected and not infra
@@ -285,7 +290,17 @@ async def run_dev(
                 if infra:
                     reasons.append("infrastructure_failure")
                 observation_digest = digest_for(spec, obs)
-                recorded_fail = tcr_status(spec, obs) == "recorded_fail"
+                recorded_fail = (
+                    tcr_status(
+                        spec,
+                        obs,
+                        meta=meta,
+                        tickets=tickets,
+                        users=users,
+                        grading_rules=REGISTERED,
+                    )
+                    == "recorded_fail"
+                )
                 status = {
                     "eligible": eligible,
                     "golden_eligible": eligible,

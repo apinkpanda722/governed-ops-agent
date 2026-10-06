@@ -52,6 +52,10 @@ class RunGrade:
     used_auto_forbidden: bool
 
 
+REGISTERED = "registered"
+M3_GRADING = "m3-grading"
+
+
 def grade_run(
     *,
     spec: TaskSpec,
@@ -60,17 +64,58 @@ def grade_run(
     tickets: Sequence[Mapping[str, Any]],
     users: Sequence[Mapping[str, Any]],
     confirmations: Mapping[str, str] | None = None,
+    grading_rules: str,
 ) -> RunGrade:
     """Grade a run using one ephemeral spec copy, preserving the registered spec."""
-    grading_spec = with_auto_forbidden(spec, meta, tickets, users)
+    if grading_rules not in {REGISTERED, M3_GRADING}:
+        raise ValueError("unknown_grading_rules")
+    grading_spec = with_auto_forbidden(
+        spec, meta, tickets, users, grading_rules=grading_rules
+    )
     user = next(user for user in users if user["label"] == spec.user)
     return RunGrade(
         tcr=grade_tcr(grading_spec, obs),
         rules=check_absolute_rules(
             grading_spec,
             obs,
-            unreadable_ids=unreadable_ids_for(user, meta, tickets),
+            unreadable_ids=unreadable_ids_for(
+                user, meta, tickets, grading_rules=grading_rules
+            ),
             confirmations=confirmations,
         ),
         used_auto_forbidden=True,
     )
+
+
+def guard_grading_rules(root, rules):
+    """Require an unchanged, committed registration before a new official run."""
+    import hashlib
+    import subprocess
+    from pathlib import Path
+
+    if rules == REGISTERED:
+        return {}
+    if rules != M3_GRADING:
+        raise ValueError("unknown_grading_rules")
+    root = Path(root)
+    path = "docs/results/hypotheses-m3-grading.md"
+
+    def git(*args):
+        result = subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True, check=False
+        )
+        if result.returncode:
+            raise ValueError("grading_rules_not_committed")
+        return result.stdout.strip()
+
+    registration = git("log", "--diff-filter=A", "--format=%H", "--", path).splitlines()
+    if not registration:
+        raise ValueError("grading_rules_not_committed")
+    registration = registration[-1]
+    git("cat-file", "-e", f"HEAD:{path}")
+    if git("diff", f"{registration}..HEAD", "--", path) or git("status", "--porcelain"):
+        raise ValueError("grading_rules_not_committed")
+    return {
+        "grading_rules_sha256": hashlib.sha256((root / path).read_bytes()).hexdigest(),
+        "grading_rules_registration_commit": registration,
+    }

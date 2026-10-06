@@ -319,7 +319,7 @@ def test_all_twenty_actual_graph_tool_trace_and_manifest(tmp_path, monkeypatch):
     assert all_hands["approvals"][0]["actor"] != next(
         s.user for s in specs() if s.task_id == "T2-09"
     )
-    assert manifest["tool_trace_mismatch"]
+    assert manifest["tool_trace_mismatch"] == {}
     assert any(c["result"] for r in rows for c in r["tool_results"])
     assert any(r["status"] == "rejected" for r in rows)
     run = Path(result["directory"])
@@ -847,3 +847,27 @@ def test_smoke_model_error_code_is_safe(tmp_path, monkeypatch, capsys):
     assert "reason=model_error" in output
     assert "Authorization" not in output
     assert "synthetic-private-key" not in output
+
+
+def test_runner_observes_unexecuted_draft_without_n_result(tmp_path, monkeypatch):
+    chosen = [s for s in specs() if s.task_id in {"T5-11", "T6-01", "T2-01"}]
+    result, _, _ = asyncio.run(exercise(tmp_path, monkeypatch, selected=chosen))
+    for row in result["observations"]:
+        assert [c["name"] for c in row["tool_calls"]].count("slack_send_message") == 1
+        assert all(c["name"] != "slack_send_message" for c in row["tool_results"])
+        assert row["task_id"] not in result["manifest"]["tool_trace_mismatch"]
+        if row["task_id"] != "T2-01":
+            assert row["effects"] == []
+
+
+def test_manifest_records_explicit_grading_rules(tmp_path, monkeypatch):
+    from govops.evalrun import dev_m3
+
+    result, _, _ = asyncio.run(exercise(tmp_path, monkeypatch))
+    assert (
+        result["manifest"]["grading_rules"] == dev_m3.DEV_GRADING_RULES == "registered"
+    )
+    stored = json.loads((Path(result["directory"]) / "manifest.json").read_text())
+    assert stored["grading_rules"] == "registered"
+    assert "grading_rules_sha256" not in stored
+    assert "grading_rules_registration_commit" not in stored

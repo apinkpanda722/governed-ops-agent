@@ -1,0 +1,105 @@
+{
+  "task_id": "T3-08",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "LGL-1002",
+    "syn-guide-010",
+    "syn-incident-021",
+    "syn-meeting-040",
+    "syn-runbook-018"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "LGL-1002"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-guide-010"
+          },
+          {
+            "doc_id": "syn-meeting-040"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-incident-021"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-021",
+        "sections": []
+      }
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "LGL-2005"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "LGL-1002",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "LGL-1002",
+        "project_key": "LGL"
+      },
+      "approval_id": "c58cd178a184de1a9a58ee7f4972c052ecade7f13ca4d6d7faf6798b97aaa70a",
+      "body_sha256": "9e3aec616dfc2a97b8da847500ff24521fe4d68299f70b3411273a6703a507eb"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-011 재발 방지: 보관 상태 변경-검색 색인 동기화 개선\n관련 장애: INC-2026-011 (contract-vault)\n\n원인: 계약 문서의 보관 상태 변경 이벤트가 검색 색인 갱신 파이프라인에서 누락되거나 처리 중 실패하여, 원본 데이터베이스에는 존재하는 계약이 검색 인덱스에 반영되지 않았다. 원본 데이터 손상은 아니며 원본 데이터 계층과 색인 계층 간 동기화 불일치가 근본 원인이다.\n\n후속 조치:\n- 보관 상태 변경 이벤트 처리 실패를 자동 감지하고 알림을 발생시키는 모니터링 보완\n- 이벤트 처리 상태 및 색인 반영 여부를 주기적으로 검증하는 점검 절차 정례화\n- 보관 상태 변경과 검색 색인 갱신 간 연계 로직을 재검토하고 누락/실패 시 재처리 방안 확인\n- 유사 장애의 조기 탐지 및 복구 대응 절차를 문서화하고 팀 내 공유\n\n완료 기준: 개선된 모니터링·검증 절차와 연계 로직 검토 결과를 기록하고, 색인 반영 누락 감지 및 대응이 확인될 것."
+  ],
+  "approvals": [
+    {
+      "approval_id": "c58cd178a184de1a9a58ee7f4972c052ecade7f13ca4d6d7faf6798b97aaa70a",
+      "actor": "demo-legal-g5",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "4549a8e99f7842909e0ab224c3684fce"
+}

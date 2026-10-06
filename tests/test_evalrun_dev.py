@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from test_regolden import grading_data
 
 from govops.costs import BudgetExceededError
 from govops.evalrun.dev import guard_live, infrastructure_failure, run_dev, select_tasks
@@ -490,7 +491,11 @@ def test_dev_status_matches_the_golden_status_for_the_same_observation(tmp_path)
         answer="공개 문서 기준 일반 절차만 안내합니다",
         tool_calls=[{"name": "search_docs", "ok": True}],
     )
-    assert row["status"] == tcr_status(spec, obs) == "pass"
+    assert (
+        row["status"]
+        == tcr_status(spec, obs, **grading_data(), grading_rules="registered")
+        == "pass"
+    )
     assert row["recorded_fail"] is False
     assert result["manifest"]["models_seen"] == ["gpt-6-luna"]
 

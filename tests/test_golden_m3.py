@@ -9,6 +9,7 @@ import httpx
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import call, reply
+from test_regolden import grading_data
 
 from govops.agent.graph import WITH_WRITES, build_graph, run_task
 from govops.api.tasks import ApprovalError
@@ -372,7 +373,14 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
             set(effect) == {"kind", "target", "count"} for effect in left["effects"]
         )
         assert (
-            record_status(spec, observations[0], summary, profile="writes")["profile"]
+            record_status(
+                spec,
+                observations[0],
+                summary,
+                profile="writes",
+                **grading_data(),
+                grading_rules="registered",
+            )["profile"]
             == "writes"
         )
         expected = golden_expectations([spec], require_all=False)[key]
@@ -436,3 +444,37 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
 
 def test_all_hands_approver_replay(tmp_path, monkeypatch):
     asyncio.run(exercise(tmp_path, monkeypatch, "T2-01", all_hands=True))
+
+
+def test_write_observation_includes_unexecuted_draft_once():
+    from govops.golden import _write_observation
+
+    spec = load_golden_specs()["T5-11"]
+    state = {
+        "messages": [
+            {
+                "role": "assistant",
+                "tool_calls": [
+                    {"id": "read", "function": {"name": "lookup_id"}},
+                    {"id": "write", "function": {"name": "slack_send_message"}},
+                ],
+            }
+        ],
+        "status": "blocked",
+        "answer": None,
+        "observed_ids": [],
+        "cited_doc_ids": [],
+    }
+    obs = _write_observation(
+        spec,
+        state,
+        [
+            {"name": "lookup_id", "ok": True},
+            {"name": "slack_send_message", "ok": True},
+        ],
+        [],
+        {},
+    )
+    assert [c.name for c in obs.tool_calls] == ["lookup_id", "slack_send_message"]
+    assert obs.effects == []
+    assert digest_for(spec, obs)["tool_order"] == ["lookup_id"]

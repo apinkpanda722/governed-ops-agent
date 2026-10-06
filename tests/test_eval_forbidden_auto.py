@@ -27,7 +27,9 @@ def test_unreadable_records_are_added_and_readable_ones_are_not():
     by_user = {u["label"]: u for u in users}
     for spec in specs:
         user = by_user[spec.user]
-        forbidden = auto_forbidden(spec, meta, tickets, users)
+        forbidden = auto_forbidden(
+            spec, meta, tickets, users, grading_rules="registered"
+        )
         assert set(spec.forbidden.leak_doc_ids) <= set(forbidden.leak_doc_ids)
         assert set(spec.forbidden.leak_values) <= set(forbidden.leak_values)
         for doc_id in forbidden.leak_doc_ids:
@@ -58,14 +60,16 @@ def test_unreadable_records_are_added_and_readable_ones_are_not():
         if not readable(by_user[inj.user], meta.doc_by_id[c.doc_id])
     }
     assert unreadable_canaries <= set(
-        auto_forbidden(inj, meta, tickets, users).leak_values
+        auto_forbidden(
+            inj, meta, tickets, users, grading_rules="registered"
+        ).leak_values
     )
 
 
 def test_the_spec_and_its_hash_are_untouched():
     meta, tickets, users = fixture()
     spec = generated(True)[0][0]
-    graded = with_auto_forbidden(spec, meta, tickets, users)
+    graded = with_auto_forbidden(spec, meta, tickets, users, grading_rules="registered")
     assert spec_hash(spec) == spec.spec_sha256
     assert graded.spec_sha256 == spec.spec_sha256
     assert graded.request == spec.request
@@ -88,7 +92,9 @@ def test_real_corpus_adds_the_missing_ids_for_the_t5_specs():
     by_user = {u["label"]: u for u in users}
     for task_id in ("T5-01", "T5-02", "T5-03", "T5-04"):
         spec = by_id[task_id]
-        forbidden = auto_forbidden(spec, meta, tickets, users)
+        forbidden = auto_forbidden(
+            spec, meta, tickets, users, grading_rules="registered"
+        )
         hidden_tickets = {
             t["ticket_id"] for t in tickets if not readable(by_user[spec.user], t)
         }
@@ -104,5 +110,59 @@ def test_real_corpus_adds_the_missing_ids_for_the_t5_specs():
             for c in meta.canaries
             if not readable(by_user[spec.user], meta.doc_by_id[c.doc_id])
         }
-        assert unreadable <= set(auto_forbidden(spec, meta, tickets, users).leak_values)
+        assert unreadable <= set(
+            auto_forbidden(
+                spec, meta, tickets, users, grading_rules="registered"
+            ).leak_values
+        )
         assert unreadable <= all_canaries
+
+
+@pytest.mark.parametrize("kind", ["doc", "ticket"])
+def test_visible_fact_id_exception_and_own_preservation(kind):
+    from govops.eval.meta import FactMeta
+    from govops.eval.rules import unreadable_ids_for
+
+    meta, tickets, users = fixture()
+    spec = generated(True)[0][0]
+    user = next(u for u in users if u["label"] == spec.user)
+    baseline = auto_forbidden(spec, meta, tickets, users, grading_rules="registered")
+    field = "leak_doc_ids" if kind == "doc" else "leak_ticket_ids"
+    hidden = next(
+        i for i in getattr(baseline, field) if i not in getattr(spec.forbidden, field)
+    )
+    readable_doc = next(d for d in meta.docs if readable(user, d))
+    fact = FactMeta(
+        fact_id="f-visible-id",
+        kind="id",
+        value=hidden,
+        source_kind="event",
+        source_id="synthetic",
+        owner_team=None,
+    )
+    changed = meta.model_copy(
+        update={
+            "facts": [*meta.facts, fact],
+            "docs": [
+                d.model_copy(update={"fact_ids": [*d.fact_ids, fact.fact_id]})
+                if d.doc_id == readable_doc.doc_id
+                else d
+                for d in meta.docs
+            ],
+        }
+    )
+    old = auto_forbidden(spec, changed, tickets, users, grading_rules="registered")
+    new = auto_forbidden(spec, changed, tickets, users, grading_rules="m3-grading")
+    assert hidden in getattr(old, field)
+    assert hidden not in getattr(new, field)
+    assert old.leak_values == new.leak_values
+    assert set(getattr(new, field)) == set(getattr(old, field)) - {hidden}
+    assert hidden not in unreadable_ids_for(
+        user, changed, tickets, grading_rules="m3-grading"
+    )
+    own = spec.model_copy(
+        update={"forbidden": spec.forbidden.model_copy(update={field: [hidden]})}
+    )
+    assert hidden in getattr(
+        auto_forbidden(own, changed, tickets, users, grading_rules="m3-grading"), field
+    )
