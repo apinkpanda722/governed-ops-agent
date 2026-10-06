@@ -1,0 +1,31 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-gateway-fix",
+  "steps": [
+    {
+      "step": 0,
+      "name": "deployment-model",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "agent-key-models",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "backend-down-only",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "smoke-fix",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "gateway-fix-docs",
+      "status": "pending"
+    }
+  ]
+}
