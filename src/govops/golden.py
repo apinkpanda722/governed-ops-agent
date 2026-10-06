@@ -22,9 +22,9 @@ from govops.api.sessions import SessionStore
 from govops.api.tasks import TaskService
 from govops.audit.log import MemoryAuditLog
 from govops.eval.observation import ApprovalRecord, Observation, ObservedEffect
-from govops.eval.run_grade import build_observation
+from govops.eval.run_grade import build_observation, grade_run
 from govops.eval.spec import TaskSpec
-from govops.eval.tcr import grade_tcr, normalize
+from govops.eval.tcr import normalize
 from govops.gateway.client import _MODEL
 from govops.guardrails.policy import load_team_policy
 from govops.replay.a_replay import ReplayToolExecutor
@@ -109,9 +109,15 @@ def digest(obs: Observation) -> dict:
     return digest_for(load_golden_specs()[obs.task_id], obs)
 
 
-def tcr_status(spec, obs: Observation) -> str:
+def tcr_status(spec, obs: Observation, *, meta, tickets, users) -> str:
     """pass/recorded_fail은 TCR 결과 하나로만 정한다(hypotheses.md 9항). dev 러너도 이 함수를 쓴다."""
-    return "pass" if grade_tcr(spec, obs).passed else "recorded_fail"
+    return (
+        "pass"
+        if grade_run(
+            spec=spec, obs=obs, meta=meta, tickets=tickets, users=users
+        ).tcr.passed
+        else "recorded_fail"
+    )
 
 
 def digest_for(spec, obs: Observation) -> dict:
@@ -151,7 +157,7 @@ def digest_for(spec, obs: Observation) -> dict:
     return result
 
 
-def record_status(spec, obs, a_summary, *, profile=None) -> dict:
+def record_status(spec, obs, a_summary, *, meta, tickets, users, profile=None) -> dict:
     """Freeze the initial TCR outcome; skipped A calls exclude the entire task."""
     if profile not in {None, "read_only", "writes"}:
         raise ValueError("invalid_profile")
@@ -166,7 +172,7 @@ def record_status(spec, obs, a_summary, *, profile=None) -> dict:
         }
     return {
         "profile": profile or "read_only",
-        "status": tcr_status(spec, obs),
+        "status": tcr_status(spec, obs, meta=meta, tickets=tickets, users=users),
         "golden_eligible": True,
         "observation_digest": digest_for(spec, obs),
         "reason_codes": [],

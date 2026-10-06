@@ -285,7 +285,10 @@ async def run_dev(
                 if infra:
                     reasons.append("infrastructure_failure")
                 observation_digest = digest_for(spec, obs)
-                recorded_fail = tcr_status(spec, obs) == "recorded_fail"
+                recorded_fail = (
+                    tcr_status(spec, obs, meta=meta, tickets=tickets, users=users)
+                    == "recorded_fail"
+                )
                 status = {
                     "eligible": eligible,
                     "golden_eligible": eligible,

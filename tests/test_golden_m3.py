@@ -9,6 +9,7 @@ import httpx
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import call, reply
+from test_regolden import grading_data
 
 from govops.agent.graph import WITH_WRITES, build_graph, run_task
 from govops.api.tasks import ApprovalError
@@ -372,7 +373,9 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
             set(effect) == {"kind", "target", "count"} for effect in left["effects"]
         )
         assert (
-            record_status(spec, observations[0], summary, profile="writes")["profile"]
+            record_status(
+                spec, observations[0], summary, profile="writes", **grading_data()
+            )["profile"]
             == "writes"
         )
         expected = golden_expectations([spec], require_all=False)[key]

@@ -144,9 +144,9 @@
     "golden_eligible": true,
     "excluded_reason": null,
     "reason_codes": [],
-    "recorded_fail": false,
+    "recorded_fail": true,
     "attempts": 1,
-    "status": "pass",
+    "status": "recorded_fail",
     "observation_digest": {
       "tool_order": [
         "lookup_id",

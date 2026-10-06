@@ -751,7 +751,12 @@ async def run_dev_m3(
                     if infra:
                         reasons.append("infrastructure_failure")
                     eligible = not reasons
-                    failed = golden.tcr_status(spec, obs) == "recorded_fail"
+                    failed = (
+                        golden.tcr_status(
+                            spec, obs, meta=meta, tickets=tickets, users=users
+                        )
+                        == "recorded_fail"
+                    )
                     status = {
                         "profile": "writes",
                         "eligible": eligible,
