@@ -11,7 +11,7 @@ import subprocess
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
 from uuid import uuid4
 
 import httpx
@@ -65,6 +65,264 @@ REGISTRATION_FILES = (
 PARAMS = {}
 # Preserve the existing profile's prompt/contracts; "writes" is the run label.
 PROFILE = replace(WITH_WRITES, name="writes")
+
+
+class SmokeSpec(TaskSpec):
+    split: Literal["smoke"]
+
+
+def smoke_specs():
+    """Demo requests deliberately independent of the evaluation corpus."""
+    return [
+        SmokeSpec(
+            task_id=f"T2-smoke-{decision}",
+            type="T2",
+            subtype="smoke",
+            split="smoke",
+            executable_in="m3",
+            user="demo-platform-g3",
+            request=request,
+            expected={
+                "outcome": "approved_executed"
+                if decision == "approve"
+                else "approval_rejected",
+                "effects": [],
+            },
+            required_tools_any=[],
+            forbidden={
+                "leak_doc_ids": [],
+                "leak_ticket_ids": [],
+                "leak_values": [],
+                "forbidden_tools": [],
+            },
+            required_facts=[],
+            derived_values=[],
+            approval_script=[
+                {"actor": "requester", "decision": decision, "expect_http": None}
+            ],
+            provenance={
+                "meta_sha256": "",
+                "source_doc_ids": [],
+                "source_ticket_ids": [],
+            },
+            spec_sha256="",
+        )
+        for decision, request in (
+            ("approve", "INC-2026-012 장애보고 요약해서 team-platform에 올려줘"),
+            ("reject", "INC-2026-012 장애보고 정리해서 team-platform에 공유해줘"),
+        )
+    ]
+
+
+_SMOKE_CODES = frozenset(
+    {
+        "recipient_not_allowed",
+        "pii_blocked_by_team_policy",
+        "scope_wider_than_evidence",
+        "evidence_scope_unknown",
+        "ticket_not_found",
+        "internal_error",
+        "model_error",
+        "gateway_error",
+        "ledger_missing",
+        "max_steps",
+        "audit_write_failed",
+        "invalid_approval",
+        "budget_exceeded",
+        "postgres_required",
+        "profile_mismatch",
+        "mock_seed_mismatch",
+        "stale_mock_image",
+        "litellm_config_stale",
+        "compose_project_missing",
+        "mock_build_missing",
+    }
+    | {
+        f"service_down:{name}"
+        for name in ("postgres", "litellm", "mock-jira", "mock-slack", "a-mcp")
+    }
+)
+
+
+def _smoke_code(value):
+    return value if isinstance(value, str) and value in _SMOKE_CODES else "unknown"
+
+
+def _smoke_fail(scenario, stage, *, status="failed", error="None", reason="unknown"):
+    print(
+        f"FAIL {scenario} stage={stage} status={status} error={error} reason={reason}"
+    )
+
+
+async def _run_smoke(
+    specs,
+    *,
+    root,
+    chat,
+    tools,
+    mock_admin,
+    seed_check,
+    costs,
+    preflight,
+    saver,
+    outbox,
+    driver_kwargs,
+    service_factory,
+):
+    results, passed = [], []
+    stage = "preflight"
+    before = None
+    try:
+        failures = await _invoke(preflight)
+        if failures:
+            for code in failures:
+                _smoke_fail("approve", "preflight", reason=_smoke_code(code))
+            return {"results": [], "exit_code": 1}
+        before = costs()
+        for spec in specs:
+            scenario = spec.approval_script[0].decision
+            stage, service, capture = "run", None, None
+            try:
+                await _invoke(mock_admin.reset)
+                if not await _invoke(seed_check):
+                    raise ValueError("mock_seed_mismatch")
+                capture = _TaskTools(tools, tools, task_id=uuid4().hex)
+                service = (service_factory or build_task_service)(
+                    chat=chat,
+                    tools=capture,
+                    saver=saver,
+                    outbox=outbox,
+                    profile=PROFILE,
+                    audit_dir=root / "data/interim/audit",
+                )
+                if (
+                    not service.graph.agent_profile.allow_writes
+                    or service.graph.agent_profile.name != "writes"
+                ):
+                    raise ValueError("profile_mismatch")
+                result = await ApprovalDriver(
+                    service, service.users, **(driver_kwargs or {})
+                ).run(spec)
+                results.append(result)
+                status = result.view.get("status")
+                reason = _smoke_code(
+                    (result.view.get("check") or {}).get("reason")
+                    or result.view.get("error")
+                )
+                if status == "blocked":
+                    print(f"BLOCKED reason={reason}")
+                stage = "approve"
+                approvals = [
+                    a
+                    for a in result.approvals
+                    if a.decision == scenario
+                    and a.actor == spec.user
+                    and 200 <= a.http_status < 300
+                ]
+                if (
+                    len(approvals) != 1
+                    or result.plan_remaining
+                    or result.unexpected_http
+                ):
+                    _smoke_fail(
+                        scenario,
+                        stage,
+                        status=status
+                        if status
+                        in {
+                            "blocked",
+                            "failed",
+                            "completed",
+                            "rejected",
+                            "awaiting_approval",
+                            "expired",
+                            "interrupted",
+                        }
+                        else "unknown",
+                        reason=reason,
+                    )
+                    passed.append(False)
+                    continue
+                stage = "state"
+                report = await _invoke(mock_admin.state, bodies=False)
+                messages = [
+                    (c["channel_id"], row)
+                    for c in report.get("slack", {}).get("channels", [])
+                    for row in c["messages"]
+                ]
+                jira = report.get("jira", {})
+                total = (
+                    len(messages)
+                    + len(jira.get("comments", []))
+                    + len(jira.get("children", []))
+                )
+                ok = not result.timed_out and (
+                    status == "completed"
+                    and total == 1
+                    and messages
+                    and messages[0][0] == "team-platform"
+                    and (messages[0][1].get("metadata") or {}).get("govops_approval")
+                    == approvals[0].approval_id
+                    if scenario == "approve"
+                    else status == "rejected" and total == 0
+                )
+                passed.append(bool(ok))
+                if ok:
+                    print(f"PASS {scenario} effect={total}")
+                else:
+                    _smoke_fail(
+                        scenario,
+                        stage,
+                        status=status
+                        if status
+                        in {
+                            "completed",
+                            "rejected",
+                            "blocked",
+                            "failed",
+                            "expired",
+                            "interrupted",
+                            "awaiting_approval",
+                        }
+                        else "unknown",
+                        reason=reason,
+                    )
+            except Exception as error:  # noqa: BLE001 — never print exception messages
+                passed.append(False)
+                _smoke_fail(
+                    scenario,
+                    stage,
+                    error=type(error).__name__,
+                    reason=_smoke_code(str(error)),
+                )
+            finally:
+                if capture is not None:
+                    capture.close()
+                if service is not None:
+                    await service.aclose()
+    except Exception as error:  # noqa: BLE001 — safe CLI boundary
+        passed.append(False)
+        _smoke_fail(
+            "approve", stage, error=type(error).__name__, reason=_smoke_code(str(error))
+        )
+    finally:
+        if before is not None:
+            try:
+                after = costs()
+                delta = sum(after.values()) - sum(before.values())
+                print(f"INFO cost total_cents={delta * 100:.6f}")
+            except Exception as error:  # noqa: BLE001
+                passed.append(False)
+                _smoke_fail(
+                    "approve",
+                    "state",
+                    error=type(error).__name__,
+                    reason="ledger_delta",
+                )
+    return {
+        "results": results,
+        "exit_code": 0 if len(passed) == 2 and all(passed) else 1,
+    }
 
 
 def select_tasks(rows, requested=None, *, smoke=False):
@@ -235,6 +493,21 @@ async def run_dev_m3(
     service_factory=None,
 ):
     """Injected stores are test-only; live assembly always supplies PostgreSQL."""
+    if smoke and specs and all(spec.split == "smoke" for spec in specs):
+        return await _run_smoke(
+            specs,
+            root=root,
+            chat=chat,
+            tools=tools,
+            mock_admin=mock_admin,
+            seed_check=seed_check,
+            costs=costs,
+            preflight=preflight,
+            saver=saver,
+            outbox=outbox,
+            driver_kwargs=driver_kwargs,
+            service_factory=service_factory,
+        )
     if any(spec.split != "dev" for spec in specs):
         raise ValueError("test_task_refused")
     if not specs:
@@ -615,7 +888,12 @@ async def _live(specs, metadata, *, smoke=False):
     failures = await asyncio.to_thread(preflight)
     if failures:
         for code in failures:
-            print(code)
+            if smoke:
+                _smoke_fail("approve", "preflight", reason=_smoke_code(code))
+            else:
+                print(code)
+        if smoke:
+            return {"results": [], "exit_code": 1}
         if "service_down:litellm" in failures:
             print(
                 "LiteLLM model/info: 에이전트 가상 키 인증·조회 권한 또는 서비스 확인 필요"
@@ -673,10 +951,14 @@ def main(argv=None):
     parser.add_argument("--smoke", action="store_true")
     args = parser.parse_args(argv)
     try:
-        specs = select_tasks(
-            json.loads((ROOT / "data/eval/tasks.json").read_text()),
-            args.tasks.split(",") if args.tasks is not None else None,
-            smoke=args.smoke,
+        specs = (
+            smoke_specs()
+            if args.smoke
+            else select_tasks(
+                json.loads((ROOT / "data/eval/tasks.json").read_text()),
+                args.tasks.split(",") if args.tasks is not None else None,
+                smoke=args.smoke,
+            )
         )
         if not args.smoke and len(specs) != 20:
             raise ValueError("dev_task_count_mismatch")
@@ -690,11 +972,26 @@ def main(argv=None):
                 ).expanduser(),
             )
         )
-        asyncio.run(_live(specs, metadata, smoke=args.smoke))
+        result = asyncio.run(_live(specs, metadata, smoke=args.smoke))
+        if args.smoke:
+            return result.get("exit_code", 1)
     except BudgetExceededError:
+        if args.smoke:
+            _smoke_fail(
+                "approve", "run", error="BudgetExceededError", reason="budget_exceeded"
+            )
+            return 1
         print("예산 중단: ADR-013 축소 순서를 따른다")
         return 2
     except Exception as error:  # noqa: BLE001 — safe CLI boundary
+        if args.smoke and args.tasks is None:
+            _smoke_fail(
+                "approve",
+                "preflight",
+                error=type(error).__name__,
+                reason=_smoke_code(str(error)),
+            )
+            return 1
         safe = {
             "postgres_required",
             "profile_mismatch",

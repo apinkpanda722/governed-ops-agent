@@ -123,6 +123,7 @@ async def exercise(
     preflight=(),
     service_factory=None,
     report_extra=False,
+    strip_marker=False,
     smoke=False,
     unmapped=False,
 ):
@@ -146,6 +147,10 @@ async def exercise(
                 "jira": js.report(bodies=bodies),
                 "slack": ss.report(bodies=bodies),
             }
+            if strip_marker:
+                for channel in report["slack"]["channels"]:
+                    for message in channel["messages"]:
+                        message["metadata"] = {}
             if report_extra:
                 report["jira"]["comments"] = [
                     {
@@ -159,6 +164,11 @@ async def exercise(
 
     class A:
         async def call_tool(self, user, name, arguments):
+            if smoke and selected and selected[0].split == "smoke":
+                return ToolResult(
+                    {"results": [{"doc_id": "syn-incident-001", "text": "합성 본문"}]},
+                    False,
+                )
             return ToolResult(
                 {"hits": [{"doc_id": "syn-fixture", "body": "합성 본문"}]}, False
             )
@@ -688,3 +698,152 @@ def test_runner_closes_each_capture_before_service_cleanup(tmp_path, monkeypatch
         assert attempts[0]["late_tool_calls"] == manifest["late_tool_calls"][task_id]
     stored = json.loads((Path(result["directory"]) / "manifest.json").read_text())
     assert stored["late_tool_calls"] == manifest["late_tool_calls"]
+
+
+def test_approval_smoke_requests_are_isolated():
+    import unicodedata
+
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    normalize = lambda text: "".join(
+        unicodedata.normalize("NFKC", text).casefold().split()
+    )
+    rows = json.loads((ROOT / "data/eval/tasks.json").read_text())
+    chosen = smoke_specs()
+    assert len(chosen) == 2
+    assert all(s.split == "smoke" for s in chosen)
+    assert not {normalize(s.request) for s in chosen} & {
+        normalize(r["request"]) for r in rows
+    }
+    assert select_tasks(chosen) == []
+
+
+def test_approval_smoke_real_graph(tmp_path, monkeypatch, capsys):
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    result, admin, _ = asyncio.run(
+        exercise(tmp_path, monkeypatch, selected=smoke_specs(), smoke=True)
+    )
+    assert result["exit_code"] == 0
+    assert admin.resets == 2
+    output = capsys.readouterr().out
+    assert "PASS approve effect=1" in output
+    assert "PASS reject effect=0" in output
+    assert output.splitlines()[-1] == "INFO cost total_cents=0.000000"
+    assert not any(
+        value in output
+        for value in ("Authorization", "합성 요약", "합성 본문", "http://")
+    )
+    assert not (tmp_path / "data/results").exists()
+    assert not (tmp_path / "data/replay").exists()
+    credentials = json.loads((tmp_path / "credentials.json").read_text())
+    assert all(
+        value not in output
+        for row in credentials["users"]
+        for value in row["tokens"].values()
+    )
+
+
+def test_approval_smoke_blocked(tmp_path, monkeypatch, capsys):
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    chosen = [
+        s.model_copy(
+            update={"request": s.request.replace("team-platform", "announce") + " 전사"}
+        )
+        for s in smoke_specs()
+    ]
+    result, _, _ = asyncio.run(
+        exercise(tmp_path, monkeypatch, selected=chosen, smoke=True)
+    )
+    assert result["exit_code"] == 1
+    assert "BLOCKED reason=scope_wider_than_evidence" in capsys.readouterr().out
+
+
+def test_approval_smoke_preflight_does_not_start(tmp_path, monkeypatch, capsys):
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    result, admin, chat = asyncio.run(
+        exercise(
+            tmp_path,
+            monkeypatch,
+            selected=smoke_specs(),
+            smoke=True,
+            preflight=["stale_mock_image"],
+        )
+    )
+    assert result["exit_code"] == 1
+    assert admin.resets == chat.calls == 0
+    assert "stage=preflight" in capsys.readouterr().out
+
+
+def test_smoke_extra_effect_fails(tmp_path, monkeypatch, capsys):
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    result, _, _ = asyncio.run(
+        exercise(
+            tmp_path, monkeypatch, selected=smoke_specs(), smoke=True, report_extra=True
+        )
+    )
+    assert result["exit_code"] == 1
+    assert "PASS " not in capsys.readouterr().out
+
+
+def test_smoke_cli_uses_only_synthetic_requests(monkeypatch, capsys):
+    from govops.evalrun import dev_m3
+
+    async def live(chosen, metadata, *, smoke):
+        assert smoke and metadata == {}
+        assert all(spec.split == "smoke" for spec in chosen)
+        return {"exit_code": 1}
+
+    monkeypatch.setattr(dev_m3, "_live", live)
+    assert dev_m3.main(["--smoke", "--tasks", "T1-01"]) == 1
+    assert capsys.readouterr().out == ""
+
+
+def test_smoke_cli_suppresses_exception_details(monkeypatch, capsys):
+    from govops.evalrun import dev_m3
+
+    async def live(*args, **kwargs):
+        raise RuntimeError("Authorization: Bearer secret-key http://private 合成本文")
+
+    monkeypatch.setattr(dev_m3, "_live", live)
+    assert dev_m3.main(["--smoke"]) == 1
+    assert (
+        capsys.readouterr().out
+        == "FAIL approve stage=preflight status=failed error=RuntimeError reason=unknown\n"
+    )
+
+
+def test_smoke_missing_approval_marker_fails(tmp_path, monkeypatch, capsys):
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    result, _, _ = asyncio.run(
+        exercise(
+            tmp_path, monkeypatch, selected=smoke_specs(), smoke=True, strip_marker=True
+        )
+    )
+    assert result["exit_code"] == 1
+    output = capsys.readouterr().out
+    assert "FAIL approve stage=state status=completed" in output
+    assert "PASS reject effect=0" in output
+
+
+def test_smoke_model_error_code_is_safe(tmp_path, monkeypatch, capsys):
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    result, _, _ = asyncio.run(
+        exercise(
+            tmp_path,
+            monkeypatch,
+            selected=smoke_specs(),
+            smoke=True,
+            errors=[RuntimeError("Authorization: Bearer synthetic-private-key")],
+        )
+    )
+    assert result["exit_code"] == 1
+    output = capsys.readouterr().out
+    assert "reason=model_error" in output
+    assert "Authorization" not in output
+    assert "synthetic-private-key" not in output

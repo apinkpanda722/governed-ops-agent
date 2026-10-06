@@ -150,6 +150,12 @@ scope-index:
 	uv run python -m govops.eval.scope_index --a-root "$(A_ROOT)"
 
 
+.PHONY: smoke-approval
+# live A·LiteLLM·compose mock·Postgres·`.env` 필요, 실제 호출 수 센트, 사용자 실행
+smoke-approval:
+	uv run --env-file .env python -m govops.evalrun.dev_m3 --smoke
+
+
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini smoke-fallback
 # 읽기 전용 A 저장소(A_ROOT) 필요, 사용자 실행
 eval-cards:

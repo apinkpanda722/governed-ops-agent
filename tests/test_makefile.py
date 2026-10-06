@@ -215,3 +215,13 @@ def test_effects_smoke_user_only():
         in text
     )
     assert "smoke-effects" not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_approval_smoke_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: smoke-approval" in text
+    assert (
+        "smoke-approval:\n\tuv run --env-file .env python -m govops.evalrun.dev_m3 --smoke"
+        in text
+    )
+    assert "smoke-approval" not in text.split("verify:\n")[1].split("\n\n")[0]
