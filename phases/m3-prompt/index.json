@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "org-info",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T19:22:05+0900",
+      "summary": "org_info.py에 8팀 대응표·티켓 열거형·결정론적 조직 정보 절과 테스트 5개 추가; 기존 프롬프트·프로필 유지, make verify 통과(2192 passed, 웹 15 passed).",
+      "completed_at": "2026-10-06T19:35:31+0900",
+      "usage": {
+        "input_tokens": 1603078,
+        "cached_input_tokens": 1534976,
+        "output_tokens": 4783,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -27,5 +36,6 @@
       "name": "prompt-docs",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-06T19:22:05+0900"
 }
