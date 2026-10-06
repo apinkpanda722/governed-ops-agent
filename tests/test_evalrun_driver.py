@@ -44,6 +44,12 @@ async def yield_only(_):
     await asyncio.sleep(0)
 
 
+async def real_tick(_):
+    # 드라이버의 폴링 대기용. 가상 대기(poll_interval)는 즉시 흐르지만 그래프는 스레드·I/O를 거치므로
+    # 실제 시간이 조금 흘러야 진행된다. yield 한 번(sleep(0))이면 느린 환경에서 가상 시간이 먼저 소진된다.
+    await asyncio.sleep(0.001)
+
+
 @async_test
 @pytest.mark.parametrize("decision", ["approve", "reject", "edit_approve"])
 async def test_real_effect_scripts(effect_setup, decision):  # noqa: F811
@@ -83,9 +89,9 @@ async def test_real_effect_scripts(effect_setup, decision):  # noqa: F811
         )
         service = TaskService(graph, users=users)
         try:
-            result = await ApprovalDriver(service, users, sleep=yield_only).run(
-                spec("demo-platform-g3", [step(actor, decision)])
-            )
+            result = await ApprovalDriver(
+                service, users, sleep=real_tick, poll_interval=0.001
+            ).run(spec("demo-platform-g3", [step(actor, decision)]))
             assert result.view["status"] == (
                 "rejected" if decision == "reject" else "completed"
             )
@@ -178,9 +184,9 @@ async def test_denials_remaining_and_blocked(tmp_path):
         )
         service = TaskService(graph, users=users)
         try:
-            result = await ApprovalDriver(service, users, sleep=yield_only).run(
-                spec("demo-requester-g3", plan)
-            )
+            result = await ApprovalDriver(
+                service, users, sleep=real_tick, poll_interval=0.001
+            ).run(spec("demo-requester-g3", plan))
             assert (
                 result.view["status"] == expected and result.plan_remaining == remaining
             )
@@ -209,9 +215,9 @@ async def test_timeout_and_no_approver():
         ).run(spec("demo-requester-g3", [step()]))
         assert result.timed_out and result.plan_remaining == 1
         with pytest.raises(ValueError, match="^no_approver$"):
-            await ApprovalDriver(service, users, sleep=yield_only).run(
-                spec("demo-requester-g3", [step("same_team_g4")])
-            )
+            await ApprovalDriver(
+                service, users, sleep=real_tick, poll_interval=0.001
+            ).run(spec("demo-requester-g3", [step("same_team_g4")]))
     finally:
         await service.aclose()
 
@@ -260,9 +266,9 @@ async def test_session_tokens_absent_from_result_checkpoint_and_logs(
     saver = InMemorySaver()
     service = TaskService(build_graph(FakeChat(reply("합성 답변")), FakeTools(), saver))
     try:
-        result = await ApprovalDriver(service, users, sleep=yield_only).run(
-            spec("demo-requester-g3", [step()])
-        )
+        result = await ApprovalDriver(
+            service, users, sleep=real_tick, poll_interval=0.001
+        ).run(spec("demo-requester-g3", [step()]))
         assert result.view["status"] == "completed" and result.plan_remaining == 1
         assert issued
         public = repr(result) + repr(saver.storage) + caplog.text
