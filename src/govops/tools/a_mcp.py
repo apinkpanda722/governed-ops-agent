@@ -10,6 +10,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from govops.broker import credentials
 from govops.tools.contract import ContractTool, ensure_contract, load_snapshot
+from govops.tools.rest import _retry_after
 
 
 @dataclass(frozen=True)
@@ -35,7 +36,69 @@ class AMcpError(Exception):
         super().__init__(message)
 
 
-def _failure(error: Exception) -> tuple[str, int | None, float | None]:
+@dataclass
+class _TransportFacts:
+    """Call-local facts only; never retain requests, responses or exceptions."""
+
+    kind: str | None = None
+    status: int | None = None
+    retry_after: float | None = None
+
+    def observe_error(self, error: httpx2.TransportError) -> None:
+        if isinstance(error, (httpx2.ConnectError, httpx2.ConnectTimeout)):
+            self.kind = "connect"
+        elif isinstance(error, (httpx2.ReadTimeout, httpx2.WriteTimeout)):
+            self.kind = "timeout"
+        else:
+            self.kind = "transport"
+
+
+class _ObservedStream(httpx2.AsyncByteStream):
+    def __init__(self, stream: httpx2.AsyncByteStream, facts: _TransportFacts):
+        self.stream = stream
+        self.facts = facts
+
+    async def __aiter__(self):
+        try:
+            async for chunk in self.stream:
+                yield chunk
+        except httpx2.TransportError as error:
+            self.facts.observe_error(error)
+            raise
+
+    async def aclose(self) -> None:
+        try:
+            await self.stream.aclose()
+        except httpx2.TransportError as error:
+            self.facts.observe_error(error)
+            raise
+
+
+class _ObservedTransport(httpx2.AsyncHTTPTransport):
+    def __init__(self, facts: _TransportFacts):
+        super().__init__(trust_env=False)
+        self.facts = facts
+
+    async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
+        try:
+            response = await super().handle_async_request(request)
+        except httpx2.TransportError as error:
+            self.facts.observe_error(error)
+            raise
+        response.stream = _ObservedStream(response.stream, self.facts)
+        return response
+
+
+def _failure(
+    error: Exception, facts: _TransportFacts | None = None
+) -> tuple[str, int | None, float | None]:
+    if facts is not None:
+        if facts.status == 401:
+            return ("http", 401, None)
+        if facts.kind is not None:
+            return (facts.kind, None, None)
+        if facts.status is not None:
+            return ("http", facts.status, facts.retry_after)
     if isinstance(error, BaseExceptionGroup):
         failures = [
             _failure(child)
@@ -49,8 +112,6 @@ def _failure(error: Exception) -> tuple[str, int | None, float | None]:
             if failure[0] != "protocol":
                 return failure
     if isinstance(error, httpx2.HTTPStatusError):
-        from govops.tools.rest import _retry_after
-
         return (
             "http",
             error.response.status_code,
@@ -98,10 +159,14 @@ class AMcpClient:
             )
 
         unauthorized = False
+        facts = _TransportFacts()
 
         async def observe_status(response: httpx2.Response) -> None:
             nonlocal unauthorized
             unauthorized = unauthorized or response.status_code == 401
+            if not 200 <= response.status_code < 300:
+                facts.status = response.status_code
+                facts.retry_after = _retry_after(response.headers.get("Retry-After"))
 
         reason = None
         failure = ("protocol", None, None)
@@ -110,10 +175,14 @@ class AMcpClient:
                 httpx2.AsyncClient(
                     timeout=self.timeout_s,
                     trust_env=False,
+                    transport=_ObservedTransport(facts),
                     event_hooks={"request": [authorize], "response": [observe_status]},
                 ) as http,
                 streamable_http_client(self.url, http_client=http) as streams,
-                ClientSession(*streams, read_timeout_seconds=self.timeout_s) as session,
+                # Let httpx own transport timeouts. An equal SDK timer can cancel
+                # the HTTP task before it raises ReadTimeout, losing the fact.
+                # ToolPolicy still enforces the independent hard call deadline.
+                ClientSession(*streams) as session,
             ):
                 await session.initialize()
                 if name is None:
@@ -132,7 +201,7 @@ class AMcpClient:
             raise
         except Exception as error:  # noqa: BLE001 — sanitize all SDK exception details
             reason = "401 인증 실패" if unauthorized else _reason(error)
-            failure = ("http", 401, None) if unauthorized else _failure(error)
+            failure = ("http", 401, None) if unauthorized else _failure(error, facts)
         # Raising outside except discards secret-bearing exception context.
         raise AMcpError(
             reason, kind=failure[0], status=failure[1], retry_after=failure[2]
