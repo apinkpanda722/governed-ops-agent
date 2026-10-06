@@ -41,13 +41,25 @@ def run_preflight(*, root, runner, http, env, mock_admin, a_check) -> list[str] 
 - (c) **서비스 응답**: `service_down:<이름>` — 이름은 `postgres`(`GOVOPS_DATABASE_URL`로 `SELECT 1`), `litellm`(`/health/liveliness` 또는 같은 의미의 가벼운 엔드포인트), `mock-jira`·`mock-slack`(`mock_admin.health()`), `a-mcp`(`tools.a_mcp.check_contract` 같은 계약 확인 호출, 사용자 1명으로).
 - 환경 변수 읽기는 `govops.env.env_or`를 쓴다(FP-030).
 
+### 2-b. 조립 함수 (`src/govops/api/wiring.py`에 추가) — 계층 경계를 지키는 주입 지점
+
+`evalrun`은 `audit`·`guardrails`를 import할 수 없으므로 `AuditLog`·팀 정책·`ScopeIndex`·사용자 목록의 조립은 `api/wiring.py`가 맡는다(`api`는 이들을 import할 수 있다). **`open_task_service`의 동작을 바꾸지 않고** 그 조립 부분을 아래 함수로 뽑아 `open_task_service`가 이 함수를 쓰게 한다.
+
+```python
+def build_task_service(*, chat, tools: ToolRuntime, saver, outbox: OutboxStore, profile: AgentProfile, audit_dir: Path | None = None, clock=None) -> TaskService
+```
+
+- `chat`·`tools`·`saver`·`outbox`·`profile`은 **호출자가 주입**한다. 함수는 환경 변수(`GOVOPS_AGENT_PROFILE`·`LITELLM_*` 등)를 읽지 않고 프로필 기본값을 두지 않는다(러너가 `WITH_WRITES`를 스스로 넘긴다). 함수가 내부에서 `EffectDeps(tools.jira, tools.slack, outbox)`, `AuditLog(audit_dir)`(기본 위치 `data/interim/audit/`), `ScopeIndex.load()`, `load_team_policy("data/policy/team_policy.json")`, `load_users()`로 조립하고 `ToolRuntime`의 `policy`(`tools.policy`, 읽기와 쓰기가 공유하는 `ToolPolicy`)를 `TaskService(policy=…)`에 넘긴다. `startup_cleanup()`은 호출하지 않는다(호출자 선택).
+- `open_task_service`는 이 함수를 호출하도록 리팩터링한다. **`tests/test_api_wiring.py`가 수정 없이 통과**해야 하고 시작 보호(`GOVOPS_MODEL_FAULT_MODE`)·프로필 이름 검증·`startup_cleanup` 호출 순서는 그대로다.
+- 테스트: 주입한 가짜 `chat`·`tools`·InMemory 저장소로 `TaskService`가 만들어지고, 프로필이 주입한 값 그대로이며(`WITH_WRITES`·`READ_ONLY` 각각), 환경 변수를 바꿔도 결과가 변하지 않는다. `tests/test_architecture.py`가 `evalrun`의 `audit`·`guardrails` import를 계속 막는다(약화 금지).
+
 ### 2. 러너 (`src/govops/evalrun/dev_m3.py`, `python -m govops.evalrun.dev_m3`)
 
 - **프로필 강제**: 러너는 `WITH_WRITES`를 **스스로** 만들어 쓴다. 그래프를 만든 뒤 프로필 이름이 `writes`(`WITH_WRITES`)가 아니면 `profile_mismatch`로 중단한다. 환경 변수(`GOVOPS_AGENT_PROFILE`) 기본값에 의존하지 않는다.
 - **저장소**: `GOVOPS_DATABASE_URL`이 없으면 `postgres_required`로 중단한다(live dev는 Postgres checkpointer·outbox 필수, 메모리 저장소는 테스트 전용). 테스트는 러너의 저장소를 주입해 메모리로 돌린다.
 - **가드**(`guard_live_m3`): 작업 트리 청결, `docs/results/hypotheses-m3.md`·`data/replay/golden/expectations.json`·`docs/results/m3-dev-supersedes.json` 세 파일이 추적·커밋되어 있고 **등록 커밋 이후 바뀌지 않음**(등록 커밋 = `git log -1 --format=%H -- docs/results/hypotheses-m3.md`, 검사는 `git diff <등록 커밋>..HEAD -- <세 파일>`이 비어 있음). 아니면 `hypotheses_m3_not_committed`. A git HEAD·계약 스냅샷 해시·인덱스 이름 기록(M2 `git_metadata`·`resolve_index_name` 재사용, 기준 `d2eec9c`가 아니면 경고만).
 - **대상**: `split == "dev"` 20개 전부(`executable_in` ∈ {`m2`, `m3`}), test 문항은 거부(`test_task_refused`). 일부만 지정하는 `--tasks`는 `--smoke`가 아니면 허용하지 않는다(dev 1회는 20개 전체다).
-- **task마다**: `preflight`는 시작 시 한 번. 그 다음 task마다 `mock_admin.reset()` + 시드 검사(M2 `mock_seed_check` 재사용), 요청자별 그래프·`TaskService`를 만들고(`ToolRuntime`·`EffectDeps`·`AuditLog()`·`ScopeIndex.load()`·`load_team_policy`·`load_users`) `ApprovalDriver`로 실행한다. 인프라 실패(M2 `infrastructure_failure` 기준)는 mock 초기화 후 **1회만** 재실행하고, 두 번째도 실패면 실패로 센다(모든 시도 기록 보존, 분모에서 task는 한 번). 예산 중단(`BudgetExceededError`)은 재실행 없이 전체 중단한다.
+- **task마다**: `preflight`는 시작 시 한 번. 그 다음 task마다 `mock_admin.reset()` + 시드 검사(M2 `mock_seed_check` 재사용), 요청자별 그래프·`TaskService`를 **`api.wiring.build_task_service`**(아래 2-b)로 만들고 `ApprovalDriver`로 실행한다. **러너는 `audit`·`guardrails`를 직접 import하지 않는다**(계층 경계: `evalrun`은 `audit`·`guardrails`·`broker`·`mocks`·LLM SDK import 금지). 인프라 실패(M2 `infrastructure_failure` 기준)는 mock 초기화 후 **1회만** 재실행하고, 두 번째도 실패면 실패로 센다(모든 시도 기록 보존, 분모에서 task는 한 번). 예산 중단(`BudgetExceededError`)은 재실행 없이 전체 중단한다.
 - **관측·채점**: `build_observation_m3` → `grade_run`(`forbidden_auto` 연결 포함) → **절대 규칙**: `count_effects`로 중복·누락·미승인·마커 없음 건수를 task별로 기록하고 중복 건수 합이 0이 아니거나 미승인 건수가 0이 아니면 manifest에 `absolute_rule_violations`로 표시한다. 중복 0만 보고 합격시키지 않고 누락·최종 상태·`tcr`을 함께 낸다.
 - **record-through는 골든 task만**(`golden.GOLDEN_TASKS`, 다음 step에서 14개로 확장되어도 이 상수를 읽는다): `RecordingChatClient`·`RecordingToolExecutor`로 LLM 응답과 A 응답을 기록한다. 프롬프트 해시에는 `WITH_WRITES`의 시스템 프롬프트·도구 정의가 들어간다(`replay.llm.prompt_hash`). 나머지 task는 기록하지 않는다. `data/replay/golden/status.json`에는 기록한 task의 `profile: "writes"`를 함께 쓴다(이 필드의 의미는 다음 step이 확정한다).
 - **산출**: `data/results/dev/<run_id>/`에 `manifest.json`·`grades.json`·`observations.jsonl`·`traces/`·`attempts/`(M2와 같은 구조). manifest에는 M2 항목 외에 `profile`("writes"), `hypotheses_m3_sha256`, `hypotheses_m3_registration_commit`, `models_seen`(**호출마다 `ChatResult.model`**), `unmapped_models`, `fallback_used`, `costs_by_purpose`, **`mixed_model_tasks`**(task별 `models_seen`이 둘 이상인 task의 목록과 수)와 **`mixed_model_tcr`**(그 task들의 TCR 통과 수/전체, 없으면 0/0; 장애 주입 결과와 따로 보고하는 값이다), `absolute_rule_violations`, 그리고 **`supersedes`**(`docs/results/m3-dev-supersedes.json`의 내용 그대로: 사유, 이전 run_id, 이전 결과 파일 sha256, 이전 커밋). 마지막에 M2 `explore.candidate`로 N 후보를 출력한다("잠정치이며 등록값이 아님"). 

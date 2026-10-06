@@ -47,16 +47,7 @@
     {
       "step": 3,
       "name": "dev-run-m3",
-      "status": "blocked",
-      "started_at": "2026-10-06T13:46:12+0900",
-      "blocked_reason": "Step 3의 직접 조립 요구(AuditLog·load_team_policy)가 AGENTS.md의 evalrun → audit·guardrails import 금지와 충돌합니다. 계층 경계를 지키려면 api/wiring.py에 주입 가능한 조립 함수를 추가해야 하므로 해당 변경 범위 확인을 요청했습니다. 응답 전에는 구현을 진행할 수 없으며, make verify는 실행하지 않았습니다.",
-      "blocked_at": "2026-10-06T13:51:10+0900",
-      "usage": {
-        "input_tokens": 488000,
-        "cached_input_tokens": 393728,
-        "output_tokens": 2750,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 4,
@@ -70,11 +61,16 @@
     },
     {
       "step": 6,
-      "name": "smoke-approval",
+      "name": "trace-isolation",
       "status": "pending"
     },
     {
       "step": 7,
+      "name": "smoke-approval",
+      "status": "pending"
+    },
+    {
+      "step": 8,
       "name": "runner-docs",
       "status": "pending"
     }

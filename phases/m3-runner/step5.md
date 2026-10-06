@@ -32,13 +32,14 @@
 10. **모델이 섞인 task 수와 그 TCR**을 dev manifest의 task별 `models_seen`으로 보고한다(장애 주입 결과와 따로). `unmapped_models`가 하나라도 있으면 결과 문서에 표시한다.
 11. **평가 경로 한계**: in-process ASGI로 실제 API 코드를 거치지만 실제 서버 프로세스·세션 TTL은 거치지 않는다. 시작 시 정리는 수백 건 규모를 전제한다. 정책 파일 해시 감사는 M4.
 12. **재실행 규칙**은 `hypotheses.md` §10을 따른다(인프라 실패 1회 재실행, 예산 중단은 재실행 없음, 선택적 재실행 금지).
-13. 장애 주입(F1~F11)의 사전 등록은 이 파일에 없다(`hypotheses-m3-faults.md`에서 별도로 등록한다). 목표 수치(TCR·정확도·지연)는 dev 실행 뒤 test 전에 별도 등록한다.
+13. **탐색 예산 N 등록 보류 규칙**: dev 실행 manifest에 `tool_trace_mismatch`(캡처한 도구 호출 수와 checkpoint의 도구 호출 수가 다른 task)가 하나라도 있으면 해당 task는 N 계산 입력에서 뺀다. 하나라도 있으면 결과 문서 첫머리에 그 사실을 적고, 원인을 확인하기 전에는 N을 등록하지 않는다(러너가 `n_registration_blocked`를 표시하고 N 후보를 출력하지 않는다). 캡처 기록은 task ID별로 분리되어 앞 task의 늦은 호출이 다음 task에 섞이지 않는다.
+14. 장애 주입(F1~F11)의 사전 등록은 이 파일에 없다(`hypotheses-m3-faults.md`에서 별도로 등록한다). 목표 수치(TCR·정확도·지연)는 dev 실행 뒤 test 전에 별도 등록한다.
 
 ### 테스트
 
 - `expectations.json`이 `golden_expectations`의 재계산 결과와 정확히 같다(14개, 기존 7개 값 불변). 파일이 키 정렬·끝 개행 형식이다.
 - `m3-dev-supersedes.json`의 sha256이 현재 이전 결과 파일과 일치하고 이전 run_id 디렉토리가 존재한다.
-- `hypotheses-m3.md`가 필수 항목(위 1~13의 핵심 문구)을 모두 포함한다(문구 일치 테스트 대신 항목별 키워드 확인).
+- `hypotheses-m3.md`가 필수 항목(위 1~14의 핵심 문구)을 모두 포함한다(문구 일치 테스트 대신 항목별 키워드 확인).
 - 이 세 파일을 `guard_live_m3`가 읽는 경로 상수와 일치하게 둔다(경로 상수 테스트).
 - 14개 골든 기록 파일(`data/replay/llm/`·`a_run/`)은 만들지 않는다.
 
