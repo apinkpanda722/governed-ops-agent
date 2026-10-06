@@ -1,0 +1,31 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-prompt",
+  "steps": [
+    {
+      "step": 0,
+      "name": "org-info",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "profile-org",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "dev-run-org",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "prereg-prompt",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "prompt-docs",
+      "status": "pending"
+    }
+  ]
+}
