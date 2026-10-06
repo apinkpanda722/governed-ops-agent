@@ -6,10 +6,27 @@
 - 계층 규칙: `evalrun/`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 import하지 않고 다른 계층은 `evalrun`을 import하지 않는다(`AGENTS.md` 계층 경계 표). 확인한 사실의 근거 파일: `src/govops/eval/run_grade.py`(`build_observation`은 상태가 `completed`·`failed`가 아니면 거부하고 `effect_bodies=[]`), `src/govops/eval/observation.py`(`Observation`·`ApprovalRecord`·`ObservedEffect`), `src/govops/mocks/jira.py`·`slack.py`(`report(bodies=)`), `src/govops/tools/markers.py`, `src/govops/api/tasks.py`(`_view`), `src/govops/api/app.py`(`ApprovalRequest`), `data/eval/tasks.json`(`approval_script`), `data/seed/users.json`.
 - `/src/govops/evalrun/dev.py`(M2 러너 전체 구조: `guard_live`·`_live`·`run_dev`·`git_metadata`·`_Capture`·`infrastructure_failure`; **수정 금지**), `/src/govops/evalrun/explore.py`(`candidate`), `/src/govops/api/wiring.py`(운영 조립 방식: 러너는 주입이 안 되어 자체 조립), `/src/govops/golden.py`, `/src/govops/replay/llm.py`(`RecordingChatClient`·`prompt_hash`), `/src/govops/replay/a_through.py`(`RecordingToolExecutor`), `/src/govops/gateway/client.py`(`LiteLLMChatClient`, `ChatResult`의 `model`·`deployment_id`·`unmapped_model`·`fallback_used`), `/src/govops/costs.py`(`CostLedger`, `cost_report`), `/src/govops/agent/graph.py`(`WITH_WRITES`·`READ_ONLY`), `/src/govops/eval/duplicates.py`(`count_effects`), `/src/govops/eval/run_grade.py`(`grade_run`), `/Makefile`(`eval-run-dev`), `/tests/test_evalrun_dev.py`, `/docs/results/2026-10-05-m2-dev-live.md`(M2 결과 문서 형식), 이전 step 산출물 `/src/govops/evalrun/observe.py`·`mock_admin.py`·`driver.py`
 - 이전 dev 7개 결과: `/data/results/dev/8c18df863b2949f58d9c3550fec3b8cf/`(보존, 수정 금지)
+- 관측 입력 근거: `/src/govops/evalrun/dev.py`의 `_Capture`(도구 호출 기록 `results`: `name`·`ok`·`result`=`_structure(payload)`)와 `run_dev`의 `tool_calls=[{"name", "ok"}…]`·`tool_results=captured_tools.results` 구성, `/src/govops/evalrun/explore.py`(`longest_streak`·`candidate`가 `row["tool_results"]`를 읽는다), `/src/govops/eval/tcr.py`(`forbidden_tool_called`는 `obs.tool_calls`로 판정)
 
 ## 작업
 
 dev 20개를 **`WITH_WRITES` 단일 프로필로 처음부터** 한 번씩 live 실행하는 새 러너와 `preflight`를 만든다. M2 러너(`evalrun/dev.py`)와 그 테스트는 바꾸지 않는다. TDD로 테스트를 먼저 쓴다.
+
+### 0. 관측 입력(`tool_calls`·`tool_results`) 보강 — 빠뜨리면 N과 금지 도구 판정이 조용히 통과한다
+
+이전 step의 `build_observation_m3`는 `tool_results`를 채우지 않고(기본값 `[]`) `tool_calls`의 출처도 정해져 있지 않다. `tool_results`는 탐색 예산 N 계산의 입력이고(`explore.candidate`), 비어 있으면 모든 task의 연속 무정보 호출이 0이 되어 **N이 조용히 1로 등록된다**. `tool_calls`는 TCR의 `forbidden_tool_called` 판정 입력이다. 아래처럼 고친다(테스트 먼저).
+
+1. **공용 추출 함수**: `src/govops/evalrun/tool_trace.py`에 `extract_tool_trace(captured: Sequence[Mapping]) -> tuple[list[dict], list[dict]]`를 만든다. 입력은 M2 러너 `_Capture.results`와 같은 기록(`{"name", "ok", "result": <구조 ID만 남긴 값>}`)이고, 출력은 `tool_calls=[{"name", "ok"}…]`와 `tool_results`(M2의 `captured_tools.results`와 같은 내용: 구조 ID(`doc_id`·`key`·`ticket_id`)만 남기고 본문·토큰은 없음)다. 구조 ID만 남기는 `_structure` 변환도 이 모듈로 옮겨 **M2 러너(`evalrun/dev.py`)와 새 러너가 같은 함수를 쓴다**. M2 러너는 이 공용 함수를 import해서 쓰도록만 바꾸고 **동작·출력·기존 테스트는 그대로**여야 한다(`tests/test_evalrun_dev.py` 수정 없이 통과).
+2. **수집 방식**: 새 러너는 M2와 같이 그래프에 넘기는 도구 실행기를 캡처 래퍼(`_Capture` 또는 같은 역할의 공용 래퍼)로 감싸 호출 기록을 모은다(task가 끝난 뒤 `extract_tool_trace`로 변환). 이 기록은 in-process `TaskService`가 실행한 그래프의 실제 도구 호출이다. **교차 확인**: task가 끝난 뒤 `TaskService`의 checkpoint 상태(`get_task`)의 `messages`에서 센 도구 호출 수와 캡처 기록 수가 다르면 manifest에 `tool_trace_mismatch`로 task별 표시한다(본문 비교 없이 개수만).
+3. **`build_observation_m3`의 `tool_calls`·`tool_results`를 필수 인자로 바꾼다**(기본값 없음, 빈 목록을 넘기는 것은 호출자의 명시적 선택). 기본값에 의존하던 호출·테스트는 모두 명시적으로 넘기도록 고친다.
+4. 러너는 관측을 만들 때 항상 위 추출 결과를 넘긴다. 읽기 전용 task도 `tool_results`가 채워진다.
+
+테스트(먼저 쓴다):
+- 도구를 호출한 task의 관측에서 `tool_calls`·`tool_results`가 비어 있지 않다(구조 ID가 있는 결과와 없는 결과 모두).
+- **가짜 환경 dev 실행 결과로 `explore.candidate`의 N 후보가 실제 호출 기록에서 계산된다**: 가짜 chat이 새 정보 없는 도구 호출을 이어서 내는 task를 포함해 연속 무정보 호출 최댓값이 0보다 큰 task가 있어야 하고, **모든 task가 0이면 테스트가 실패한다**(빈 입력이 조용히 통과하는 것을 막는다).
+- 금지 도구를 호출한 가짜 task는 `forbidden_tool_called`로 TCR이 실패한다.
+- `extract_tool_trace`: 본문·토큰이 결과에 없고 구조 ID만 남는다. M2와 같은 입력에 같은 출력(회귀).
+- 캡처 기록 수와 checkpoint 도구 호출 수가 다르면 `tool_trace_mismatch`가 표시된다.
 
 ### 1. preflight (`src/govops/evalrun/preflight.py`)
 
@@ -69,6 +86,8 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - 환경 변수 기본값으로 `WITH_WRITES`를 선택하게 하지 마라. 이유: 프로필이 기본값으로 바뀌어도 러너가 단일 프로필을 스스로 강제해야 한다.
 - 환경 변수를 `os.environ.get(이름, 비어 있지 않은 기본값)`으로 읽지 마라(FP-030). 이유: 빈 값이 기본값을 덮는다(`env_or`).
 - preflight를 건너뛰는 옵션을 만들지 마라. 이유: 낡은 mock 이미지·LiteLLM 설정으로 실행하면 결과가 가짜가 된다(옛 환경 실행). 실패 이유 코드만 출력하고 시작하지 않는다.
+- 관측 필드(`tool_calls`·`tool_results` 등)를 기본값 빈 목록으로 두거나 비어 있는 채로 관측을 만들지 마라(FP-030·FP-021 계열). 이유: 빈 입력이 탐색 예산 N(연속 무정보 호출이 0이 되어 N이 1로 등록됨)과 금지 도구 판정(`forbidden_tool_called`)을 조용히 통과시킨다. 가짜로 통과하는 입력은 "모든 task가 0이면 실패"하는 테스트로 막는다.
+- M2 러너의 `_Capture`·`_structure`를 복사해 새로 만들지 마라. 이유: 추출 함수가 두 갈래가 되면 M2와 m3가 다른 N을 계산한다. 공용 함수로 옮기고 M2는 그것을 쓴다(M2 동작·테스트 불변).
 - 중복 건수 0만으로 합격시키지 마라(FP-040). 누락·최종 상태·미승인 건수를 함께 낸다.
 - 러너·에이전트 실행 경로가 `data/eval/`의 정답지를 읽게 하지 마라(FP-042). 채점은 `eval/`(`grade_run`)에서만 한다.
 - 기대값·가설 파일이 등록 커밋 이후 바뀐 상태로 실행하지 마라(FP-043).
