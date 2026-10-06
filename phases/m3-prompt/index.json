@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "dev-run-org",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T19:53:50+0900",
+      "summary": "dev 러너를 writes_org·m3-grading으로 전환하고 두 등록 묶음 가드·manifest 필드·supersedes 사슬 및 테스트 추가; 기존 기록 보존, make verify 통과(Python 2208 passed, 웹 15 passed).",
+      "completed_at": "2026-10-06T20:09:07+0900",
+      "usage": {
+        "input_tokens": 2171474,
+        "cached_input_tokens": 2079616,
+        "output_tokens": 6278,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
