@@ -128,9 +128,9 @@ obs-down:
 
 
 .PHONY: eval-run-dev
-# live A·LiteLLM·make agent-key·hypotheses.md 커밋 필요, 사용자 실행
+# live A·LiteLLM·mock·Postgres·hypotheses-m3.md 커밋 필요, dev 20 WITH_WRITES, 사용자 실행
 eval-run-dev:
-	uv run --env-file .env python -m govops.evalrun.dev
+	uv run --env-file .env python -m govops.evalrun.dev_m3
 
 .PHONY: test-outbox-pg
 # compose Postgres 기동·make db-init 후 사용자 실행, 테스트 전용 DB URL 필요

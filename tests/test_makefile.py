@@ -200,7 +200,7 @@ def test_eval_run_dev_user_only():
     text = (REPO_ROOT / "Makefile").read_text()
     assert ".PHONY: eval-run-dev" in text
     assert (
-        "# live A·LiteLLM·make agent-key·hypotheses.md 커밋 필요, 사용자 실행\neval-run-dev:\n\tuv run --env-file .env python -m govops.evalrun.dev"
+        "# live A·LiteLLM·mock·Postgres·hypotheses-m3.md 커밋 필요, dev 20 WITH_WRITES, 사용자 실행\neval-run-dev:\n\tuv run --env-file .env python -m govops.evalrun.dev_m3"
         in text
     )
     assert "eval-run-dev" not in text.split("verify:\n")[1].split("\n\n")[0]

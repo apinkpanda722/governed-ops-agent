@@ -65,6 +65,13 @@ def observe(s=None, **updates):
                 "mock_state": reports(),
                 "approvals": [],
                 "tool_calls": [{"name": "lookup_id", "ok": True}],
+                "tool_results": [
+                    {
+                        "name": "lookup_id",
+                        "ok": True,
+                        "result": {"doc_id": "syn-incident-014"},
+                    }
+                ],
                 "plan_remaining": 0,
                 "trace_id": "trace",
             }
@@ -209,3 +216,20 @@ def test_credentials_rejected(key, location):
     )
     with pytest.raises(ValueError, match="credential"):
         observe(**{location: value})
+
+
+def test_tool_results_required_and_populated():
+    row = observe()
+    assert row.tool_calls and row.tool_results
+    assert row.tool_results[0]["result"]["doc_id"] == "syn-incident-014"
+
+
+def test_trace_inputs_have_no_implicit_defaults():
+    import inspect
+
+    signature = inspect.signature(build_observation_m3)
+    for field in ("tool_calls", "tool_results"):
+        assert signature.parameters[field].default is inspect.Parameter.empty
+    assert observe(
+        tool_results=[{"name": "lookup_id", "ok": True, "result": {}}]
+    ).tool_results

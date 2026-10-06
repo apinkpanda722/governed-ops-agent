@@ -25,6 +25,7 @@ from govops.eval.meta import load_meta
 from govops.eval.run_grade import build_observation, grade_run
 from govops.eval.spec import TaskSpec
 from govops.evalrun.explore import NOTICE, candidate
+from govops.evalrun.tool_trace import structure as _structure
 from govops.gateway.client import _MODEL, GatewayError, LiteLLMChatClient
 from govops.golden import digest_for, tcr_status
 from govops.obs.jsonl import JsonlSink
@@ -129,21 +130,6 @@ class _Capture:
             }
         )
         return result
-
-
-def _structure(value):
-    if isinstance(value, dict):
-        return {
-            key: child
-            if key in {"doc_id", "key", "ticket_id"} and isinstance(child, str)
-            else _structure(child)
-            for key, child in value.items()
-            if (key in {"doc_id", "key", "ticket_id"} and isinstance(child, str))
-            or isinstance(child, (dict, list))
-        }
-    if isinstance(value, list):
-        return [_structure(child) for child in value if isinstance(child, (dict, list))]
-    return {}
 
 
 async def run_dev(

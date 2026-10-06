@@ -51,6 +51,7 @@ def build_observation_m3(
     mock_state: Mapping[str, Mapping],
     approvals: Sequence[ApprovalRecord],
     tool_calls: Sequence[Mapping],
+    tool_results: Sequence[Mapping],
     plan_remaining: int,
     trace_id: str | None,
 ) -> Observation:
@@ -113,6 +114,7 @@ def build_observation_m3(
         observed_ids=list(view.get("observed_doc_ids", [])),
         cited_doc_ids=list(view.get("cited_doc_ids", [])),
         tool_calls=[dict(call) for call in tool_calls],
+        tool_results=[dict(row) for row in tool_results],
         effects=effects,
         effect_bodies=bodies,
         approvals=list(approvals),

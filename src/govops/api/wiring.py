@@ -2,11 +2,18 @@
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 
 from govops.agent.checkpointer import open_checkpointer
-from govops.agent.graph import READ_ONLY, WITH_WRITES, EffectDeps, build_graph
+from govops.agent.graph import (
+    READ_ONLY,
+    WITH_WRITES,
+    AgentProfile,
+    EffectDeps,
+    build_graph,
+)
 from govops.agent.scope import ScopeIndex
 from govops.agent.users import load_users
 from govops.api.startup import StartupError, verify_contract
@@ -22,10 +29,46 @@ from govops.obs.mask import register_secret_values
 from govops.obs.trace import configure
 from govops.tools.a_mcp import AMcpClient
 from govops.tools.jira import JiraClient
-from govops.tools.outbox import InMemoryOutboxStore, PostgresOutboxStore
+from govops.tools.outbox import InMemoryOutboxStore, OutboxStore, PostgresOutboxStore
 from govops.tools.registry import ToolRuntime
 from govops.tools.resilience import ToolPolicy
 from govops.tools.slack import SlackClient
+
+
+def build_task_service(
+    *,
+    chat,
+    tools: ToolRuntime,
+    saver,
+    outbox: OutboxStore,
+    profile: AgentProfile,
+    audit_dir: Path | None = None,
+    clock=None,
+) -> TaskService:
+    """Assemble explicitly injected dependencies without consulting model/profile settings."""
+    effects = EffectDeps(tools.jira, tools.slack, outbox)
+    audit = AuditLog(audit_dir if audit_dir is not None else Path("data/interim/audit"))
+    users = load_users()
+    graph = build_graph(
+        chat,
+        tools,
+        saver,
+        profile=profile,
+        effects=effects,
+        audit=audit,
+        scope=ScopeIndex.load(),
+        policy=load_team_policy("data/policy/team_policy.json"),
+        users=users,
+        **({"clock": clock} if clock is not None else {}),
+    )
+    return TaskService(
+        graph,
+        users=users,
+        effects=effects,
+        audit=audit,
+        policy=tools.policy,
+        clock=clock,
+    )
 
 
 @asynccontextmanager
@@ -75,26 +118,13 @@ async def open_task_service():
                 if os.getenv("GOVOPS_DATABASE_URL")
                 else InMemoryOutboxStore()
             )
-            effects = EffectDeps(tools.jira, tools.slack, outbox)
-            audit = AuditLog()
-            users = load_users()
-            graph = build_graph(
-                LiteLLMChatClient(),
-                tools,
-                saver,
+            service = build_task_service(
+                chat=LiteLLMChatClient(),
+                tools=tools,
+                saver=saver,
+                outbox=outbox,
                 profile=WITH_WRITES if name == "writes" else READ_ONLY,
-                effects=effects,
-                audit=audit,
-                scope=ScopeIndex.load(),
-                policy=load_team_policy("data/policy/team_policy.json"),
-                users=users,
-            )
-            service = TaskService(
-                graph,
-                users=users,
-                effects=effects,
-                audit=audit,
-                policy=policy,
+                audit_dir=Path(env_or("AUDIT_DIR", "data/interim/audit")),
             )
             await service.startup_cleanup()
             try:
