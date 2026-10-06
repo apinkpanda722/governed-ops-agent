@@ -575,3 +575,56 @@ async def test_invalid_write_proposals_return_model_error_without_effect(
         for m in chat.calls[1]["messages"]
         if m["role"] == "tool"
     )
+
+
+def test_profile_registry_and_recorded_hashes():
+    from pathlib import Path
+
+    from govops.agent.graph import (
+        PROFILES,
+        READ_ONLY,
+        WITH_WRITES,
+        WITH_WRITES_ORG,
+        profile_for,
+    )
+    from govops.agent.org_info import org_section
+    from govops.replay.llm import prompt_hash
+
+    def digest(profile):
+        return prompt_hash(
+            system_prompt=profile.system_prompt,
+            tools=profile.tools,
+            model="gpt-6-luna",
+            params={},
+        )
+
+    # data/results/dev/8c18df863b2949f58d9c3550fec3b8cf/manifest.json
+    assert (
+        digest(READ_ONLY)
+        == "e80d8393fde29e9a19affbfab533f9c049f40995508fa46086b411c91ed84a90"
+    )
+    files = list(
+        (Path(__file__).resolve().parents[1] / "data/replay/llm").glob("*.jsonl")
+    )
+    assert len(files) == 14
+    for path in files:
+        header = json.loads(path.read_text().splitlines()[0])
+        assert header["model"] == "gpt-6-luna"
+        assert header["params"] == {}
+        assert header["prompt_hash"] == digest(PROFILES["writes"])
+    assert set(PROFILES) == {"read_only", "writes", "writes_org"}
+    for label, profile in PROFILES.items():
+        assert profile_for(label) is profile
+        assert profile.name == label
+        assert profile.allow_writes == (label != "read_only")
+    with pytest.raises(TypeError):
+        PROFILES["new"] = READ_ONLY
+    with pytest.raises(ValueError, match="^invalid_profile$"):
+        profile_for("unknown")
+    assert WITH_WRITES_ORG.system_prompt.startswith(WITH_WRITES.system_prompt)
+    assert WITH_WRITES_ORG.system_prompt.endswith(org_section())
+    assert WITH_WRITES_ORG.tools == WITH_WRITES.tools
+    assert digest(PROFILES["writes_org"]) not in {
+        digest(READ_ONLY),
+        digest(PROFILES["writes"]),
+    }

@@ -130,7 +130,7 @@ def test_server_lifespan_assembles_and_closes(monkeypatch):
     assert events == ["open", ("demo-platform-g3", "조회"), "close"]
 
 
-@pytest.mark.parametrize("profile", ["read_only", "writes"])
+@pytest.mark.parametrize("profile", ["read_only", "writes", "writes_org", "invalid"])
 def test_wiring_approval_dependencies(
     serve_asgi, a_tokens, monkeypatch, tmp_path, profile
 ):
@@ -153,10 +153,15 @@ def test_wiring_approval_dependencies(
             assert isinstance(service.effects.outbox, InMemoryOutboxStore)
             assert service.audit.directory == tmp_path
             assert len(service.users) == 38
-            assert service.graph.agent_profile.allow_writes == (profile == "writes")
+            assert service.graph.agent_profile.name == profile
+            assert service.graph.agent_profile.allow_writes == (profile != "read_only")
             assert service.policy is not None
 
-    asyncio.run(run())
+    if profile == "invalid":
+        with pytest.raises(StartupError, match="GOVOPS_AGENT_PROFILE"):
+            asyncio.run(run())
+    else:
+        asyncio.run(run())
 
 
 @pytest.mark.parametrize("mode", ["mock" + "_param", "down_alias", "invalid"])
