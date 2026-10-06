@@ -42,7 +42,7 @@ from govops.evalrun.explore import candidate
 from govops.evalrun.mock_admin import MockAdmin, subprocess_runner
 from govops.evalrun.observe import build_observation_m3
 from govops.evalrun.preflight import run_preflight
-from govops.evalrun.tool_trace import extract_tool_trace, structure
+from govops.evalrun.tool_trace import extract_tool_trace, observation_calls, structure
 from govops.gateway.client import _MODEL, LiteLLMChatClient
 from govops.obs.jsonl import JsonlSink
 from govops.obs.mask import register_secret_values, scrub_secrets
@@ -54,7 +54,7 @@ from govops.tools.a_mcp import AMcpClient, check_contract
 from govops.tools.contract import snapshot_sha256
 from govops.tools.jira import JiraClient
 from govops.tools.outbox import PostgresOutboxStore
-from govops.tools.registry import ToolRuntime
+from govops.tools.registry import _WRITES, ToolRuntime
 from govops.tools.slack import SlackClient
 
 REGISTRATION_FILES = (
@@ -398,11 +398,14 @@ def git_metadata_m3(root, a_root):
 
 def trace_mismatch(state, captured):
     count = sum(
-        len(message.get("tool_calls") or [])
+        sum(
+            call.get("function", call)["name"] not in _WRITES
+            for call in message.get("tool_calls") or []
+        )
         for message in state.get("messages", [])
         if message.get("role") == "assistant"
     )
-    return count != len(captured)
+    return count != sum(row.get("name") not in _WRITES for row in captured)
 
 
 class _EffectCapture:
@@ -692,6 +695,7 @@ async def run_dev_m3(
                     smoke_results.append(result)
                     break
                 calls, tool_results = extract_tool_trace(captured_tools.results)
+                calls = observation_calls(state or {}, calls)
                 reports = await _invoke(mock_admin.state, bodies=True)
                 obs = build_observation_m3(
                     spec=spec,
