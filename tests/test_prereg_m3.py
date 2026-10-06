@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from govops.evalrun.dev_m3 import REGISTRATION_FILES
+from govops.evalrun.dev_m3 import FIRST_REGISTRATION_FILES
 from govops.evalrun.observe import STATUS_MAP
 from govops.golden import GOLDEN_TASKS, golden_expectations, load_golden_specs
 
@@ -17,16 +17,16 @@ RUN_ID = "8c18df863b2949f58d9c3550fec3b8cf"
 
 
 def test_registration_paths():
-    assert REGISTRATION_FILES == (
+    assert FIRST_REGISTRATION_FILES == (
         "docs/results/hypotheses-m3.md",
         "data/replay/golden/expectations.json",
         "docs/results/m3-dev-supersedes.json",
     )
-    assert all((ROOT / path).is_file() for path in REGISTRATION_FILES)
+    assert all((ROOT / path).is_file() for path in FIRST_REGISTRATION_FILES)
 
 
 def test_frozen_expectations():
-    path = ROOT / REGISTRATION_FILES[1]
+    path = ROOT / FIRST_REGISTRATION_FILES[1]
     text = path.read_text()
     expected = golden_expectations(load_golden_specs().values())
     assert len(expected) == 14
@@ -53,7 +53,7 @@ def test_frozen_expectations():
 
 
 def test_superseded_run_evidence():
-    row = json.loads((ROOT / REGISTRATION_FILES[2]).read_text())
+    row = json.loads((ROOT / FIRST_REGISTRATION_FILES[2]).read_text())
     assert row["previous_run_id"] == RUN_ID
     directory = ROOT / "data/results/dev" / RUN_ID
     assert directory.is_dir()
@@ -175,7 +175,7 @@ def test_superseded_run_evidence():
     ],
 )
 def test_registration_topics(number, keywords):
-    text = (ROOT / REGISTRATION_FILES[0]).read_text()
+    text = (ROOT / FIRST_REGISTRATION_FILES[0]).read_text()
     sections = dict(
         re.findall(
             r"^## (\d+)\.[^\n]*\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL
