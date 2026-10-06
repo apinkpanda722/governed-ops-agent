@@ -156,8 +156,8 @@ class _EffectCapture:
         "create_followup": "jira_create_followup_ticket",
     }
 
-    def __init__(self, inner, results):
-        self.inner, self.results = inner, results
+    def __init__(self, inner, capture):
+        self.inner, self.capture = inner, capture
 
     def __getattr__(self, method):
         function = getattr(self.inner, method)
@@ -171,7 +171,7 @@ class _EffectCapture:
                 row.update(ok=True, result=structure(result))
                 return result
             finally:
-                self.results.append(row)
+                self.capture.record(row)
 
         return send
 
@@ -179,11 +179,36 @@ class _EffectCapture:
 class _TaskTools(_Capture):
     """M2 capture with the write profile's shared runtime dependencies exposed."""
 
-    def __init__(self, inner, runtime):
+    def __init__(self, inner, runtime, *, task_id):
         super().__init__(inner)
-        self.jira = _EffectCapture(runtime.jira, self.results)
-        self.slack = _EffectCapture(runtime.slack, self.results)
+        self.task_id = task_id
+        self.closed = False
+        self.late_calls = 0
+        self.jira = _EffectCapture(runtime.jira, self)
+        self.slack = _EffectCapture(runtime.slack, self)
         self.policy = runtime.policy
+
+    def close(self):
+        self.closed = True
+
+    def record(self, row):
+        if self.closed:
+            self.late_calls += 1
+        else:
+            self.results.append(row)
+
+    async def call(self, name, arguments, **kwargs):
+        row = {"name": name, "ok": False, "result": {}}
+        try:
+            result = await self.inner.call(name, arguments, **kwargs)
+            row.update(ok=not result.is_error, result=structure(result.payload))
+            return result
+        except Exception as error:
+            if not self.closed:
+                self.errors.append(error)
+            raise
+        finally:
+            self.record(row)
 
 
 async def _invoke(function, *args, **kwargs):
@@ -263,6 +288,7 @@ async def run_dev_m3(
     )
     before = costs()
     observations, grades, smoke_results = [], {}, []
+    attempt_captures = []
     status_path = root / "data/replay/golden/status.json"
     statuses = (
         json.loads(status_path.read_text())
@@ -311,7 +337,11 @@ async def run_dev_m3(
                     else None
                 )
                 graph_chat = _Capture(recording_chat) if record else captured_chat
-                captured_tools = _TaskTools(recording_tools if record else tools, tools)
+                captured_tools = _TaskTools(
+                    recording_tools if record else tools,
+                    tools,
+                    task_id=f"{spec.task_id}-{number + 1}-{uuid4().hex}",
+                )
                 service = (service_factory or build_task_service)(
                     chat=graph_chat,
                     tools=captured_tools,
@@ -333,6 +363,7 @@ async def run_dev_m3(
                     ).run(spec)
                     state = await get_task(service.graph, result.task_id)
                 finally:
+                    captured_tools.close()
                     await service.aclose()
                 errors = (
                     graph_chat.errors + captured_chat.errors + captured_tools.errors
@@ -374,6 +405,8 @@ async def run_dev_m3(
                     "timed_out": result.timed_out,
                 }
                 attempts.append(attempt)
+                attempt_captures.append((captured_tools, attempt, attempt_dir))
+                attempt["late_tool_calls"] = captured_tools.late_calls
                 if mismatch:
                     manifest["tool_trace_mismatch"].setdefault(spec.task_id, []).append(
                         number + 1
@@ -496,6 +529,16 @@ async def run_dev_m3(
                 "passed": sum(grades[key]["tcr"]["passed"] for key in mixed),
                 "total": len(mixed),
             }
+            mismatch_tasks = sorted(manifest["tool_trace_mismatch"])
+            manifest["n_registration_blocked"] = bool(mismatch_tasks)
+            manifest["n_registration_mismatch_tasks"] = mismatch_tasks
+            for capture, attempt, attempt_dir in attempt_captures:
+                attempt["late_tool_calls"] = capture.late_calls
+                _write(attempt_dir / "attempt.json", attempt)
+            manifest["late_tool_calls"] = {
+                key: sum(attempt["late_tool_calls"] for attempt in attempts)
+                for key, attempts in manifest["attempts"].items()
+            }
             manifest["finished_at"] = datetime.now(UTC).isoformat()
             _write(directory / "manifest.json", manifest)
             _write(directory / "grades.json", grades)
@@ -510,12 +553,21 @@ async def run_dev_m3(
         print(f"smoke task 수: {len(smoke_results)}")
         return {"results": smoke_results}
     n = candidate(
-        observations, {key: grade["tcr"]["passed"] for key, grade in grades.items()}
+        [row for row in observations if row["task_id"] not in mismatch_tasks],
+        {key: grade["tcr"]["passed"] for key, grade in grades.items()},
     )
+    notice = (
+        f"N 등록 보류: tool_trace_mismatch {len(mismatch_tasks)}건({', '.join(mismatch_tasks)})"
+        " — 원인을 확인하기 전에는 N을 등록하지 않는다; 결과 문서 첫머리에 적을 것"
+        if mismatch_tasks
+        else f"N={n}: 잠정치이며 등록값이 아님"
+    )
+    if mismatch_tasks:
+        print(notice)
     print(
         f"TCR {sum(g['tcr']['passed'] for g in grades.values())}/{len(grades)}; 인프라 실패 {manifest['infrastructure_failures']}; 절대 규칙 위반 task {len(manifest['absolute_rule_violations'])}"
     )
-    print(f"N={n}: 잠정치이며 등록값이 아님")
+    print(notice)
     return {
         "directory": str(directory),
         "manifest": manifest,

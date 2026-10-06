@@ -534,3 +534,157 @@ def test_explicit_selection_accepts_only_the_complete_dev_set():
     rows = json.loads((ROOT / "data/eval/tasks.json").read_text())
     ids = [spec.task_id for spec in specs()]
     assert [s.task_id for s in select_tasks(rows, ids)] == ids
+
+
+def test_closed_capture_isolates_delayed_calls():
+    from types import SimpleNamespace
+
+    from govops.evalrun.dev_m3 import _TaskTools
+
+    async def scenario():
+        release = asyncio.Event()
+        entered = asyncio.Event()
+
+        class Tools:
+            async def call(self, name, arguments, **kwargs):
+                if name == "first":
+                    entered.set()
+                    await release.wait()
+                return ToolResult({"hits": [{"doc_id": name}]}, False)
+
+            async def send_message(self, **kwargs):
+                entered.set()
+                await release.wait()
+                return {"key": "first-write"}
+
+        tools = Tools()
+        runtime = SimpleNamespace(jira=tools, slack=tools, policy=None)
+        first = _TaskTools(tools, runtime, task_id="attempt-first")
+        second = _TaskTools(tools, runtime, task_id="attempt-second")
+        assert first is not second
+        assert first.task_id != second.task_id
+        pending = asyncio.create_task(first.call("first", {}))
+        await entered.wait()
+        first.close()
+        await second.call("second", {})
+        release.set()
+        await pending
+        await first.slack.send_message()
+        from govops.evalrun.tool_trace import extract_tool_trace
+
+        calls, results = extract_tool_trace(second.results)
+        assert {row["name"] for row in calls} == {"second"}
+        assert {row["result"]["hits"][0]["doc_id"] for row in results} == {"second"}
+        assert first.results == []
+        assert first.late_calls == 2
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("mismatch", [True, False])
+def test_n_registration_excludes_mismatch_only(tmp_path, monkeypatch, capsys, mismatch):
+    import govops.evalrun.dev_m3 as module
+
+    selected = specs()[:2]
+    bad = selected[0].task_id
+    seen = []
+    # Mark exactly the first attempt, independently of arrival order.
+    checks = iter([mismatch, False])
+    monkeypatch.setattr(module, "trace_mismatch", lambda state, captured: next(checks))
+
+    def proposed(rows, passed):
+        seen.extend(row["task_id"] for row in rows)
+        assert set(passed) == {spec.task_id for spec in selected}
+        return 987
+
+    monkeypatch.setattr(module, "candidate", proposed)
+    result, admin, _ = asyncio.run(exercise(tmp_path, monkeypatch, selected=selected))
+    manifest = result["manifest"]
+    assert manifest["n_registration_blocked"] is mismatch
+    assert manifest["n_registration_mismatch_tasks"] == ([bad] if mismatch else [])
+    assert set(seen) == (
+        {selected[1].task_id} if mismatch else {s.task_id for s in selected}
+    )
+    assert len(result["observations"]) == len(result["grades"]) == 2
+    assert admin.resets == 2
+    assert all(grade["tcr"]["passed"] for grade in result["grades"].values())
+    output = capsys.readouterr().out
+    if mismatch:
+        assert "N=987" not in output
+        assert f"N 등록 보류: tool_trace_mismatch 1건({bad})" in output
+        assert "결과 문서 첫머리에 적을 것" in output
+        assert output.index("N 등록 보류") < output.index("TCR 2/2")
+    else:
+        assert "N=987" in output
+    stored = json.loads((Path(result["directory"]) / "manifest.json").read_text())
+    assert stored["n_registration_blocked"] is mismatch
+
+
+def test_runner_closes_each_capture_before_service_cleanup(tmp_path, monkeypatch):
+    from govops.api.wiring import build_task_service
+    from govops.replay.recordings import RecordingRejected
+
+    captures = []
+    cleaned = []
+    release = None
+    pending = None
+
+    def factory(**kwargs):
+        nonlocal release, pending
+        assert len(cleaned) == len(captures)
+        capture = kwargs["tools"]
+        if not captures:
+            release = asyncio.Event()
+
+            async def delayed():
+                await release.wait()
+                before = list(capture.results)
+                try:
+                    await capture.call(
+                        "search_docs", {"query": "합성"}, user_id=specs()[0].user
+                    )
+                except RecordingRejected:
+                    # The task recorder has also closed; retain only the late count.
+                    pass
+                assert capture.results == before
+
+            pending = asyncio.create_task(delayed())
+        else:
+            # The first graph's detached call arrives only after task two starts.
+            release.set()
+        captures.append(capture)
+        service = build_task_service(**kwargs)
+        close = service.aclose
+
+        async def cleanup():
+            assert capture.closed
+            before = list(capture.results)
+            await capture.call(
+                "search_docs", {"query": "합성"}, user_id=specs()[0].user
+            )
+            assert capture.results == before
+            await close()
+            if len(captures) == 2:
+                await pending
+            cleaned.append(capture)
+
+        service.aclose = cleanup
+        return service
+
+    result, _, _ = asyncio.run(
+        exercise(tmp_path, monkeypatch, selected=specs()[:2], service_factory=factory)
+    )
+    assert len({id(c) for c in captures}) == len(captures) == 2
+    assert len({c.task_id for c in captures}) == 2
+    assert cleaned == captures
+    late_counts = {capture.task_id: capture.late_calls for capture in captures}
+    assert set(late_counts.values()) == {1, 2}
+    manifest = result["manifest"]
+    assert manifest["late_tool_calls"] == {
+        specs()[0].task_id: 2,
+        specs()[1].task_id: 1,
+    }
+    for task_id, attempts in manifest["attempts"].items():
+        assert attempts[0]["late_tool_calls"] == manifest["late_tool_calls"][task_id]
+    stored = json.loads((Path(result["directory"]) / "manifest.json").read_text())
+    assert stored["late_tool_calls"] == manifest["late_tool_calls"]
