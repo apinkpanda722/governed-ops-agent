@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "faults-client",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T00:42:25+0900",
+      "summary": "MockAdmin.faults_set stdin 전달·독립 규칙 검증, F4 FaultTransport·주입 카운터, F6 model_fault_script/model_fault_alias(first·second·all), dev_m3.new_tool_policy 구현 완료; 신규 tests/test_faults_client.py 26건으로 규칙 동치·명령/오류 비노출·실제 F4 재시도·F6 별칭·서킷 격리 검증, 기존 테스트 수정 없음; make verify 통과(Python 2342 passed·1 skipped, 웹 typecheck·eslint·vitest 15 passed), 계층·ADR·CRITICAL 규칙 확인, 금지 경로 수정·커밋 없음, phases 기존 diff 보존.",
+      "completed_at": "2026-10-07T01:13:01+0900",
+      "usage": {
+        "input_tokens": 4590453,
+        "cached_input_tokens": 4460544,
+        "output_tokens": 14926,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
