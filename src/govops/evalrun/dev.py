@@ -106,7 +106,11 @@ class _Capture:
             raise
         self.models.add(result.model)
         if result.unmapped_model:
-            self.unmapped_models.add(result.model)
+            self.unmapped_models.add(
+                result.deployment_id
+                if result.deployment_id is not None
+                else result.model
+            )
         self.fallback_used |= result.fallback_used
         return result
 

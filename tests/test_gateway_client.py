@@ -475,7 +475,10 @@ def test_body_and_sdk_metadata_match(tmp_path, monkeypatch, task_id):
 
     sdk = Mock()
     sdk.close = AsyncMock()
-    sdk.chat.completions.create = AsyncMock(return_value=object())
+    raw = Mock()
+    raw.headers = {}
+    raw.parse = Mock(return_value=object())
+    sdk.chat.completions.with_raw_response.create = AsyncMock(return_value=raw)
     monkeypatch.setattr("govops.gateway.client.AsyncOpenAI", Mock(return_value=sdk))
     client = LiteLLMChatClient(
         base_url="http://gateway.test",
@@ -501,7 +504,9 @@ def test_body_and_sdk_metadata_match(tmp_path, monkeypatch, task_id):
                 user_id="synthetic-user",
             )
         )
-    metadata = sdk.chat.completions.create.call_args.kwargs["extra_body"]["metadata"]
+    metadata = sdk.chat.completions.with_raw_response.create.call_args.kwargs[
+        "extra_body"
+    ]["metadata"]
     assert metadata == captured[0]["metadata"]
     assert metadata["task_id"] == task_id
     assert metadata["trace_user_id"] == "synthetic-user"
@@ -675,7 +680,7 @@ def test_unmapped_model_attribute_on_model_span(tmp_path):
     )
 
 
-@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+@pytest.mark.parametrize("mode", ["down_alias"])
 def test_fault_backend(tmp_path, mode):
     from govops.gateway.faults import ModelFaultScript
 
@@ -692,16 +697,12 @@ def test_fault_backend(tmp_path, mode):
     for _ in range(3):
         result = run(tmp_path, handler, fault_script=script, fault_mode=mode)
         assert result.fallback_used
-    assert [body["model"] for body in seen] == (
-        ["agent-primary", "agent-primary-down", "agent-primary"]
-        if mode == "down_alias"
-        else ["agent-primary"] * 3
-    )
-    assert [body.get("mock_testing_fallbacks") for body in seen] == (
-        [None, True, None] if mode == "mock_param" else [None] * 3
-    )
+    assert [body["model"] for body in seen] == [
+        "agent-primary",
+        "agent-primary-down",
+        "agent-primary",
+    ]
     for body in seen:
-        body.pop("mock_testing_fallbacks", None)
         body["model"] = "agent-primary"
         body["metadata"].pop("generation_id")
     assert seen[0] == seen[1] == seen[2]
@@ -719,34 +720,35 @@ def test_fault_script(calls, expected):
     assert [script.should_fail("b") for _ in range(3)] == expected
 
 
-@pytest.mark.parametrize("value", [None, "", "mock_param", "down_alias", "invalid"])
+@pytest.mark.parametrize(
+    "value", [None, "", "mock" + "_param", "down_alias", "invalid"]
+)
 def test_fault_environment(monkeypatch, value):
     from govops.gateway.faults import model_fault_mode
 
     monkeypatch.delenv("GOVOPS_MODEL_FAULT_MODE", raising=False)
     if value is not None:
         monkeypatch.setenv("GOVOPS_MODEL_FAULT_MODE", value)
-    if value == "invalid":
+    if value not in (None, "", "down_alias"):
         with pytest.raises(ValueError):
             model_fault_mode()
     else:
         assert model_fault_mode() == (value or None)
 
 
-@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+@pytest.mark.parametrize("mode", ["down_alias"])
 def test_fault_mode_without_script_is_normal(tmp_path, mode):
     costs.init_ledgers(tmp_path)
 
     def handler(request):
         body = json.loads(request.content)
         assert body["model"] == "agent-primary"
-        assert "mock_testing_fallbacks" not in body
         return httpx.Response(200, json=response())
 
     run(tmp_path, handler, fault_mode=mode)
 
 
-@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+@pytest.mark.parametrize("mode", ["down_alias"])
 def test_fault_respects_supplier_cap(tmp_path, mode):
     from govops.gateway.faults import ModelFaultScript
 
@@ -763,7 +765,6 @@ def test_fault_respects_supplier_cap(tmp_path, mode):
     def handler(request):
         body = json.loads(request.content)
         assert body["model"] == "agent-primary-only"
-        assert "mock_testing_fallbacks" not in body
         return httpx.Response(200, json=response())
 
     run(tmp_path, handler, fault_script=ModelFaultScript("all"), fault_mode=mode)
@@ -771,3 +772,95 @@ def test_fault_respects_supplier_cap(tmp_path, mode):
         costs.CostLedger(tmp_path).committed_usd("anthropic")
         == costs.SUPPLIER_CAPS_USD["anthropic"]
     )
+
+
+@pytest.mark.parametrize(
+    "deployment,alias,model,attempts",
+    [
+        ("openai-gpt-6-luna", "agent-primary", "gpt-6-luna", "0"),
+        ("openai-gpt-6-luna-only", "agent-primary-only", "gpt-6-luna", "invalid"),
+        ("anthropic-claude-sonnet-5-5", "agent-fallback", "claude-sonnet-5-5", "1"),
+        ("unknown-deployment", "gpt-6-luna", "gpt-6-luna", "0"),
+        ("openai-gpt-6-luna-down", "gpt-6-luna", "gpt-6-luna", "0"),
+        ("", "gpt-6-luna", "gpt-6-luna", "1"),
+    ],
+)
+def test_deployment_headers_override_body(
+    tmp_path, monkeypatch, deployment, alias, model, attempts
+):
+    attributes = {}
+    monkeypatch.setattr(
+        "govops.gateway.client.set_attributes",
+        lambda **values: attributes.update(values),
+    )
+    costs.init_ledgers(tmp_path)
+    body = response()
+    body["model"] = alias
+    result = run(
+        tmp_path,
+        lambda _: httpx.Response(
+            200,
+            json=body,
+            headers={
+                "x-litellm-model-id": deployment,
+                "x-litellm-model-group": alias,
+                "x-litellm-attempted-fallbacks": attempts,
+            },
+        ),
+    )
+    resolved = costs.resolve_deployment(deployment)
+    assert result.model == model
+    assert result.body_model == alias
+    assert result.deployment_id == deployment
+    assert result.model_group == alias
+    assert attributes["deployment_id"] == deployment
+    assert attributes["model_group"] == alias
+    assert attributes["unmapped_model"] == (not resolved.mapped)
+    assert result.attempted_fallbacks == (
+        None if attempts == "invalid" else int(attempts)
+    )
+    assert attributes["attempted_fallbacks"] == result.attempted_fallbacks
+    assert result.unmapped_model == (not resolved.mapped)
+    assert result.fallback_used == (resolved.supplier == "anthropic" or attempts == "1")
+    expected, _ = costs.response_cost_usd(
+        resolved.family or "unregistered",
+        input_tokens=100,
+        cached_input_tokens=40,
+        output_tokens=20,
+    )
+    assert result.cost_usd == expected
+    for row in settled_rows(tmp_path):
+        assert row["cost_usd"] == (
+            expected
+            if not resolved.mapped or row["supplier"] == resolved.supplier
+            else 0
+        )
+
+
+def test_deployment_configuration_ids():
+    import yaml
+
+    expected = dict(costs.DEPLOYMENT_MODELS)
+    expected["openai-gpt-6-luna-down"] = "gpt-6-luna"
+    configs = [
+        yaml.safe_load(
+            (Path(__file__).resolve().parents[1] / "infra/litellm" / name).read_text()
+        )
+        for name in ("config.yaml", "config.obs.yaml")
+    ]
+    for config in configs:
+        assert {row["model_info"]["id"] for row in config["model_list"]} == set(
+            expected
+        )
+        for row in config["model_list"]:
+            assert (
+                expected[row["model_info"]["id"]]
+                == row["litellm_params"]["model"].split("/")[1]
+            )
+    assert configs[0]["model_list"] == configs[1]["model_list"]
+
+
+@pytest.mark.parametrize("mode", ["mock" + "_param", "invalid", ""])
+def test_client_rejects_invalid_fault_mode(mode):
+    with pytest.raises(ValueError, match="Invalid fault_mode"):
+        LiteLLMChatClient(api_key=KEY, fault_mode=mode)

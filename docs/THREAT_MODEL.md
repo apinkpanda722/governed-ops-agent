@@ -103,7 +103,7 @@ mock 장애는 엔드포인트별로 설정하고 요청 순번 스크립트로 
 | F3 | 429 + `Retry-After` | mock이 429와 `Retry-After` 반환 | `Retry-After`를 지켜 재시도 | 대기 시간 준수, 중복 0 |
 | F4 | 연결 수립 실패 | 클라이언트 쪽 전송 계층에서 연결 수립 실패 주입(ADR-018) | 요청이 서버에 닿지 않았으므로 표식 조회 없이 바로 재시도 | 중복 0 |
 | F5 | 처리 후 응답 유실 | mock이 부작용을 반영한 뒤 응답을 버림 | 결과 불확실 → 표식 조회 → 있으면 재발송 안 함 | **중복 0(절대 규칙 1)** |
-| F6 | 모델 장애·fallback | 주 모델 오류·타임아웃 주입(LiteLLM 경유, 두 백엔드·호출 번호 스크립트는 ADR-019 6항) | 호출 단위로 Anthropic fallback으로 이어 감, 감사 로그에 fallback 여부 기록. 주 모델 장애 중에도 Guardrail(v2 분류기는 Anthropic)이 통과 판정을 낼 수 있어야 함 | fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR, 주 모델 장애 중 Guardrail 통과 확인은 M4(Guardrail 구현 후) |
+| F6 | 모델 장애·fallback | `down_alias`로 주 모델 장애 주입(닫힌 포트 배포 `agent-primary-down` + fallbacks, LiteLLM 경유·호출 번호 스크립트는 ADR-019 6항) | 호출 단위로 Anthropic fallback으로 이어 감, 감사 로그에 fallback 여부 기록. 주 모델 장애 중에도 Guardrail(v2 분류기는 Anthropic)이 통과 판정을 낼 수 있어야 함 | fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR, 주 모델 장애 중 Guardrail 통과 확인은 M4(Guardrail 구현 후) |
 | F7 | Guardrail 타임아웃 | 사전·사후 판정기 지연·오류 | 사전은 차단(fail-closed), 사후는 통과 + 경보(fail-open). v2만 실패하면 v1로 판정 + 경보, v1까지 실패하면 차단 | 차단·경보 기록 |
 | F8 | 재개 반복 | 같은 승인으로 `Command(resume=...)` 여러 번 | 실행 노드 1회, 부작용 1회 | 중복 0 |
 | F9 | 승인 버튼 이중 클릭 | `POST /tasks/{id}/approval` 동시·연속 2회 | 승인 요청 멱등, 부작용 1회 | 중복 0 |

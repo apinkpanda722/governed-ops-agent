@@ -1,0 +1,78 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-gateway-fix",
+  "steps": [
+    {
+      "step": 0,
+      "name": "deployment-model",
+      "status": "completed",
+      "started_at": "2026-10-06T11:07:28+0900",
+      "summary": "배포 ID 헤더 우선 모델 매핑·비용 정산·span·기록·manifest와 호환 테스트 구현, make verify 통과(1993 passed, 1 skipped 및 웹 검사).",
+      "completed_at": "2026-10-06T11:25:01+0900",
+      "usage": {
+        "input_tokens": 3203822,
+        "cached_input_tokens": 3114752,
+        "output_tokens": 8899,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "agent-key-models",
+      "status": "completed",
+      "started_at": "2026-10-06T11:25:01+0900",
+      "summary": "AGENT_KEY_MODELS 네 별칭을 발급·갱신에 적용하고 make agent-key-update 및 설정 일관성·비밀 비노출·파일 보존 테스트 구현; make verify 통과(2002 passed, 1 skipped 및 웹 검사).",
+      "completed_at": "2026-10-06T11:37:08+0900",
+      "usage": {
+        "input_tokens": 1616994,
+        "cached_input_tokens": 1560832,
+        "output_tokens": 4421,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "backend-down-only",
+      "status": "completed",
+      "started_at": "2026-10-06T11:37:08+0900",
+      "summary": "F6 장애 주입을 down_alias로 단일화하고 폐기 경로·문서 참조를 제거했으며, 시작 보호를 유지하고 make verify 통과(2001 passed, 1 skipped 및 웹 검사).",
+      "completed_at": "2026-10-06T11:51:05+0900",
+      "usage": {
+        "input_tokens": 2272387,
+        "cached_input_tokens": 2198528,
+        "output_tokens": 5721,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "smoke-fix",
+      "status": "completed",
+      "started_at": "2026-10-06T11:51:05+0900",
+      "summary": "smoke-fallback에 단계별 공급사 원장 증가·미등록 모델·fallback 횟수 검사와 안전한 진단 출력을 구현하고 회귀 테스트 추가; make verify 통과(2012 passed, 1 skipped 및 웹 검사).",
+      "completed_at": "2026-10-06T12:05:45+0900",
+      "usage": {
+        "input_tokens": 1957152,
+        "cached_input_tokens": 1888384,
+        "output_tokens": 7423,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "gateway-fix-docs",
+      "status": "completed",
+      "started_at": "2026-10-06T12:05:45+0900",
+      "summary": "ADR-019·아키텍처·위협 모델·평가 문서에 배포 ID 매핑, down_alias, 키 갱신·smoke 합격 조건 반영; AGENTS 명령어 추가 및 make verify 통과(2012 passed, 1 skipped, 웹 검사 통과).",
+      "completed_at": "2026-10-06T12:17:19+0900",
+      "usage": {
+        "input_tokens": 1300283,
+        "cached_input_tokens": 1239168,
+        "output_tokens": 3991,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-06T11:07:28+0900",
+  "completed_at": "2026-10-06T12:17:19+0900"
+}

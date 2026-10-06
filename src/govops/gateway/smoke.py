@@ -30,8 +30,25 @@ def _status(exc: Exception) -> str:
     return "error"
 
 
-def _fail(stage: str, exc: Exception) -> None:
-    print(f"FAIL {stage} error={type(exc).__name__} status={_status(exc)}")
+def _fail(stage: str, exc: Exception, reason: str = "http") -> None:
+    print(
+        f"FAIL {stage} reason={reason} error={type(exc).__name__} status={_status(exc)}"
+    )
+
+
+def _identifier(value: str | None) -> str:
+    if value is None:
+        return "None"
+    key = os.getenv("LITELLM_AGENT_KEY", "").strip()
+    if (
+        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*", value)
+        or re.search(
+            r"authorization|bearer|secret|token|api_key|sk-", value, re.IGNORECASE
+        )
+        or (key and key in value)
+    ):
+        return "redacted"
+    return value
 
 
 def _totals(ledger: CostLedger) -> dict[str, float]:
@@ -42,18 +59,19 @@ async def _fallback(
     ledger: CostLedger, transport: httpx.AsyncBaseTransport | None
 ) -> int:
     try:
-        before = _totals(ledger)
+        _totals(ledger)
     except Exception as exc:  # noqa: BLE001 — CLI must suppress secret-bearing errors
-        _fail("ledger", exc)
+        _fail("ledger", exc, "ledger_delta")
         print("BACKEND=none")
         return 1
     if not os.getenv("LITELLM_AGENT_KEY", "").strip():
-        print("FAIL normal error=GatewayError status=missing_key")
+        print("FAIL normal reason=missing_key error=GatewayError status=missing_key")
         print("BACKEND=none")
         return 1
     passed = {}
+    total = 0.0
     async with httpx.AsyncClient(transport=transport) as http:
-        for stage in ("normal", "mock_param", "down_alias"):
+        for stage in ("normal", "down_alias"):
             client = LiteLLMChatClient(
                 ledger=ledger,
                 http_client=http,
@@ -61,6 +79,13 @@ async def _fallback(
                 fault_script=None if stage == "normal" else ModelFaultScript("all"),
             )
             passed[stage] = False
+            result = None
+            error = None
+            try:
+                before = _totals(ledger)
+            except Exception as exc:  # noqa: BLE001
+                _fail(stage, exc, "ledger_delta")
+                continue
             try:
                 result = await client.complete(
                     messages=[{"role": "user", "content": MESSAGE}],
@@ -69,40 +94,69 @@ async def _fallback(
                     user_id="demo-platform-g3",
                     max_output_tokens=16,
                 )
-                resolved = resolve_model(result.model)
-                expected = "openai" if stage == "normal" else "anthropic"
-                if resolved.mapped and resolved.supplier == expected:
-                    print(f"PASS {stage} family={expected} mapped=true")
-                    passed[stage] = True
-                elif stage == "mock_param" and resolved.supplier == "openai":
-                    print("INFO mock_param unsupported status=openai")
-                else:
-                    print(f"FAIL {stage} error=ModelCheckError status=model_mismatch")
-            except Exception as exc:  # noqa: BLE001 — CLI must suppress secret-bearing errors
-                status = _status(exc)
-                if (
-                    stage == "mock_param"
-                    and status.isdigit()
-                    and 400 <= int(status) < 500
-                ):
-                    print(f"INFO mock_param unsupported status={status}")
-                else:
-                    _fail(stage, exc)
-    ledger_ok = False
-    try:
-        after = _totals(ledger)
-        ledger_ok = after["agent_fallback"] - before["agent_fallback"] > 0
-        if ledger_ok:
-            print("PASS ledger agent_fallback_delta>0")
-        else:
-            print("FAIL ledger error=LedgerCheckError status=no_increase")
-        total = sum(after[p] - before[p] for p in after)
-        print(f"INFO cost total_cents={total * 100:.6f}")
-    except Exception as exc:  # noqa: BLE001 — CLI must suppress secret-bearing errors
-        _fail("ledger", exc)
-    backend = next((s for s in ("mock_param", "down_alias") if passed[s]), "none")
-    print(f"BACKEND={backend}")
-    return 0 if passed["normal"] and ledger_ok and backend != "none" else 1
+            except Exception as exc:  # noqa: BLE001 — suppress secret-bearing errors
+                error = exc
+            try:
+                after = _totals(ledger)
+                delta = {purpose: after[purpose] - before[purpose] for purpose in after}
+                stage_cost = sum(delta.values())
+                total += stage_cost
+                print(f"INFO {stage} cost total_cents={stage_cost * 100:.6f}")
+            except Exception as exc:  # noqa: BLE001
+                _fail(stage, exc, "ledger_delta")
+                continue
+            if result is None:
+                _fail(stage, error)
+                print(
+                    f"INFO {stage} body_model=None model_id=None model_group=None "
+                    "attempted_fallbacks=None resolved=None unmapped=false"
+                )
+                continue
+            print(
+                f"INFO {stage} body_model={_identifier(result.body_model)} "
+                f"model_id={_identifier(result.deployment_id)} "
+                f"model_group={_identifier(result.model_group)} "
+                f"attempted_fallbacks={result.attempted_fallbacks} "
+                f"resolved={_identifier(result.model)} "
+                f"unmapped={str(result.unmapped_model).lower()}"
+            )
+            resolved = resolve_model(result.model)
+            expected = "openai" if stage == "normal" else "anthropic"
+            attempts = result.attempted_fallbacks
+            reason = None
+            if result.unmapped_model or not resolved.mapped:
+                reason = "unmapped"
+            elif resolved.supplier != expected or (
+                attempts is not None
+                and (attempts != 0 if stage == "normal" else attempts < 1)
+            ):
+                reason = "model_mismatch"
+            else:
+                charged, zero = (
+                    ("agent_primary", "agent_fallback")
+                    if stage == "normal"
+                    else ("agent_fallback", "agent_primary")
+                )
+                if not (delta[charged] > 0 and delta[zero] == 0):
+                    reason = "ledger_delta"
+            if reason:
+                error_class = (
+                    "LedgerCheckError"
+                    if reason == "ledger_delta"
+                    else "ModelCheckError"
+                )
+                print(
+                    f"FAIL {stage} reason={reason} error={error_class} status={reason}"
+                )
+            else:
+                print(f"PASS {stage} family={expected} mapped=true")
+                passed[stage] = True
+                if stage == "down_alias":
+                    print("PASS ledger agent_fallback_delta>0")
+    print(f"INFO cost total_cents={total * 100:.6f}")
+    success = all(passed.values())
+    print("BACKEND=down_alias" if success else "BACKEND=none")
+    return 0 if success else 1
 
 
 def main(

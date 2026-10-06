@@ -25,6 +25,7 @@ from govops.costs import (
     CostLedger,
     anthropic_cost_usd,
     estimate_call_usd,
+    resolve_deployment,
     resolve_model,
     response_cost_usd,
 )
@@ -82,6 +83,10 @@ class ChatResult:
     cost_usd: float
     fallback_used: bool = False
     unmapped_model: bool = False
+    deployment_id: str | None = None
+    body_model: str | None = None
+    model_group: str | None = None
+    attempted_fallbacks: int | None = None
 
 
 class GatewayError(Exception):
@@ -112,7 +117,7 @@ class LiteLLMChatClient:
         fault_script: ModelFaultScript | None = None,
         fault_mode: str | None = None,
     ):
-        if fault_mode not in {None, "mock_param", "down_alias"}:
+        if fault_mode not in {None, "down_alias"}:
             raise ValueError("Invalid fault_mode")
         if fault_script is not None and fault_mode is None:
             raise ValueError("fault_script requires fault_mode")
@@ -163,13 +168,7 @@ class LiteLLMChatClient:
             "max_completion_tokens": max_output_tokens,
         }
         if self._fault_script is not None and self._fault_script.should_fail(task_id):
-            if self._fault_mode == "mock_param":
-                # OpenAI extra_body merges this flag into the JSON request root.
-                # Proxy acceptance requires user smoke verification; current docs:
-                # https://docs.litellm.ai/docs/proxy/reliability
-                body["mock_testing_fallbacks"] = True
-            else:
-                body["model"] = "agent-primary-down"
+            body["model"] = "agent-primary-down"
         # UTF-8 bytes bound token count conservatively; doubled serialization
         # plus fixed framing allowance covers per-message/tool protocol overhead.
         input_upper = (
@@ -192,6 +191,8 @@ class LiteLLMChatClient:
         response_model = _MODEL
         supplier = None
         unmapped = False
+        fallback_used = False
+        deployment_id = model_group = attempted_fallbacks = None
         try:
             try:
                 fallback_reservation = await asyncio.to_thread(
@@ -207,7 +208,6 @@ class LiteLLMChatClient:
                 )
             except BudgetExceededError:
                 body["model"] = "agent-primary-only"
-                body.pop("mock_testing_fallbacks", None)
             else:
                 reservations.append(
                     (
@@ -217,7 +217,12 @@ class LiteLLMChatClient:
                         "anthropic",
                     )
                 )
-            completion = await self._send(
+            (
+                completion,
+                deployment_id,
+                model_group,
+                attempted_fallbacks,
+            ) = await self._send(
                 body,
                 user_id=user_id,
                 task_id=task_id,
@@ -226,13 +231,37 @@ class LiteLLMChatClient:
             response_model = getattr(completion, "model", None)
             if not isinstance(response_model, str):
                 raise GatewayError("gateway malformed response")
-            resolved = resolve_model(response_model)
+            body_model = response_model
+            resolved = (
+                resolve_deployment(deployment_id)
+                if deployment_id is not None
+                else resolve_model(body_model)
+            )
+            if deployment_id is not None and resolved.mapped:
+                response_model = resolved.family
+            fallback_used = resolved.supplier == "anthropic" or (
+                attempted_fallbacks is not None and attempted_fallbacks > 0
+            )
             supplier = resolved.supplier
             unmapped = not resolved.mapped
             usage, cost = _usage_and_cost(
-                completion, input_upper, max_output_tokens, estimate
+                completion,
+                input_upper,
+                max_output_tokens,
+                response_model if resolved.mapped else "unregistered",
             )
-            return _result(completion, usage, cost)
+            return _result(
+                completion,
+                usage,
+                cost,
+                model=response_model,
+                body_model=body_model,
+                deployment_id=deployment_id,
+                model_group=model_group,
+                attempted_fallbacks=attempted_fallbacks,
+                fallback_used=fallback_used,
+                unmapped_model=unmapped,
+            )
         finally:
             set_attributes(
                 usage={
@@ -242,7 +271,10 @@ class LiteLLMChatClient:
                 },
                 cost_usd=cost,
                 unmapped_model=unmapped,
-                fallback_used=supplier == "anthropic",
+                fallback_used=fallback_used,
+                deployment_id=deployment_id,
+                model_group=model_group,
+                attempted_fallbacks=attempted_fallbacks,
             )
             for reserved, purpose, model, reserved_supplier in reservations:
                 charged = unmapped or supplier == reserved_supplier
@@ -278,21 +310,23 @@ class LiteLLMChatClient:
                 project="",
             )
             try:
-                completion = await sdk.chat.completions.create(
+                raw = await sdk.chat.completions.with_raw_response.create(
                     model=body["model"],
                     messages=body["messages"],
                     tools=body["tools"],
                     user=user_id,
-                    extra_body={
-                        "metadata": body["metadata"],
-                        **(
-                            {"mock_testing_fallbacks": True}
-                            if body.get("mock_testing_fallbacks")
-                            else {}
-                        ),
-                    },
+                    extra_body={"metadata": body["metadata"]},
                     max_completion_tokens=max_output_tokens,
                 )
+                deployment_id = raw.headers.get("x-litellm-model-id")
+                model_group = raw.headers.get("x-litellm-model-group")
+                try:
+                    attempted_fallbacks = int(
+                        raw.headers.get("x-litellm-attempted-fallbacks")
+                    )
+                except (ValueError, TypeError):
+                    attempted_fallbacks = None
+                completion = raw.parse()
             finally:
                 # An injected HTTP client remains owned by its caller.
                 if self._http_client is None:
@@ -311,15 +345,15 @@ class LiteLLMChatClient:
         # are not attached as exception context.
         if error is not None:
             raise error
-        return completion
+        return completion, deployment_id, model_group, attempted_fallbacks
 
 
 def _usage_and_cost(
-    completion, input_upper: int, max_output_tokens: int, estimate: float
+    completion, input_upper: int, max_output_tokens: int, pricing_model: str
 ) -> tuple[Usage, float]:
     raw_usage = getattr(completion, "usage", None)
     estimate, _ = response_cost_usd(
-        completion.model,
+        pricing_model,
         input_tokens=input_upper,
         cached_input_tokens=0,
         output_tokens=max_output_tokens,
@@ -339,7 +373,7 @@ def _usage_and_cost(
     )
     try:
         cost, _ = response_cost_usd(
-            completion.model,
+            pricing_model,
             input_tokens=usage.input_tokens,
             cached_input_tokens=usage.cached_input_tokens,
             output_tokens=usage.output_tokens,
@@ -351,7 +385,7 @@ def _usage_and_cost(
     return usage, cost
 
 
-def _result(completion, usage: Usage, cost: float) -> ChatResult:
+def _result(completion, usage: Usage, cost: float, **metadata) -> ChatResult:
     failure = None
     try:
         message = completion.choices[0].message
@@ -368,11 +402,9 @@ def _result(completion, usage: Usage, cost: float) -> ChatResult:
                     for call in message.tool_calls or []
                 ],
             },
-            model=completion.model,
             usage=usage,
             cost_usd=cost,
-            fallback_used=resolve_model(completion.model).supplier == "anthropic",
-            unmapped_model=not resolve_model(completion.model).mapped,
+            **metadata,
         )
     except (IndexError, AttributeError, TypeError):
         failure = GatewayError("gateway malformed response")

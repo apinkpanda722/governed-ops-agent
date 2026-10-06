@@ -237,3 +237,16 @@ def test_legacy_record_without_response_model(tmp_path):
     rows[1]["model"] = RESULT.model
     path.write_text("".join(json.dumps(row) + "\n" for row in rows))
     assert call(ReplayChatClient.load(path, **CONFIG)) == RESULT
+
+
+def test_deployment_record_and_legacy_replay(tmp_path):
+    result = replace(RESULT, model="gpt-6-luna", deployment_id="openai-gpt-6-luna")
+    client, _ = record(tmp_path, (result,))
+    path = client.finish()
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    assert rows[1]["response_model"] == "gpt-6-luna"
+    assert rows[1]["deployment_id"] == "openai-gpt-6-luna"
+    assert call(ReplayChatClient.load(path, **CONFIG)) == result
+    rows[1].pop("deployment_id")
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    assert call(ReplayChatClient.load(path, **CONFIG)).deployment_id is None

@@ -60,8 +60,8 @@ TCR과 정확도는 합치지 않는다. 일을 끝냈는지(상태)와 내용�
 ### 안정성 (M3)
 - 승인 노드 핵심(`interrupt`, 초안 해시 결합, `POST /tasks/{id}/approval`)을 거친 재개 반복·승인 API 이중 호출에서 부작용 1회를 검증한다. 동일 해시·결정 재요청은 종료 영수증 200을 반환하고 접수는 202다. 만료·해시 충돌은 409, 불변 필드 수정은 422로 검증한다. 수정 차단 후 원래 초안·해시 복원과 재승인·거부·만료를 검증한다. 웹 화면은 M5다. 전사 공지 본인 승인 403과 다른 사용자 task 404를 검증한다.
 - 장애 주입 하 **중복 실행 건수** = (task, 부작용 종류, 대상)별 Σ max(0, mock 실제 건수 − 기대 건수). 멱등 키와 무관하게 mock 상태와 task 표식으로 센다(키가 다르게 생긴 중복도 잡기 위해서다).
-- 모델 장애 주입 하 **fallback 성공률**과 fallback 응답 시간. fallback은 호출 단위(LiteLLM)이므로 **모델이 섞인 task 수와 그 TCR**을 따로 보고한다.
-- fallback 보고 시 `unmapped_models`가 하나라도 있으면 결과 문서에 표시한다.
+- F6 모델 장애 주입은 `down_alias`(닫힌 포트 배포 `agent-primary-down` + fallbacks, ADR-019)를 사용한다. 모델 장애 주입 하 **fallback 성공률**과 fallback 응답 시간. fallback은 호출 단위(LiteLLM)이므로 **모델이 섞인 task 수와 그 TCR**을 따로 보고한다.
+- fallback 보고의 dev manifest `models_seen`은 응답 헤더 `x-litellm-model-id`의 배포 ID를 매핑한 제공자 모델 ID다(헤더가 없을 때만 본문 모델 사용). `unmapped_models`는 미등록 식별자이며 하나라도 있으면 결과 문서에 표시한다. LLM 기록에는 `response_model`(매핑 결과)과 `deployment_id`를 함께 남긴다.
 - 주 모델 장애 중 Guardrail(v2 분류기는 Anthropic)이 통과 판정을 내는지 확인한다(F6).
 - F10 조회 반영 지연은 2단계 조회 대기보다 짧은 지연만 절대 규칙 1의 대상이고, 긴 지연은 한계 시연으로 절대 규칙에서 뺀다(사전 등록). F11 A MCP 장애의 판정은 부작용 0건 + 근거 없는 답변 0건이다.
 - 장애 주입 시나리오는 [THREAT_MODEL.md](THREAT_MODEL.md#5-장애-주입-시나리오).

@@ -159,7 +159,7 @@ def test_wiring_approval_dependencies(
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("mode", ["mock_param", "down_alias", "invalid"])
+@pytest.mark.parametrize("mode", ["mock" + "_param", "down_alias", "invalid"])
 def test_service_rejects_fault_mode(monkeypatch, mode):
     monkeypatch.setenv("GOVOPS_MODEL_FAULT_MODE", mode)
 

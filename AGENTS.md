@@ -87,6 +87,7 @@ make smoke-host-header # live A 인증된 위조 Host 헤더 거절 실측(사�
 
 make costs-init # 분리 비용 원장 초기화(사용자 실행)
 make agent-key # 에이전트 전용 LiteLLM 가상 키 발급(사용자 실행)
+make agent-key-update # 기존 에이전트 키 허용 모델 갱신, .env 키 값 유지(사용자 실행)
 make db-init # govops 앱 DB 멱등 초기화(사용자 실행)
 make serve # 루프백 API 서비스 실행(사용자 실행)
 make ask # 사용자 신원으로 요청·폴링 CLI(사용자 실행)
