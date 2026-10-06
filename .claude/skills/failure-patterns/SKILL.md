@@ -49,6 +49,13 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: `tests/test_effects_matrix.py::test_claim_reexecution`(선점 실패 + 결과 감사 실패 → 원래 행의 `audit_gap`·상태 불변, `EffectResult.audit_gap`만 True)
 - **출처**: m3-effects 검토 → m3-approval step 0
 
+### FP-005 주입한 장애가 시험하려는 검사 경로를 타지 않음
+- **증상**: F10(조회 반영 지연)을 단독 시나리오로 두면 응답은 정상이라 표식 조회가 일어나지 않는다. 중복 0이 "표식 조회가 잘 동작해서"가 아니라 아무 일도 안 일어나서 저절로 나온다.
+- **원인**: 장애 주입을 "그 장애가 발생함"까지만 정의하고, 그 장애가 방어 로직(표식 조회 → 대기 → 재조회)을 실제로 실행시키는지는 확인하지 않았다.
+- **규칙**: 장애 시나리오는 시험하려는 경로를 **반드시 타도록 결합**하고 그 경로가 실제로 실행됐다는 증거(조회 호출 수 > 0, 대기 발생)를 단언한다. F10(조회 반영 지연)은 항상 F5(처리 후 응답 유실)와 결합한다. 사전 등록에도 결합으로 적는다.
+- **강제 수단**: `tests/test_effects_matrix.py`(F5 + 반영 지연 짧게 → 2단계 조회 발견·중복 0, 길게 → 중복 1 `known_limit`), THREAT_MODEL F10 행(F5와 결합)
+- **출처**: m3-effects 설계 검토(step 4 지침, `da3e560`), 문서 반영 `a0e4f30`
+
 ## B. 입력 검증·개인정보 판정
 
 ### FP-010 식별자·해시에 개인정보 정규식을 돌려 정상 값이 무작위로 거부됨
@@ -80,7 +87,7 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **원인**: 외부 서비스 응답 형태를 문서·추측으로 정하고 가짜 응답을 그 추측대로 만들었다. 테스트가 같은 추측을 검증하므로 틀려도 통과한다.
 - **규칙**: 외부 서비스(LiteLLM·A MCP·mock이 흉내 내는 실제 API) 응답을 해석하는 코드는 **실제 응답 1건으로 필드·헤더를 확인한 뒤** 그 형태(본문이 일관되지 않을 수 있음 포함)를 픽스처로 쓴다. 실제 값을 볼 수 있는 진단 출력(비밀이 아닌 모델명·배포 ID·헤더 값)을 사용자 실행 스모크에 넣는다. 한 필드에 의존하지 않고 신뢰할 수 있는 신호(헤더)를 우선하되, 없는 경우의 동작(보수적 정산 + 경보)을 테스트한다.
 - **강제 수단**: `tests/test_gateway_client.py`(`test_deployment_headers_override_body`, `test_deployment_configuration_ids`: 본문=별칭·헤더=배포 ID 픽스처), `tests/test_smoke_gateway.py::test_stage_checks`, 사용자 실행 `make smoke-fallback`의 `INFO` 진단 줄
-- **출처**: `make smoke-fallback` 실측(조언 세션 SpendLogs 확인) → m3-gateway-fix
+- **출처**: `make smoke-fallback` 실측(설계 검토에서 SpendLogs 확인) → m3-gateway-fix
 
 ### FP-021 검사 조건이 보수 규칙 때문에 우연히 만족되어 가짜 PASS
 - **증상**: `smoke-fallback`의 fallback 단계 합격 조건이 "`agent_fallback` 원장 증가 > 0"이었는데, 미등록 응답 모델을 양쪽 공급사에 정산하는 보수 규칙 때문에 모델 매핑이 실패해도 Anthropic 증가가 > 0이 되어 통과할 수 있었다.
@@ -89,9 +96,12 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: `tests/test_smoke_gateway.py`(`test_stage_checks`: 미등록·원장 증가 방향이 틀린 단계는 FAIL, `test_unsupported_or_unmapped`)
 - **출처**: `make smoke-fallback` 실측 → m3-gateway-fix step 3
 
-### FP-022 가공한 관측 파일로 결과를 단정 `[상세 보완 필요]`
-- **증상·원인·강제 수단**: 조언 세션 검토에서 확인된 사례이며 이 저장소에 근거 커밋·파일이 없어 여기에는 항목 제목만 둔다. 사례의 증상·원인·강제 수단을 확인한 뒤 이 항목을 채운다. 채울 때까지 규칙은 다음 한 줄뿐이다: **결과를 단정하는 근거는 실행이 직접 남긴 원본 관측 파일(또는 그 해시)이어야 하며, 사람이나 도구가 가공·재구성한 파일로 판정하지 않는다.**
-- **출처**: M3 검토(상세 미확인)
+### FP-022 가공한 관측 파일로 도구 출력의 형태를 단정
+- **증상**: m3-approval 설계 검토에서 "`lookup_id`는 ID만 돌려준다"고 단정해 V15 근거 정의에 "`lookup_id` 제외"가 들어갔다(ADR-018 8항). 실제 A 기록 `data/replay/a_run/T1-01.jsonl`에는 `lookup_id`가 `syn-meeting-001`의 `text`(667자)까지 돌려줬다. 본문이 모델 입력에 들어갔는데 근거에서 빠지면 분류 하향 유출 방어가 약해진다.
+- **원인**: 판단의 근거로 쓴 `data/results/dev/<run>/observations.jsonl`은 러너가 도구 결과 본문을 빼고 구조 ID만 남긴 **가공본**이다(`eval/observation.py`의 `tool_results` 주석). 가공본에서 "본문이 없다"를 "도구가 본문을 돌려주지 않는다"로 읽었다.
+- **규칙**: 도구 출력의 형태·내용에 대한 판단은 **원자료**로만 한다: `data/replay/a_run/`(기록한 A 응답), `data/contract/*.v1.json`(계약 스냅샷), live 출력. 가공본(관측 JSONL, 요약, 집계)은 판단 근거로 쓰지 않는다. 설계 초안에서 데이터에 기반한 판단을 적을 때는 **근거 파일 경로를 함께 적는다**.
+- **강제 수단**: /review 체크리스트(데이터 판단의 근거가 원자료인가), /harness 설계 초안의 "확인한 사실"에 근거 경로 필수. 규칙이 코드로 옮겨진 곳: `agent/scope.py`의 구조 근거 추출(`text`가 있는 항목)과 그 테스트(`tests/test_agent_scope.py::test_lookup_replay_evidence`: `lookup_id`의 `syn-meeting-001`이 근거에 들어감).
+- **출처**: m3-approval 설계 검토, ADR-018 8항은 m3-approval step 8(`a29d25a`)에서 구조 규칙으로 고침
 
 ## D. 설정·환경·프로세스
 
@@ -108,6 +118,36 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **규칙**: 비용 원장처럼 커밋 대상인 실행 산출물은 실행 직후 **별도 커밋**(`chore:`)으로 올린 뒤 phase를 실행한다. phase를 만들 때는 생성 절차를 저장소 밖 스크래치에 의존하지 말고, 파일이 실제로 만들어졌는지(`phases/<phase>/index.json` 존재)를 확인한 뒤 실행한다.
 - **강제 수단**: `scripts/execute.py` 작업 트리 검사, /harness 파일 생성 후 확인
 - **출처**: m3-gateway-fix 시작 시점
+
+## E. 평가·판정·사전 등록
+
+### FP-040 0건 지표를 "아무것도 안 하기"로 통과
+- **증상**: 장애 주입 하 중복 실행 건수만 보면 아무것도 발송하지 않아도 0이다. F2 연속 장애에서 효과 0건이어도 중복 0으로 통과한다.
+- **원인**: "적을수록 좋은" 지표 하나로 합격을 판정했다. 지표를 0으로 만드는 가장 쉬운 방법은 일을 하지 않는 것이다.
+- **규칙**: 0이 좋은 지표는 **짝 지표**(누락 건수 = Σ max(0, 기대 − 실제), 최종 상태, 승인 표식 없는 효과 수)와 함께 판정·보고한다. 시나리오마다 기대 결과(효과 수·최종 상태)를 사전 등록한다.
+- **강제 수단**: `eval/duplicates.py`의 `count_effects`(중복·누락·미승인·마커 없음), `tests/test_duplicates.py::test_conservative_effect_counts`, `tests/test_effects_matrix.py`(시나리오별 중복·누락·최종 상태 단언)
+- **출처**: m3-effects 설계 검토(`da3e560`)
+
+### FP-041 상태 매핑이 다른 판정 범주를 오염
+- **증상**: 결정론 검사 차단(`blocked`)을 관측에서 `rejected`로 옮기면 TCR의 `approval_rejected`가 "상태가 `rejected`이기만 하면 통과"여서, 검사에 막혀 끝난 T6-01도 거부 시나리오를 통과했다.
+- **원인**: 상태를 다른 범주로 옮기는 매핑을 하면서, 옮겨 간 쪽 판정의 통과 조건이 원래 의미(승인자가 실제로 reject했다)를 요구하는지 확인하지 않았다.
+- **규칙**: 상태를 다른 판정 범주로 매핑할 때는 그 범주의 통과 조건이 **원래 의미를 증명하는 기록**(받아들여진 reject 기록)을 요구하는지 확인하고, 매핑된 값만으로 통과시키지 않는다. 매핑 표마다 "이 값이 우연히 통과하는 판정"을 목록으로 만들어 테스트한다.
+- **강제 수단**: TCR 사유 `reject_not_recorded`, `tests/test_eval_tcr.py`(`test_rejection_requires_accepted_reject_record`, `test_t6_check_block_is_not_an_approval_rejection`, `test_other_outcomes_do_not_require_reject_records`)
+- **출처**: m3-approval 설계 검토, step 7(`c7f9506`)
+
+### FP-042 실행 중 코드가 정답지를 읽음
+- **증상**: ScopeIndex 초안이 `data/eval/meta.json`을 읽도록 설계됐다. 이 파일에는 `facts`·`canaries`·`injections`(평가 정답·함정)가 있어, 에이전트 실행 경로가 정답지에 접근하게 된다.
+- **원인**: 필요한 필드(문서 ID와 접근 필드)가 이미 그 파일에 있다는 편의로 원본을 그대로 읽게 했다.
+- **규칙**: 실행 경로(`agent/` 등) 코드는 평가 데이터(`data/eval/`, `govops.eval`)를 읽거나 import하지 않는다. 필요한 최소 필드만 생성 스크립트로 별도 파일(`data/seed/access_index.json`)에 만들어 커밋하고 그 파일에 접근 필드 외 키가 없음을 테스트한다.
+- **강제 수단**: `tests/test_agent_data_boundary.py::test_agent_data_boundary`(`agent/`의 `govops.eval` import와 `data/eval`·`meta.json` 문자열 스캔), `tests/test_scope_index.py`(인덱스에 접근 필드 외 키 없음)
+- **출처**: m3-approval 설계 검토, step 1(`8224ad6`)
+
+### FP-043 기대값을 실행 뒤에 정함
+- **증상(방지한 사례)**: 골든 기대값·가설·목표를 기록·실행 결과를 본 뒤에 정하면 결과에 맞춰 기준이 움직인다. 평가 규칙은 기대값을 실행 전에 정답지에서 계산하고 사전 등록 파일과 **같은 커밋**에 넣도록 정했다.
+- **원인(위험)**: 결과를 본 뒤의 등록은 사전 등록이 아니다. 기록이 기대에 실패했을 때 기대값을 고치거나 다시 기록해 통과시키는 유혹이 생긴다.
+- **규칙**: 기대값·가설·실행 계획표·목표는 실행 **전에** 정답지(명세)에서 계산해 커밋한다. 러너는 등록 파일이 커밋되어 있지 않으면 실행하지 않는다. 기록이 기대에 실패하면 기대를 고치지 않고 `recorded_fail`로 표시한다. 새 등록은 기존 사전 등록 파일을 수정하지 않고 별도 파일로 쌓는다.
+- **강제 수단**: 러너 가드 `hypotheses_not_committed`(`evalrun/dev.py`의 `guard_live`, `tests/test_evalrun_dev.py::test_git_guard`), 골든 `expectations.json` 재계산 테스트, m3-faults에서 `hypotheses-m3.md`와 확장 기대값을 같은 커밋으로 둔다
+- **출처**: m2-run step 4(`f09ca0a`), 사전 등록 커밋 `66be7b3`
 
 ---
 
