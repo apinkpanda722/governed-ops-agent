@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "backend-down-only",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T11:37:08+0900",
+      "summary": "F6 장애 주입을 down_alias로 단일화하고 폐기 경로·문서 참조를 제거했으며, 시작 보호를 유지하고 make verify 통과(2001 passed, 1 skipped 및 웹 검사).",
+      "completed_at": "2026-10-06T11:51:05+0900",
+      "usage": {
+        "input_tokens": 2272387,
+        "cached_input_tokens": 2198528,
+        "output_tokens": 5721,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
