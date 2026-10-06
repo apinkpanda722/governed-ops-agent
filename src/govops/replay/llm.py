@@ -235,6 +235,8 @@ class ReplayChatClient:
                 raise RerecordRequired()
         except (OSError, ValueError, KeyError, TypeError):
             raise RerecordRequired() from None
+        for row in calls:
+            row.setdefault("response_model", row.get("model", header["model"]))
         return cls(calls)
 
     async def complete(

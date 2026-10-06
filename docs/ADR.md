@@ -80,7 +80,7 @@
 
 ### ADR-007: 모델과 키, 비용 상한은 B 전체 기간 총액으로 코드로 강제한다
 **상태**: 유효
-**결정**: 에이전트 주 모델은 OpenAI `gpt-6-luna`(A와 동일, A 지연을 기준선으로), fallback은 Anthropic Sonnet 계열(다른 회사)이며 호출 단위(LiteLLM)로 전환한다. 모델이 섞인 task 수와 그 TCR을 따로 보고한다. Guardrail v2 분류기는 Anthropic 소형 모델(Haiku 계열, ADR-008)이다. 채점은 Gemini `gemini-3.8-flash`(A 절차, 사람 κ 재보정). 주 모델·fallback·v2 분류기는 LiteLLM 경유, 채점은 게이트웨이를 거치지 않고 비용은 별도 원장에 둔다. B 전용 키를 새로 발급한다(OpenAI project, Anthropic workspace, Gemini project). 사용자가 발급해 B `.env`에만 둔다. Upstage는 쓰지 않는다. 모델 ID·설정은 평가 전 freeze하고 변경은 기록을 공개한다.
+**결정**: 에이전트 주 모델은 OpenAI `gpt-6-luna`(A와 동일, A 지연을 기준선으로), fallback은 Anthropic `claude-sonnet-5-5`(다른 회사, ADR-019)이며 호출 단위(LiteLLM)로 전환한다. 모델이 섞인 task 수와 그 TCR을 따로 보고한다. Guardrail v2 분류기는 Anthropic 소형 모델(Haiku 계열, ADR-008)이다. 채점은 Gemini `gemini-3.8-flash`(A 절차, 사람 κ 재보정). 주 모델·fallback·v2 분류기는 LiteLLM 경유, 채점은 게이트웨이를 거치지 않고 비용은 별도 원장에 둔다. B 전용 키를 새로 발급한다(OpenAI project, Anthropic workspace, Gemini project). 사용자가 발급해 B `.env`에만 둔다. Upstage는 쓰지 않는다. 모델 ID·설정은 평가 전 freeze하고 변경은 기록을 공개한다.
 Gemini 단가 유효기간(2026-12-31) 이후 채점은 코드로 거부한다.
 원장은 `data/manifest/costs.jsonl`과 채점 전용 `data/manifest/costs_grading.jsonl`에 두며, 원장이 없으면 호출 거부한다. 호출 직전 상한 검사와 예약 행 기록은 원장 잠금 안에서 한 번에 하고(누적액 + 미정산 예약액 + 추정액 ≤ 상한), 호출이 끝나면 성공·실패와 관계없이 같은 예약 ID로 정산 행을 남기며, 프로세스가 죽어 정산되지 않은 예약은 삭제하지 않고 상한 쪽으로 보수적으로 계속 센다.
 비용 상한은 **B 전체 기간 총액(월 단위 아님)**이다. 규칙: `상한 = 잔액 × 0.9`(10%는 지원 직전 A 재점검·B 데모 재촬영 몫). 잔액을 원장으로 추정할 때는 A 원장 사용액에 청구 여유 1.05(A `billing_margin`, 원장 대 콘솔 +3.2% 실측 이력)를 곱해 뺀다. 센트 미만은 버린다. **호출 직전 공급사별 누적액 검사로 강제한다**(A `costs.py` 방식). 공급사 상한은 그대로 두고, 원장의 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다.
@@ -95,7 +95,7 @@ Gemini 단가 유효기간(2026-12-31) 이후 채점은 코드로 거부한다.
 A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Google $1.80, OpenAI $6.05, Upstage $23.79, 합계 $35.00. M2 파일럿 실측으로 B 전체 예상 비용을 다시 추정하고, 상한을 넘을 것으로 보이면 ADR-013의 축소 순서를 적용하거나 추가 충전한다.
 **이유**: 주 모델을 A와 같게 두면 A 지연이 기준선이 된다. fallback을 다른 회사로 두어야 공급사 장애에 대응한다(Trade-off 축3, 단일 대 멀티 벤더). 채점이 게이트웨이를 지나면 Guardrail이 채점 입력을 바꿔 평가가 왜곡된다. fallback을 task 단위로 하면 이미 끝난 읽기 호출이 반복된다. 호출 단위로 바꿔도 부작용은 승인 뒤에만 일어나므로 중복 걱정이 없다. 선불 크레딧이므로 월 단위가 아니라 남은 총액이 실제 한계다. 코드로 강제한 비용 상한은 채용 측 평가 신호다.
 **트레이드오프**: 공급사가 셋이라 키·원장 관리가 늘어난다. 원장 추정은 콘솔과 어긋날 수 있어 1.05 여유를 둔다. 호출 단위 fallback은 한 task 안에서 모델이 섞여 응답 형식 차이가 생길 수 있다(M3 장애 주입에서 실측). v2 분류기는 모델 호출마다 돌아 Anthropic 호출 수가 늘어난다(M6 파일럿 실측으로 다시 추정하고, 넘치면 v2를 뺀다). Gemini 단가는 2026-12-31까지 유효(A ADR-030)하며, 그 뒤면 단가·`valid_until`을 갱신해야 한다.
-**확인 필요(구현 시 공식 문서로 확인)**: fallback Anthropic 모델(Sonnet 계열)과 v2 분류기(Haiku 계열)의 정확한 ID와 가격.
+**확인 필요(구현 시 공식 문서로 확인)**: v2 분류기(Haiku 계열)의 정확한 ID와 가격. fallback 모델 ID·가격은 ADR-019를 따른다.
 **변경 기록**:
 - 2026-10-03: 결정 6으로 확정.
 
@@ -208,7 +208,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
    | 표식 2단계 조회 대기 | 2.0초 |
    | 부작용 발송 시도 | 최대 3회 |
 
-   모델 호출 타임아웃은 별도 값이며 게이트웨이 phase에서 정한다.
+   모델 호출 타임아웃은 별도 값이며 ADR-019를 따른다.
 2. **표식·멱등 키**: 메타데이터 `govops_idem`(멱등 키)·`govops_task`(task ID)·`govops_approval`(승인 ID)를 쓴다. 멱등 키 = sha256(정규화 JSON{task, 도구, 인자}). 직렬화 키는 `task_id`·`tool`·`args`이며 인자 문자열 NFC 정규화, 키 정렬·공백 없음·UTF-8을 적용한다. 조회는 채널 이력·티켓 코멘트·원 티켓 children이며 검색 API는 쓰지 않는다.
 3. **outbox**: Postgres `govops` DB의 `govops_outbox` 테이블에 키 PRIMARY KEY, `INSERT … ON CONFLICT DO NOTHING`으로 선점한다. 행에는 해시·mock ID·상태·`audit_gap`만 두며 원문·자격 증명은 두지 않는다. task·도구·대상·승인 ID와 발송 횟수·안전한 사유 코드는 실행 식별·상태 정보다. 상태 = 기록됨(`recorded`)·시도됨(`attempted`)·불확실(`uncertain`)·성공(`succeeded`)·실패(`failed`). 테스트는 InMemory 저장소를 쓴다.
 4. **재시도 분류**: 연결 수립 실패·429만 표식 조회 없이 재시도한다(발송 시도 3회 안에서). 그 밖의 불확실 실패(타임아웃·5xx·전송 오류)는 표식 조회 2단계 뒤 두 번 모두 없을 때만 재발송한다. 4xx는 확정 실패이고 조회 불가는 재발송하지 않고 불확실로 종료한다. 마지막 시도가 불확실 실패로 끝났으면 표식이 보이지 않아도 불확실로 종료한다. `FAILED`는 보내지 않았음이 확실한 경우(4xx, 서킷 열림으로 호출하지 않음, 연결 실패·429만 반복, 첫 발송 전 감사 실패)에만 쓴다. POST마다 직전에 실행 시도 이벤트(발송 번호 포함)를 fail-closed로 기록한다. 재시작 정리는 표식 조회만 하고 재발송하지 않는다.
@@ -234,3 +234,18 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **트레이드오프**: 비체인 감사는 M4 전까지 변조를 탐지하지 못한다. 클라이언트 쪽 F4 주입은 서버 쪽 연결 거부와 다르다. 대기보다 긴 조회 반영 지연은 중복을 막지 못한다(F10 한계 시연). 문서 단위 발송 범위 검사는 값 기준 평가보다 엄격해 정상 요청을 차단할 수 있으며 TCR 실패에 포함한다.
 **변경 기록**:
 - 2026-10-05: 도구 장애 처리 값, outbox·메타데이터 표식, 재시도 분류, 장애 주입 CLI, M3 감사 최소 구현·승인자 정책, V15 발송 범위 검사.
+
+
+### ADR-019: M3 결정 — fallback 모델·원장 정산·모델 호출 타임아웃·모델 장애 주입
+**상태**: 유효
+**날짜**: 2026-10-05
+**결정**:
+1. **fallback 모델**: Claude Sonnet 5.5(`claude-sonnet-5-5`, LiteLLM `anthropic/claude-sonnet-5-5`)이며 호출 단위(LiteLLM Router)로 전환한다. 단가는 입력 $2/MTok·출력 $10/MTok([출처](https://platform.claude.com/docs/en/about-claude/pricing), 확인일 2026-10-05)이며 캐시 입력도 일반 입력 단가로 센다.
+2. **비용 메모**: 4.7 이후 Anthropic 모델은 새 토크나이저를 쓰므로 같은 텍스트에 토큰이 약 30% 더 나온다. 호출 전 추정은 입력 상한을 크게 잡으므로 보정 계수를 두지 않고, 실측 비용은 원장으로 확인한다.
+3. **모델 호출 타임아웃**: 도구 호출의 Soft 3초/Hard 10초와 별개로 주 모델 15초, `num_retries` 0(같은 모델 재시도 없이 바로 fallback), fallback 모델 30초, 클라이언트 60초다. 두 LiteLLM 설정 파일(`config.yaml`·`config.obs.yaml`)의 값은 같고 테스트로 고정한다.
+4. **원장**: fallback이 가능한 호출은 공급사별 예약 2건(OpenAI·Anthropic, 각 공급사 단가)을 잡고 응답 모델 기준으로 정산한다(응답한 쪽에 실제 비용, 다른 쪽은 0). OpenAI 상한 소진은 예산 중단이고, Anthropic 상한만 소진되면 fallback 없는 별칭(`agent-primary-only`)으로 호출한다.
+5. **응답 모델 ID 매핑**: 정확 일치 + 등록된 접두어(날짜 접미사 `-YYYYMMDD`·`-YYYY-MM-DD` 허용)다. 매핑되지 않은 모델은 등록 모델 중 최대 단가로 두 예약 모두 정산하고 경보한다. **미등록 응답 모델은 가장 비싼 단가로 양쪽 공급사에 모두 정산하므로 비용 보고가 과대 계상될 수 있다.** dev manifest에 `unmapped_models`를 기록하고 하나라도 있으면 결과 문서에 표시한다. 호출마다 제공자 모델 ID를 `ChatResult.model`·LLM 기록 `response_model`·`models_seen`에 남긴다.
+6. **모델 장애 주입(F6)**: 호출 번호 기준 스크립트(첫 호출만·둘째 호출만·전부 실패)를 두 백엔드로 구현한다 — `mock_testing_fallbacks` 요청 파라미터, 닫힌 포트를 가리키는 배포 `agent-primary-down` + fallbacks. 하네스에서만 쓰고 `GOVOPS_MODEL_FAULT_MODE`가 설정된 상태로는 일반 서비스가 시작되지 않는다. 사용할 백엔드는 `smoke-fallback` 결과로 사전 등록 문서에서 하나로 확정한다. chaos proxy는 쓰지 않는다.
+7. **환경 변수**: 빈 문자열·공백은 미설정으로 보고 기본값을 쓴다(`env_or`). `src` 전체에서 비어 있지 않은 기본값을 `environ.get`/`getenv`에 넘기는 패턴은 스캔 테스트가 막는다.
+8. **감사 식별자**: 감사 로그의 `task_id`(`^[0-9a-f]{32}$`)와 `actor_sub`(등록 사용자 라벨 형식)는 형식으로 검증하며 개인정보 정규식은 식별자·해시 필드에 적용하지 않는다(무작위 hex가 전화번호 규칙에 걸려 정상 기록이 거부되는 것을 막는다). 형식 밖 값은 거부한다.
+9. **mock 변경 후 절차**: mock 코드가 바뀐 PR을 머지한 뒤에는 `docker compose -f infra/docker-compose.yml up -d --build mock-jira mock-slack`을 실행한다.

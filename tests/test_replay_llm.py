@@ -227,3 +227,13 @@ def test_tool_result_key_order_does_not_change_the_request_key():
     # 문자열이 JSON이 아니면 그대로 비교한다
     text = {"role": "tool", "tool_call_id": "c1", "content": "not json"}
     assert _hash(_request([text], [], 1024)) != _hash(_request([live], [], 1024))
+
+
+def test_legacy_record_without_response_model(tmp_path):
+    client, _ = record(tmp_path)
+    path = client.finish()
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    rows[1].pop("response_model")
+    rows[1]["model"] = RESULT.model
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    assert call(ReplayChatClient.load(path, **CONFIG)) == RESULT

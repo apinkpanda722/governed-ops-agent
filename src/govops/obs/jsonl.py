@@ -7,6 +7,7 @@ import threading
 from dataclasses import asdict
 from pathlib import Path
 
+from govops.env import env_or
 from govops.obs.trace import SpanRecord
 
 _WRITE_LOCK = threading.Lock()
@@ -18,7 +19,7 @@ class JsonlSink:
         self.root = (
             Path(root)
             if root is not None
-            else Path(os.environ.get("GOVOPS_TRACE_DIR", str(default)))
+            else Path(env_or("GOVOPS_TRACE_DIR", str(default)))
         )
 
     def emit(self, record: SpanRecord) -> None:

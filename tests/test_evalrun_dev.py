@@ -513,3 +513,44 @@ def test_index_name_comes_from_a_settings_else_env_with_its_source(tmp_path):
         "index_name": "kodocs-m5-x-y",
         "index_name_source": "env(사용자 입력)",
     }
+
+
+def test_mixed_response_models_in_manifest_and_recording(tmp_path):
+    from dataclasses import replace
+
+    class Mixed(Chat):
+        async def complete(self, **kwargs):
+            result = await super().complete(**kwargs)
+            return replace(
+                result,
+                model="gpt-6-luna" if self.calls == 1 else "claude-sonnet-5-5",
+                fallback_used=self.calls > 1,
+            )
+
+    result = exercise(tmp_path, Mixed())
+    assert result["manifest"]["models_seen"] == ["claude-sonnet-5-5", "gpt-6-luna"]
+    assert result["manifest"]["fallback_used"] is True
+    assert result["manifest"]["unmapped_models"] == []
+    paths = list((tmp_path / "data/replay/llm").glob("*.jsonl"))
+    assert paths
+    rows = [json.loads(line) for line in paths[0].read_text().splitlines()][1:]
+    assert [row["response_model"] for row in rows] == [
+        "gpt-6-luna",
+        "claude-sonnet-5-5",
+    ]
+
+
+def test_unmapped_response_model_in_manifest(tmp_path):
+    from dataclasses import replace
+
+    class Unmapped(Chat):
+        async def complete(self, **kwargs):
+            return replace(
+                await super().complete(**kwargs),
+                model="unknown-model",
+                unmapped_model=True,
+            )
+
+    result = exercise(tmp_path, Unmapped())
+    assert result["manifest"]["unmapped_models"] == ["unknown-model"]
+    assert result["manifest"]["fallback_used"] is False

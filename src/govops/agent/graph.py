@@ -190,6 +190,9 @@ def build_graph(
                     "output": result.usage.output_tokens,
                 },
                 cost_usd=result.cost_usd,
+                model=result.model,
+                fallback_used=result.fallback_used,
+                unmapped_model=result.unmapped_model,
                 tool_call_count=len(calls),
                 error_code=None,
             )

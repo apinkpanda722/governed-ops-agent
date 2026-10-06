@@ -16,6 +16,7 @@ import httpx
 
 from govops.audit.log import AuditLog
 from govops.broker import credentials
+from govops.env import env_or
 from govops.tools.a_mcp import AMcpClient, check_contract
 from govops.tools.contract import (
     ContractMismatchError,
@@ -27,7 +28,7 @@ from govops.tools.jira import JiraClient
 from govops.tools.markers import has_marker
 from govops.tools.outbox import InMemoryOutboxStore, OutboxState
 from govops.tools.registry import _ids
-from govops.tools.resilience import ToolPolicy
+from govops.tools.resilience import ToolPolicy, classify
 from govops.tools.rest import ToolHttpError
 from govops.tools.slack import SlackClient
 
@@ -293,6 +294,41 @@ async def smoke_host_header(
     )
 
 
+class _DiagnosticPolicy(ToolPolicy):
+    """Retain only safe failure fields from errors consumed by effect execution."""
+
+    def __init__(self):
+        super().__init__()
+        self.error = None
+
+    async def call_once(self, service, fn, **kwargs):
+        try:
+            return await super().call_once(service, fn, **kwargs)
+        except Exception as error:
+            self.error = _error_fields(error)
+            raise
+
+
+def _error_fields(error):
+    status = classify(error).value
+    if isinstance(error, ToolHttpError):
+        status = (
+            error.status
+            if type(error.status) is int and error.status
+            else (
+                error.kind
+                if error.kind in {"connect", "timeout", "transport", "http"}
+                else status
+            )
+        )
+    return type(error).__name__, status
+
+
+def _effect_failure(tool, stage, state, reason, error=None):
+    name, status = error or ("None", "none")
+    return f"FAIL {tool} stage={stage} state={state} reason={reason} error={name} status={status}"
+
+
 async def smoke_effects(jira, slack, tickets, users, *, user_id) -> SmokeResult:
     lines = []
     try:
@@ -331,13 +367,15 @@ async def smoke_effects(jira, slack, tickets, users, *, user_id) -> SmokeResult:
                 ticket_id,
             ),
         ]
-        outbox, policy = InMemoryOutboxStore(), ToolPolicy()
+        outbox, policy = InMemoryOutboxStore(), _DiagnosticPolicy()
         with TemporaryDirectory(prefix="govops-smoke-") as directory:
             audit = AuditLog(Path(directory))
             for tool, args, lookup, target in cases:
+                stage, state, reason = "send", OutboxState.FAILED, "exception"
+                policy.error = None
                 try:
                     req = EffectRequest(
-                        "smoke-" + uuid4().hex, user_id, tool, args, "smoke-approved"
+                        uuid4().hex, user_id, tool, args, "smoke-approved"
                     )
                     deps = {
                         "jira": jira,
@@ -347,32 +385,61 @@ async def smoke_effects(jira, slack, tickets, users, *, user_id) -> SmokeResult:
                         "policy": policy,
                     }
                     first = await execute_effect(req, **deps)
-                    row = next(
-                        r for r in outbox.rows.values() if r.task_id == req.task_id
+                    state = first.state
+                    if (
+                        first.state != OutboxState.SUCCEEDED
+                        or first.sends != 1
+                        or first.audit_gap
+                    ):
+                        reason = "send_failed"
+                    else:
+                        row = next(
+                            r for r in outbox.rows.values() if r.task_id == req.task_id
+                        )
+                        stage, reason = "lookup", "marker_missing"
+                        visible = has_marker(
+                            await lookup(user_id, target), row.idempotency_key
+                        )
+                        if visible:
+                            stage, reason = "repeat", "repeat_mismatch"
+                            second = await execute_effect(req, **deps)
+                            state = second.state
+                            if (
+                                second.reason == "already_succeeded"
+                                and second.sends == 0
+                                and not second.audit_gap
+                            ):
+                                stage, reason = "count", "count_mismatch"
+                                count = sum(
+                                    has_marker([item], row.idempotency_key)
+                                    for item in await lookup(user_id, target)
+                                )
+                                if count == 1:
+                                    lines.append("PASS " + tool)
+                                    continue
+                    lines.append(
+                        _effect_failure(tool, stage, state, reason, policy.error)
                     )
-                    visible = has_marker(
-                        await lookup(user_id, target), row.idempotency_key
+                except Exception as error:  # noqa: BLE001 — never expose bodies or credentials
+                    lines.append(
+                        _effect_failure(
+                            tool, stage, state, "exception", _error_fields(error)
+                        )
                     )
-                    second = await execute_effect(req, **deps)
-                    count = sum(
-                        has_marker([item], row.idempotency_key)
-                        for item in await lookup(user_id, target)
-                    )
-                    ok = (
-                        first.state == OutboxState.SUCCEEDED
-                        and first.sends == 1
-                        and not first.audit_gap
-                        and visible
-                        and second.reason == "already_succeeded"
-                        and second.sends == 0
-                        and not second.audit_gap
-                        and count == 1
-                    )
-                except Exception:  # noqa: BLE001 — never expose bodies or credentials
-                    ok = False
-                lines.append(("PASS " if ok else "FAIL ") + tool)
-    except Exception:  # noqa: BLE001
-        return SmokeResult(False, ["FAIL effects"])
+
+    except Exception as error:  # noqa: BLE001
+        return SmokeResult(
+            False,
+            [
+                _effect_failure(
+                    "effects",
+                    "send",
+                    OutboxState.FAILED,
+                    "exception",
+                    _error_fields(error),
+                )
+            ],
+        )
     return SmokeResult(all(line.startswith("PASS ") for line in lines), lines)
 
 
@@ -386,15 +453,15 @@ async def _run(command, user_id):
     if command == "contract":
         return await smoke_contract(a)
     tickets = json.loads((_ROOT / "data/seed/tickets.json").read_text())["tickets"]
-    jira = JiraClient(os.environ.get("MOCK_JIRA_URL", "http://127.0.0.1:8081"))
+    jira = JiraClient(env_or("MOCK_JIRA_URL", "http://127.0.0.1:8081"))
     if command == "identity":
         return await smoke_identity(a, jira, tickets)
     if command == "effects":
         users = json.loads((_ROOT / "data/seed/users.json").read_text())["users"]
-        slack = SlackClient(os.environ.get("MOCK_SLACK_URL", "http://127.0.0.1:8082"))
+        slack = SlackClient(env_or("MOCK_SLACK_URL", "http://127.0.0.1:8082"))
         return await smoke_effects(jira, slack, tickets, users, user_id=user_id)
     if command == "mock":
-        slack = SlackClient(os.environ.get("MOCK_SLACK_URL", "http://127.0.0.1:8082"))
+        slack = SlackClient(env_or("MOCK_SLACK_URL", "http://127.0.0.1:8082"))
         return await smoke_mock(jira, slack, tickets)
     users = json.loads((_ROOT / "data/seed/users.json").read_text())["users"]
     if len(users) != EXPECTED_USERS or len(select_sample(tickets)) != SAMPLE_SIZE:
@@ -415,17 +482,25 @@ def main(argv: list[str] | None = None) -> int:
             "effects",
         ],
     )
-    parser.add_argument("--user", default=os.environ.get("SMOKE_USER", DEMO_USERS[0]))
+    parser.add_argument("--user", default=env_or("SMOKE_USER", DEMO_USERS[0]))
     args = parser.parse_args(argv)
     previous_logging = logging.root.manager.disable
     if args.command == "effects":
         logging.disable(logging.CRITICAL)
     try:
         result = asyncio.run(_run(args.command, args.user))
-    except Exception:  # noqa: BLE001
+    except Exception as error:  # noqa: BLE001
         result = SmokeResult(
             False,
-            ["FAIL effects"]
+            [
+                _effect_failure(
+                    "effects",
+                    "send",
+                    OutboxState.FAILED,
+                    "exception",
+                    _error_fields(error),
+                )
+            ]
             if args.command == "effects"
             else ["스모크 실패: 시드·자격 증명·연결 설정 확인"],
         )

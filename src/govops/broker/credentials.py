@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from typing import Literal
 
+from govops.env import env_or
+
 Audience = Literal["kodocs-mcp", "mock-jira", "mock-slack"]
 
 
@@ -43,7 +45,7 @@ def _credentials(audience: Audience) -> dict[str, str]:
     if audience == "kodocs-mcp":
         path = os.environ.get("KODOCS_MCP_TOKENS_FILE")
     else:
-        path = os.environ.get("MOCK_TOKENS_FILE") or "data/interim/mock/tokens.json"
+        path = env_or("MOCK_TOKENS_FILE", "data/interim/mock/tokens.json")
     if not path:
         raise CredentialSourceError(f"{audience}: source environment variable missing")
     records = _read_source(path, audience)

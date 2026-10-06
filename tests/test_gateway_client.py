@@ -149,8 +149,10 @@ def test_request_and_result(tmp_path, monkeypatch, calls, caplog):
     assert result.cost_usd == expected
     rows = (tmp_path / "costs.jsonl").read_text().splitlines()
     # 호출 직전 예약 행 + 호출 뒤 정산 행(같은 예약 ID)
-    assert len(rows) == 2
-    reservation, row = (json.loads(r) for r in rows)
+    assert len(rows) == 4
+    reservation, row = (
+        json.loads(r) for r in rows if json.loads(r)["purpose"] == "agent_primary"
+    )
     assert reservation["kind"] == "reservation"
     assert row["reservation_id"] == reservation["reservation_id"]
     assert row["purpose"] == "agent_primary"
@@ -240,10 +242,15 @@ def test_safe_errors_no_retry_and_settle_zero(tmp_path, failure, caplog):
     )
     assert caught.value.__cause__ is None
     # 실패해도 같은 예약 ID로 0원 정산 행이 남고 미정산 예약이 없다.
-    reservation, settlement = ledger_rows(tmp_path)
+    reservation, settlement = [
+        r for r in ledger_rows(tmp_path) if r["purpose"] == "agent_primary"
+    ]
     assert reservation["kind"] == "reservation"
     assert settlement["reservation_id"] == reservation["reservation_id"]
     assert settlement["cost_usd"] == 0
+    assert len(settled_rows(tmp_path)) == 2
+    assert all(row["cost_usd"] == 0 for row in settled_rows(tmp_path))
+    assert costs.CostLedger(tmp_path).committed_usd("anthropic") == 0
     assert costs.CostLedger(tmp_path).committed_usd("openai") == 0
 
 
@@ -360,7 +367,9 @@ def test_empty_choices_settles_actual_usage_then_fails_safely(tmp_path):
     with pytest.raises(GatewayError) as caught:
         run(tmp_path, lambda _: httpx.Response(200, json=body))
     assert KEY not in str(caught.value) + repr(caught.value)
-    reservation, settlement = ledger_rows(tmp_path)
+    reservation, settlement = [
+        r for r in ledger_rows(tmp_path) if r["purpose"] == "agent_primary"
+    ]
     assert settlement["reservation_id"] == reservation["reservation_id"]
     assert settlement["cost_usd"] == costs.token_cost_usd(
         "gpt-6-luna", input_tokens=100, cached_input_tokens=40, output_tokens=20
@@ -583,3 +592,182 @@ def test_generation_is_attached_under_the_current_model_span(tmp_path):
     assert seen["metadata"]["parent_observation_id"] == expected
     assert re.fullmatch(r"[0-9a-f]{16}", expected)
     assert "trace_id" not in seen["metadata"]
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        "gpt-6-luna",
+        "gpt-6-luna-20261001",
+        "claude-sonnet-5-5",
+        "claude-sonnet-5-5-20261001",
+        "unknown-model",
+    ],
+)
+def test_supplier_reservations_and_response_settlement(tmp_path, model):
+    costs.init_ledgers(tmp_path)
+    body = response()
+    body["model"] = model
+    result = run(tmp_path, lambda _: httpx.Response(200, json=body))
+    expected, resolved = costs.response_cost_usd(
+        model, input_tokens=100, cached_input_tokens=40, output_tokens=20
+    )
+    assert result.model == model
+    assert result.cost_usd == expected
+    assert result.fallback_used == (resolved.supplier == "anthropic")
+    assert result.unmapped_model == (not resolved.mapped)
+    rows = settled_rows(tmp_path)
+    assert {r["purpose"] for r in rows} == {"agent_primary", "agent_fallback"}
+    for row in rows:
+        assert row["cost_usd"] == (
+            expected
+            if not resolved.mapped or row["supplier"] == resolved.supplier
+            else 0
+        )
+    assert len(ledger_rows(tmp_path)) == 4
+
+
+def test_anthropic_cap_disables_fallback(tmp_path):
+    costs.init_ledgers(tmp_path)
+    costs.CostLedger(tmp_path).record(
+        purpose="agent_fallback",
+        model="claude-sonnet-5-5",
+        task_id="old",
+        input_tokens=0,
+        output_tokens=0,
+        cost_usd=costs.SUPPLIER_CAPS_USD["anthropic"],
+    )
+
+    def handler(request):
+        assert json.loads(request.content)["model"] == "agent-primary-only"
+        return httpx.Response(200, json=response())
+
+    run(tmp_path, handler)
+    assert [
+        r["purpose"] for r in ledger_rows(tmp_path) if r.get("kind") == "reservation"
+    ] == ["agent_primary"]
+
+
+def test_unmapped_model_attribute_on_model_span(tmp_path):
+    from govops.obs import trace as obs
+
+    class Sink:
+        def __init__(self):
+            self.records = []
+
+        def emit(self, record):
+            self.records.append(record)
+
+        def close_trace(self, trace_id):
+            pass
+
+    costs.init_ledgers(tmp_path)
+    body = response()
+    body["model"] = "unknown-model"
+    sink = Sink()
+    with (
+        obs.trace("a" * 32, sinks=[sink]),
+        obs.span(obs.SpanKind.MODEL_CALL, "agent-primary"),
+    ):
+        run(tmp_path, lambda _: httpx.Response(200, json=body))
+    assert any(
+        record.attributes.get("unmapped_model") is True for record in sink.records
+    )
+
+
+@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+def test_fault_backend(tmp_path, mode):
+    from govops.gateway.faults import ModelFaultScript
+
+    costs.init_ledgers(tmp_path)
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        body = response()
+        body["model"] = "claude-sonnet-5-5"
+        return httpx.Response(200, json=body)
+
+    script = ModelFaultScript({2})
+    for _ in range(3):
+        result = run(tmp_path, handler, fault_script=script, fault_mode=mode)
+        assert result.fallback_used
+    assert [body["model"] for body in seen] == (
+        ["agent-primary", "agent-primary-down", "agent-primary"]
+        if mode == "down_alias"
+        else ["agent-primary"] * 3
+    )
+    assert [body.get("mock_testing_fallbacks") for body in seen] == (
+        [None, True, None] if mode == "mock_param" else [None] * 3
+    )
+    for body in seen:
+        body.pop("mock_testing_fallbacks", None)
+        body["model"] = "agent-primary"
+        body["metadata"].pop("generation_id")
+    assert seen[0] == seen[1] == seen[2]
+
+
+@pytest.mark.parametrize(
+    "calls,expected",
+    [({1}, [True, False, False]), ({2}, [False, True, False]), ("all", [True] * 3)],
+)
+def test_fault_script(calls, expected):
+    from govops.gateway.faults import ModelFaultScript
+
+    script = ModelFaultScript(calls)
+    assert [script.should_fail("a") for _ in range(3)] == expected
+    assert [script.should_fail("b") for _ in range(3)] == expected
+
+
+@pytest.mark.parametrize("value", [None, "", "mock_param", "down_alias", "invalid"])
+def test_fault_environment(monkeypatch, value):
+    from govops.gateway.faults import model_fault_mode
+
+    monkeypatch.delenv("GOVOPS_MODEL_FAULT_MODE", raising=False)
+    if value is not None:
+        monkeypatch.setenv("GOVOPS_MODEL_FAULT_MODE", value)
+    if value == "invalid":
+        with pytest.raises(ValueError):
+            model_fault_mode()
+    else:
+        assert model_fault_mode() == (value or None)
+
+
+@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+def test_fault_mode_without_script_is_normal(tmp_path, mode):
+    costs.init_ledgers(tmp_path)
+
+    def handler(request):
+        body = json.loads(request.content)
+        assert body["model"] == "agent-primary"
+        assert "mock_testing_fallbacks" not in body
+        return httpx.Response(200, json=response())
+
+    run(tmp_path, handler, fault_mode=mode)
+
+
+@pytest.mark.parametrize("mode", ["mock_param", "down_alias"])
+def test_fault_respects_supplier_cap(tmp_path, mode):
+    from govops.gateway.faults import ModelFaultScript
+
+    costs.init_ledgers(tmp_path)
+    costs.CostLedger(tmp_path).record(
+        purpose="agent_fallback",
+        model="claude-sonnet-5-5",
+        task_id="old",
+        input_tokens=0,
+        output_tokens=0,
+        cost_usd=costs.SUPPLIER_CAPS_USD["anthropic"],
+    )
+
+    def handler(request):
+        body = json.loads(request.content)
+        assert body["model"] == "agent-primary-only"
+        assert "mock_testing_fallbacks" not in body
+        return httpx.Response(200, json=response())
+
+    run(tmp_path, handler, fault_script=ModelFaultScript("all"), fault_mode=mode)
+    assert (
+        costs.CostLedger(tmp_path).committed_usd("anthropic")
+        == costs.SUPPLIER_CAPS_USD["anthropic"]
+    )

@@ -157,3 +157,15 @@ def test_wiring_approval_dependencies(
             assert service.policy is not None
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("mode", ["mock_param", "down_alias", "invalid"])
+def test_service_rejects_fault_mode(monkeypatch, mode):
+    monkeypatch.setenv("GOVOPS_MODEL_FAULT_MODE", mode)
+
+    async def run():
+        async with open_task_service():
+            pytest.fail("must not start")
+
+    with pytest.raises(StartupError, match="GOVOPS_MODEL_FAULT_MODE"):
+        asyncio.run(run())

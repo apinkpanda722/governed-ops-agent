@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
+from govops.env import env_or
 from govops.guardrails.pii import find_pii
 
 EVENTS = frozenset(
@@ -71,13 +72,14 @@ _FORBIDDEN = frozenset(
         "sig",
     }
 )
-_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}")
+_TASK_ID = re.compile(r"[0-9a-f]{32}")
+_ACTOR_SUB = re.compile(r"demo-[a-z-]+-g[0-9]+")
 _lock = threading.Lock()
 _sequences: dict[Path, int] = {}
 Field = str | int | bool | None
 
 
-class AuditWriteError(Exception):
+class AuditWriteError(ValueError):
     """Safe failure that must prevent execution when recording intent."""
 
 
@@ -131,7 +133,7 @@ class AuditLog:
         self.directory = Path(
             directory
             if directory is not None
-            else os.environ.get("AUDIT_DIR", "data/interim/audit")
+            else env_or("AUDIT_DIR", "data/interim/audit")
         ).resolve()
         self.clock = clock
         try:
@@ -157,12 +159,8 @@ class AuditLog:
         if event not in EVENTS:
             raise _InvalidAuditField("Audit event rejected")
         _validate(fields)
-        for identifier in (task_id, actor_sub):
-            if (
-                not isinstance(identifier, str)
-                or not _IDENTIFIER.fullmatch(identifier)
-                or find_pii(identifier)
-            ):
+        for identifier, pattern in ((task_id, _TASK_ID), (actor_sub, _ACTOR_SUB)):
+            if not isinstance(identifier, str) or not pattern.fullmatch(identifier):
                 raise _InvalidAuditField("Audit identifier rejected")
         try:
             with _lock:

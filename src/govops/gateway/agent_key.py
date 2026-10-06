@@ -10,6 +10,7 @@ from pathlib import Path
 
 import httpx
 
+from govops.env import env_or
 from govops.gateway.client import _IN_CALL, _protect_transport_logs
 
 _ASSIGNMENT = re.compile(
@@ -48,7 +49,7 @@ def main(
     parser = argparse.ArgumentParser(description="에이전트 가상 키를 env 파일에 기록")
     parser.add_argument("--env-file", default=".env")
     parser.add_argument(
-        "--base-url", default=os.getenv("LITELLM_BASE_URL") or "http://127.0.0.1:4000"
+        "--base-url", default=env_or("LITELLM_BASE_URL", "http://127.0.0.1:4000")
     )
     args = parser.parse_args(argv)
     master = os.getenv("LITELLM_MASTER_KEY")

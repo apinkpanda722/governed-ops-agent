@@ -5,6 +5,7 @@ import fcntl
 import json
 import math
 import os
+import re
 import sys
 import uuid
 from collections.abc import Mapping
@@ -52,6 +53,16 @@ PRICES: Mapping[str, Price] = MappingProxyType(
                 ("cache_write", 0.125),
                 ("output", 0.50),
             )
+        },
+        **{
+            f"anthropic.claude-sonnet-5-5.{suffix}": Price(
+                service=f"anthropic.claude-sonnet-5-5.{suffix}",
+                unit="token",
+                unit_price_usd=amount / 1_000_000,
+                source_url="https://platform.claude.com/docs/en/about-claude/pricing",
+                checked_on="2026-10-05",
+            )
+            for suffix, amount in (("input", 2), ("output", 10))
         },
         **{
             f"google.gemini-3.8-flash.{suffix}": Price(
@@ -106,6 +117,85 @@ def token_cost_usd(
         + cached_input_tokens * PRICES[f"openai.{model}.cached_input"].unit_price_usd
         + output_tokens * PRICES[f"openai.{model}.output"].unit_price_usd
     )
+
+
+@dataclass(frozen=True)
+class ResolvedModel:
+    supplier: str | None
+    family: str | None
+    price_key: str | None
+    mapped: bool
+
+
+# 응답 ID의 기준 모델과 단가 접두어를 한 곳에서 등록한다.
+REGISTERED_MODELS: Mapping[str, ResolvedModel] = MappingProxyType(
+    {
+        model: ResolvedModel(supplier, model, f"{supplier}.{model}", True)
+        for model, supplier in (
+            ("gpt-6-luna", "openai"),
+            ("claude-sonnet-5-5", "anthropic"),
+        )
+    }
+)
+
+
+def resolve_model(response_model: str) -> ResolvedModel:
+    for model, resolved in REGISTERED_MODELS.items():
+        if re.fullmatch(
+            re.escape(model) + r"(?:-[0-9]{8}|-[0-9]{4}-[0-9]{2}-[0-9]{2})?",
+            response_model,
+        ):
+            return resolved
+    return ResolvedModel(None, None, None, False)
+
+
+def _registered_cost_usd(
+    price_key: str, *, input_tokens: int, cached_input_tokens: int, output_tokens: int
+) -> float:
+    _tokens(input_tokens, cached_input_tokens, output_tokens)
+    if cached_input_tokens > input_tokens:
+        raise ValueError("cached input exceeds total input")
+    input_price = PRICES[f"{price_key}.input"].unit_price_usd
+    cached_price = PRICES.get(f"{price_key}.cached_input", PRICES[f"{price_key}.input"])
+    return (
+        (input_tokens - cached_input_tokens) * input_price
+        + cached_input_tokens * cached_price.unit_price_usd
+        + output_tokens * PRICES[f"{price_key}.output"].unit_price_usd
+    )
+
+
+def anthropic_cost_usd(
+    model: str, *, input_tokens: int, cached_input_tokens: int = 0, output_tokens: int
+) -> float:
+    """전체 입력에 캐시 토큰을 포함하며 일반 입력 단가로 보수적으로 센다."""
+    return _registered_cost_usd(
+        f"anthropic.{model}",
+        input_tokens=input_tokens,
+        cached_input_tokens=cached_input_tokens,
+        output_tokens=output_tokens,
+    )
+
+
+def response_cost_usd(
+    response_model: str,
+    *,
+    input_tokens: int,
+    cached_input_tokens: int,
+    output_tokens: int,
+) -> tuple[float, ResolvedModel]:
+    resolved = resolve_model(response_model)
+    candidates = (resolved,) if resolved.mapped else REGISTERED_MODELS.values()
+    cost = max(
+        _registered_cost_usd(
+            candidate.price_key,
+            input_tokens=input_tokens,
+            cached_input_tokens=cached_input_tokens,
+            output_tokens=output_tokens,
+        )
+        for candidate in candidates
+        if candidate.price_key is not None
+    )
+    return cost, resolved
 
 
 class PriceExpiredError(RuntimeError):

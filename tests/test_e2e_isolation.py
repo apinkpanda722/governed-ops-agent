@@ -448,8 +448,9 @@ def test_write_graph_calls_in_process_services_as_requester(effect_setup, monkey
                 users={u.label: u for u in (requester, approver)},
                 clock=s["clock"].timestamp,
             )
+            task_id = uuid4().hex
             state = await run_task(
-                graph, task_id="syn-task", user_id=requester.label, request="합성 초안"
+                graph, task_id=task_id, user_id=requester.label, request="합성 초안"
             )
             assert state["status"] == "awaiting_approval"
             actor = approver if s["service"] == "slack" else requester
@@ -461,7 +462,7 @@ def test_write_graph_calls_in_process_services_as_requester(effect_setup, monkey
                         "draft_sha256": state["draft_sha256"],
                     }
                 ),
-                {"configurable": {"thread_id": "syn-task"}},
+                {"configurable": {"thread_id": task_id}},
                 context=AgentContext(requester.label),
             )
             assert state["status"] == "completed"

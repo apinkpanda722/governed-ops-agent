@@ -100,7 +100,11 @@ def test_api_smokes_are_user_run_only():
 def test_every_docker_compose_command_passes_the_env_file() -> None:
     # compose가 .env의 변수를 읽지 못해 내는 WARN을 막는다.
     text = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
-    commands = [line for line in text.splitlines() if "docker compose" in line]
+    commands = [
+        line
+        for line in text.splitlines()
+        if "docker compose" in line and not line.lstrip().startswith("#")
+    ]
     assert commands
     assert all("docker compose --env-file .env " in line for line in commands)
 

@@ -3,6 +3,7 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -286,7 +287,7 @@ def test_scope_audit_reasons_are_accepted(tmp_path):
     ):
         audit.append(
             "side_effect.draft",
-            task_id="scope-test",
+            task_id=uuid4().hex,
             actor_sub=REQUESTER.label,
             reason=reason,
         )

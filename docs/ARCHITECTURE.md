@@ -27,6 +27,8 @@ src/govops/
 │   └── effects.py  # 2단계 표식 조회 실행·재발송 없는 정리
 ├── broker/       # credential_for(user, audience) — 자격 증명을 꺼내는 유일한 지점
 ├── gateway/      # LiteLLM 호출 클라이언트(에이전트의 유일한 모델 경로), LiteLLM 안에서 도는 Guardrail 훅 어댑터
+│   ├── faults.py  # 하네스 전용 호출 번호별 모델 장애 주입
+│   ├── smoke.py  # 사용자 실행 fallback·원장·백엔드 확인
 │   └── client.py·agent_key.py  # 비동기 모델 호출·전용 가상 키 발급
 ├── guardrails/   # 순수 Python 판정: 한국 형식 PII 정규식, 인젝션 패턴 사전, 팀별 정책 표 로더 (v2 분류기는 gateway 경유 호출)
 │   ├── policy.py  # 팀별 정책 로더
@@ -35,6 +37,7 @@ src/govops/
 │   └── log.py  # M3 비체인 JSONL·AuditPort·결과 기록 재시도
 ├── obs/          # trace span, 전송 전 마스킹, 로컬 JSONL / Langfuse 출력
 │   └── trace.py·mask.py·jsonl.py·langfuse.py
+├── env.py        # 빈 문자열·공백을 미설정으로 처리하는 env_or
 ├── costs.py      # 공급사별 비용 원장·전체 기간 상한(호출 직전 누적액 검사)
 ├── evalrun/      # 사용자 실행 dev 평가·관측·LLM/A record-through(dev.py), 탐색 예산 후보(explore.py)
 ├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·cards_content.py·cards_text.py·cards_assets.py·a_source.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
@@ -48,6 +51,7 @@ web/              # Next.js(App Router, TypeScript): 화면 4개 + BFF route han
 infra/
 ├── postgres/init/01-create-databases.sh  # litellm·langfuse·govops 앱 DB 초기화 계획(ADR-017, m1-agent)
 ├── litellm/config.yaml                  # LiteLLM 주 모델·환경 변수 참조 설정
+│                                       # agent-fallback·agent-primary-only·agent-primary-down 별칭(ADR-019)
 ├── litellm/config.obs.yaml              # obs 전용 Langfuse 콜백·원문 로깅 끔
 ├── mocks/Dockerfile                     # mock-jira·mock-slack 공용 이미지
 └── docker-compose.yml                   # LiteLLM·Postgres·mock 2개, profile obs: Langfuse v3 스택
@@ -128,7 +132,7 @@ flowchart LR
 - 핵심 스택(LiteLLM·Postgres·mock 2개)은 Langfuse 없이 뜨고, 이때 trace는 로컬 JSONL로 남는다. Langfuse는 `docker compose --profile obs`로만 뜬다(ADR-009).
 - Postgres 인스턴스 하나에 LiteLLM·Langfuse DB를 나눠 둔다. M0 init은 `litellm`·`langfuse` DB만 만들고 checkpointer DB는 만들지 않는다(ADR-016). LangGraph checkpointer는 같은 인스턴스의 `govops` 앱 DB에 둔다. `m1-agent`에서 init 스크립트에 추가하고 기존 볼륨에는 멱등 `make db-init`을 제공한다. 연결 변수는 `GOVOPS_DATABASE_URL`이다(ADR-017).
 - web은 호스트에서 `cd web && pnpm dev`로 실행하고 compose에 넣지 않는다(ADR-016).
-- mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`이다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. CLI는 `health`·`state`(상태 조회)·`reset`(초기화)을 제공하고, 장애 주입 명령은 `faults set/clear/stats`이며 `state --bodies`로 본문 포함 상태를 조회한다(ADR-018).
+- mock 관리 엔드포인트(초기화·장애 주입 설정·상태 조회)는 compose 내부 네트워크에만 연다. REST 포트(컨테이너 8000)만 `127.0.0.1`에 publish하고 관리 포트(9000)는 publish하지 않는다. 호스트 접근 경로는 컨테이너 안 CLI `docker compose -f infra/docker-compose.yml exec <mock> python -m govops.mocks.admin <명령>`이다(ADR-016, `<mock>`은 `mock-jira` 또는 `mock-slack`). 평가 하네스의 상태 조회와 M3 장애 주입도 이 경로를 쓴다. CLI는 `health`·`state`(상태 조회)·`reset`(초기화)을 제공하고, 장애 주입 명령은 `faults set/clear/stats`이며 `state --bodies`로 본문 포함 상태를 조회한다(ADR-018). mock 코드가 바뀐 PR을 머지한 뒤에는 `docker compose -f infra/docker-compose.yml up -d --build mock-jira mock-slack`으로 mock 이미지를 다시 빌드한다.
 - Docker VM은 약 16GB(A OpenSearch와 공유)다. 첫 기동 후 `docker stats`로 실측하고, 부족하면 Docker 메모리를 늘린다.
 
 ## A 연동 모드
@@ -289,7 +293,7 @@ sequenceDiagram
 - v2 분류기를 주 모델(OpenAI)과 다른 회사에 두는 이유: 같은 회사면 주 모델 장애 때 사전 검사가 타임아웃 나고 fail-closed로 전부 차단되어 fallback이 무력화된다.
 - v2 실패 시 v1 결과로 판정하고 경보한다. v1까지 실패하면 차단한다(fail-closed).
 - 같은 사전 훅에서 사용자 입력과 도구 결과를 메시지 역할로 구분하는지, Guardrail 판정을 LiteLLM 응답의 어느 필드로 B에 돌려받아 감사 로그에 쓰는지는 미정(M4에서 결정)이다.
-- fallback: Anthropic Sonnet 계열, 호출 단위(LiteLLM)로 전환한다. 모델이 섞인 task 수와 그 TCR을 따로 보고한다. **확인 필요(구현 시 공식 문서로 확인): 정확한 모델 ID와 가격.**
+- fallback: Anthropic `claude-sonnet-5-5`, 호출 단위(LiteLLM Router) 전환·단가·모델 호출 타임아웃·정산은 ADR-019를 따른다. 모델이 섞인 task 수와 그 TCR을 따로 보고한다.
 
 ## trace 구조
 
@@ -373,5 +377,5 @@ M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec�
 - **에이전트 상태:** LangGraph state + 같은 Postgres 인스턴스의 `govops` 앱 DB checkpointer(`GOVOPS_DATABASE_URL`, ADR-017). `make verify` 테스트는 in-memory saver를 쓰며 실제 Postgres는 사용자 스모크로 확인한다. state에는 사용자 ID·초안·초안 해시·도구 결과가 들어가고 토큰은 들어가지 않는다. checkpointer는 실행에 필요한 원문을 두며, task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다. 삭제 명령과 테스트는 M5에 둔다(ADR-015).
 - **outbox:** 멱등 키별 상태(기록됨·시도됨·불확실·성공·실패), 해시·mock ID·`audit_gap`을 같은 Postgres 인스턴스의 `govops` DB 테이블에 둔다(ADR-018).
 - **mock 상태:** mock 서비스 메모리 또는 파일. 관리 엔드포인트로 초기화한다. 장애 주입은 요청 순번 스크립트로 재현한다.
-- **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 호출 직전에 상한 검사와 예약 행 기록을 원장 잠금 안에서 한 번에 하고 호출 뒤 같은 예약 ID로 정산하며, 정산되지 않은 예약은 상한 쪽으로 계속 센다(ADR-007). 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007.
+- **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 호출 직전에 상한 검사와 예약 행 기록을 원장 잠금 안에서 한 번에 하고 호출 뒤 같은 예약 ID로 정산하며, 정산되지 않은 예약은 상한 쪽으로 계속 센다(ADR-007). 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007, fallback 공급사별 예약·응답 모델 기준 정산은 ADR-019를 따른다.
 - **비밀 값:** API 키는 `.env`에서만 읽는다. M1은 에이전트 전용 가상 키 1개(`LITELLM_AGENT_KEY`)를 쓰고 팀별 키는 M4에 둔다. LiteLLM 팀별 가상 키의 보관·주입 방식은 미정(M4에서 결정)이다.
