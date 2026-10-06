@@ -75,8 +75,6 @@ WITH_WRITES_ORG = AgentProfile(
 )
 PROFILES: Mapping[str, AgentProfile] = MappingProxyType(
     {
-        "read_only": READ_ONLY,
-        "writes": replace(WITH_WRITES, name="writes"),
         "writes_org": replace(WITH_WRITES_ORG, name="writes_org"),
     }
 )

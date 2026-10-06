@@ -128,18 +128,17 @@ def test_optional_live_golden_replay(tmp_path, monkeypatch):
                     a_dir=A,
                     mock_executor=runtime,
                     graph_factory=build_graph,
-                    profile=row.get("profile", "read_only"),
+                    profile=row.get("profile", "writes_org"),
                     mock_state=lambda jira=jira, slack=slack: {
                         "jira": jira.report(bodies=True),
                         "slack": slack.report(bodies=True),
                     },
                 )
                 assert compare(expectations[task_id], row, digest(obs)) == []
-                if row.get("profile", "read_only") == "read_only":
-                    assert jira.comments == jira.child_ids == []
-                    assert all(
-                        c["message_count"] == 0 for c in slack.report()["channels"]
-                    )
+                if row["status"] == "recorded_fail":
+                    # A recorded failure must reproduce exactly, not become a pass.
+                    assert digest(obs) == row["observation_digest"]
+                    assert digest(obs)["status"] != expectations[task_id]["status"]
 
     asyncio.run(exercise())
 

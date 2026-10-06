@@ -126,3 +126,65 @@ def test_org_golden_synthetic_replay(tmp_path):
             )
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "value", [None, "", "writes_org", "read_only", "writes", "invalid"]
+)
+def test_environment_profile_selection(monkeypatch, value):
+    import asyncio
+    from contextlib import asynccontextmanager
+
+    from govops.api import wiring
+    from govops.api.startup import StartupError
+
+    if value is None:
+        monkeypatch.delenv("GOVOPS_AGENT_PROFILE", raising=False)
+    else:
+        monkeypatch.setenv("GOVOPS_AGENT_PROFILE", value)
+    monkeypatch.delenv("GOVOPS_MODEL_FAULT_MODE", raising=False)
+    monkeypatch.delenv("GOVOPS_DATABASE_URL", raising=False)
+    monkeypatch.setenv("KODOCS_MCP_URL", "http://synthetic")
+    # Use a distinct fake key: startup registers secrets process-wide, and
+    # "synthetic" is ordinary data in other tests' saved manifests.
+    monkeypatch.setenv("LITELLM_AGENT_KEY", "synthetic-profile-selection-key")
+    monkeypatch.setattr(wiring, "AMcpClient", lambda url: object())
+    monkeypatch.setattr(wiring, "langfuse_sink_from_env", lambda: None)
+    monkeypatch.setattr(wiring, "configure", lambda sinks: None)
+    monkeypatch.setattr(wiring, "LiteLLMChatClient", lambda: object())
+
+    async def verify(client):
+        pass
+
+    @asynccontextmanager
+    async def saver(url):
+        yield InMemorySaver()
+
+    selected = []
+
+    class Service:
+        async def startup_cleanup(self):
+            pass
+
+        async def aclose(self):
+            pass
+
+    def build(**kwargs):
+        selected.append(kwargs["profile"])
+        return Service()
+
+    monkeypatch.setattr(wiring, "verify_contract", verify)
+    monkeypatch.setattr(wiring, "open_checkpointer", saver)
+    monkeypatch.setattr(wiring, "build_task_service", build)
+
+    async def run():
+        async with wiring.open_task_service():
+            assert selected[0] is wiring.PROFILES["writes_org"]
+
+    if value in (None, "", "writes_org"):
+        asyncio.run(run())
+        assert len(selected) == 1
+    else:
+        with pytest.raises(StartupError, match="GOVOPS_AGENT_PROFILE"):
+            asyncio.run(run())
+        assert selected == []

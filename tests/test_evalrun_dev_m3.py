@@ -395,9 +395,11 @@ def test_profile_mismatch(tmp_path, monkeypatch, profile):
     from govops.api.wiring import build_task_service
 
     def wrong(**kwargs):
+        from dataclasses import replace
+
         from govops.agent.graph import PROFILES
 
-        kwargs["profile"] = PROFILES[profile]
+        kwargs["profile"] = replace(PROFILES["writes_org"], name=profile)
         return build_task_service(**kwargs)
 
     with pytest.raises(ValueError, match="profile_mismatch"):

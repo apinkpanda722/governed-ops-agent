@@ -10,6 +10,7 @@ from govops.eval.tcr import grade_tcr
 from govops.golden import GOLDEN_TASKS, load_golden_specs, tcr_status
 
 ROOT = Path(__file__).resolve().parents[1]
+RUN2 = ROOT / "data/results/dev/26c8553905bb4396b20ef2b2ff6399f1"
 RUN = ROOT / "data/results/dev/da337bb7471c4bceae14a2e9b3ce5884"
 
 
@@ -21,10 +22,10 @@ def grading_data():
     }
 
 
-def observations():
+def observations(run=RUN):
     return {
         o.task_id: o
-        for line in (RUN / "observations.jsonl").read_text().splitlines()
+        for line in (run / "observations.jsonl").read_text().splitlines()
         if (o := Observation.model_validate_json(line))
     }
 
@@ -48,11 +49,15 @@ def test_saved_t2_01_uses_automatic_forbidden():
 
 
 def test_saved_golden_status_matches_all_fourteen_dev_grades():
-    grades = json.loads((RUN / "grades.json").read_text())
+    grades = json.loads((RUN2 / "grades.json").read_text())
     status = json.loads((ROOT / "data/replay/golden/status.json").read_text())
     assert len(GOLDEN_TASKS) == 14
+    assert set(status) == set(GOLDEN_TASKS)
+    assert sum(row["status"] == "pass" for row in status.values()) == 13
+    assert sum(row["status"] == "recorded_fail" for row in status.values()) == 1
     for key in GOLDEN_TASKS:
         assert status[key]["eligible"]
+        assert status[key]["profile"] == "writes_org"
         assert grades[key]["tcr"]["passed"] == (status[key]["status"] == "pass")
 
 
@@ -92,7 +97,7 @@ def test_regolden_uses_manifest_rules_without_registration_guard(
     run = tmp_path / "run"
     run.mkdir()
     (run / "observations.jsonl").write_text(
-        observations()["T2-01"].model_dump_json() + "\n"
+        observations(RUN2)["T2-01"].model_dump_json() + "\n"
     )
     (run / "manifest.json").write_text(json.dumps({"grading_rules": "m3-grading"}))
     status = tmp_path / "status.json"
@@ -101,7 +106,7 @@ def test_regolden_uses_manifest_rules_without_registration_guard(
     monkeypatch.setattr(regolden, "STATUS_PATH", status)
     regolden.main(["--run", str(run)])
     output = capsys.readouterr().out
-    assert '"status": "pass"' in output
+    assert output.rstrip().endswith("{}")
     assert "공식 규칙" in output and "m3-grading" in output
     assert "grading_rules 없음" not in output
     assert status.read_bytes() == before
@@ -111,8 +116,10 @@ def test_regolden_original_run_is_unchanged(capsys):
     from govops.evalrun import regolden
 
     before = regolden.STATUS_PATH.read_bytes()
-    regolden.main(["--run", str(RUN)])
+    regolden.main(["--run", str(RUN2)])
     output = capsys.readouterr().out
-    assert "manifest에 grading_rules 없음 → registered로 간주" in output
-    assert output.rstrip().endswith("{}")
+    manifest = json.loads((RUN2 / "manifest.json").read_text())
+    assert f"대상 실행의 공식 규칙으로 재계산: {manifest['grading_rules']}" in output
+    assert "grading_rules 없음" not in output
+    assert json.loads(output[output.index("{") :]) == {}
     assert regolden.STATUS_PATH.read_bytes() == before

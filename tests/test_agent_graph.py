@@ -598,11 +598,6 @@ def test_profile_registry_and_recorded_hashes():
             params={},
         )
 
-    # data/results/dev/8c18df863b2949f58d9c3550fec3b8cf/manifest.json
-    assert (
-        digest(READ_ONLY)
-        == "e80d8393fde29e9a19affbfab533f9c049f40995508fa46086b411c91ed84a90"
-    )
     files = list(
         (Path(__file__).resolve().parents[1] / "data/replay/llm").glob("*.jsonl")
     )
@@ -611,20 +606,21 @@ def test_profile_registry_and_recorded_hashes():
         header = json.loads(path.read_text().splitlines()[0])
         assert header["model"] == "gpt-6-luna"
         assert header["params"] == {}
-        assert header["prompt_hash"] == digest(PROFILES["writes"])
-    assert set(PROFILES) == {"read_only", "writes", "writes_org"}
+        assert header["prompt_hash"] == digest(PROFILES["writes_org"])
+    assert set(PROFILES) == {"writes_org"}
     for label, profile in PROFILES.items():
         assert profile_for(label) is profile
         assert profile.name == label
-        assert profile.allow_writes == (label != "read_only")
+        assert profile.allow_writes
     with pytest.raises(TypeError):
         PROFILES["new"] = READ_ONLY
-    with pytest.raises(ValueError, match="^invalid_profile$"):
-        profile_for("unknown")
+    for label in ("unknown", "read_only", "writes"):
+        with pytest.raises(ValueError, match="^invalid_profile$"):
+            profile_for(label)
     assert WITH_WRITES_ORG.system_prompt.startswith(WITH_WRITES.system_prompt)
     assert WITH_WRITES_ORG.system_prompt.endswith(org_section())
     assert WITH_WRITES_ORG.tools == WITH_WRITES.tools
     assert digest(PROFILES["writes_org"]) not in {
         digest(READ_ONLY),
-        digest(PROFILES["writes"]),
+        digest(WITH_WRITES),
     }

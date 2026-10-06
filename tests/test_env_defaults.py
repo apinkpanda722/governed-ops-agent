@@ -89,7 +89,7 @@ def test_env_or(monkeypatch, value, expected):
         ("tools/smoke.py", "MOCK_SLACK_URL", "http://127.0.0.1:8082"),
         ("tools/smoke.py", "SMOKE_USER", "demo-platform-g3"),
         ("audit/log.py", "AUDIT_DIR", "data/interim/audit"),
-        ("evalrun/dev.py", "A_ROOT", "~/PycharmProjects/ko-docs-agentic-rag"),
+        ("evalrun/dev_m3.py", "A_ROOT", "~/PycharmProjects/ko-docs-agentic-rag"),
         ("obs/jsonl.py", "GOVOPS_TRACE_DIR", str(ROOT / "logs/traces")),
         ("mocks/__main__.py", "MOCK_JIRA_TICKETS", "data/seed/tickets.json"),
     ],

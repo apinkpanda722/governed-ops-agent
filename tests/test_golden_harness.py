@@ -9,8 +9,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import call, reply
 from test_regolden import grading_data
 
-from govops.agent.graph import build_graph, run_task
-from govops.agent.prompts import SYSTEM_PROMPT
+from govops.agent.graph import PROFILES, build_graph, run_task
 from govops.golden import (
     GOLDEN_TASKS,
     compare,
@@ -22,7 +21,8 @@ from govops.golden import (
 )
 from govops.replay.a_through import RecordingToolExecutor
 from govops.replay.llm import RecordingChatClient, RerecordRequired
-from govops.tools.registry import ToolOutcome, agent_tool_definitions
+from govops.tools.registry import ToolOutcome
+from govops.tools.resilience import ToolPolicy
 
 
 class SyntheticA:
@@ -45,38 +45,46 @@ class Chat:
         return reply("[syn-incident-golden] 합성 응답")
 
 
-def factory(chat, tools, saver):
-    return build_graph(chat, tools, saver)
+def factory(chat, tools, saver, **kwargs):
+    return build_graph(chat, tools, saver, **kwargs)
 
 
 def test_synthetic_record_replays_actual_a_response(tmp_path):
     spec = load_golden_specs()[GOLDEN_TASKS[0]]
+
+    class NoA:
+        jira = slack = object()
+        policy = ToolPolicy()
+
+        async def call(self, *args, **kwargs):
+            pytest.fail("recorded A must not delegate to a server")
 
     async def exercise():
         chat = RecordingChatClient(
             Chat(),
             task_id=spec.task_id,
             directory=tmp_path / "llm",
-            system_prompt=SYSTEM_PROMPT,
-            tools=agent_tool_definitions(),
+            system_prompt=PROFILES["writes_org"].system_prompt,
+            tools=PROFILES["writes_org"].tools,
             model="gpt-6-luna",
             params={},
         )
         tools = RecordingToolExecutor(
             SyntheticA(), task_id=spec.task_id, directory=tmp_path / "a"
         )
+        from govops.golden import _write_graph
+
+        runtime = NoA()
+        graph, service = _write_graph(chat, tools, runtime, InMemorySaver(), factory)
         state = await run_task(
-            build_graph(chat, tools, InMemorySaver()),
+            graph,
             task_id=spec.task_id,
             user_id=spec.user,
             request=spec.request,
         )
         chat.finish()
         summary = tools.finish()
-
-        class NoA:
-            async def call(self, *args, **kwargs):
-                pytest.fail("recorded A must not delegate to a server")
+        await service.aclose()
 
         obs = await replay_task(
             spec.task_id,
@@ -84,6 +92,7 @@ def test_synthetic_record_replays_actual_a_response(tmp_path):
             a_dir=tmp_path / "a",
             mock_executor=NoA(),
             graph_factory=factory,
+            mock_state=dict,
         )
         assert obs.answer == state["answer"]
         assert [c.name for c in obs.tool_calls] == ["search_docs"]
@@ -115,6 +124,7 @@ def test_synthetic_record_replays_actual_a_response(tmp_path):
             **grading_data(),
             grading_rules="registered",
         ) == {
+            "profile": "writes_org",
             "status": "excluded",
             "golden_eligible": False,
             "reason_codes": ["non_synthetic_a_call"],
@@ -133,6 +143,7 @@ def test_synthetic_record_replays_actual_a_response(tmp_path):
                 a_dir=tmp_path / "a",
                 mock_executor=NoA(),
                 graph_factory=factory,
+                mock_state=dict,
             )
         header = json.loads(rows[0])
         header["prompt_hash"] = "changed"
@@ -144,6 +155,7 @@ def test_synthetic_record_replays_actual_a_response(tmp_path):
                 a_dir=tmp_path / "a",
                 mock_executor=NoA(),
                 graph_factory=factory,
+                mock_state=dict,
             )
 
     asyncio.run(exercise())

@@ -110,7 +110,7 @@ async def open_task_service():
             policy=policy,
         )
         async with open_checkpointer(os.getenv("GOVOPS_DATABASE_URL") or None) as saver:
-            name = env_or("GOVOPS_AGENT_PROFILE", "read_only")
+            name = env_or("GOVOPS_AGENT_PROFILE", "writes_org")
             if name not in PROFILES:
                 raise StartupError("GOVOPS_AGENT_PROFILE")
             outbox = (
