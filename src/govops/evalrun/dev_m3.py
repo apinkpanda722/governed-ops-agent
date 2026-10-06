@@ -25,7 +25,7 @@ from govops.costs import BudgetExceededError, CostLedger, cost_report
 from govops.env import env_or
 from govops.eval.duplicates import count_effects
 from govops.eval.meta import load_meta
-from govops.eval.run_grade import grade_run
+from govops.eval.run_grade import REGISTERED, grade_run, guard_grading_rules
 from govops.eval.spec import TaskSpec
 from govops.evalrun.dev import (
     ROOT,
@@ -355,6 +355,9 @@ def select_tasks(rows, requested=None, *, smoke=False):
     ]
 
 
+DEV_GRADING_RULES = REGISTERED
+
+
 def guard_live_m3(metadata):
     if not metadata.get("hypotheses_m3_committed") or not metadata.get(
         "hypotheses_m3_unchanged"
@@ -533,6 +536,8 @@ async def run_dev_m3(
     manifest = dict(
         metadata,
         mode="live",
+        grading_rules=DEV_GRADING_RULES,
+        **guard_grading_rules(root, DEV_GRADING_RULES),
         profile="writes",
         model_id=_MODEL,
         call_params=PARAMS,
@@ -735,7 +740,12 @@ async def run_dev_m3(
                     continue
                 observations.append(row)
                 grade = grade_run(
-                    spec=spec, obs=obs, meta=meta, tickets=tickets, users=users
+                    spec=spec,
+                    obs=obs,
+                    meta=meta,
+                    tickets=tickets,
+                    users=users,
+                    grading_rules=DEV_GRADING_RULES,
                 )
                 grades[spec.task_id] = asdict(grade)
                 counts_row = counts_row | {"tcr": grade.tcr.passed}
@@ -757,7 +767,12 @@ async def run_dev_m3(
                     eligible = not reasons
                     failed = (
                         golden.tcr_status(
-                            spec, obs, meta=meta, tickets=tickets, users=users
+                            spec,
+                            obs,
+                            meta=meta,
+                            tickets=tickets,
+                            users=users,
+                            grading_rules=DEV_GRADING_RULES,
                         )
                         == "recorded_fail"
                     )

@@ -36,9 +36,15 @@ def test_saved_t2_01_uses_automatic_forbidden():
     # are caught only through grade_run's automatic forbidden list.
     assert grade_tcr(spec, obs).passed
     assert (
-        "forbidden_leak" in grade_run(spec=spec, obs=obs, **grading_data()).tcr.reasons
+        "forbidden_leak"
+        in grade_run(
+            spec=spec, obs=obs, **grading_data(), grading_rules="registered"
+        ).tcr.reasons
     )
-    assert tcr_status(spec, obs, **grading_data()) == "recorded_fail"
+    assert (
+        tcr_status(spec, obs, **grading_data(), grading_rules="registered")
+        == "recorded_fail"
+    )
 
 
 def test_saved_golden_status_matches_all_fourteen_dev_grades():
@@ -76,3 +82,37 @@ def test_regolden_dry_run_write_and_missing_observation(tmp_path, monkeypatch, c
         updated == expected
     )  # All other fields/tasks, including missing T1-01, remain.
     assert sorted(p.name for p in tmp_path.iterdir()) == ["run", "status.json"]
+
+
+def test_regolden_uses_manifest_rules_without_registration_guard(
+    tmp_path, monkeypatch, capsys
+):
+    from govops.evalrun import regolden
+
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "observations.jsonl").write_text(
+        observations()["T2-01"].model_dump_json() + "\n"
+    )
+    (run / "manifest.json").write_text(json.dumps({"grading_rules": "m3-grading"}))
+    status = tmp_path / "status.json"
+    status.write_bytes((ROOT / "data/replay/golden/status.json").read_bytes())
+    before = status.read_bytes()
+    monkeypatch.setattr(regolden, "STATUS_PATH", status)
+    regolden.main(["--run", str(run)])
+    output = capsys.readouterr().out
+    assert '"status": "pass"' in output
+    assert "공식 규칙" in output and "m3-grading" in output
+    assert "grading_rules 없음" not in output
+    assert status.read_bytes() == before
+
+
+def test_regolden_original_run_is_unchanged(capsys):
+    from govops.evalrun import regolden
+
+    before = regolden.STATUS_PATH.read_bytes()
+    regolden.main(["--run", str(RUN)])
+    output = capsys.readouterr().out
+    assert "manifest에 grading_rules 없음 → registered로 간주" in output
+    assert output.rstrip().endswith("{}")
+    assert regolden.STATUS_PATH.read_bytes() == before

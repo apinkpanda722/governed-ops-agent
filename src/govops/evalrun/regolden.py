@@ -6,6 +6,7 @@ from pathlib import Path
 
 from govops.eval.meta import load_meta
 from govops.eval.observation import Observation
+from govops.eval.run_grade import REGISTERED
 from govops.golden import GOLDEN_TASKS, ROOT, load_golden_specs, tcr_status
 
 STATUS_PATH = ROOT / "data/replay/golden/status.json"
@@ -16,6 +17,12 @@ def main(argv=None):
     parser.add_argument("--run", type=Path, required=True)
     parser.add_argument("--write", action="store_true")
     args = parser.parse_args(argv)
+    manifest_path = args.run / "manifest.json"
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    grading_rules = manifest.get("grading_rules", REGISTERED)
+    if "grading_rules" not in manifest:
+        print("manifest에 grading_rules 없음 → registered로 간주")
+    print(f"대상 실행의 공식 규칙으로 재계산: {grading_rules}")
     observations = {
         obs.task_id: obs
         for line in (args.run / "observations.jsonl").read_text().splitlines()
@@ -34,7 +41,12 @@ def main(argv=None):
         if not row.get("eligible", row.get("golden_eligible", False)):
             continue
         status = tcr_status(
-            specs[key], observations[key], meta=meta, tickets=tickets, users=users
+            specs[key],
+            observations[key],
+            meta=meta,
+            tickets=tickets,
+            users=users,
+            grading_rules=grading_rules,
         )
         updated = {"status": status, "recorded_fail": status == "recorded_fail"}
         before = {field: row.get(field) for field in updated}

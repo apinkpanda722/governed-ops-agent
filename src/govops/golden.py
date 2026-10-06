@@ -110,12 +110,17 @@ def digest(obs: Observation) -> dict:
     return digest_for(load_golden_specs()[obs.task_id], obs)
 
 
-def tcr_status(spec, obs: Observation, *, meta, tickets, users) -> str:
+def tcr_status(spec, obs: Observation, *, meta, tickets, users, grading_rules) -> str:
     """pass/recorded_fail은 TCR 결과 하나로만 정한다(hypotheses.md 9항). dev 러너도 이 함수를 쓴다."""
     return (
         "pass"
         if grade_run(
-            spec=spec, obs=obs, meta=meta, tickets=tickets, users=users
+            spec=spec,
+            obs=obs,
+            meta=meta,
+            tickets=tickets,
+            users=users,
+            grading_rules=grading_rules,
         ).tcr.passed
         else "recorded_fail"
     )
@@ -172,7 +177,9 @@ def digest_for(spec, obs: Observation) -> dict:
     return result
 
 
-def record_status(spec, obs, a_summary, *, meta, tickets, users, profile=None) -> dict:
+def record_status(
+    spec, obs, a_summary, *, meta, tickets, users, grading_rules, profile=None
+) -> dict:
     """Freeze the initial TCR outcome; skipped A calls exclude the entire task."""
     if profile not in {None, "read_only", "writes"}:
         raise ValueError("invalid_profile")
@@ -187,7 +194,14 @@ def record_status(spec, obs, a_summary, *, meta, tickets, users, profile=None) -
         }
     return {
         "profile": profile or "read_only",
-        "status": tcr_status(spec, obs, meta=meta, tickets=tickets, users=users),
+        "status": tcr_status(
+            spec,
+            obs,
+            meta=meta,
+            tickets=tickets,
+            users=users,
+            grading_rules=grading_rules,
+        ),
         "golden_eligible": True,
         "observation_digest": digest_for(spec, obs),
         "reason_codes": [],

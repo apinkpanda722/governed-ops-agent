@@ -147,6 +147,7 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **원인(위험)**: 결과를 본 뒤의 등록은 사전 등록이 아니다. 기록이 기대에 실패했을 때 기대값을 고치거나 다시 기록해 통과시키는 유혹이 생긴다.
 - **규칙**: 기대값·가설·실행 계획표·목표는 실행 **전에** 정답지(명세)에서 계산해 커밋한다. 러너는 등록 파일이 커밋되어 있지 않으면 실행하지 않는다. 기록이 기대에 실패하면 기대를 고치지 않고 `recorded_fail`로 표시한다. 새 등록은 기존 사전 등록 파일을 수정하지 않고 별도 파일로 쌓는다.
 - **강제 수단**: 러너 가드 `hypotheses_not_committed`(`evalrun/dev.py`의 `guard_live`, `tests/test_evalrun_dev.py::test_git_guard`), 골든 `expectations.json` 재계산 테스트, m3-faults에서 `hypotheses-m3.md`와 확장 기대값을 같은 커밋으로 둔다
+- **사례**: m3-grading에서 읽을 수 있는 문서의 사실 값에 이미 있는 문서·티켓 ID 예외를 `docs/results/hypotheses-m3-grading.md`에 새로 등록한다. 기존 등록·dev 공식값·기존 골든은 보존하고 이후 실행에만 적용한다.
 - **출처**: m2-run step 4(`f09ca0a`), 사전 등록 커밋 `66be7b3`
 
 ---

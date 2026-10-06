@@ -374,7 +374,12 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
         )
         assert (
             record_status(
-                spec, observations[0], summary, profile="writes", **grading_data()
+                spec,
+                observations[0],
+                summary,
+                profile="writes",
+                **grading_data(),
+                grading_rules="registered",
             )["profile"]
             == "writes"
         )

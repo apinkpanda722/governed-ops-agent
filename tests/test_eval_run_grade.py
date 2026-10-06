@@ -85,7 +85,7 @@ def execute(spec, answer, observed=(), *, failed=False, ok=True):
 @pytest.mark.parametrize("kind", ["doc", "ticket", "literal", "canary"])
 def test_missing_forbidden_items_flow_to_both_graders(corpus, kind):
     spec, meta, tickets, users = corpus
-    auto = auto_forbidden(spec, meta, tickets, users)
+    auto = auto_forbidden(spec, meta, tickets, users, grading_rules="registered")
     user = next(u for u in users if u["label"] == spec.user)
     if kind == "doc":
         value = next(
@@ -112,7 +112,14 @@ def test_missing_forbidden_items_flow_to_both_graders(corpus, kind):
         )
     before = spec.model_dump_json()
     _, obs = execute(spec, value)
-    grade = grade_run(spec=spec, obs=obs, meta=meta, tickets=tickets, users=users)
+    grade = grade_run(
+        spec=spec,
+        obs=obs,
+        meta=meta,
+        tickets=tickets,
+        users=users,
+        grading_rules="registered",
+    )
     assert grade.used_auto_forbidden is True
     assert not grade.tcr.passed and "forbidden_leak" in grade.tcr.reasons
     assert any("answer" in c.locations for c in grade.rules.leak_candidates)
@@ -121,7 +128,7 @@ def test_missing_forbidden_items_flow_to_both_graders(corpus, kind):
     assert summarize_rules([grade.rules]).verdict == "pending_review"
     assert spec.model_dump_json() == before
     assert spec_hash(spec) == spec.spec_sha256
-    assert unreadable_ids_for(user, meta, tickets)
+    assert unreadable_ids_for(user, meta, tickets, grading_rules="registered")
     confirmations = {
         c.candidate_id: "false_positive" for c in grade.rules.leak_candidates
     }
@@ -132,6 +139,7 @@ def test_missing_forbidden_items_flow_to_both_graders(corpus, kind):
         tickets=tickets,
         users=users,
         confirmations=confirmations,
+        grading_rules="registered",
     )
     assert reviewed.rules.leak_pending == 0
     assert reviewed.used_auto_forbidden is True
@@ -148,7 +156,9 @@ def test_readable_ids_values_and_shared_values_are_not_candidates(corpus):
     )
     hidden_value = next(
         v
-        for v in auto_forbidden(spec, meta, tickets, users).leak_values
+        for v in auto_forbidden(
+            spec, meta, tickets, users, grading_rules="registered"
+        ).leak_values
         if v not in spec.forbidden.leak_values
     )
     fact = next(f for f in meta.facts if f.value == hidden_value)
@@ -164,7 +174,14 @@ def test_readable_ids_values_and_shared_values_are_not_candidates(corpus):
         if meta.fact_by_id[f].value not in spec.forbidden.leak_values
     )
     _, obs = execute(spec, f"[{doc.doc_id}] {value} {hidden_value}", [doc.doc_id])
-    grade = grade_run(spec=spec, obs=obs, meta=meta, tickets=tickets, users=users)
+    grade = grade_run(
+        spec=spec,
+        obs=obs,
+        meta=meta,
+        tickets=tickets,
+        users=users,
+        grading_rules="registered",
+    )
     assert grade.used_auto_forbidden is True
     assert "forbidden_leak" not in grade.tcr.reasons
     assert grade.rules.leak_candidate_count == 0
@@ -174,11 +191,20 @@ def test_observed_unreadable_id_also_uses_rule_oracle(corpus):
     spec, meta, tickets, users = corpus
     value = next(
         v
-        for v in auto_forbidden(spec, meta, tickets, users).leak_doc_ids
+        for v in auto_forbidden(
+            spec, meta, tickets, users, grading_rules="registered"
+        ).leak_doc_ids
         if v not in spec.forbidden.leak_doc_ids
     )
     _, obs = execute(spec, "조회 종료", [value])
-    grade = grade_run(spec=spec, obs=obs, meta=meta, tickets=tickets, users=users)
+    grade = grade_run(
+        spec=spec,
+        obs=obs,
+        meta=meta,
+        tickets=tickets,
+        users=users,
+        grading_rules="registered",
+    )
     assert "forbidden_leak" in grade.tcr.reasons
     assert any("observed_ids" in c.locations for c in grade.rules.leak_candidates)
 
@@ -203,3 +229,159 @@ def test_failed_state_and_identity_mismatch(corpus):
             tool_calls=[],
             trace_id=None,
         )
+
+
+@pytest.mark.parametrize(
+    "rules,passed,count", [("registered", False, 1), ("m3-grading", True, 0)]
+)
+def test_saved_t2_grading_version(rules, passed, count):
+    from types import SimpleNamespace
+
+    from test_regolden import grading_data, observations
+
+    from govops.golden import load_golden_specs, record_status, tcr_status
+
+    spec = load_golden_specs()["T2-01"]
+    obs = observations()["T2-01"]
+    data = grading_data()
+    grade = grade_run(spec=spec, obs=obs, **data, grading_rules=rules)
+    assert grade.tcr.passed is passed
+    assert grade.rules.leak_candidate_count == count
+    expected = "pass" if passed else "recorded_fail"
+    assert tcr_status(spec, obs, **data, grading_rules=rules) == expected
+    assert (
+        record_status(
+            spec,
+            obs,
+            SimpleNamespace(golden_eligible=True),
+            **data,
+            grading_rules=rules,
+        )["status"]
+        == expected
+    )
+
+
+def test_registered_saved_twenty_unchanged():
+    from dataclasses import asdict
+
+    from test_regolden import RUN, grading_data, observations
+
+    specs = {
+        s.task_id: s
+        for s in map(
+            TaskSpec.model_validate,
+            json.loads((ROOT / "data/eval/tasks.json").read_text()),
+        )
+    }
+    saved = json.loads((RUN / "grades.json").read_text())
+    passes = 0
+    for key, obs in observations().items():
+        result = grade_run(
+            spec=specs[key], obs=obs, **grading_data(), grading_rules="registered"
+        )
+        assert asdict(result.tcr) == {
+            **saved[key]["tcr"],
+            "reasons": tuple(saved[key]["tcr"]["reasons"]),
+        }
+        assert result.rules.leak_candidate_count == len(
+            saved[key]["rules"]["leak_candidates"]
+        )
+        passes += result.tcr.passed
+    assert passes == 17
+
+
+def test_grading_rules_required_and_valid(corpus):
+    spec, meta, tickets, users = corpus
+    _, obs = execute(spec, "")
+    kwargs = {
+        "spec": spec,
+        "obs": obs,
+        "meta": meta,
+        "tickets": tickets,
+        "users": users,
+    }
+    with pytest.raises(TypeError):
+        grade_run(**kwargs)
+    with pytest.raises(ValueError):
+        grade_run(**kwargs, grading_rules="unknown")
+
+
+@pytest.mark.parametrize("case", ["uncommitted", "changed", "dirty", "clean"])
+def test_grading_registration_guard(tmp_path, case):
+    import subprocess
+
+    from govops.eval.run_grade import guard_grading_rules
+
+    def git(*args):
+        return subprocess.run(
+            ["git", "-C", str(tmp_path), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    git("init")
+    git("config", "user.email", "synthetic@example.invalid")
+    git("config", "user.name", "synthetic")
+    path = tmp_path / "docs/results/hypotheses-m3-grading.md"
+    path.parent.mkdir(parents=True)
+    path.write_text("registered rule\n")
+    assert guard_grading_rules(tmp_path, "registered") == {}
+    if case != "uncommitted":
+        git("add", ".")
+        git("commit", "-m", "docs: registration")
+        registration = git("rev-parse", "HEAD")
+        if case == "changed":
+            path.write_text("changed rule\n")
+            git("commit", "-am", "docs: changed")
+        elif case == "dirty":
+            path.write_text("dirty rule\n")
+    if case == "clean":
+        result = guard_grading_rules(tmp_path, "m3-grading")
+        assert result["grading_rules_registration_commit"] == registration
+        import hashlib
+
+        assert (
+            result["grading_rules_sha256"]
+            == hashlib.sha256(path.read_bytes()).hexdigest()
+        )
+    else:
+        with pytest.raises(ValueError, match="grading_rules_not_committed"):
+            guard_grading_rules(tmp_path, "m3-grading")
+
+
+@pytest.mark.parametrize("kind", ["doc", "ticket", "literal", "canary"])
+def test_m3_still_rejects_unshared_forbidden_values(corpus, kind):
+    from govops.eval.access_index import AccessIndex
+
+    spec, meta, tickets, users = corpus
+    user = next(u for u in users if u["label"] == spec.user)
+    index = AccessIndex(meta, tickets)
+    old = auto_forbidden(spec, meta, tickets, users, grading_rules="registered")
+    new = auto_forbidden(spec, meta, tickets, users, grading_rules="m3-grading")
+    assert new.leak_values == old.leak_values
+    if kind in {"doc", "ticket"}:
+        field = "leak_doc_ids" if kind == "doc" else "leak_ticket_ids"
+        value = next(v for v in getattr(new, field) if not index.value_visible(user, v))
+    else:
+        pool = (
+            {c.value for c in meta.canaries}
+            if kind == "canary"
+            else {
+                f.value
+                for f in meta.facts
+                if f.kind in {"id", "service", "datetime"} and f.source_kind != "canary"
+            }
+        )
+        value = next(v for v in new.leak_values if v in pool)
+    _, obs = execute(spec, value)
+    result = grade_run(
+        spec=spec,
+        obs=obs,
+        meta=meta,
+        tickets=tickets,
+        users=users,
+        grading_rules="m3-grading",
+    )
+    assert "forbidden_leak" in result.tcr.reasons
+    assert result.rules.leak_candidate_count > 0

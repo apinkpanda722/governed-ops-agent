@@ -858,3 +858,16 @@ def test_runner_observes_unexecuted_draft_without_n_result(tmp_path, monkeypatch
         assert row["task_id"] not in result["manifest"]["tool_trace_mismatch"]
         if row["task_id"] != "T2-01":
             assert row["effects"] == []
+
+
+def test_manifest_records_explicit_grading_rules(tmp_path, monkeypatch):
+    from govops.evalrun import dev_m3
+
+    result, _, _ = asyncio.run(exercise(tmp_path, monkeypatch))
+    assert (
+        result["manifest"]["grading_rules"] == dev_m3.DEV_GRADING_RULES == "registered"
+    )
+    stored = json.loads((Path(result["directory"]) / "manifest.json").read_text())
+    assert stored["grading_rules"] == "registered"
+    assert "grading_rules_sha256" not in stored
+    assert "grading_rules_registration_commit" not in stored

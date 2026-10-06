@@ -109,10 +109,12 @@ def test_unreadable_oracle():
             "access_min_grade": 4,
         }
     ]
-    assert unreadable_ids_for(users[0], meta, tickets) == frozenset({"PLT-001"})
-    assert unreadable_ids_for(users[2], meta, tickets) == frozenset(
-        {"PLT-001", "syn-1"}
-    )
+    assert unreadable_ids_for(
+        users[0], meta, tickets, grading_rules="registered"
+    ) == frozenset({"PLT-001"})
+    assert unreadable_ids_for(
+        users[2], meta, tickets, grading_rules="registered"
+    ) == frozenset({"PLT-001", "syn-1"})
 
 
 def test_unreadable_id_variants_count_as_leaks():
