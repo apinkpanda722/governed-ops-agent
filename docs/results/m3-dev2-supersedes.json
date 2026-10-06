@@ -1,0 +1,15 @@
+{
+  "previous_commit": "d17160a19cae77aee0abd738080dd9a8ae3bf51d",
+  "previous_files": {
+    "docs/results/2026-10-06-m3-dev-live.md": "5e91f40f1fbf351468862ed709c0f57e437d03e6bcf3cd2ac9cb3db0228308c0",
+    "grades.json": "3f36860d06e6170b5794907a10de88f105f0c6a93c33fa6b888b41fc88b97728",
+    "manifest.json": "28c86f6cf311995033c1d99abfe584c07af7821ffaea95bf4988860e9c765074",
+    "observations.jsonl": "600317a759dff03fbcd5ed590a81a895da651aaa0f3916e7f22f813c77dcf12c"
+  },
+  "previous_official": {
+    "grading_rules": "registered",
+    "tcr": "17/20"
+  },
+  "previous_run_id": "da337bb7471c4bceae14a2e9b3ce5884",
+  "reason": "시스템 프롬프트에 조직 스키마 정보(팀 한글 이름 ↔ owner_team 코드 ↔ project_key, 티켓 status·priority·ticket_type 값)를 보완해 dev 20을 처음부터 다시 실행한다(`hypotheses.md` §10). 첫 실행의 T4-06은 `run_sql`에 한글 팀 이름으로 `owner_team`을 걸러 0행이 나왔다."
+}

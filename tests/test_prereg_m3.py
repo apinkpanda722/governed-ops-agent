@@ -189,3 +189,126 @@ def test_registration_topics(number, keywords):
             assert f"| `{source}` | `{target}` |" in sections["4"]
     assert "작성 시점: dev 실행 전" in text
     assert "결과를 본 뒤 바꾸지 않는다" in text
+
+
+def test_prompt_registration_paths():
+    from govops.evalrun.dev_m3 import PROMPT_REGISTRATION_FILES
+
+    assert PROMPT_REGISTRATION_FILES == (
+        "docs/results/hypotheses-m3-prompt.md",
+        "docs/results/m3-dev2-supersedes.json",
+    )
+    assert all((ROOT / path).is_file() for path in PROMPT_REGISTRATION_FILES)
+
+
+def test_prompt_superseded_run_evidence():
+    row = json.loads((ROOT / "docs/results/m3-dev2-supersedes.json").read_text())
+    run_id = "da337bb7471c4bceae14a2e9b3ce5884"
+    assert row["previous_run_id"] == run_id
+    directory = ROOT / "data/results/dev" / run_id
+    report = "docs/results/2026-10-06-m3-dev-live.md"
+    assert set(row["previous_files"]) == {
+        "manifest.json",
+        "grades.json",
+        "observations.jsonl",
+        report,
+    }
+    for name, digest in row["previous_files"].items():
+        path = ROOT / name if name == report else directory / name
+        assert digest == hashlib.sha256(path.read_bytes()).hexdigest()
+        # CI uses fetch-depth: 0; the evidence's addition must exist in history.
+        if name != report:
+            commit = subprocess.check_output(
+                ["git", "log", "--diff-filter=A", "-1", "--format=%H", "--", str(path)],
+                cwd=ROOT,
+                text=True,
+            ).strip()
+            assert commit and row["previous_commit"] == commit
+            committed = subprocess.check_output(
+                ["git", "show", f"{commit}:{path.relative_to(ROOT)}"], cwd=ROOT
+            )
+            assert committed == path.read_bytes()
+    manifest = json.loads((directory / "manifest.json").read_text())
+    grades = json.loads((directory / "grades.json").read_text())
+    assert row["previous_official"]["grading_rules"] == manifest.get(
+        "grading_rules", "registered"
+    )
+    passed = sum(grade["tcr"]["passed"] for grade in grades.values())
+    assert row["previous_official"]["tcr"] == f"{passed}/{len(grades)}" == "17/20"
+    assert all(word in row["reason"] for word in ("조직", "§10", "T4-06", "0행"))
+
+
+@pytest.mark.parametrize(
+    ("number", "keywords"),
+    [
+        (
+            1,
+            (
+                "writes_org",
+                "writes",
+                "read_only",
+                "조직 정보",
+                "T4-06",
+                "run_sql.v1.json",
+                "tickets.json",
+                "c34f0ece3d9e4fc081b01a2339d6adda.jsonl",
+            ),
+        ),
+        (
+            2,
+            (
+                "src/kodocs/synth/templates/system.md",
+                "읽기 전용",
+                "8행",
+                "owner_team",
+                "project_key",
+                "status",
+                "priority",
+                "ticket_type",
+                "data/eval/",
+                "예시 SQL",
+                "상수",
+                "테스트",
+            ),
+        ),
+        (3, ("test 문항을 실행하거나 결과를 보지 않았다", "먼저 커밋", "dev 전체")),
+        (4, ("바꾼 횟수", "1회", "새 등록", "이전 결과 보존")),
+        (
+            5,
+            (
+                "20",
+                "§10",
+                "da337bb7471c4bceae14a2e9b3ce5884",
+                "m3-dev2-supersedes.json",
+                "registered",
+                "17/20",
+            ),
+        ),
+        (
+            6,
+            (
+                "m3-grading",
+                "grading_rules_sha256",
+                "등록 커밋",
+                "registered",
+                "14개",
+                "status.json",
+                "expectations.json",
+            ),
+        ),
+        (7, ("N 등록값", "writes_org", "tool_results", "ADR-014", "참고값")),
+        (8, ("writes_org", "GOVOPS_AGENT_PROFILE=writes_org", "status.json")),
+        (9, ("TCR", "정확도", "지연", "test 전", "별도로 등록")),
+    ],
+)
+def test_prompt_registration_topics(number, keywords):
+    text = (ROOT / "docs/results/hypotheses-m3-prompt.md").read_text()
+    sections = dict(
+        re.findall(
+            r"^## (\d+)\.[^\n]*\n(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL
+        )
+    )
+    assert all(keyword in sections[str(number)] for keyword in keywords)
+    assert "작성 시점: dev 두 번째 실행 전" in text
+    assert "결과를 본 뒤 바꾸지 않는다" in text
+    assert "같은 커밋" in text
