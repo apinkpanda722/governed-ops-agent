@@ -597,7 +597,8 @@ async def test_blocked_edit_restores_draft_and_allows_next_decision(
             responses = await asyncio.gather(
                 *(request(actor, "POST", "/approval", json=next_body) for _ in range(2))
             )
-            assert [r.status_code for r in responses] == [202, 200]
+            # 동시 요청의 처리 순서는 스케줄링에 달려 있다: 하나는 수락(202), 다른 하나는 같은 결정의 멱등 응답(200)이다.
+            assert sorted(r.status_code for r in responses) == [200, 202]
             assert responses[0].json() == responses[1].json()
             result = responses[0].json()
             assert result["status"] == (
