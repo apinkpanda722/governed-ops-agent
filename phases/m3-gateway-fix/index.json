@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "agent-key-models",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T11:25:01+0900",
+      "summary": "AGENT_KEY_MODELS 네 별칭을 발급·갱신에 적용하고 make agent-key-update 및 설정 일관성·비밀 비노출·파일 보존 테스트 구현; make verify 통과(2002 passed, 1 skipped 및 웹 검사).",
+      "completed_at": "2026-10-06T11:37:08+0900",
+      "usage": {
+        "input_tokens": 1616994,
+        "cached_input_tokens": 1560832,
+        "output_tokens": 4421,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
