@@ -69,7 +69,8 @@
     },
     {
       "dir": "m3-faults",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_at": "2026-10-06T23:21:41+0900"
     }
   ]
 }
