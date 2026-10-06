@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "dev-run-m3",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T14:00:08+0900",
+      "summary": "M3 WITH_WRITES dev 20 러너·preflight·공용 도구 추적·주입 조립 구현 완료; Compose 이미지는 <project>-<service>(govops-mock-jira·govops-mock-slack), 계층 경계 준수 및 make verify 통과(Python 2115개, 웹 15개).",
+      "completed_at": "2026-10-06T14:25:07+0900",
+      "usage": {
+        "input_tokens": 7039326,
+        "cached_input_tokens": 6877056,
+        "output_tokens": 34951,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
