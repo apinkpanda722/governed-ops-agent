@@ -13,7 +13,7 @@
 ### 1. `MockAdmin.faults_set` (`evalrun/mock_admin.py`)
 
 - `Runner` 프로토콜에 선택적 입력(`input: str | None = None`)을 추가하고 `subprocess_runner`는 `subprocess.run(..., input=...)`로 전달한다. 기존 호출·가짜 러너 테스트는 수정 없이 통과해야 한다(기본값 `None`).
-- `faults_set(service, rules)`: 규칙 목록을 JSON으로 직렬화해 **stdin으로** `faults set --file /dev/stdin`에 보낸다(compose exec은 `-T`가 이미 있다). `service`는 `mock-jira`·`mock-slack` 중 하나다. 규칙은 `mocks/faults.py`의 `Rule`·`Action` 검증을 통과한 것만 보낸다(알 수 없는 엔드포인트·종류는 `MockAdminError`가 아니라 보내기 전 `ValueError`).
+- `faults_set(service, rules)`: 규칙 목록을 JSON으로 직렬화해 **stdin으로** `faults set --file /dev/stdin`에 보낸다(compose exec은 `-T`가 이미 있다). `service`는 `mock-jira`·`mock-slack` 중 하나다. 규칙은 **`evalrun` 안의 독립 검증**을 통과한 것만 보낸다. `evalrun`은 `govops.mocks`를 import할 수 없으므로(AGENTS.md 계층 경계, `tests/test_architecture.py`) `mocks/faults.py`의 `Rule`·`Action`을 쓰지 않고, `evalrun/mock_admin.py` 안에 허용 엔드포인트 집합·액션 종류(`delay`·`status`·`rate_limit`·`drop_after_apply`·`hide_for`)·`nth`(`"all"` 또는 정수 목록)·`when`(`before`·`after_apply`) 값 검사를 **작게 직접** 구현한다(알 수 없는 엔드포인트·종류는 `MockAdminError`가 아니라 보내기 전 `ValueError`). 값의 기준은 `mocks/faults.py`(읽기 전용 참고)이고, **두 구현이 어긋나지 않는지는 테스트 코드가 대조한다**(아래 테스트). `mocks/`는 수정하지 않는다.
 - 실패는 기존 규칙대로 출력 없이 `MockAdminError("command_failed")`다(출력·예외 컨텍스트에 stdout을 싣지 않는다).
 
 ### 2. 클라이언트 쪽 장애 전송 계층 (`tools/` 안에 작은 모듈, 예: `tools/fault_transport.py`)
@@ -34,6 +34,7 @@
 
 ### 5. 테스트
 
+- **동치 대조**(테스트 코드는 `govops.mocks`를 import해도 된다 — 계층 가드는 `src/`만 검사한다): `mocks.faults.ENDPOINTS`의 모든 엔드포인트와 `Action.type`·`when` 값이 `evalrun` 검증을 통과하고, `mocks.faults.Rule`이 거절하는 대표 입력(알 수 없는 엔드포인트, 알 수 없는 액션 종류, 잘못된 `nth`)을 `evalrun` 검증도 거절한다. 값 목록은 `mocks.faults`의 타입·상수에서 읽어 비교하고 손으로 적은 목록을 쓰지 않는다(FP-020).
 - `faults_set`: 가짜 러너가 받은 명령(`docker compose ... exec -T mock-jira python -m govops.mocks.admin faults set --file /dev/stdin`)과 stdin 입력(JSON)을 단언, 잘못된 규칙은 보내기 전 `ValueError`, 러너 실패는 `command_failed`로 출력 비노출.
 - 장애 전송 계층: F4 n번째 요청만 `ConnectError`·서버 미도달, 그 외 요청은 통과, 주입 수 기록. 재시도 정책이 F4를 **표식 조회 없이** 바로 재시도(`classify=CONNECT`)하는 경로를 로컬 루프백 서버(요청 수 센다)로 단언한다(FP-005: 장애가 시험하려는 경로를 타는 증거).
 - F6 어댑터: 세 변형이 호출 번호별로 기대한 별칭 순서를 만든다(가짜 gateway 클라이언트로).
@@ -60,6 +61,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 - mock 코드(`src/govops/mocks/`)·compose 파일·`litellm/` 설정을 수정하지 마라. 이유: 실측대로 mock 변경이 필요 없다. 변경하면 사용자가 이미지를 재빌드해야 하고(FP-052) 이미 확인한 `stale_mock_image` 가드와 어긋난다.
 - mock 관리 엔드포인트를 compose 내부 네트워크 밖으로 열지 마라(AGENTS.md CRITICAL). `faults set`은 `docker compose exec`로만 호출한다.
+- `evalrun`에서 `govops.mocks`를 import하지 마라. 이유: 계층 경계(AGENTS.md 표, `tests/test_architecture.py`)가 금지한다. `Rule`·`Action`을 쓰고 싶어도 `mocks/`를 공용 계층으로 옮기지 말고 위의 독립 검증과 동치 대조 테스트로 해결한다. 풀리지 않는 충돌이 남으면 임의로 우회하지 말고 `blocked`로 보고한다(FP-054).
 - 호스트에서 mock 관리 포트에 직접 HTTP로 접속하는 경로를 만들지 마라. 이유: 관리 엔드포인트는 내부 전용이다.
 - F11 경로(chaos A 서버·클라이언트·하네스)에서 `KODOCS_MCP_TOKENS_FILE`과 실제 A 사용자 토큰을 읽거나 보내지 마라. 합성 토큰만 쓴다. chaos 서버는 요청 헤더(특히 `Authorization`)를 기록·출력·저장하지 않는다. 이유: 장애를 주입하는 서버는 외부 프로세스 역할이고 실제 자격 증명이 닿으면 안 된다(AGENTS.md CRITICAL: 토큰을 로그·trace에 남기지 않는다). 테스트로 강제한다.
 - 주입한 장애가 시험하려는 경로를 타지 않는 시나리오를 만들지 마라(FP-005). 이유: 장애가 방어 로직을 실행시키지 않으면 중복 0이 아무 일도 안 일어나서 저절로 나온다. 시나리오마다 그 경로가 실제로 실행됐다는 증거(조회 호출 수 > 0, 대기 발생, 재시도 횟수)를 단언한다. F10은 항상 F5와 결합한다.

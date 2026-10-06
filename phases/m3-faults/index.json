@@ -47,16 +47,7 @@
     {
       "step": 3,
       "name": "faults-client",
-      "status": "blocked",
-      "started_at": "2026-10-07T00:27:29+0900",
-      "blocked_reason": "FP-054에 따라 중단합니다. 작업 1은 전송 전에 govops.mocks.faults.Rule·Action으로 규칙을 검증하도록 요구하지만, AGENTS.md와 tests/test_architecture.py는 evalrun에서 govops.mocks import를 금지합니다. 검증 모델을 공용 계층으로 옮기려면 수정 금지된 mocks 코드 변경이 필요합니다. 공용 검증 모델 추출을 허용하거나 독립 검증 구현을 명시적으로 허용하도록 지시를 조정해야 합니다.",
-      "blocked_at": "2026-10-07T00:34:59+0900",
-      "usage": {
-        "input_tokens": 108280,
-        "cached_input_tokens": 61056,
-        "output_tokens": 671,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 4,
