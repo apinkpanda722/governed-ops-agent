@@ -30,3 +30,20 @@ def model_fault_mode() -> str | None:
     if mode != "down_alias":
         raise ValueError("Invalid GOVOPS_MODEL_FAULT_MODE")
     return mode
+
+
+def model_fault_script(variant: Literal["first", "second", "all"]) -> ModelFaultScript:
+    """Create a fresh task-scoped call script for the down_alias backend."""
+    if variant == "all":
+        return ModelFaultScript("all")
+    if variant not in {"first", "second"}:
+        raise ValueError("Invalid model fault variant")
+    return ModelFaultScript([1 if variant == "first" else 2])
+
+
+def model_fault_alias(script: ModelFaultScript | None, task_id: str) -> str:
+    return (
+        "agent-primary-down"
+        if script is not None and script.should_fail(task_id)
+        else "agent-primary"
+    )

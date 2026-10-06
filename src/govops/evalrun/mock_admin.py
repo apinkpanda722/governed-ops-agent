@@ -8,14 +8,21 @@ from typing import Literal, Protocol
 
 class Runner(Protocol):
     def __call__(
-        self, command: list[str], *, cwd: Path
+        self, command: list[str], *, cwd: Path, input: str | None = None
     ) -> subprocess.CompletedProcess[str]: ...
 
 
 def subprocess_runner(
-    command: list[str], *, cwd: Path
+    command: list[str], *, cwd: Path, input: str | None = None
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=cwd, capture_output=True, text=True, check=False)
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+        **({"input": input} if input is not None else {}),
+    )
 
 
 class MockAdminError(RuntimeError):
@@ -29,7 +36,7 @@ class MockAdmin:
         self.root = root
         self.runner = runner
 
-    def _command(self, service: str, *arguments: str) -> dict:
+    def _command(self, service: str, *arguments: str, input: str | None = None) -> dict:
         command = [
             "docker",
             "compose",
@@ -48,7 +55,11 @@ class MockAdmin:
         # Raise outside the handler so even exception context cannot carry output.
         failed = False
         try:
-            result = self.runner(command, cwd=self.root)
+            result = self.runner(
+                command,
+                cwd=self.root,
+                **({"input": input} if input is not None else {}),
+            )
         except (OSError, subprocess.SubprocessError):
             failed = True
         if failed:
@@ -76,6 +87,14 @@ class MockAdmin:
     def state(self, *, bodies: bool = False) -> dict:
         return self._both("state", *(["--bodies"] if bodies else []))
 
+    def faults_set(self, service: str, rules: list[dict]) -> None:
+        if service not in {"mock-jira", "mock-slack"}:
+            raise ValueError("Unknown mock service")
+        validate_fault_rules(rules)
+        self._command(
+            service, "faults", "set", "--file", "/dev/stdin", input=json.dumps(rules)
+        )
+
     def faults_clear(self) -> None:
         self._both("faults", "clear")
 
@@ -90,3 +109,78 @@ class MockAdmin:
             except MockAdminError:
                 health[service] = False
         return health
+
+
+_ENDPOINTS = frozenset(
+    {
+        "slack.send",
+        "slack.history",
+        "slack.channels",
+        "jira.comment.create",
+        "jira.comment.list",
+        "jira.child.create",
+        "jira.child.list",
+        "jira.ticket.get",
+        "jira.ticket.search",
+    }
+)
+_WRITES = frozenset({"slack.send", "jira.comment.create", "jira.child.create"})
+_ACTION_FIELDS = {
+    "delay": {"when", "ms"},
+    "status": {"when", "status"},
+    "rate_limit": {"seconds"},
+    "drop_after_apply": set(),
+    "hide_for": {"ms"},
+}
+
+
+def validate_fault_rules(rules: list[dict]) -> None:
+    """Independent CLI contract validation; kept equivalent by cross-layer tests."""
+    if not isinstance(rules, list):
+        raise ValueError("Rules must be a list")  # noqa: TRY004 — CLI validation uses ValueError
+    for rule in rules:
+        if not isinstance(rule, dict) or set(rule) != {"endpoint", "nth", "action"}:
+            raise ValueError("Invalid rule fields")
+        endpoint, nth, action = rule["endpoint"], rule["nth"], rule["action"]
+        if not isinstance(endpoint, str) or endpoint not in _ENDPOINTS:
+            raise ValueError("Unknown endpoint")
+        if nth != "all" and (
+            not isinstance(nth, list)
+            or not nth
+            or any(type(n) is not int or n < 1 for n in nth)
+            or len(set(nth)) != len(nth)
+        ):
+            raise ValueError("Invalid request numbers")
+        if not isinstance(action, dict) or set(action) - {
+            "type",
+            "when",
+            "ms",
+            "status",
+            "seconds",
+        }:
+            raise ValueError("Invalid action fields")
+        kind = action.get("type")
+        if not isinstance(kind, str) or kind not in _ACTION_FIELDS:
+            raise ValueError("Unknown action")
+        present = {
+            key
+            for key in ("when", "ms", "status", "seconds")
+            if action.get(key) is not None
+        }
+        if present != _ACTION_FIELDS[kind]:
+            raise ValueError("Invalid action fields")
+        if action.get("when") is not None and (
+            not isinstance(action["when"], str)
+            or action["when"] not in {"before", "after_apply"}
+        ):
+            raise ValueError("Invalid action timing")
+        for key in ("ms", "seconds", "status"):
+            value = action.get(key)
+            if value is not None and (
+                type(value) is not int
+                or value < (500 if key == "status" else 0)
+                or (key == "status" and value > 599)
+            ):
+                raise ValueError("Invalid action value")
+        if kind in {"hide_for", "drop_after_apply"} and endpoint not in _WRITES:
+            raise ValueError("Action requires a write endpoint")
