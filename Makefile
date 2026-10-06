@@ -71,6 +71,11 @@ costs-init:
 agent-key:
 	uv run --env-file .env python -m govops.gateway.agent_key
 
+.PHONY: agent-key-update
+# compose LiteLLM 기동·`.env` 키 필요, 사용자 실행, 기존 키의 허용 모델 갱신
+agent-key-update:
+	uv run --env-file .env python -m govops.gateway.agent_key --update
+
 .PHONY: db-init
 # compose 기동 후 실행, 이미 있으면 변경 없음
 db-init:

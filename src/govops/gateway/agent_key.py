@@ -13,6 +13,13 @@ import httpx
 from govops.env import env_or
 from govops.gateway.client import _IN_CALL, _protect_transport_logs
 
+AGENT_KEY_MODELS = (
+    "agent-primary",
+    "agent-primary-only",
+    "agent-primary-down",
+    "agent-fallback",
+)
+
 _ASSIGNMENT = re.compile(
     rb"^([ \t]*(?:export[ \t]+)?LITELLM_AGENT_KEY[ \t]*=)([^\r\n]*)(\r?\n)?$"
 )
@@ -43,18 +50,50 @@ def _write_atomic(path: Path, content: bytes, mode: int) -> None:
             Path(temporary).unlink(missing_ok=True)
 
 
+def _update(master: str, base_url: str, transport: httpx.BaseTransport | None) -> int:
+    key = os.getenv("LITELLM_AGENT_KEY")
+    if not key or not key.strip():
+        return _fail("FAIL missing_agent_key")
+    _protect_transport_logs()
+    token = _IN_CALL.set(True)
+    try:
+        with httpx.Client(transport=transport, timeout=30, trust_env=False) as client:
+            response = client.post(
+                base_url.rstrip("/") + "/key/update",
+                headers={"Authorization": "Bearer " + master},
+                json={"key": key, "models": list(AGENT_KEY_MODELS)},
+            )
+        if response.status_code != 200:
+            return _fail(f"FAIL http_{response.status_code}")
+    except (httpx.HTTPError, httpx.InvalidURL):
+        return _fail("FAIL connection")
+    finally:
+        _IN_CALL.reset(token)
+    print("PASS agent-key-update models=" + ",".join(AGENT_KEY_MODELS))
+    return 0
+
+
 def main(
     argv: list[str] | None = None, *, transport: httpx.BaseTransport | None = None
 ) -> int:
     parser = argparse.ArgumentParser(description="에이전트 가상 키를 env 파일에 기록")
     parser.add_argument("--env-file", default=".env")
     parser.add_argument(
+        "--update", action="store_true", help="기존 키의 허용 모델 갱신"
+    )
+    parser.add_argument(
         "--base-url", default=env_or("LITELLM_BASE_URL", "http://127.0.0.1:4000")
     )
     args = parser.parse_args(argv)
     master = os.getenv("LITELLM_MASTER_KEY")
     if not master or not master.strip():
-        return _fail("마스터 키 환경 변수가 없습니다")
+        return _fail(
+            "FAIL missing_master_key"
+            if args.update
+            else "마스터 키 환경 변수가 없습니다"
+        )
+    if args.update:
+        return _update(master, args.base_url, transport)
     if os.getenv("LITELLM_AGENT_KEY"):
         return _fail("LITELLM_AGENT_KEY가 이미 설정됨")
     path = Path(args.env_file)
@@ -75,7 +114,7 @@ def main(
             response = client.post(
                 args.base_url.rstrip("/") + "/key/generate",
                 headers={"Authorization": "Bearer " + master},
-                json={"models": ["agent-primary"], "key_alias": "govops-agent"},
+                json={"models": list(AGENT_KEY_MODELS), "key_alias": "govops-agent"},
             )
         if response.status_code != 200:
             return _fail(f"HTTP 상태 코드 {response.status_code}")
