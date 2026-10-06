@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "prereg-m3",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T14:50:01+0900",
+      "summary": "M3 사전 등록 문서·14개 골든 기대값·이전 dev 결과 보존 증거와 TDD 테스트 작성 완료; 계층 경계 준수 및 make verify 통과(Python 2142개, 웹 15개).",
+      "completed_at": "2026-10-06T15:04:47+0900",
+      "usage": {
+        "input_tokens": 2808861,
+        "cached_input_tokens": 2737024,
+        "output_tokens": 7154,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
