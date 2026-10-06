@@ -19,16 +19,7 @@
     {
       "step": 1,
       "name": "a-client-status",
-      "status": "blocked",
-      "started_at": "2026-10-06T22:35:04+0900",
-      "blocked_reason": "닫힌 포트 문제를 수정한 회귀 검증에서 응답 지연 시나리오가 새로 실패했습니다: test_measured_failures[delay-None-None-timeout-uncertain]의 실제 결과는 ('protocol', None, None)으로, 요구된 ('timeout', None, None)과 다릅니다(14 passed·1 failed). SDK 요청 타임아웃과 HTTP 타임아웃의 경쟁 경로를 처리하려면 금지된 timeout 분류 경로 수정 또는 테스트 시간 설정 변경이 필요합니다. 실측과 다른 동작은 가정으로 처리하지 말라는 지시에 따라 작업 범위 결정이 필요합니다.",
-      "blocked_at": "2026-10-06T23:21:41+0900",
-      "usage": {
-        "input_tokens": 8573241,
-        "cached_input_tokens": 8283392,
-        "output_tokens": 22581,
-        "attempts": 3
-      }
+      "status": "pending"
     },
     {
       "step": 2,

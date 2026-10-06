@@ -7,21 +7,27 @@
 - **외부 계약 실측**(2026-10-06, 로컬 루프백 서버·합성 토큰으로 `AMcpClient` 호출. 실측 스크립트는 저장소 밖 스크래치에 있었으므로 이 step에서 같은 시나리오를 회귀 테스트로 옮긴다):
   - 연결 거부(닫힌 포트) → `kind=connect` → `classify=CONNECT`(0.02초)
   - HTTP 500·503·429 → **모두 `kind=protocol`, `status=None`** → `classify=DEFINITIVE`(재시도·서킷 미작동, `Retry-After` 무시). MCP SDK(`mcp>=2.3.0`)가 비정상 HTTP 응답을 `MCPError(code=-32603, "Server returned an error response")`를 담은 `ExceptionGroup`으로 바꾸고 상태 코드를 버린다.
+  - **(첫 시도에서 추가로 관측)** 같은 닫힌 포트·응답 지연 시나리오가 **타이밍에 따라 `connect`/`timeout` 또는 `protocol`로 갈린다**(느린 시작을 주입하면 `protocol`, 지연 시나리오도 `protocol`). MCP SDK는 연결을 백그라운드 태스크에서 열고, `ConnectError`·타임아웃을 그대로 올리기도 하고 연결 종료류 프로토콜 오류로 감싸 올리기도 한다. `protocol`이면 `classify`가 `DEFINITIVE`가 되어 재시도하지 않고 서킷 실패 횟수가 0으로 되돌아간다(A가 죽어도 서킷이 열리지 않을 수 있다). 근거: `phases/m3-faults/step1-output.json`(첫 시도 기록)·이전 시도의 `blocked_reason`.
   - 요청을 읽은 뒤 연결 리셋 → `kind=transport`(`UNCERTAIN`). 요청 전 닫힘 → `transport`. 응답 지연 > timeout → `kind=timeout`(`UNCERTAIN`, 1.5초 timeout 기준 약 1.5초)
 
 ## 작업
 
-**배경**: 위 실측대로 A가 5xx·429로 응답해도 클라이언트가 이를 `DEFINITIVE`(재시도 없음)로 분류한다. F11("읽기 재시도 → 서킷 열림 → 일시적으로 조회할 수 없음")이 성립하려면 상태 코드와 `Retry-After`가 분류까지 전달돼야 한다. 이는 **운영 동작을 바꾸는 의도된 수정**이다(실제 A의 5xx·429를 이제 재시도·서킷 대상으로 본다). 401 처리와 `kind=protocol`의 나머지 경로는 바꾸지 않는다. TDD로 회귀 테스트를 먼저 쓴다.
+**배경**: 위 실측대로 A가 5xx·429로 응답해도 클라이언트가 이를 `DEFINITIVE`(재시도 없음)로 분류한다. 또 닫힌 포트·응답 지연도 SDK가 오류를 감싸는 방식이 타이밍에 따라 달라져 `connect`/`timeout`이 `protocol`로 분류될 수 있다(첫 시도에서 관측). F11("읽기 재시도 → 서킷 열림 → 일시적으로 조회할 수 없음")이 성립하려면 **전송 계층에서 직접 기록한 사실(전송 오류 종류·비정상 상태 코드·`Retry-After`)이 SDK 예외 해석보다 먼저** 분류에 쓰여야 한다. 이는 **운영 동작을 바꾸는 의도된 수정**이다(실제 A의 5xx·429와 연결 거부·타임아웃을 안정적으로 재시도·서킷 대상으로 본다). 401 처리는 바꾸지 않고, 기록된 사실이 없을 때의 기존 예외 해석(`isinstance` 분기)은 폴백으로 남긴다. TDD로 회귀 테스트를 먼저 쓴다.
 
-### 1. 수정 (`tools/a_mcp.py`)
+### 1. 수정 (`tools/a_mcp.py`) — SDK 예외 형태가 아니라 **전송 계층에서 직접 기록한 사실**로 분류한다
 
-- `AMcpClient`가 이미 401 감지에 쓰는 httpx 응답 이벤트 훅(`observe_status`)이 **마지막 비정상(2xx가 아닌) 상태 코드와 `Retry-After` 헤더 값**을 호출 단위(요청마다 초기화)로 기록하게 한다. 응답 본문·요청 헤더(`Authorization`)는 기록하지 않는다.
-- `_failure()`가 `kind=protocol`로 분류할 상황에서, 관측된 비정상 상태 코드가 있으면 `("http", status, retry_after)`를 반환한다. 이 값이 `tools/resilience.classify`에서 `status`에 따라 5xx → `UNCERTAIN`(읽기라 재시도 가능), 429 → `RATE_LIMITED`(`Retry-After` 준수)로 분류되는지 확인한다. `classify`의 기존 분기를 쓰고, 필요한 경우에만 최소로 고친다.
-- 401 경로, `connect`·`transport`·`timeout` 분류는 **그대로** 둔다.
+SDK가 같은 전송 오류를 타이밍에 따라 다르게 감싸므로, 예외 해석에 의존하지 않는다. `AMcpClient`가 쓰는 httpx 클라이언트의 **전송 계층을 감싸** 요청 단위로 사실을 기록한다(이미 있는 401 응답 훅과 같은 호출 단위 범위, 요청마다 초기화).
+
+- **전송 오류 기록**: 전송 계층 래퍼가 `httpx2.ConnectError`·`httpx2.ConnectTimeout` → `connect`, `httpx2.ReadTimeout`·`httpx2.WriteTimeout` → `timeout`, 그 밖의 `httpx2.TransportError`(읽기 오류·리셋·요청 전 닫힘 등) → `transport`로 **마지막 한 건**을 기록한다. 래퍼는 예외를 그대로 다시 올린다(동작은 바꾸지 않는다).
+- **비정상 HTTP 상태 기록**: 응답 훅이 마지막 비정상(2xx가 아닌) 상태 코드와 `Retry-After` 값을 기록한다.
+- **`_failure()` 우선순위**: ① 401(기존 경로, 그대로) → ② 기록된 전송 오류(`connect`·`timeout`·`transport`) → ③ 기록된 비정상 HTTP 상태 → `("http", status, retry_after)` → ④ 기존 예외 해석(`isinstance` 분기) → ⑤ `protocol`. 한 호출에서 전송 오류와 비정상 상태가 모두 기록되면 ②가 이긴다(실제로 서버에 닿지 못했거나 응답을 못 받은 사실이 더 강하다).
+- 기록하는 것은 **종류·상태 코드·`Retry-After` 값뿐**이다. 요청·응답 본문, 요청 헤더(`Authorization`), 예외 메시지, 토큰은 기록·저장하지 않는다.
+- `tools/resilience.classify`에서 `("http", 5xx)` → `UNCERTAIN`(읽기라 재시도 가능), `("http", 429)` → `RATE_LIMITED`(`Retry-After` 준수)가 되는지 확인한다. 필요한 경우에만 최소로 고친다.
+- 이미 `tools/rest.py`가 쓰는 `_retry_after` 파서를 재사용하되, `tools/` 안에서만 import한다(계층 경계).
 
 ### 2. 회귀 테스트 (로컬 루프백·합성 토큰만, 외부 호출 금지)
 
-원시 TCP 또는 ASGI 로컬 서버로 아래 7개를 만들고 `AMcpClient`의 실제 결과를 단언한다. 서버가 요청 헤더를 어디에도 기록하지 않는다(F11 경로의 자격 증명 규칙과 같다).
+원시 TCP 또는 ASGI 로컬 서버로 아래 7개 시나리오를 만든다. 서버는 요청 헤더를 어디에도 기록하지 않는다.
 
 | 시나리오 | 기대 `kind` | 기대 `classify` |
 |---|---|---|
@@ -33,9 +39,12 @@
 | 요청 전 닫힘 | `transport` | `UNCERTAIN` |
 | 응답 지연 > timeout | `timeout` | `UNCERTAIN` |
 
-- 읽기 재시도(`ToolPolicy`, 읽기 3회)와 서킷(서비스 `a_mcp`, 5회 실패/30초): 위 5xx·429 서버를 상대로 **재시도 횟수와 서킷 열림**을 단언한다(가상 시간 폴링이 필요하면 FP-032에 따라 실제로 조금 기다리거나 짧은 timeout을 쓴다). 서킷이 열린 뒤 호출이 서버에 닿지 않음(서버 쪽 요청 수가 늘지 않음)도 단언한다.
+- **7개 시나리오 각각을 두 조건에서 실행해 같은 `kind`·`classify`가 나오는지 단언한다**: (a) 지연 없음, (b) **느린 시작**(`httpx2.AsyncClient.__aenter__` 앞에 `asyncio.sleep(0.05 * n)`를 넣어 SDK 백그라운드 태스크의 시작을 늦춤, n = 0~4 여러 값). 한 조건에서만 통과하면 실패다.
+- 입력을 고정하거나 보조 단언(전송 계층 호출 여부 같은 우회 관측)으로 결과를 맞추지 않는다. 최종 `AMcpError.kind`·`status`·`retry_after`와 `classify` 결과를 직접 단언한다(FP-011). 단언을 통과시키려고 timeout 값·sleep을 조정하지 않는다(타임아웃 값은 실측 기준: 1.5초 timeout, 지연 서버는 그보다 길게).
+- **서킷**: 연결 거부가 **연속 5회**면 서킷이 열리고(서비스 `a_mcp`, 5회 실패/30초), 열린 뒤 호출은 서버에 닿지 않는다(서버 쪽 요청·연결 수가 늘지 않는다). 5xx·429 서버를 상대로 **읽기 재시도 횟수**(읽기 3회)와 서킷 열림도 단언한다. 가상 시간 폴링이 필요하면 `real_tick`처럼 실제로 조금 기다린다(FP-032). 연결 거부가 `protocol`(`DEFINITIVE`)로 분류되면 서킷 실패 횟수가 0으로 되돌아가는 회귀도 느린 시작 조건에서 막는다.
 - 401 경로 회귀: 기존 401 테스트가 그대로 통과하고 토큰 재발급 동작이 변하지 않는다.
 - 기존 `tests/test_a_mcp_client.py`는 **수정 없이** 통과해야 한다.
+- 요청 간 상태 격리: 앞 호출의 기록(전송 오류·비정상 상태)이 다음 호출에 새지 않는다.
 
 ## Acceptance Criteria
 
@@ -57,7 +66,9 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 금지사항
 
-- 401 경로·`connect`·`transport`·`timeout` 분류를 바꾸지 마라. 이유: 이 step은 `kind=protocol`이던 5xx·429만 복원한다. 다른 경로를 바꾸면 기존 계약 테스트가 깨진다.
+- 401 경로를 바꾸지 마라. 이유: 기존 계약 테스트와 토큰 재발급 동작이 의존한다. `connect`·`timeout`·`transport`·5xx·429 분류는 이 step의 수정 대상이다(전송 계층 기록 사실을 우선한다).
+- SDK가 올려 준 예외 형태(`ExceptionGroup`·`MCPError` 구조)에만 기대어 분류하지 마라. 이유: SDK는 같은 전송 오류를 타이밍에 따라 다르게 감싼다(FP-020 실측 계약). 전송 계층이 직접 기록한 사실이 예외 해석보다 우선한다.
+- 타이밍 의존 실패를 테스트의 sleep·timeout 값·관측 지점 조정으로 덮지 마라(FP-011). 이유: 같은 입력에서 결과가 갈리는 것이 실제 결함이다. 한 조건에서만 통과하는 테스트는 통과가 아니다.
 - 응답 본문·요청 헤더·토큰을 훅·로그·예외 메시지에 남기지 마라. 이유: AGENTS.md CRITICAL(토큰 비노출). 상태 코드·`Retry-After` 값만 보관한다.
 - A 계약 스냅샷(`data/contract/`)을 수정하지 마라(AGENTS.md CRITICAL).
 - F11 경로(chaos A 서버·클라이언트·하네스)에서 `KODOCS_MCP_TOKENS_FILE`과 실제 A 사용자 토큰을 읽거나 보내지 마라. 합성 토큰만 쓴다. chaos 서버는 요청 헤더(특히 `Authorization`)를 기록·출력·저장하지 않는다. 이유: 장애를 주입하는 서버는 외부 프로세스 역할이고 실제 자격 증명이 닿으면 안 된다(AGENTS.md CRITICAL: 토큰을 로그·trace에 남기지 않는다). 테스트로 강제한다.
