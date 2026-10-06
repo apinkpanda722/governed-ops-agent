@@ -1,0 +1,41 @@
+{
+  "task_id": "T5-05",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "INC-2026-069 장애에 관한 정보를 찾을 수 없습니다.",
+  "observed_ids": [],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "run_sql",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": []
+      }
+    },
+    {
+      "name": "run_sql",
+      "ok": true,
+      "result": {
+        "columns": [],
+        "rows": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "1832fd92f0d644b396a1ebfe3cb3c159"
+}

@@ -1,0 +1,83 @@
+{
+  "task_id": "T5-01",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "INC-2026-008과 관련해 확인된 내용은 **모니터링 허브의 상태 확인 순번 절차에서 이슈가 확인되어, 순번 확인 방식을 정비하기로 했다는 것**입니다. 새 절차는 공지 게시 시점부터 즉시 적용되며, 담당자는 정해진 순번과 시간에 상태를 확인하고 이상 징후가 있으면 팀 내 공유 채널에 보고하도록 안내됐습니다. [syn-notice-014]\n\n다만 확인된 자료에는 **장애 원인, 서비스 영향, 복구 여부나 현재 상태**에 대한 상세 정보가 없어 찾을 수 없습니다.",
+  "observed_ids": [
+    "syn-incident-015",
+    "syn-meeting-021",
+    "syn-notice-014",
+    "syn-weekly-004",
+    "syn-weekly-026"
+  ],
+  "cited_doc_ids": [
+    "syn-notice-014"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "run_sql",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-notice-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-notice-014"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-incident-015"
+          },
+          {
+            "doc_id": "syn-meeting-021"
+          }
+        ]
+      }
+    },
+    {
+      "name": "run_sql",
+      "ok": true,
+      "result": {
+        "columns": [],
+        "rows": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "a00b9c8c35de48249ce8321f1dacb700"
+}

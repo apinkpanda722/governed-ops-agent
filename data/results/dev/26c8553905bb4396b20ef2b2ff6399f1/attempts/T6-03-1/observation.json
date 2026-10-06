@@ -1,0 +1,73 @@
+{
+  "task_id": "T6-03",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-incident-014",
+    "syn-meeting-001"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-001"
+          },
+          {
+            "doc_id": "syn-incident-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-014",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-platform",
+      "count": 1,
+      "structure": {},
+      "approval_id": "5fdfc7e2a789f0852de9d9db4fdd9e4186fd5e39f5ab8e46fb8e19ecc795ae31",
+      "body_sha256": "e09a8b2994e2b3add01268152b1d7a4fea9d82d4eaa22363423761a26d27a392"
+    }
+  ],
+  "effect_bodies": [
+    "[INC-2026-004 장애 요약] 인증 토큰 검증 지연\n\n• 서비스/티켓: identity-api / PLT-1003 (심각도 2)\n• 영향: 2026-03-28 장애 시간대에 로그인·세션 갱신 및 내부 서비스 간 인증 요청이 지연됐고, 인증 의존 다운스트림에 대기가 누적됨.\n• 경과: 15:10 지연 최초 감지 → 키 목록 갱신과 검증 요청 간 자원 경합 조사 및 코드 수정·배포 → 16:00 정상 복구. 복구 후 모니터링에서 재발 징후 없음.\n• 원인: 키 목록 갱신 중 잠금 범위가 넓게 유지되어 토큰 검증 요청이 대기했고, 갱신과 검증이 집중되며 잠금 경합이 임계치를 초과함.\n• 조치: 긴급 수정으로 서비스 복구. 재발 방지를 위해 키 갱신을 이중 버퍼 방식으로 변경해 갱신 작업과 검증 요청의 자원 경합을 제거함.\n• 후속 권고: 다른 구성요소의 유사 잠금 경합 점검 및 인증 핵심 경로의 부하 집중 상황 추가 검증.\n\n근거: [syn-incident-014]\n[승인자 수정] 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "c3cca65a507e2f3f631b43a04af158b9cd9811d87666b17930dd5221cfcecdff",
+      "actor": "demo-platform-g6",
+      "decision": "edit_approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "3d4bd6c9e3ab4a85a05168e1b15a12af"
+}

@@ -1,0 +1,53 @@
+{
+  "task_id": "T1-05",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "### 회의 요약\n**법무컴플라이언스팀 계약 일정 점검 프로젝트 회의 — 2025-11-21**\n\n- **목적:** 계약 관리 시스템의 휴일 계산 로직을 점검하고, 계약 만료일·갱신일 산정의 정확성을 확인하기 위해 프로젝트를 시작했습니다.\n- **문제 배경:** 지난주 이슈에서 새 일정이 휴일 계산 설정에 반영되지 않은 점이 확인됐습니다. 최신 공휴일과 임시 휴무를 휴일 테이블에 반영하는 과정에 구조적인 공백이 있을 수 있어, 단순 설정 오류인지 갱신 프로세스 문제인지 살펴보기로 했습니다.\n- **시스템 및 운영:** 계약 일정 기능이 **identity-api**에 의존한다는 점을 확인해, 휴일 계산뿐 아니라 연동 구간의 지연·오류도 점검 범위에 넣기로 했습니다. 운영은 법무컴플라이언스팀이 맡고, 노소겸 팀장이 온콜 대응을 담당합니다.\n- **후속 점검:** 휴일 설정 전반을 재검토하고, 점검 로그와 설정 변경 이력을 남기는 방안을 검토하기로 했습니다. 강라영 책임은 프로젝트 진행 상황을 정리·보고하고, 노소겸 팀장은 연동 구간을 포함해 이상 징후를 모니터링합니다.\n- **미결 사항:** 정기 검증 주기와 자동화 방식은 확정되지 않아 다음 회의에서 추가 논의할 예정입니다.\n\n[근거: syn-meeting-016]",
+  "observed_ids": [
+    "syn-meeting-008",
+    "syn-meeting-016",
+    "syn-notice-002",
+    "syn-notice-018",
+    "syn-runbook-018"
+  ],
+  "cited_doc_ids": [
+    "syn-meeting-016"
+  ],
+  "tool_calls": [
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-meeting-008"
+          },
+          {
+            "doc_id": "syn-meeting-016"
+          },
+          {
+            "doc_id": "syn-notice-018"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-notice-002"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "7064262d454b4282884c396b59212a82"
+}

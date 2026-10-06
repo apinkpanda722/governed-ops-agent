@@ -1,0 +1,97 @@
+{
+  "task_id": "T3-08",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "LGL-1002",
+    "syn-guide-010",
+    "syn-incident-021",
+    "syn-meeting-040",
+    "syn-runbook-018"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "LGL-1002"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-guide-010"
+          },
+          {
+            "doc_id": "syn-meeting-040"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-incident-021"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-021",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "LGL-1002",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "LGL-1002",
+        "project_key": "LGL"
+      },
+      "approval_id": "2a5d94867447a43200fa28e57302baf342013bb748e97ee037eac0038dadf507",
+      "body_sha256": "10f01bca7fc36ec7c4e60dfa9e2d78d1265a63fc7953c1181fda1ffe72755dbf"
+    }
+  ],
+  "effect_bodies": [
+    "contract-vault 보관 상태 변경-검색 색인 동기화 재발 방지\nINC-2026-011 후속 조치. 원인: 계약 문서의 보관 상태 변경 시 연동되어야 하는 검색 색인 갱신 이벤트가 정상 처리되지 않아, 원본 DB에는 존재하는 계약이 검색 인덱스에 반영되지 않았다. 색인 갱신 파이프라인이 이벤트를 누락하거나 처리 중 실패하여 원본 데이터와 색인 간 불일치가 발생했다.\n\n재발 방지 작업:\n- 보관 상태 변경부터 색인 갱신까지 이벤트 처리 로직을 점검하고 누락·실패 경로를 보완한다.\n- 색인 이벤트 처리 실패를 자동 탐지하고 담당자에게 알림을 보내도록 모니터링을 보완한다.\n- 원본 보관 상태 변경 내역과 색인 반영 여부를 주기적으로 대조하는 검증 절차를 정례화한다.\n- 불일치 탐지 시 재처리 및 복구 절차를 문서화하고 검증한다.\n\n완료 기준: 보관 상태 변경 이벤트의 처리 상태를 추적할 수 있고, 실패 알림 및 원본-색인 대조 검증이 동작하며, 재처리 절차가 확인됨."
+  ],
+  "approvals": [
+    {
+      "approval_id": "2a5d94867447a43200fa28e57302baf342013bb748e97ee037eac0038dadf507",
+      "actor": "demo-legal-g5",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "ae5dd92d77284132bdf076bd1d04baaf"
+}
