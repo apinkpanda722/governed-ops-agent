@@ -37,7 +37,7 @@ A = ROOT / "data/replay/a_run"
 
 
 def test_registered_expectations_match_specs():
-    assert GOLDEN_TASKS[:7] == (
+    assert GOLDEN_TASKS == (
         "T1-01",
         "T1-05",
         "T1-08",
@@ -45,20 +45,21 @@ def test_registered_expectations_match_specs():
         "T5-02",
         "T5-05",
         "T5-08",
+        "T2-01",
+        "T3-01",
+        "T3-07",
+        "T4-01",
+        "T6-01",
+        "T6-03",
+        "T5-11",
     )
     specs = load_golden_specs()
-    assert len(specs) == 14
+    assert set(specs) == set(GOLDEN_TASKS)
     assert all(s.split == "dev" for s in specs.values())
+    assert all(s.executable_in in {"m2", "m3"} for s in specs.values())
     assert json.loads(
         (GOLDEN / "expectations.json").read_text()
-    ) == golden_expectations(
-        [
-            s
-            for s in specs.values()
-            if s.task_id in json.loads((GOLDEN / "expectations.json").read_text())
-        ],
-        require_all=False,
-    )
+    ) == golden_expectations(specs.values())
 
 
 def test_all_recordings_are_synthetic_and_credential_free():
