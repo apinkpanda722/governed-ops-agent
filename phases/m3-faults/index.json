@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "a-client-status",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T23:29:04+0900",
+      "summary": "a_mcp.py에 호출별 전송 오류·HTTP 상태·Retry-After 우선 분류와 SDK 중복 타이머 제거 완료(401·예외 폴백 유지); 신규 tests/test_a_mcp_status.py의 test_measured_failures·test_read_retries_and_circuit·test_request_facts_do_not_leak·test_refusal_circuit_blocks_server_connections·test_transport_facts_precede_status_and_sdk_shape·test_transport_facts_store_only_last_kind로 장애 7종×시작 조건 6종·재시도·서킷·격리·기록 우선순위 검증 추가, 기존 테스트 수정 없음; make verify 통과(Python 2296 passed·1 skipped, 웹 typecheck·eslint·vitest 15 passed), 계층 경계 확인·금지 경로 수정·커밋 없음.",
+      "completed_at": "2026-10-06T23:57:08+0900",
+      "usage": {
+        "input_tokens": 3882665,
+        "cached_input_tokens": 3778304,
+        "output_tokens": 17214,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
