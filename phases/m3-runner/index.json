@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "smoke-approval",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T16:08:21+0900",
+      "summary": "make smoke-approval과 평가와 분리된 합성 승인·거부 smoke, 안전한 차단·실패·비용 출력 및 TDD 테스트 구현 완료; 계층 경계 준수, make verify 통과(Python 2156개, 웹 15개).",
+      "completed_at": "2026-10-06T16:26:05+0900",
+      "usage": {
+        "input_tokens": 3760429,
+        "cached_input_tokens": 3652352,
+        "output_tokens": 12656,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
