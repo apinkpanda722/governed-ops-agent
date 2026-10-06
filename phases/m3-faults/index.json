@@ -1,0 +1,46 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-faults",
+  "steps": [
+    {
+      "step": 0,
+      "name": "golden-switch",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "a-client-status",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "chaos-a",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "faults-client",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "fault-harness",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "prereg-faults",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "smoke-faults",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "faults-docs",
+      "status": "pending"
+    }
+  ]
+}
