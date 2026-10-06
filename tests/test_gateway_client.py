@@ -475,7 +475,10 @@ def test_body_and_sdk_metadata_match(tmp_path, monkeypatch, task_id):
 
     sdk = Mock()
     sdk.close = AsyncMock()
-    sdk.chat.completions.create = AsyncMock(return_value=object())
+    raw = Mock()
+    raw.headers = {}
+    raw.parse = Mock(return_value=object())
+    sdk.chat.completions.with_raw_response.create = AsyncMock(return_value=raw)
     monkeypatch.setattr("govops.gateway.client.AsyncOpenAI", Mock(return_value=sdk))
     client = LiteLLMChatClient(
         base_url="http://gateway.test",
@@ -501,7 +504,9 @@ def test_body_and_sdk_metadata_match(tmp_path, monkeypatch, task_id):
                 user_id="synthetic-user",
             )
         )
-    metadata = sdk.chat.completions.create.call_args.kwargs["extra_body"]["metadata"]
+    metadata = sdk.chat.completions.with_raw_response.create.call_args.kwargs[
+        "extra_body"
+    ]["metadata"]
     assert metadata == captured[0]["metadata"]
     assert metadata["task_id"] == task_id
     assert metadata["trace_user_id"] == "synthetic-user"
@@ -771,3 +776,89 @@ def test_fault_respects_supplier_cap(tmp_path, mode):
         costs.CostLedger(tmp_path).committed_usd("anthropic")
         == costs.SUPPLIER_CAPS_USD["anthropic"]
     )
+
+
+@pytest.mark.parametrize(
+    "deployment,alias,model,attempts",
+    [
+        ("openai-gpt-6-luna", "agent-primary", "gpt-6-luna", "0"),
+        ("openai-gpt-6-luna-only", "agent-primary-only", "gpt-6-luna", "invalid"),
+        ("anthropic-claude-sonnet-5-5", "agent-fallback", "claude-sonnet-5-5", "1"),
+        ("unknown-deployment", "gpt-6-luna", "gpt-6-luna", "0"),
+        ("openai-gpt-6-luna-down", "gpt-6-luna", "gpt-6-luna", "0"),
+        ("", "gpt-6-luna", "gpt-6-luna", "1"),
+    ],
+)
+def test_deployment_headers_override_body(
+    tmp_path, monkeypatch, deployment, alias, model, attempts
+):
+    attributes = {}
+    monkeypatch.setattr(
+        "govops.gateway.client.set_attributes",
+        lambda **values: attributes.update(values),
+    )
+    costs.init_ledgers(tmp_path)
+    body = response()
+    body["model"] = alias
+    result = run(
+        tmp_path,
+        lambda _: httpx.Response(
+            200,
+            json=body,
+            headers={
+                "x-litellm-model-id": deployment,
+                "x-litellm-model-group": alias,
+                "x-litellm-attempted-fallbacks": attempts,
+            },
+        ),
+    )
+    resolved = costs.resolve_deployment(deployment)
+    assert result.model == model
+    assert result.body_model == alias
+    assert result.deployment_id == deployment
+    assert result.model_group == alias
+    assert attributes["deployment_id"] == deployment
+    assert attributes["model_group"] == alias
+    assert attributes["unmapped_model"] == (not resolved.mapped)
+    assert result.attempted_fallbacks == (
+        None if attempts == "invalid" else int(attempts)
+    )
+    assert attributes["attempted_fallbacks"] == result.attempted_fallbacks
+    assert result.unmapped_model == (not resolved.mapped)
+    assert result.fallback_used == (resolved.supplier == "anthropic" or attempts == "1")
+    expected, _ = costs.response_cost_usd(
+        resolved.family or "unregistered",
+        input_tokens=100,
+        cached_input_tokens=40,
+        output_tokens=20,
+    )
+    assert result.cost_usd == expected
+    for row in settled_rows(tmp_path):
+        assert row["cost_usd"] == (
+            expected
+            if not resolved.mapped or row["supplier"] == resolved.supplier
+            else 0
+        )
+
+
+def test_deployment_configuration_ids():
+    import yaml
+
+    expected = dict(costs.DEPLOYMENT_MODELS)
+    expected["openai-gpt-6-luna-down"] = "gpt-6-luna"
+    configs = [
+        yaml.safe_load(
+            (Path(__file__).resolve().parents[1] / "infra/litellm" / name).read_text()
+        )
+        for name in ("config.yaml", "config.obs.yaml")
+    ]
+    for config in configs:
+        assert {row["model_info"]["id"] for row in config["model_list"]} == set(
+            expected
+        )
+        for row in config["model_list"]:
+            assert (
+                expected[row["model_info"]["id"]]
+                == row["litellm_params"]["model"].split("/")[1]
+            )
+    assert configs[0]["model_list"] == configs[1]["model_list"]

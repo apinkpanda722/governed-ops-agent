@@ -525,10 +525,23 @@ def test_mixed_response_models_in_manifest_and_recording(tmp_path):
                 result,
                 model="gpt-6-luna" if self.calls == 1 else "claude-sonnet-5-5",
                 fallback_used=self.calls > 1,
+                deployment_id="openai-gpt-6-luna"
+                if self.calls == 1
+                else "anthropic-claude-sonnet-5-5",
+                body_model="agent-primary" if self.calls == 1 else "agent-fallback",
             )
 
     result = exercise(tmp_path, Mixed())
     assert result["manifest"]["models_seen"] == ["claude-sonnet-5-5", "gpt-6-luna"]
+    assert [
+        row["deployment_id"]
+        for row in [
+            json.loads(line)
+            for line in (tmp_path / "data/replay/llm/T5-02.jsonl")
+            .read_text()
+            .splitlines()
+        ][1:]
+    ] == ["openai-gpt-6-luna", "anthropic-claude-sonnet-5-5"]
     assert result["manifest"]["fallback_used"] is True
     assert result["manifest"]["unmapped_models"] == []
     paths = list((tmp_path / "data/replay/llm").glob("*.jsonl"))
@@ -548,9 +561,10 @@ def test_unmapped_response_model_in_manifest(tmp_path):
             return replace(
                 await super().complete(**kwargs),
                 model="unknown-model",
+                deployment_id="unknown-deployment",
                 unmapped_model=True,
             )
 
     result = exercise(tmp_path, Unmapped())
-    assert result["manifest"]["unmapped_models"] == ["unknown-model"]
+    assert result["manifest"]["unmapped_models"] == ["unknown-deployment"]
     assert result["manifest"]["fallback_used"] is False

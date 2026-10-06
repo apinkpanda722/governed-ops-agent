@@ -139,6 +139,20 @@ REGISTERED_MODELS: Mapping[str, ResolvedModel] = MappingProxyType(
 )
 
 
+DEPLOYMENT_MODELS: Mapping[str, str] = MappingProxyType(
+    {
+        "openai-gpt-6-luna": "gpt-6-luna",
+        "openai-gpt-6-luna-only": "gpt-6-luna",
+        "anthropic-claude-sonnet-5-5": "claude-sonnet-5-5",
+    }
+)
+
+
+def resolve_deployment(deployment_id: str | None) -> ResolvedModel:
+    model = DEPLOYMENT_MODELS.get(deployment_id)
+    return REGISTERED_MODELS[model] if model else ResolvedModel(None, None, None, False)
+
+
 def resolve_model(response_model: str) -> ResolvedModel:
     for model, resolved in REGISTERED_MODELS.items():
         if re.fullmatch(

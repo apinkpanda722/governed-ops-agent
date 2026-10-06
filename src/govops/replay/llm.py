@@ -173,6 +173,7 @@ class RecordingChatClient:
             "request_key": key,
             "response_message": result.message,
             "response_model": result.model,
+            "deployment_id": result.deployment_id,
             "usage": asdict(result.usage),
             "cost_usd": result.cost_usd,
         }
@@ -256,6 +257,7 @@ class ReplayChatClient:
         result = ChatResult(
             message=json.loads(_canonical(row["response_message"])),
             model=row["response_model"],
+            deployment_id=row.get("deployment_id"),
             usage=Usage(**row["usage"]),
             cost_usd=row["cost_usd"],
         )

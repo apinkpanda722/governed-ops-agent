@@ -1,23 +1,31 @@
 model_list:
   - model_name: agent-primary
+    model_info:
+      id: openai-gpt-6-luna
     litellm_params:
       model: openai/gpt-6-luna
       api_key: os.environ/OPENAI_API_KEY
       timeout: 15
       num_retries: 0
   - model_name: agent-fallback
+    model_info:
+      id: anthropic-claude-sonnet-5-5
     litellm_params:
       model: anthropic/claude-sonnet-5-5
       api_key: os.environ/ANTHROPIC_API_KEY
       timeout: 30
       num_retries: 0
   - model_name: agent-primary-only
+    model_info:
+      id: openai-gpt-6-luna-only
     litellm_params:
       model: openai/gpt-6-luna
       api_key: os.environ/OPENAI_API_KEY
       timeout: 15
       num_retries: 0
   - model_name: agent-primary-down
+    model_info:
+      id: openai-gpt-6-luna-down
     litellm_params:
       model: openai/gpt-6-luna
       api_key: os.environ/OPENAI_API_KEY
