@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "golden-entry",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T17:49:44+0900",
+      "summary": "골든 판정을 grade_run으로 통일하고 regolden CLI·회귀 테스트를 추가했으며, T2-01의 상태만 recorded_fail로 갱신하고 make verify를 통과했습니다.",
+      "completed_at": "2026-10-06T18:06:31+0900",
+      "usage": {
+        "input_tokens": 2402791,
+        "cached_input_tokens": 2320256,
+        "output_tokens": 6101,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -22,5 +31,6 @@
       "name": "regrade-dev",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-06T17:49:44+0900"
 }
