@@ -1,0 +1,29 @@
+{
+  "task_id": "T5-05",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "INC-2026-069 장애 내용을 찾을 수 없습니다.",
+  "observed_ids": [],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "d90f7ff798f64465b37ed45211c5bfe6"
+}

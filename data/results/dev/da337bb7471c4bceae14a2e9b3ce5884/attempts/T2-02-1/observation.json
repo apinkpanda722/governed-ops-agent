@@ -1,0 +1,127 @@
+{
+  "task_id": "T2-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-incident-016",
+    "syn-meeting-031",
+    "syn-meeting-039",
+    "syn-notice-017",
+    "syn-runbook-009",
+    "syn-weekly-003",
+    "syn-weekly-019",
+    "syn-weekly-027"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-031"
+          },
+          {
+            "doc_id": "syn-meeting-039"
+          },
+          {
+            "doc_id": "syn-weekly-027"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-incident-016"
+          },
+          {
+            "doc_id": "syn-weekly-003"
+          },
+          {
+            "doc_id": "syn-incident-016"
+          },
+          {
+            "doc_id": "syn-weekly-027"
+          },
+          {
+            "doc_id": "syn-weekly-019"
+          },
+          {
+            "doc_id": "syn-notice-017"
+          },
+          {
+            "doc_id": "syn-meeting-039"
+          },
+          {
+            "doc_id": "syn-runbook-009"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-016",
+        "sections": []
+      }
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true,
+      "result": {
+        "message": {
+          "metadata": {}
+        }
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-finance",
+      "count": 1,
+      "structure": {},
+      "approval_id": "57307a808e9462a6d9e03ae1968269af6e5c57ec9f63e810f2539a8f63a5d445",
+      "body_sha256": "f14dbb3b0726445d25206bccf9052a344cecdab17d8352b57ca3b06a55b1f563"
+    }
+  ],
+  "effect_bodies": [
+    "[INC-2026-006 비용 결재 조회 오류 장애 요약]\n- 발생/복구: 2026-04-12 09:08 탐지, 09:46 정상 복구(약 38분). 심각도 3, FIN-1002로 추적.\n- 영향: 특정 기간 결재 내역이 누락되거나 다른 월 데이터와 혼재 표시되어 조회 및 승인 업무가 지연될 수 있었습니다. 결재 승인·지급 트랜잭션과 원장 데이터 저장에는 영향이나 데이터 손실이 없었습니다.\n- 원인: 조회 색인 생성 과정에서 월 경계 날짜의 월 구분 값이 잘못 산출되어 일부 건이 누락되거나 다른 월로 표시됐습니다.\n- 조치/재발 방지: 잘못된 색인을 재생성·정정하고 조회 결과를 표본 검증했습니다. 월 경계 테스트를 보강하고 색인 생성 로직 코드 리뷰를 진행했으며, 유사 기능 변경 시 월 경계 검증을 표준 절차에 포함할 계획입니다.\n근거: [syn-incident-016]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "57307a808e9462a6d9e03ae1968269af6e5c57ec9f63e810f2539a8f63a5d445",
+      "actor": "demo-finance-g6",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "aa7573eec1b041cca44653a37dda6499"
+}

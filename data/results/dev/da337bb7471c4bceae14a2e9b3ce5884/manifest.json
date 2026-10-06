@@ -1,0 +1,843 @@
+{
+  "hypotheses_tracked": true,
+  "hypotheses_in_head": true,
+  "worktree_clean": true,
+  "commit_hash": "27ebdac4f3009fa3d4f25498a46bbb6db7ea6f53",
+  "hypotheses_registration_commit": "66be7b3a9f2b3e0c2f5286278a816a82dac8958e",
+  "a_git_head": "d2eec9c08ffbd61cf8ab5d84d4dd817452d044cc",
+  "index_name": "kodocs-m5-composite-structural",
+  "index_name_source": "a_repo:src/kodocs/tools/deps.py:TOOL_INDEX",
+  "hypotheses_sha256": "8851549fcbbb4a8a3e23f84b30f7311d0757ae227c8b6519399eaa0c13111236",
+  "hypotheses_m3_committed": true,
+  "hypotheses_m3_unchanged": true,
+  "hypotheses_m3_registration_commit": "e95f39430deb2b54a37079a31d6d711b06fa1558",
+  "hypotheses_m3_sha256": "a4e37e251a7fc9947b7619bf74ba7efe38ab089340a9520380a29935c818db71",
+  "supersedes": {
+    "previous_commit": "632bffaab96931c0c0c9c079515576bbd90380eb",
+    "previous_files": {
+      "docs/results/2026-10-05-m2-dev-live.md": "795256f8fd6420e96db920d65dec237f27c36dba57a7a32e86337492f410ca0b",
+      "grades.json": "ae1cfb84c880f0b1ba2a1954c4192dfecf8d7961e7a4c405a485f55dbb4498f1",
+      "manifest.json": "78c549e128d2ee3cb2cd809a8f930626a31b28ab298aedeb68940353ea7892c8",
+      "observations.jsonl": "f73ee6d7367ab9616e4e249ab177732885868905e14037b010ca5169e8b09249"
+    },
+    "previous_run_id": "8c18df863b2949f58d9c3550fec3b8cf",
+    "reason": "2026-10-06: 도구 정의·시스템 프롬프트가 WITH_WRITES로 바뀌어 고정 문장 5와 §10에 따라 dev 전체를 처음부터 다시 실행한다. 이전 결과 7개는 보존한다."
+  },
+  "mode": "live",
+  "profile": "writes",
+  "model_id": "gpt-6-luna",
+  "call_params": {},
+  "prompt_hash": "fe61e2f5f58e0088826c538ee5f2bca9464bc6fa782a28e7d3f42dc1ca632173",
+  "contract_snapshot_sha256": "0e3a05e4439eaee5ed963aeeda3f47ac3b703fc578de6fb1593654ac21d8f9c5",
+  "started_at": "2026-10-06T08:25:13.884813+00:00",
+  "finished_at": "2026-10-06T08:31:35.673132+00:00",
+  "models_seen": [
+    "gpt-6-luna"
+  ],
+  "unmapped_models": [],
+  "fallback_used": false,
+  "models_by_task": {
+    "T1-01": [
+      "gpt-6-luna"
+    ],
+    "T1-05": [
+      "gpt-6-luna"
+    ],
+    "T1-08": [
+      "gpt-6-luna"
+    ],
+    "T2-01": [
+      "gpt-6-luna"
+    ],
+    "T2-02": [
+      "gpt-6-luna"
+    ],
+    "T2-03": [
+      "gpt-6-luna"
+    ],
+    "T2-09": [
+      "gpt-6-luna"
+    ],
+    "T3-01": [
+      "gpt-6-luna"
+    ],
+    "T3-02": [
+      "gpt-6-luna"
+    ],
+    "T3-07": [
+      "gpt-6-luna"
+    ],
+    "T3-08": [
+      "gpt-6-luna"
+    ],
+    "T4-01": [
+      "gpt-6-luna"
+    ],
+    "T4-06": [
+      "gpt-6-luna"
+    ],
+    "T5-01": [
+      "gpt-6-luna"
+    ],
+    "T5-02": [
+      "gpt-6-luna"
+    ],
+    "T5-05": [
+      "gpt-6-luna"
+    ],
+    "T5-08": [
+      "gpt-6-luna"
+    ],
+    "T5-11": [
+      "gpt-6-luna"
+    ],
+    "T6-01": [
+      "gpt-6-luna"
+    ],
+    "T6-03": [
+      "gpt-6-luna"
+    ]
+  },
+  "mixed_model_tasks": {
+    "tasks": [],
+    "count": 0
+  },
+  "mixed_model_tcr": {
+    "passed": 0,
+    "total": 0
+  },
+  "trace_ids": {
+    "T1-01": "0c60fd9e5b624b1a9a22e3e9996bad61",
+    "T1-05": "5f60d5dfc99e47c395cdfe75579e4dbd",
+    "T1-08": "bd8b9f7d97b9456088ca4d8cd07858fd",
+    "T2-01": "9cd80e0936194db29ba50f05836572c7",
+    "T2-02": "aa7573eec1b041cca44653a37dda6499",
+    "T2-03": "d91d1823a4c54b22b7aa3cc5caba7e4f",
+    "T2-09": "69235b3f21f248e59c4267ab0cd76fbe",
+    "T3-01": "1443c62453f347b194f69987bfa3fa93",
+    "T3-02": "646cbc1fd1f2495b9600930fbeebad6b",
+    "T3-07": "493dc9cea4904aa7bd67bcf8b267f194",
+    "T3-08": "4549a8e99f7842909e0ab224c3684fce",
+    "T4-01": "207c984a629d4e98858b1d31ab44ffad",
+    "T4-06": "c34f0ece3d9e4fc081b01a2339d6adda",
+    "T5-01": "8c7de34338704542a3ec184c043cb500",
+    "T5-02": "c90c319d32df4447a9026c90ab375e41",
+    "T5-05": "d90f7ff798f64465b37ed45211c5bfe6",
+    "T5-08": "95b8bb1a9d8f4733b31a316f7bd5aa83",
+    "T5-11": "d6844525d2534ff6b311ff4aff8e0cbf",
+    "T6-01": "42f6cf1ed8ac4ea0969f6bad4b8bc5e9",
+    "T6-03": "bb033cf9c6cc4e4daca3184b6b0761c8"
+  },
+  "tool_trace_mismatch": {
+    "T2-09": [
+      1
+    ],
+    "T5-11": [
+      1
+    ],
+    "T6-01": [
+      1
+    ]
+  },
+  "attempts": {
+    "T1-01": [
+      {
+        "attempt": 1,
+        "trace_id": "0c60fd9e5b624b1a9a22e3e9996bad61",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 2,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T1-05": [
+      {
+        "attempt": 1,
+        "trace_id": "5f60d5dfc99e47c395cdfe75579e4dbd",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 1,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T1-08": [
+      {
+        "attempt": 1,
+        "trace_id": "bd8b9f7d97b9456088ca4d8cd07858fd",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 1,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T2-01": [
+      {
+        "attempt": 1,
+        "trace_id": "9cd80e0936194db29ba50f05836572c7",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 2,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T2-02": [
+      {
+        "attempt": 1,
+        "trace_id": "aa7573eec1b041cca44653a37dda6499",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": false,
+        "a_calls": 0,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T2-03": [
+      {
+        "attempt": 1,
+        "trace_id": "d91d1823a4c54b22b7aa3cc5caba7e4f",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": false,
+        "a_calls": 0,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T2-09": [
+      {
+        "attempt": 1,
+        "trace_id": "69235b3f21f248e59c4267ab0cd76fbe",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": false,
+        "a_calls": 0,
+        "a_skipped": 0,
+        "tool_trace_mismatch": true,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 1,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "failed"
+        }
+      }
+    ],
+    "T3-01": [
+      {
+        "attempt": 1,
+        "trace_id": "1443c62453f347b194f69987bfa3fa93",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 1,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T3-02": [
+      {
+        "attempt": 1,
+        "trace_id": "646cbc1fd1f2495b9600930fbeebad6b",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": false,
+        "a_calls": 0,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T3-07": [
+      {
+        "attempt": 1,
+        "trace_id": "493dc9cea4904aa7bd67bcf8b267f194",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 1,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T3-08": [
+      {
+        "attempt": 1,
+        "trace_id": "4549a8e99f7842909e0ab224c3684fce",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": false,
+        "a_calls": 0,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T4-01": [
+      {
+        "attempt": 1,
+        "trace_id": "207c984a629d4e98858b1d31ab44ffad",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 1,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T4-06": [
+      {
+        "attempt": 1,
+        "trace_id": "c34f0ece3d9e4fc081b01a2339d6adda",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": false,
+        "a_calls": 0,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 1,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "failed"
+        }
+      }
+    ],
+    "T5-01": [
+      {
+        "attempt": 1,
+        "trace_id": "8c7de34338704542a3ec184c043cb500",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 3,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T5-02": [
+      {
+        "attempt": 1,
+        "trace_id": "c90c319d32df4447a9026c90ab375e41",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 3,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T5-05": [
+      {
+        "attempt": 1,
+        "trace_id": "d90f7ff798f64465b37ed45211c5bfe6",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 1,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T5-08": [
+      {
+        "attempt": 1,
+        "trace_id": "95b8bb1a9d8f4733b31a316f7bd5aa83",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 2,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ],
+    "T5-11": [
+      {
+        "attempt": 1,
+        "trace_id": "d6844525d2534ff6b311ff4aff8e0cbf",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 2,
+        "a_skipped": 0,
+        "tool_trace_mismatch": true,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "rejected"
+        }
+      }
+    ],
+    "T6-01": [
+      {
+        "attempt": 1,
+        "trace_id": "42f6cf1ed8ac4ea0969f6bad4b8bc5e9",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 2,
+        "a_skipped": 0,
+        "tool_trace_mismatch": true,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "rejected"
+        }
+      }
+    ],
+    "T6-03": [
+      {
+        "attempt": 1,
+        "trace_id": "bb033cf9c6cc4e4daca3184b6b0761c8",
+        "infrastructure_failure": false,
+        "budget_exceeded": false,
+        "llm_recorded": true,
+        "a_calls": 2,
+        "a_skipped": 0,
+        "tool_trace_mismatch": false,
+        "models_seen": [
+          "gpt-6-luna"
+        ],
+        "unexpected_http": [],
+        "timed_out": false,
+        "late_tool_calls": 0,
+        "effect_counts": {
+          "duplicates": 0,
+          "missing": 0,
+          "unapproved": 0,
+          "unmarked": 0,
+          "status": "completed"
+        }
+      }
+    ]
+  },
+  "infrastructure_failures": 0,
+  "costs_by_purpose": {
+    "guardrail_v2": 0.0,
+    "grading": 0.0,
+    "agent_fallback": 0.0,
+    "agent_primary": 0.011934829999999999
+  },
+  "absolute_rule_violations": {},
+  "effect_counts": {
+    "T1-01": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T1-05": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T1-08": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T2-01": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": false
+    },
+    "T2-02": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T2-03": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T2-09": {
+      "duplicates": 0,
+      "missing": 1,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "failed",
+      "tcr": false
+    },
+    "T3-01": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T3-02": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T3-07": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T3-08": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T4-01": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T4-06": {
+      "duplicates": 0,
+      "missing": 1,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "failed",
+      "tcr": false
+    },
+    "T5-01": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T5-02": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T5-05": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T5-08": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    },
+    "T5-11": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "rejected",
+      "tcr": true
+    },
+    "T6-01": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "rejected",
+      "tcr": true
+    },
+    "T6-03": {
+      "duplicates": 0,
+      "missing": 0,
+      "unapproved": 0,
+      "unmarked": 0,
+      "status": "completed",
+      "tcr": true
+    }
+  },
+  "warnings": [],
+  "n_registration_blocked": true,
+  "n_registration_mismatch_tasks": [
+    "T2-09",
+    "T5-11",
+    "T6-01"
+  ],
+  "late_tool_calls": {
+    "T1-01": 0,
+    "T1-05": 0,
+    "T1-08": 0,
+    "T2-01": 0,
+    "T2-02": 0,
+    "T2-03": 0,
+    "T2-09": 0,
+    "T3-01": 0,
+    "T3-02": 0,
+    "T3-07": 0,
+    "T3-08": 0,
+    "T4-01": 0,
+    "T4-06": 0,
+    "T5-01": 0,
+    "T5-02": 0,
+    "T5-05": 0,
+    "T5-08": 0,
+    "T5-11": 0,
+    "T6-01": 0,
+    "T6-03": 0
+  }
+}

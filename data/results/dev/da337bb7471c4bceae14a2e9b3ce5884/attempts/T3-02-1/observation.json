@@ -1,0 +1,104 @@
+{
+  "task_id": "T3-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "SEC-1001",
+    "syn-incident-005",
+    "syn-meeting-005",
+    "syn-meeting-013",
+    "syn-notice-015"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_add_comment",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "SEC-1001"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-005"
+          },
+          {
+            "doc_id": "syn-meeting-013"
+          },
+          {
+            "doc_id": "syn-notice-015"
+          },
+          {
+            "doc_id": "syn-incident-005"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-005",
+        "sections": []
+      }
+    },
+    {
+      "name": "jira_add_comment",
+      "ok": true,
+      "result": {
+        "comment": {
+          "ticket_id": "SEC-1001",
+          "metadata": {}
+        }
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_comment",
+      "target": "SEC-1001",
+      "count": 1,
+      "structure": {},
+      "approval_id": "021059347d84b230ae2660d3689d2a48ffdc35c746bae419634367d0c8c315d4",
+      "body_sha256": "b0503ce3979b7a614db8a41984904435e2caa05bbabbc5b2b2c9319e30d18a37"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2025-005 원인 및 조치 요약\n\n- 원인: 정기 수집 인증서 갱신에서 일부 노드가 누락되어 인증서가 유효하지 않게 되었고, 해당 노드의 보안 경보 데이터 수집이 중단되었습니다. 갱신 후 만료 시점 점검 절차가 없어 사전 식별도 어려웠습니다.\n- 조치: 문제 노드의 수집 기능을 복구하고 전체 수집 노드의 인증서를 일괄 갱신했습니다. 인증서 만료 전 점검을 정기 프로세스에 추가했으며, 관리 대상 노드 목록과 갱신 이력을 대조하고 누락 자동 검증을 검토하기로 했습니다.\n\n근거: [syn-incident-005]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "021059347d84b230ae2660d3689d2a48ffdc35c746bae419634367d0c8c315d4",
+      "actor": "demo-security-g5",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "646cbc1fd1f2495b9600930fbeebad6b"
+}
