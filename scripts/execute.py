@@ -9,6 +9,7 @@ Usage:
 import argparse
 import contextlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -104,11 +105,55 @@ class StepExecutor:
         self._print_header()
         self._check_blockers()
         self._check_clean_worktree()
-        self._checkout_branch()
-        self._ensure_created_at()
-        self._execute_all_steps(max_steps)
-        if self._all_steps_completed():
-            self._finalize()
+        self._acquire_lock()
+        try:
+            self._checkout_branch()
+            self._ensure_created_at()
+            self._execute_all_steps(max_steps)
+            if self._all_steps_completed():
+                self._finalize()
+        finally:
+            self._release_lock()
+
+    # --- 실행 중 표식 ---
+    # Stop hook(scripts/hooks/verify-before-stop.sh)이 실행 중인 phase의 중간 작업
+    # 트리를 검증하지 않도록 PID를 적은 잠금 파일을 둔다(.harness/는 gitignore).
+    # 비정상 종료로 남은 잠금은 PID가 죽어 있으면 무효다.
+
+    @property
+    def _lock_path(self) -> Path:
+        return Path(self._root) / ".harness" / "executing"
+
+    @staticmethod
+    def _pid_alive(pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    def _acquire_lock(self):
+        lock = self._lock_path
+        if lock.exists():
+            try:
+                other = int(lock.read_text().strip())
+            except ValueError:
+                other = 0
+            if other and other != os.getpid() and self._pid_alive(other):
+                print(f"  ERROR: 다른 execute.py(PID {other})가 실행 중이다.")
+                sys.exit(1)
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text(f"{os.getpid()}\n")
+
+    def _release_lock(self):
+        lock = self._lock_path
+        try:
+            if lock.read_text().strip() == str(os.getpid()):
+                lock.unlink()
+        except OSError:
+            pass
 
     # --- timestamps ---
 

@@ -63,7 +63,9 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **원인**: "원문 금지"를 "모든 문자열에 PII 검사"로 구현했다. 형식이 정해진 식별자·해시는 PII 검사가 아니라 **형식 검증**의 대상이다.
 - **규칙**: 해시(`^[0-9a-f]{64}$`)·task ID(`^[0-9a-f]{32}$`)·사용자 라벨(`^demo-[a-z-]+-g[0-9]+$`)·mock ID·코드 상수는 형식으로 검증하고 PII 정규식을 돌리지 않는다. PII 검사는 형식 밖 문자열에만 쓰고, 형식 밖 값은 허용 목록 밖이므로 항상 거부한다. 식별자를 받는 검증 함수는 무작위 입력 대량 테스트로 검증한다.
 - **강제 수단**: `tests/test_audit.py`(`test_hash_and_mock_ids_skip_pii`: 해시·mock ID에 PII 검사를 돌리지 않음, `test_random_uuid_identifiers`: 시드 고정 무작위 `uuid4().hex` 10,000개 통과, `test_invalid_identifiers`: 형식 밖·PII 섞인 식별자 거부)
-- **출처**: m3-effects(해시), m3-gateway 검토(`task_id`·`actor_sub`)
+- **재발**: trace 마스킹 경로에서 같은 결함이 다시 나왔다. `gateway/client.py`가 `secrets.token_hex(8)`을 span 속성 `generation_id`로 남기고 `obs/mask.py`가 속성 문자열 전체에 `find_pii`를 돌려 무작위 숫자 연속이 전화번호 규칙에 걸리면 `cf[PII:mobile]bed2`처럼 가려졌다(`tests/test_gateway_client.py::test_generation_id_is_short_unique_and_recorded_on_the_span`가 무작위로 실패). trace 연결이 끊기고 CI가 무작위로 실패한다. 식별자 속성 한 군데를 고쳤는데 같은 규칙이 다른 경로(감사 로그 → trace 마스킹)에 남아 있었다.
+- **강제 수단(추가)**: trace 마스킹 경로 `obs/mask.py`: 키와 형식이 모두 맞는 식별자 속성(`generation_id` `^[0-9a-f]{16}$`·`trace_id`·`task_id` `^[0-9a-f]{32}$`·해시 `^[0-9a-f]{64}$`·등록된 `deployment_id`)만 PII 검사를 건너뛴다. 형식 밖 값은 검사한다. 시드 고정 무작위 10,000개 대량 테스트(`tests/test_obs_mask.py`)는 m3-faults step 8에서 추가한다. 식별자를 받는 **모든** 검증·마스킹 경로를 점검한다.
+- **출처**: m3-effects(해시), m3-gateway 검토(`task_id`·`actor_sub`), m3-faults batch 0-3 Stop hook 실행(trace 마스킹)
 
 ### FP-011 무작위로 실패하는 테스트를 입력 고정으로 덮어 실제 결함을 가림
 - **증상**: `uuid4`를 고정 ID로 `monkeypatch`하거나 테스트의 ID를 고정값으로 바꾸자 간헐적 실패가 사라졌다. 실제로는 FP-010의 결함(무작위 ID가 PII 규칙에 걸림)이었고 서비스에서는 계속 무작위로 실패했을 것이다.
@@ -102,6 +104,13 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **규칙**: 도구 출력의 형태·내용에 대한 판단은 **원자료**로만 한다: `data/replay/a_run/`(기록한 A 응답), `data/contract/*.v1.json`(계약 스냅샷), live 출력. 가공본(관측 JSONL, 요약, 집계)은 판단 근거로 쓰지 않는다. 설계 초안에서 데이터에 기반한 판단을 적을 때는 **근거 파일 경로를 함께 적는다**.
 - **강제 수단**: /review 체크리스트(데이터 판단의 근거가 원자료인가), /harness 설계 초안의 "확인한 사실"에 근거 경로 필수. 규칙이 코드로 옮겨진 곳: `agent/scope.py`의 구조 근거 추출(`text`가 있는 항목)과 그 테스트(`tests/test_agent_scope.py::test_lookup_replay_evidence`: `lookup_id`의 `syn-meeting-001`이 근거에 들어감).
 - **출처**: m3-approval 설계 검토, ADR-018 8항은 m3-approval step 8(`a29d25a`)에서 구조 규칙으로 고침
+
+### FP-023 외부 SDK가 같은 오류를 타이밍에 따라 다르게 감싸 올림
+- **증상**: m3-faults step 1에서 A MCP 클라이언트의 닫힌 포트(연결 거부)·응답 지연이 지연 없이는 `connect`/`timeout`으로 분류됐지만, SDK 시작을 늦추면 `protocol`로 분류됐다. `protocol`은 `DEFINITIVE`라 재시도하지 않고 서킷 실패 횟수를 0으로 되돌려 A가 죽어도 서킷이 열리지 않을 수 있다. 첫 시도는 같은 문제를 테스트의 sleep·관측 지점 조정으로 맞추려다 3번 막혔다.
+- **원인**: MCP SDK는 연결을 백그라운드 태스크에서 열고 `ConnectError`·타임아웃을 그대로 올리기도 하고 연결 종료류 프로토콜 오류로 감싸 올리기도 한다(타이밍 의존). 분류가 SDK가 올려 준 예외 형태에 기댔다.
+- **규칙**: SDK가 올려 준 예외 형태에만 기대어 분류하지 않는다. 전송 계층을 감싸 요청 단위로 사실(전송 오류 종류·비정상 상태 코드·`Retry-After`)을 직접 기록하고, 기록된 사실을 예외 해석보다 먼저 쓴다(401 → 전송 오류 → 비정상 HTTP 상태 → 기존 해석 → protocol). 비밀·본문은 기록하지 않는다. 타이밍 의존 실패는 실제 결함이다(FP-011): 지연 없음과 느린 시작 두 조건에서 같은 분류가 나오는지 단언한다.
+- **강제 수단**: `tests/test_a_mcp_status.py`(장애 7종 × 시작 조건 6종, 서킷 연속 5회 열림), 금지사항에 "SDK 예외 형태에만 기대어 분류하지 마라" 명시
+- **출처**: m3-faults step 1(`a93b4d3`로 지시 수정 → `888fa62`)
 
 ## D. 설정·환경·프로세스
 
@@ -201,11 +210,11 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **출처**: M3 진행 회고
 
 ### FP-054 step 파일의 지시가 자기모순이거나 규칙과 충돌
-- **증상**: step이 `blocked`로 멈췄다. (a) m3-runner step 3: 같은 파일의 "러너는 `audit`·`guardrails`를 직접 조립하라"가 `AGENTS.md` 계층 경계 표(`evalrun`은 `audit`·`guardrails` import 금지)와 충돌. (b) 같은 step의 "M2 러너 수정 금지"(읽기 목록·작업 서두·금지사항)와 "`_structure`를 공용 모듈로 옮겨 M2가 import"(0번 항목)가 충돌.
-- **원인**: step 파일을 쓴 뒤 금지사항과 작업의 모순, 계층 경계 표와의 충돌을 점검하지 않았다.
-- **규칙**: step 파일을 쓴 뒤 (1) 금지사항과 작업이 같은 대상에 대해 모순되지 않는지, (2) 지시가 `AGENTS.md` 계층 경계 표와 충돌하지 않는지 점검한다. 예외가 필요하면 읽기 목록·작업·금지사항 세 곳에 같은 표현으로 허용 범위를 적는다.
-- **강제 수단**: /harness 설계 원칙 9
-- **출처**: m3-runner step 3 blocked 2회(`639a5c7`, `8954223`)
+- **증상**: step이 `blocked`로 멈췄다. (a) m3-runner step 3: 같은 파일의 "러너는 `audit`·`guardrails`를 직접 조립하라"가 `AGENTS.md` 계층 경계 표(`evalrun`은 `audit`·`guardrails` import 금지)와 충돌. (b) 같은 step의 "M2 러너 수정 금지"(읽기 목록·작업 서두·금지사항)와 "`_structure`를 공용 모듈로 옮겨 M2가 import"(0번 항목)가 충돌. (c) m3-faults step 3: "`evalrun`에서 `mocks`의 `Rule`·`Action`으로 규칙을 검증하라"가 계층 경계(`evalrun`은 `mocks` import 금지)와 충돌해 `blocked`. (d) m3-faults step 2: F11 합성 토큰 규칙에 필요한 `AMcpClient.credential_for` 주입을 위해 step이 `tools/a_mcp.py`를 수정했는데 step 파일은 그 파일을 읽기 목록에만 넣어 **수정 허용 범위가 누락**돼 있었다(설계 누락, 변경은 유지).
+- **원인**: step 파일을 쓴 뒤 금지사항과 작업의 모순, 계층 경계 표와의 충돌, 수정해야 할 파일의 누락을 점검하지 않았다.
+- **규칙**: step 파일을 쓴 뒤 **자체 점검**을 돌린다. step마다 "수정할 파일" 목록을 적고(이전 step의 산출물을 고쳐야 하면 그 파일도 적는다) 그 목록을 (1) 금지사항과 작업의 모순, (2) `AGENTS.md` 계층 경계 표와 `tests/test_architecture.py`의 `FORBIDDEN_IMPORTS`, (3) 읽기 전용 목록(`.claude/`·사전 등록 파일·`data/replay` 기록)과 대조해 충돌을 고친 뒤 커밋한다. 예외가 필요하면 읽기 목록·작업·금지사항 세 곳에 같은 표현으로 허용 범위를 적는다. 점검 결과(step별 수정 파일, 발견한 충돌과 고친 내용)를 사용자 보고에 넣는다. 목록 밖 수정이 필요하면 Codex는 임의로 우회하지 않고 `blocked`로 보고한다.
+- **강제 수단**: /harness 설계 원칙 9(자체 점검), step 파일의 "수정할 파일" 목록과 "목록 밖 수정 금지" 금지사항
+- **출처**: m3-runner step 3 blocked 2회(`639a5c7`, `8954223`), m3-faults step 3 blocked(`32d8aa6`, 수정 `2743bec`), m3-faults step 2 범위 누락(`e054427`)
 
 ### FP-055 읽기 목록의 파일을 Codex가 지시 없이 수정
 - **증상**: m3-dev-results step 2에서 Codex가 읽기 목록에 있던 `.claude/skills/failure-patterns/SKILL.md`의 FP-043에 한 줄을 추가했다(내용은 맞았으나 지시가 없었다).
@@ -219,6 +228,20 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **규칙**: 테스트를 완화할 때는 복원 조건을 주석으로 남기고 그 조건이 해소되는 step에서 복원한다. /review는 완화된 단언(`require_all=False`, 슬라이스 비교)을 찾는다. 복원 뒤 실패하면 테스트를 고치지 말고 어느 항목이 명세와 다른지 보고한다.
 - **강제 수단**: /review 체크리스트 7번(완화된 단언 확인), `tests/test_golden_trace.py`(14개 전체 비교로 복원, `fc65bcd`)
 - **출처**: m3-runner step 4(`a58005a`) → 복원 `fc65bcd`
+
+### FP-057 Stop hook이 실행 중인 phase의 중간 작업 트리를 검증해 세션을 막음
+- **증상**: `execute.py`가 Codex로 step을 실행하는 동안 Claude Code 세션의 Stop hook(`make verify`)이 중간 작업 트리를 검증해 수시로 실패(최대 44건)하고 "수정을 계속하라"고 되돌렸다. 실패는 Codex가 편집 중인 파일의 중간 상태였는데 hook 메시지가 Claude 세션이 직접 고치도록 유도했다(동시 편집 위험).
+- **원인**: hook이 "실행 중인 phase가 있는가"를 알지 못한다. 변경된 파일이 있으면 무조건 검증한다.
+- **규칙**: `execute.py`는 시작할 때 gitignore된 잠금 파일(`.harness/executing`)에 PID를 적고 끝날 때 지운다. Stop hook은 잠금의 PID가 살아 있고 hook이 그 PID의 자손이 아니면 검증을 건너뛴다(비정상 종료로 PID가 죽어 있으면 잠금은 무효). 실행기의 자손(step을 실행하는 Codex 세션)은 계속 검증해 스스로 고친다. 중간 Stop hook 실패에는 대응하지 않는다(Codex가 편집 중인 파일을 고치지 않는다).
+- **강제 수단**: `scripts/test_hooks.py`(살아 있는 외부 PID → `make verify` 없이 exit 0, 죽은 PID·조상 PID·깨진 잠금 → 정상 검증), `scripts/test_execute.py::TestExecutionLock`(잠금 생성·해제·중복 실행 거부)
+- **출처**: m3-faults batch 0-3
+
+### FP-058 완료 신호 없는 실행 방식으로 대기
+- **증상**: `execute.py`를 `(nohup … &)`로 띄우고 Monitor를 켰다가 Monitor를 끄자 깨울 신호가 없어 step 3 완료를 한참 뒤에야 알아챘다. 같은 방식으로 띄운 `make verify`도 종료 알림이 오지 않았다.
+- **원인**: 도구가 추적하지 않는 분리된 프로세스는 종료 알림이 없다.
+- **규칙**: `execute.py`와 장시간 명령은 Bash `run_in_background: true`로 실행해 종료 시 자동 알림을 받는다. 이미 분리돼 돌고 있는 경우에만 Monitor를 쓰고, 주기 출력 없이 프로세스 종료나 step 상태 변경 때 한 번만 알리는 until 루프로 쓴다. 기다리는 동안 상태를 반복 조회하지 않는다.
+- **강제 수단**: /harness E(실행) 절의 실행 안내
+- **출처**: m3-faults batch 0-3 step 3
 
 ---
 
