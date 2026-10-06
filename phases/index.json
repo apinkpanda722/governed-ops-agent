@@ -53,8 +53,9 @@
     },
     {
       "dir": "m3-runner",
-      "status": "blocked",
-      "blocked_at": "2026-10-06T13:59:49+0900"
+      "status": "completed",
+      "blocked_at": "2026-10-06T13:59:49+0900",
+      "completed_at": "2026-10-06T16:39:06+0900"
     }
   ]
 }
