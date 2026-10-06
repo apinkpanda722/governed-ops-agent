@@ -27,6 +27,6 @@ def model_fault_mode() -> str | None:
     mode = os.getenv("GOVOPS_MODEL_FAULT_MODE")
     if mode in (None, ""):
         return None
-    if mode not in {"mock_param", "down_alias"}:
+    if mode != "down_alias":
         raise ValueError("Invalid GOVOPS_MODEL_FAULT_MODE")
     return mode

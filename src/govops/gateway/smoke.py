@@ -53,7 +53,7 @@ async def _fallback(
         return 1
     passed = {}
     async with httpx.AsyncClient(transport=transport) as http:
-        for stage in ("normal", "mock_param", "down_alias"):
+        for stage in ("normal", "down_alias"):
             client = LiteLLMChatClient(
                 ledger=ledger,
                 http_client=http,
@@ -74,20 +74,10 @@ async def _fallback(
                 if resolved.mapped and resolved.supplier == expected:
                     print(f"PASS {stage} family={expected} mapped=true")
                     passed[stage] = True
-                elif stage == "mock_param" and resolved.supplier == "openai":
-                    print("INFO mock_param unsupported status=openai")
                 else:
                     print(f"FAIL {stage} error=ModelCheckError status=model_mismatch")
             except Exception as exc:  # noqa: BLE001 — CLI must suppress secret-bearing errors
-                status = _status(exc)
-                if (
-                    stage == "mock_param"
-                    and status.isdigit()
-                    and 400 <= int(status) < 500
-                ):
-                    print(f"INFO mock_param unsupported status={status}")
-                else:
-                    _fail(stage, exc)
+                _fail(stage, exc)
     ledger_ok = False
     try:
         after = _totals(ledger)
@@ -100,7 +90,7 @@ async def _fallback(
         print(f"INFO cost total_cents={total * 100:.6f}")
     except Exception as exc:  # noqa: BLE001 — CLI must suppress secret-bearing errors
         _fail("ledger", exc)
-    backend = next((s for s in ("mock_param", "down_alias") if passed[s]), "none")
+    backend = "down_alias" if passed["down_alias"] else "none"
     print(f"BACKEND={backend}")
     return 0 if passed["normal"] and ledger_ok and backend != "none" else 1
 

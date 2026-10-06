@@ -9,15 +9,10 @@ from govops.gateway import smoke
 
 
 @pytest.mark.parametrize(
-    "mock,down,backend,code",
-    [
-        (200, 200, "mock_param", 0),
-        (400, 200, "down_alias", 0),
-        (500, 500, "none", 1),
-        (200, 500, "mock_param", 0),
-    ],
+    "down,backend,code",
+    [(200, "down_alias", 0), (400, "none", 1), (500, "none", 1)],
 )
-def test_fallback(tmp_path, monkeypatch, capsys, caplog, mock, down, backend, code):
+def test_fallback(tmp_path, monkeypatch, capsys, caplog, down, backend, code):
     init_ledgers(tmp_path)
     monkeypatch.setenv("LITELLM_AGENT_KEY", "sentinel-smoke-key")
     caplog.set_level(logging.DEBUG)
@@ -28,14 +23,8 @@ def test_fallback(tmp_path, monkeypatch, capsys, caplog, mock, down, backend, co
         seen.append(body)
         assert body["tools"] == []
         assert body["max_completion_tokens"] == 16
-        stage = (
-            "down_alias"
-            if body["model"] == "agent-primary-down"
-            else "mock_param"
-            if body.get("mock_testing_fallbacks")
-            else "normal"
-        )
-        status = {"normal": 200, "mock_param": mock, "down_alias": down}[stage]
+        stage = "down_alias" if body["model"] == "agent-primary-down" else "normal"
+        status = {"normal": 200, "down_alias": down}[stage]
         if status != 200:
             return httpx.Response(status, text="Authorization sentinel-smoke-key")
         return httpx.Response(
@@ -66,13 +55,9 @@ def test_fallback(tmp_path, monkeypatch, capsys, caplog, mock, down, backend, co
     out = capsys.readouterr().out
     assert "PASS normal family=openai mapped=true" in out
     assert out.endswith(f"BACKEND={backend}\n")
-    assert len(seen) == 3
+    assert len(seen) == 2
     total = sum(row.settled_usd for row in cost_report(tmp_path))
     assert f"INFO cost total_cents={total * 100:.6f}" in out
-    if mock == 400:
-        assert "INFO mock_param unsupported status=400" in out
-    if mock == 500:
-        assert "FAIL mock_param error=GatewayError status=500" in out
     delta = next(
         r.settled_usd for r in cost_report(tmp_path) if r.purpose == "agent_fallback"
     )
@@ -121,7 +106,7 @@ def test_unsupported_or_unmapped(tmp_path, monkeypatch, capsys, model):
     out = capsys.readouterr().out
     assert out.endswith("BACKEND=none\n")
     if model == "gpt-6-luna":
-        assert "INFO mock_param unsupported status=openai" in out
+        assert "FAIL down_alias error=ModelCheckError status=model_mismatch" in out
         assert "FAIL ledger error=LedgerCheckError status=no_increase" in out
 
 
@@ -162,7 +147,7 @@ def test_connection_failures_are_safe(tmp_path, monkeypatch, capsys, caplog):
         == 1
     )
     out = capsys.readouterr().out
-    for stage in ("normal", "mock_param", "down_alias"):
+    for stage in ("normal", "down_alias"):
         assert f"FAIL {stage} error=GatewayError status=connection" in out
     assert out.endswith("BACKEND=none\n")
     assert "Authorization" not in out + caplog.text
