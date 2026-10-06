@@ -50,7 +50,7 @@ src/govops/
 web/              # Next.js(App Router, TypeScript): 화면 4개 + BFF route handler, Tailwind, shadcn/ui
 infra/
 ├── postgres/init/01-create-databases.sh  # litellm·langfuse·govops 앱 DB 초기화 계획(ADR-017, m1-agent)
-├── litellm/config.yaml                  # LiteLLM 주 모델·환경 변수 참조 설정
+├── litellm/config.yaml                  # LiteLLM 주 모델·환경 변수 참조·배포별 model_info.id 설정
 │                                       # agent-fallback·agent-primary-only·agent-primary-down 별칭(ADR-019)
 ├── litellm/config.obs.yaml              # obs 전용 Langfuse 콜백·원문 로깅 끔
 ├── mocks/Dockerfile                     # mock-jira·mock-slack 공용 이미지
@@ -294,6 +294,10 @@ sequenceDiagram
 - v2 실패 시 v1 결과로 판정하고 경보한다. v1까지 실패하면 차단한다(fail-closed).
 - 같은 사전 훅에서 사용자 입력과 도구 결과를 메시지 역할로 구분하는지, Guardrail 판정을 LiteLLM 응답의 어느 필드로 B에 돌려받아 감사 로그에 쓰는지는 미정(M4에서 결정)이다.
 - fallback: Anthropic `claude-sonnet-5-5`, 호출 단위(LiteLLM Router) 전환·단가·모델 호출 타임아웃·정산은 ADR-019를 따른다. 모델이 섞인 task 수와 그 TCR을 따로 보고한다.
+- 응답 모델과 단가는 응답 헤더 `x-litellm-model-id`의 배포 ID로 매핑하고, 헤더가 없을 때만 본문 `model`을 사용한다. 두 LiteLLM 설정 파일의 `model_info.id`는 `openai-gpt-6-luna`·`openai-gpt-6-luna-only`·`openai-gpt-6-luna-down`·`anthropic-claude-sonnet-5-5`다. 응답할 수 없는 down 배포 ID는 매핑하지 않고 미등록으로 경보한다. LLM 기록은 `response_model`(매핑 결과)·`deployment_id`를, dev manifest는 제공자 모델 ID인 `models_seen`·미등록 식별자인 `unmapped_models`를 남긴다.
+- F6 장애 주입 백엔드는 `down_alias` 하나이며, 닫힌 포트를 가리키는 `agent-primary-down` + fallbacks를 호출 번호 스크립트로 선택한다. `GOVOPS_MODEL_FAULT_MODE`는 `down_alias`만 허용하며 설정된 상태로는 일반 서비스가 시작되지 않는다. 요청 파라미터를 통한 fallback 시험은 프록시 기본 거부를 유지하고 이를 켜는 설정은 사용하지 않는다.
+- 에이전트 가상 키의 허용 모델은 두 설정 파일의 `model_name` 집합과 같은 네 별칭이며 테스트로 고정한다. 기존 키는 `make agent-key-update`로 갱신하고 `.env` 키 값은 유지한다.
+- `smoke-fallback`은 normal 단계의 OpenAI 증가 > 0·Anthropic 증가 = 0, fallback 단계의 Anthropic 증가 > 0·OpenAI 증가 = 0을 원장에서 검사하며 두 단계 모두 미등록 0건이어야 통과한다.
 
 ## trace 구조
 
