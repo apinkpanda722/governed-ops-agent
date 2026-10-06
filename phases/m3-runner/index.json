@@ -1,0 +1,46 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-runner",
+  "steps": [
+    {
+      "step": 0,
+      "name": "observation-m3",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "mock-admin",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "approval-driver",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "dev-run-m3",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "golden-m3",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "prereg-m3",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "smoke-approval",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "runner-docs",
+      "status": "pending"
+    }
+  ]
+}

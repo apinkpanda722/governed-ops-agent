@@ -50,6 +50,10 @@
       "dir": "m3-gateway-fix",
       "status": "completed",
       "completed_at": "2026-10-06T12:17:19+0900"
+    },
+    {
+      "dir": "m3-runner",
+      "status": "pending"
     }
   ]
 }
