@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "trace-isolation",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-06T15:11:26+0900",
+      "summary": "task 시도별 캡처 격리·종료·late 호출 집계와 tool_trace_mismatch의 N 계산 제외·등록 보류를 TDD로 구현; 계층 경계 준수 및 make verify 통과(Python 2146개, 웹 15개).",
+      "completed_at": "2026-10-06T15:29:44+0900",
+      "usage": {
+        "input_tokens": 2910806,
+        "cached_input_tokens": 2844416,
+        "output_tokens": 10691,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
