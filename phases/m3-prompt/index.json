@@ -1,0 +1,78 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-prompt",
+  "steps": [
+    {
+      "step": 0,
+      "name": "org-info",
+      "status": "completed",
+      "started_at": "2026-10-06T19:22:05+0900",
+      "summary": "org_info.py에 8팀 대응표·티켓 열거형·결정론적 조직 정보 절과 테스트 5개 추가; 기존 프롬프트·프로필 유지, make verify 통과(2192 passed, 웹 15 passed).",
+      "completed_at": "2026-10-06T19:35:31+0900",
+      "usage": {
+        "input_tokens": 1603078,
+        "cached_input_tokens": 1534976,
+        "output_tokens": 4783,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "profile-org",
+      "status": "completed",
+      "started_at": "2026-10-06T19:35:31+0900",
+      "summary": "WITH_WRITES_ORG·읽기 전용 프로필 레지스트리와 골든/API 이름 해석 추가; 기존 해시·골든 14개 보존, make verify 통과(Python 2196 passed, 웹 15 passed).",
+      "completed_at": "2026-10-06T19:53:50+0900",
+      "usage": {
+        "input_tokens": 2787026,
+        "cached_input_tokens": 2704768,
+        "output_tokens": 7718,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "dev-run-org",
+      "status": "completed",
+      "started_at": "2026-10-06T19:53:50+0900",
+      "summary": "dev 러너를 writes_org·m3-grading으로 전환하고 두 등록 묶음 가드·manifest 필드·supersedes 사슬 및 테스트 추가; 기존 기록 보존, make verify 통과(Python 2208 passed, 웹 15 passed).",
+      "completed_at": "2026-10-06T20:09:07+0900",
+      "usage": {
+        "input_tokens": 2171474,
+        "cached_input_tokens": 2079616,
+        "output_tokens": 6278,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "prereg-prompt",
+      "status": "completed",
+      "started_at": "2026-10-06T20:09:07+0900",
+      "summary": "두 번째 프롬프트 사전 등록·supersedes 증거 파일과 무결성 테스트 11개 추가; 기존 기록 보존, make verify 통과(Python 2219 passed, 웹 15 passed).",
+      "completed_at": "2026-10-06T20:27:02+0900",
+      "usage": {
+        "input_tokens": 1960996,
+        "cached_input_tokens": 1890688,
+        "output_tokens": 6663,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "prompt-docs",
+      "status": "completed",
+      "started_at": "2026-10-06T20:27:03+0900",
+      "summary": "ADR-021 추가 및 조직 정보·writes_org·등록 가드·supersedes·골든 재기록·N 산출 결정을 문서에 반영; 구현에 맞춰 명령어 설명 테스트 기대 문구 1곳 갱신, make verify 통과(Python 2219 passed, 웹 15 passed).",
+      "completed_at": "2026-10-06T20:41:07+0900",
+      "usage": {
+        "input_tokens": 1506699,
+        "cached_input_tokens": 1430272,
+        "output_tokens": 4466,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-06T19:22:05+0900",
+  "completed_at": "2026-10-06T20:41:07+0900"
+}

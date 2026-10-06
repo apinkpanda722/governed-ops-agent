@@ -274,3 +274,20 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 
 **이유**: 단일 프로필과 등록 파일 고정은 dev 실행 단위를 재현 가능하게 한다. mock 상태·승인 기록·task별 캡처는 효과와 탐색 예산의 판정 근거를 일치시킨다. 환경 검사는 구현과 실행 환경의 불일치를 막는다.
 **트레이드오프**: in-process ASGI 평가는 서버 프로세스·세션 TTL을 검증하지 못한다. 도구 캡처 불일치가 있으면 N 등록이 보류된다. V15의 문서 단위 범위 검사는 값 기준 평가보다 엄격해 정상 요청을 차단할 수 있다.
+
+
+### ADR-021: M3 결정 — 시스템 프롬프트 조직 정보와 `writes_org` 프로필
+**상태**: 유효
+**날짜**: 2026-10-06
+**결정**:
+1. **조직 정보 절**: 시스템 프롬프트에 팀 한글 이름 ↔ `owner_team` ↔ `project_key` 8팀 대응표와 티켓 `status`·`priority`·`ticket_type` 값 목록을 추가한다. 한글 이름은 A `src/kodocs/synth/templates/system.md`, 코드·값은 `data/seed/tickets.json`에서 가져온다. `agent/org_info.py`의 상수로 결정론적으로 렌더하며 정답 값·예시 SQL을 넣지 않고 `data/eval`을 사용하지 않는다.
+2. **프로필 보존**: 새 프로필 `writes_org`를 기존 `writes` 옆에 둔다. 읽기 전용 `PROFILES` 레지스트리의 레이블과 `GOVOPS_AGENT_PROFILE` 허용값은 `read_only`·`writes`·`writes_org`다. 기존 프로필의 프롬프트·도구 정의와 프롬프트 해시는 보존한다. 커밋된 골든 14개는 `writes` 해시로 기록되어 있으므로 기존 CI가 재기록을 요구하지 않는다.
+3. **dev 재실행**: dev 20은 `writes_org`로 처음부터 다시 실행하며 공식 채점은 `hypotheses-m3-grading.md` 규칙 버전 `m3-grading`을 사용한다. 첫 실행 결과는 공식 기록으로 보존한다. supersedes 사슬은 `m3-dev-supersedes.json` ← `m3-dev2-supersedes.json`이며 manifest의 `previous_supersedes`·`supersedes`로 남긴다.
+4. **등록 묶음과 가드**: 첫 묶음은 `hypotheses-m3.md`·`data/replay/golden/expectations.json`·`m3-dev-supersedes.json`, 두 번째 묶음은 `hypotheses-m3-prompt.md`·`m3-dev2-supersedes.json`이다(등록 문서·supersedes 파일은 `docs/results/` 아래). 각 묶음은 해당 사전 등록 파일의 등록 커밋에 모두 존재하고 이후 변경되지 않아야 한다. 위반 시 각각 `hypotheses_m3_not_committed`·`hypotheses_m3_prompt_not_committed`로 중단한다. 작업 트리는 청결해야 하며 등록 파일의 sha256과 등록 커밋을 manifest에 기록한다. 채점 등록은 별도의 `grading_rules_not_committed` 가드를 따른다.
+5. **추가 변경 절차**: test 전에 프롬프트·도구 설명을 더 바꾸면 새 등록 파일 + dev 전체 재실행 + 이전 결과 보존 절차를 따른다. 바꾼 횟수와 이유는 결과 문서에 모두 적는다. test 결과를 보고 조정하지 않는다.
+6. **탐색 예산**: N 등록값은 두 번째 실행(`writes_org`)의 `tool_results`로 산출한다. ADR-014의 산출 규칙과 도구 기록 불일치 시 등록 보류를 유지한다.
+7. **골든 재기록**: 골든 14개는 두 번째 실행 직후 `writes_org`로 재기록하며 `status.json`은 `m3-grading` 기준이다. 명세에서 계산한 `expectations.json`은 그대로 둔다.
+8. **다음 phase**: 기본 프로필 전환과 옛 프로필(`read_only`·`writes`) 삭제는 다음 phase `m3-faults`의 첫 step에서 한다. 현재 기본값은 `read_only`다.
+
+**이유**: 조직 스키마의 코드 값을 시스템 프롬프트에 명시해 도구 조건에 올바른 값을 사용하게 한다. 기존 프롬프트 해시와 공식 기록을 보존하고 새 실행의 프로필·등록·채점 규칙을 고정한다.
+**트레이드오프**: 프로필 세 개를 함께 유지하며 조직 정보 상수와 시드의 일치를 검사해야 한다. 새 프롬프트 평가는 dev 전체 재실행과 골든 재기록을 필요로 한다.

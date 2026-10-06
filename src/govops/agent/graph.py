@@ -2,8 +2,9 @@
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
+from types import MappingProxyType
 from typing import Any, Literal, Protocol, TypedDict
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -21,6 +22,7 @@ from govops.agent.approval import (
     approver_decision,
 )
 from govops.agent.draft import Draft, draft_sha256
+from govops.agent.org_info import org_section
 from govops.agent.prompts import SYSTEM_PROMPT
 from govops.agent.scope import ScopeIndex, evidence_ids, run_checks
 from govops.agent.users import UserInfo
@@ -65,6 +67,28 @@ WITH_WRITES = AgentProfile(
     agent_tool_definitions(include_writes=True),
     True,
 )
+WITH_WRITES_ORG = AgentProfile(
+    "with_writes_org",
+    WITH_WRITES.system_prompt + "\n" + org_section(),
+    WITH_WRITES.tools,
+    True,
+)
+PROFILES: Mapping[str, AgentProfile] = MappingProxyType(
+    {
+        "read_only": READ_ONLY,
+        "writes": replace(WITH_WRITES, name="writes"),
+        "writes_org": replace(WITH_WRITES_ORG, name="writes_org"),
+    }
+)
+
+
+def profile_for(label: str) -> AgentProfile:
+    try:
+        return PROFILES[label]
+    except KeyError:
+        raise ValueError("invalid_profile") from None
+
+
 Users = Mapping[str, UserInfo]
 
 

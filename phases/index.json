@@ -61,6 +61,11 @@
       "dir": "m3-dev-results",
       "status": "completed",
       "completed_at": "2026-10-06T18:59:15+0900"
+    },
+    {
+      "dir": "m3-prompt",
+      "status": "completed",
+      "completed_at": "2026-10-06T20:41:07+0900"
     }
   ]
 }

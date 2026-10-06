@@ -8,7 +8,7 @@ import json
 import os
 import shutil
 import subprocess
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import ClassVar, Literal
@@ -19,13 +19,13 @@ import psycopg
 
 from govops import golden
 from govops.agent.checkpointer import open_checkpointer
-from govops.agent.graph import WITH_WRITES, get_task
+from govops.agent.graph import PROFILES, get_task
 from govops.api.wiring import build_task_service
 from govops.costs import BudgetExceededError, CostLedger, cost_report
 from govops.env import env_or
 from govops.eval.duplicates import count_effects
 from govops.eval.meta import load_meta
-from govops.eval.run_grade import REGISTERED, grade_run, guard_grading_rules
+from govops.eval.run_grade import M3_GRADING, grade_run, guard_grading_rules
 from govops.eval.spec import TaskSpec
 from govops.evalrun.dev import (
     ROOT,
@@ -57,14 +57,17 @@ from govops.tools.outbox import PostgresOutboxStore
 from govops.tools.registry import _WRITES, ToolRuntime
 from govops.tools.slack import SlackClient
 
-REGISTRATION_FILES = (
+FIRST_REGISTRATION_FILES = (
     "docs/results/hypotheses-m3.md",
     "data/replay/golden/expectations.json",
     "docs/results/m3-dev-supersedes.json",
 )
 PARAMS = {}
-# Preserve the existing profile's prompt/contracts; "writes" is the run label.
-PROFILE = replace(WITH_WRITES, name="writes")
+PROMPT_REGISTRATION_FILES = (
+    "docs/results/hypotheses-m3-prompt.md",
+    "docs/results/m3-dev2-supersedes.json",
+)
+PROFILE = PROFILES["writes_org"]
 
 
 class SmokeSpec(TaskSpec):
@@ -197,7 +200,7 @@ async def _run_smoke(
                 )
                 if (
                     not service.graph.agent_profile.allow_writes
-                    or service.graph.agent_profile.name != "writes"
+                    or service.graph.agent_profile.name != PROFILE.name
                 ):
                     raise ValueError("profile_mismatch")
                 result = await ApprovalDriver(
@@ -355,7 +358,7 @@ def select_tasks(rows, requested=None, *, smoke=False):
     ]
 
 
-DEV_GRADING_RULES = REGISTERED
+DEV_GRADING_RULES = M3_GRADING
 
 
 def guard_live_m3(metadata):
@@ -363,39 +366,59 @@ def guard_live_m3(metadata):
         "hypotheses_m3_unchanged"
     ):
         raise ValueError("hypotheses_m3_not_committed")
+    if not metadata.get("hypotheses_m3_prompt_committed") or not metadata.get(
+        "hypotheses_m3_prompt_unchanged"
+    ):
+        raise ValueError("hypotheses_m3_prompt_not_committed")
     if not metadata.get("worktree_clean"):
         raise ValueError("dirty_worktree")
 
 
-def git_metadata_m3(root, a_root):
-    registration = _git(root, "log", "-1", "--format=%H", "--", REGISTRATION_FILES[0])[
-        1
-    ]
+def _registration_metadata(root, files, prefix):
+    registration = _git(root, "log", "-1", "--format=%H", "--", files[0])[1]
     committed = bool(registration) and all(
         _git(root, "ls-files", "--error-unmatch", path)[0] == 0
         and _git(root, "cat-file", "-e", f"HEAD:{path}")[0] == 0
         and _git(root, "cat-file", "-e", f"{registration}:{path}")[0] == 0
-        for path in REGISTRATION_FILES
+        for path in files
     )
     code, delta = (
-        _git(root, "diff", f"{registration}..HEAD", "--", *REGISTRATION_FILES)
+        _git(root, "diff", f"{registration}..HEAD", "--", *files)
         if registration
         else (1, "")
     )
+    return {
+        f"{prefix}_committed": committed,
+        f"{prefix}_unchanged": code == 0 and not delta,
+        f"{prefix}_registration_commit": registration,
+    }
+
+
+def git_metadata_m3(root, a_root):
     status_code, status = _git(root, "status", "--porcelain")
     extra = {
         "worktree_clean": status_code == 0 and not status,
-        "hypotheses_m3_committed": committed,
-        "hypotheses_m3_unchanged": code == 0 and not delta,
-        "hypotheses_m3_registration_commit": registration,
+        **_registration_metadata(root, FIRST_REGISTRATION_FILES, "hypotheses_m3"),
+        **_registration_metadata(
+            root, PROMPT_REGISTRATION_FILES, "hypotheses_m3_prompt"
+        ),
     }
     guard_live_m3(extra)
     metadata = git_metadata(root, a_root)
     metadata.update(extra)
-    metadata["hypotheses_m3_sha256"] = hashlib.sha256(
-        (root / REGISTRATION_FILES[0]).read_bytes()
-    ).hexdigest()
-    metadata["supersedes"] = json.loads((root / REGISTRATION_FILES[2]).read_text())
+    for files, prefix in (
+        (FIRST_REGISTRATION_FILES, "hypotheses_m3"),
+        (PROMPT_REGISTRATION_FILES, "hypotheses_m3_prompt"),
+    ):
+        metadata[f"{prefix}_sha256"] = hashlib.sha256(
+            (root / files[0]).read_bytes()
+        ).hexdigest()
+    metadata["supersedes"] = json.loads(
+        (root / PROMPT_REGISTRATION_FILES[1]).read_text()
+    )
+    metadata["previous_supersedes"] = json.loads(
+        (root / FIRST_REGISTRATION_FILES[2]).read_text()
+    )
     return metadata
 
 
@@ -538,7 +561,7 @@ async def run_dev_m3(
         mode="live",
         grading_rules=DEV_GRADING_RULES,
         **guard_grading_rules(root, DEV_GRADING_RULES),
-        profile="writes",
+        profile=PROFILE.name,
         model_id=_MODEL,
         call_params=PARAMS,
         prompt_hash=prompt_hash(
@@ -635,7 +658,7 @@ async def run_dev_m3(
                 )
                 try:
                     if (
-                        service.graph.agent_profile.name != "writes"
+                        service.graph.agent_profile.name != PROFILE.name
                         or not service.graph.agent_profile.allow_writes
                     ):
                         raise ValueError("profile_mismatch")
@@ -777,7 +800,7 @@ async def run_dev_m3(
                         == "recorded_fail"
                     )
                     status = {
-                        "profile": "writes",
+                        "profile": PROFILE.name,
                         "eligible": eligible,
                         "golden_eligible": eligible,
                         "excluded_reason": reasons[0] if reasons else None,

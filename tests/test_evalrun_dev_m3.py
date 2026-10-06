@@ -9,7 +9,6 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import call, reply
 
-from govops.agent.graph import READ_ONLY
 from govops.costs import BudgetExceededError
 from govops.evalrun.dev_m3 import (
     guard_live_m3,
@@ -44,6 +43,9 @@ def metadata():
         "worktree_clean": True,
         "hypotheses_m3_committed": True,
         "hypotheses_m3_unchanged": True,
+        "hypotheses_m3_prompt_committed": True,
+        "hypotheses_m3_prompt_unchanged": True,
+        "previous_supersedes": {"previous_run_id": "m2"},
         "a_git_head": "d2eec9c",
         "index_name": "synthetic",
         "commit_hash": "a" * 40,
@@ -127,6 +129,13 @@ async def exercise(
     smoke=False,
     unmapped=False,
 ):
+    monkeypatch.setattr(
+        "govops.evalrun.dev_m3.guard_grading_rules",
+        lambda root, rules: {
+            "grading_rules_sha256": "f" * 64,
+            "grading_rules_registration_commit": "a" * 40,
+        },
+    )
     credentials = tmp_path / "credentials.json"
     generate_tokens(
         users=ROOT / "data/seed/users.json", plaintext=credentials, hash_dir=tmp_path
@@ -297,8 +306,9 @@ def test_all_twenty_actual_graph_tool_trace_and_manifest(tmp_path, monkeypatch):
     manifest = result["manifest"]
     assert admin.resets == 20
     assert len(result["grades"]) == len(result["observations"]) == 20
-    assert manifest["profile"] == "writes"
+    assert manifest["profile"] == "writes_org"
     assert manifest["supersedes"] == metadata()["supersedes"]
+    assert manifest["previous_supersedes"] == metadata()["previous_supersedes"]
     assert manifest["models_seen"] == ["claude-sonnet-5-5", "gpt-6-luna"]
     assert manifest["mixed_model_tasks"]["count"] == 20
     assert manifest["mixed_model_tcr"]["total"] == 20
@@ -337,7 +347,7 @@ def test_all_twenty_actual_graph_tool_trace_and_manifest(tmp_path, monkeypatch):
 
     status = json.loads((tmp_path / "data/replay/golden/status.json").read_text())
     assert set(status) == set(GOLDEN_TASKS)
-    assert all(s["profile"] == "writes" for s in status.values())
+    assert all(s["profile"] == "writes_org" for s in status.values())
     assert all(
         (tmp_path / "data/replay/llm" / f"{key}.jsonl").exists() for key in GOLDEN_TASKS
     )
@@ -380,11 +390,14 @@ def test_preflight_stops_before_reset(tmp_path, monkeypatch):
     assert not (tmp_path / "data/results").exists()
 
 
-def test_profile_mismatch(tmp_path, monkeypatch):
+@pytest.mark.parametrize("profile", ["writes", "read_only"])
+def test_profile_mismatch(tmp_path, monkeypatch, profile):
     from govops.api.wiring import build_task_service
 
     def wrong(**kwargs):
-        kwargs["profile"] = READ_ONLY
+        from govops.agent.graph import PROFILES
+
+        kwargs["profile"] = PROFILES[profile]
         return build_task_service(**kwargs)
 
     with pytest.raises(ValueError, match="profile_mismatch"):
@@ -447,10 +460,14 @@ def test_smoke_no_registration_records_or_manifest(tmp_path, monkeypatch):
     "change", ["untracked", "missing_at_registration", "changed", "dirty", None]
 )
 def test_git_registration_probe(tmp_path, monkeypatch, change):
-    from govops.evalrun.dev_m3 import REGISTRATION_FILES, git_metadata_m3
+    from govops.evalrun.dev_m3 import (
+        FIRST_REGISTRATION_FILES,
+        PROMPT_REGISTRATION_FILES,
+        git_metadata_m3,
+    )
 
     calls = []
-    for path in REGISTRATION_FILES:
+    for path in (*FIRST_REGISTRATION_FILES, *PROMPT_REGISTRATION_FILES):
         file = tmp_path / path
         file.parent.mkdir(parents=True, exist_ok=True)
         file.write_text("{}")
@@ -487,7 +504,7 @@ def test_git_registration_probe(tmp_path, monkeypatch, change):
         result = git_metadata_m3(tmp_path, tmp_path / "a")
         assert result["supersedes"] == {}
         assert result["hypotheses_m3_registration_commit"] == "registration"
-        assert ("diff", "registration..HEAD", "--", *REGISTRATION_FILES) in calls
+        assert ("diff", "registration..HEAD", "--", *FIRST_REGISTRATION_FILES) in calls
 
 
 def test_cli_partial_selection_and_missing_postgres_are_safe(monkeypatch, capsys):
@@ -865,9 +882,121 @@ def test_manifest_records_explicit_grading_rules(tmp_path, monkeypatch):
 
     result, _, _ = asyncio.run(exercise(tmp_path, monkeypatch))
     assert (
-        result["manifest"]["grading_rules"] == dev_m3.DEV_GRADING_RULES == "registered"
+        result["manifest"]["grading_rules"] == dev_m3.DEV_GRADING_RULES == "m3-grading"
     )
     stored = json.loads((Path(result["directory"]) / "manifest.json").read_text())
-    assert stored["grading_rules"] == "registered"
-    assert "grading_rules_sha256" not in stored
-    assert "grading_rules_registration_commit" not in stored
+    assert stored["grading_rules"] == "m3-grading"
+    assert stored["grading_rules_sha256"] == "f" * 64
+    assert stored["grading_rules_registration_commit"] == "a" * 40
+
+
+@pytest.mark.parametrize("bundle", ["first", "prompt"])
+@pytest.mark.parametrize("change", ["missing", "uncommitted", "changed", "dirty", None])
+def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
+    import hashlib
+    import subprocess
+
+    from govops.evalrun import dev_m3
+
+    def git(*args):
+        return subprocess.check_output(
+            ["git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    def commit(paths=(".",)):
+        git("add", "--", *paths)
+        git(
+            "-c",
+            "user.name=Synthetic",
+            "-c",
+            "user.email=synthetic@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        )
+        return git("rev-parse", "HEAD")
+
+    git("init", "-q")
+    (tmp_path / "base").write_text("base")
+    commit()
+    commits = {}
+    for label, paths in [
+        ("first", dev_m3.FIRST_REGISTRATION_FILES),
+        ("prompt", dev_m3.PROMPT_REGISTRATION_FILES),
+    ]:
+        if label == bundle and change == "missing":
+            continue
+        for path in paths:
+            file = tmp_path / path
+            file.parent.mkdir(parents=True, exist_ok=True)
+            file.write_text(json.dumps({"bundle": label}))
+        if label != bundle or change != "uncommitted":
+            commits[label] = commit(paths)
+    paths = (
+        dev_m3.FIRST_REGISTRATION_FILES
+        if bundle == "first"
+        else dev_m3.PROMPT_REGISTRATION_FILES
+    )
+    if change == "changed":
+        (tmp_path / paths[-1]).write_text('{"changed": true}')
+        commit()
+    if change == "dirty":
+        (tmp_path / paths[0]).write_text("dirty")
+    monkeypatch.setattr(dev_m3, "git_metadata", lambda *args: {})
+    code = (
+        "hypotheses_m3_not_committed"
+        if bundle == "first"
+        else "hypotheses_m3_prompt_not_committed"
+    )
+    if change:
+        with pytest.raises(
+            ValueError, match="dirty_worktree" if change == "dirty" else code
+        ):
+            dev_m3.git_metadata_m3(tmp_path, tmp_path / "a")
+    else:
+        result = dev_m3.git_metadata_m3(tmp_path, tmp_path / "a")
+        for label, prefix, files in [
+            ("first", "hypotheses_m3", dev_m3.FIRST_REGISTRATION_FILES),
+            ("prompt", "hypotheses_m3_prompt", dev_m3.PROMPT_REGISTRATION_FILES),
+        ]:
+            assert result[prefix + "_committed"] is True
+            assert result[prefix + "_unchanged"] is True
+            assert result[prefix + "_registration_commit"] == commits[label]
+            assert (
+                result[prefix + "_sha256"]
+                == hashlib.sha256((tmp_path / files[0]).read_bytes()).hexdigest()
+            )
+        assert result["supersedes"] == {"bundle": "prompt"}
+        assert result["previous_supersedes"] == {"bundle": "first"}
+
+
+def test_org_runner_and_record_status_share_m3_grading():
+    from types import SimpleNamespace
+
+    from govops.eval.meta import load_meta
+    from govops.eval.observation import Observation
+    from govops.eval.run_grade import grade_run
+    from govops.evalrun.dev_m3 import DEV_GRADING_RULES, PROFILE
+    from govops.golden import record_status
+
+    spec = next(s for s in specs() if s.task_id == "T2-01")
+    path = ROOT / "data/results/dev/da337bb7471c4bceae14a2e9b3ce5884/observations.jsonl"
+    obs = next(
+        row
+        for line in path.read_text().splitlines()
+        if (row := Observation.model_validate_json(line)).task_id == spec.task_id
+    )
+    data = {
+        "meta": load_meta(ROOT / "data/eval/meta.json"),
+        "tickets": json.loads((ROOT / "data/seed/tickets.json").read_text())["tickets"],
+        "users": json.loads((ROOT / "data/seed/users.json").read_text())["users"],
+        "grading_rules": DEV_GRADING_RULES,
+    }
+    assert DEV_GRADING_RULES == "m3-grading"
+    grade = grade_run(spec=spec, obs=obs, **data)
+    status = record_status(
+        spec, obs, SimpleNamespace(golden_eligible=True), profile=PROFILE.name, **data
+    )
+    assert grade.tcr.passed
+    assert status["status"] == "pass"
+    assert status["profile"] == "writes_org"

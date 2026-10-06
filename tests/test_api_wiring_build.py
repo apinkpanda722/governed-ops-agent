@@ -28,3 +28,101 @@ def test_injected_assembly_ignores_environment(tmp_path, monkeypatch, profile):
     assert service.policy is tools.policy
     assert service.audit.directory == tmp_path / "audit"
     assert len(service.users) == 38
+
+
+def test_org_golden_synthetic_replay(tmp_path):
+    import asyncio
+    import json
+
+    from test_agent_graph import FakeChat, reply
+    from test_regolden import grading_data
+
+    from govops.agent.graph import PROFILES, build_graph
+    from govops.golden import (
+        load_golden_specs,
+        manifest_tasks,
+        record_status,
+        replay_task,
+    )
+    from govops.replay.llm import RecordingChatClient
+
+    profile = PROFILES["writes_org"]
+    llm, a, golden = [tmp_path / name for name in ("llm", "a", "golden")]
+    a.mkdir()
+    golden.mkdir()
+    key = "T1-01"
+
+    async def run():
+        chat = RecordingChatClient(
+            FakeChat(reply("합성 답변")),
+            task_id=key,
+            directory=llm,
+            system_prompt=profile.system_prompt,
+            tools=profile.tools,
+            model="gpt-6-luna",
+            params={},
+        )
+        from govops.golden import _write_graph
+
+        runtime = SimpleNamespace(jira=object(), slack=object(), policy=ToolPolicy())
+        graph, service = _write_graph(
+            chat,
+            SimpleNamespace(),
+            runtime,
+            InMemorySaver(),
+            build_graph,
+            profile=profile,
+        )
+        from govops.agent.graph import run_task
+
+        spec = load_golden_specs()[key]
+        await run_task(
+            graph, task_id="synthetic", user_id=spec.user, request=spec.request
+        )
+        chat.finish()
+        await service.aclose()
+        (a / f"{key}.jsonl").write_text("")
+        obs = await replay_task(
+            key,
+            llm_dir=llm,
+            a_dir=a,
+            mock_executor=runtime,
+            profile="writes_org",
+            mock_state=lambda: {"jira": {}, "slack": {}},
+        )
+        assert obs.status == "completed"
+        row = record_status(
+            spec,
+            obs,
+            SimpleNamespace(golden_eligible=True),
+            **grading_data(),
+            grading_rules="registered",
+            profile="writes_org",
+        )
+        assert row["profile"] == "writes_org"
+        (golden / "status.json").write_text(json.dumps({key: row}))
+        assert (
+            manifest_tasks(golden_dir=golden, llm_dir=llm, a_dir=a)[key]["profile"]
+            == "writes_org"
+        )
+        row["profile"] = "unknown"
+        (golden / "status.json").write_text(json.dumps({key: row}))
+        with pytest.raises(ValueError, match="invalid_profile"):
+            manifest_tasks(golden_dir=golden, llm_dir=llm, a_dir=a)
+        with pytest.raises(ValueError, match="invalid_profile"):
+            await replay_task(
+                key, llm_dir=llm, a_dir=a, mock_executor=runtime, profile="unknown"
+            )
+        with pytest.raises(ValueError, match="invalid_profile"):
+            record_status(
+                spec,
+                obs,
+                None,
+                meta=None,
+                tickets=None,
+                users=None,
+                grading_rules=None,
+                profile="unknown",
+            )
+
+    asyncio.run(run())

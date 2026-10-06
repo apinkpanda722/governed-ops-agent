@@ -8,11 +8,11 @@ import httpx
 
 from govops.agent.checkpointer import open_checkpointer
 from govops.agent.graph import (
-    READ_ONLY,
-    WITH_WRITES,
+    PROFILES,
     AgentProfile,
     EffectDeps,
     build_graph,
+    profile_for,
 )
 from govops.agent.scope import ScopeIndex
 from govops.agent.users import load_users
@@ -111,7 +111,7 @@ async def open_task_service():
         )
         async with open_checkpointer(os.getenv("GOVOPS_DATABASE_URL") or None) as saver:
             name = env_or("GOVOPS_AGENT_PROFILE", "read_only")
-            if name not in {"read_only", "writes"}:
+            if name not in PROFILES:
                 raise StartupError("GOVOPS_AGENT_PROFILE")
             outbox = (
                 PostgresOutboxStore()
@@ -123,7 +123,7 @@ async def open_task_service():
                 tools=tools,
                 saver=saver,
                 outbox=outbox,
-                profile=WITH_WRITES if name == "writes" else READ_ONLY,
+                profile=profile_for(name),
                 audit_dir=Path(env_or("AUDIT_DIR", "data/interim/audit")),
             )
             await service.startup_cleanup()

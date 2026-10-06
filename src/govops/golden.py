@@ -13,8 +13,7 @@ from uuid import uuid4
 import httpx
 from langgraph.checkpoint.memory import InMemorySaver
 
-from govops.agent.graph import WITH_WRITES, EffectDeps, build_graph, get_task, run_task
-from govops.agent.prompts import SYSTEM_PROMPT
+from govops.agent.graph import PROFILES, EffectDeps, build_graph, get_task, run_task
 from govops.agent.scope import ScopeIndex
 from govops.agent.users import load_users
 from govops.api.app import create_app
@@ -31,7 +30,7 @@ from govops.guardrails.policy import load_team_policy
 from govops.replay.a_replay import ReplayToolExecutor
 from govops.replay.llm import ReplayChatClient, RerecordRequired
 from govops.tools.outbox import InMemoryOutboxStore
-from govops.tools.registry import _WRITES, agent_tool_definitions
+from govops.tools.registry import _WRITES
 
 GOLDEN_TASKS = (
     "T1-01",
@@ -181,7 +180,7 @@ def record_status(
     spec, obs, a_summary, *, meta, tickets, users, grading_rules, profile=None
 ) -> dict:
     """Freeze the initial TCR outcome; skipped A calls exclude the entire task."""
-    if profile not in {None, "read_only", "writes"}:
+    if profile is not None and profile not in PROFILES:
         raise ValueError("invalid_profile")
     if spec.task_id not in GOLDEN_TASKS:
         raise ValueError("not_golden_task")
@@ -277,20 +276,16 @@ async def replay_task(
 ) -> Observation:
     if task_id not in GOLDEN_TASKS:
         raise ValueError("not_golden_task")
-    if profile not in {"read_only", "writes"}:
+    if profile not in PROFILES:
         raise ValueError("invalid_profile")
-    if profile == "writes" and mock_state is None:
+    if PROFILES[profile].allow_writes and mock_state is None:
         raise ValueError("mock_state_required")
     spec = load_golden_specs()[task_id]
     chat = _Checked(
         ReplayChatClient.load(
             Path(llm_dir) / f"{task_id}.jsonl",
-            system_prompt=WITH_WRITES.system_prompt
-            if profile == "writes"
-            else SYSTEM_PROMPT,
-            tools=WITH_WRITES.tools
-            if profile == "writes"
-            else agent_tool_definitions(),
+            system_prompt=PROFILES[profile].system_prompt,
+            tools=PROFILES[profile].tools,
             model=MODEL,
             params=PARAMS,
         )
@@ -298,18 +293,25 @@ async def replay_task(
     tools = _Checked(
         ReplayToolExecutor.load(Path(a_dir) / f"{task_id}.jsonl", inner=mock_executor)
     )
-    execution_id = run_id or (uuid4().hex if profile == "writes" else task_id)
+    execution_id = run_id or (
+        uuid4().hex if PROFILES[profile].allow_writes else task_id
+    )
     approvals = []
-    if profile == "writes":
+    if PROFILES[profile].allow_writes:
         graph, service = _write_graph(
-            chat, tools, mock_executor, InMemorySaver(), graph_factory
+            chat,
+            tools,
+            mock_executor,
+            InMemorySaver(),
+            graph_factory,
+            profile=PROFILES[profile],
         )
     else:
         graph = graph_factory(chat, tools, InMemorySaver())
     state = await run_task(
         graph, task_id=execution_id, user_id=spec.user, request=spec.request
     )
-    if profile == "writes":
+    if PROFILES[profile].allow_writes:
         try:
             approvals = await _replay_approvals(service, spec, execution_id)
             state = await get_task(graph, execution_id)
@@ -335,7 +337,7 @@ async def replay_task(
                     response["content"]
                 )
                 calls.append({"name": call["function"]["name"], "ok": ok})
-    if profile == "writes":
+    if PROFILES[profile].allow_writes:
         return _write_observation(
             spec, state, tools.executed_calls, approvals, mock_state()
         )
@@ -356,7 +358,7 @@ def manifest_tasks(*, golden_dir, llm_dir, a_dir) -> dict:
         if row is None and any(p.exists() for p in files):
             raise ValueError("record_without_status")
         if row is not None:
-            if row.get("profile", "read_only") not in {"read_only", "writes"}:
+            if row.get("profile", "read_only") not in PROFILES:
                 raise ValueError("invalid_profile")
             if row.get("golden_eligible"):
                 row.setdefault("profile", "read_only")
@@ -371,7 +373,7 @@ def manifest_tasks(*, golden_dir, llm_dir, a_dir) -> dict:
     return rows
 
 
-def _write_graph(chat, tools, runtime, saver, factory):
+def _write_graph(chat, tools, runtime, saver, factory, *, profile=PROFILES["writes"]):
     """Assemble replay dependencies without live services or evaluation answers."""
     tools.policy = runtime.policy
     tools.executed_calls = []
@@ -386,7 +388,7 @@ def _write_graph(chat, tools, runtime, saver, factory):
         chat,
         tools,
         saver,
-        profile=WITH_WRITES,
+        profile=profile,
         effects=effects,
         audit=audit,
         scope=ScopeIndex.load(ROOT / "data/seed/access_index.json"),
