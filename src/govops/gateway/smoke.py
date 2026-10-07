@@ -2,15 +2,20 @@
 
 import argparse
 import asyncio
+import json
 import os
 import re
+from pathlib import Path
 from uuid import uuid4
 
 import httpx
 
 from govops.costs import CostLedger, cost_report, resolve_model
+from govops.env import env_or
 from govops.gateway.client import GatewayError, LiteLLMChatClient
 from govops.gateway.faults import ModelFaultScript
+from govops.gateway.hook_digest import compute_digests
+from govops.gateway.team_keys import TeamKeyResolver, team_env_name
 
 MESSAGE = "합성 상태 확인: 정상이라고 짧게 답하세요."
 
@@ -39,13 +44,17 @@ def _fail(stage: str, exc: Exception, reason: str = "http") -> None:
 def _identifier(value: str | None) -> str:
     if value is None:
         return "None"
-    key = os.getenv("LITELLM_AGENT_KEY", "").strip()
+    keys = [
+        value.strip()
+        for name, value in os.environ.items()
+        if name.startswith("LITELLM_TEAM_KEY_") and value.strip()
+    ]
     if (
         not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*", value)
         or re.search(
             r"authorization|bearer|secret|token|api_key|sk-", value, re.IGNORECASE
         )
-        or (key and key in value)
+        or any(key in value for key in keys)
     ):
         return "redacted"
     return value
@@ -64,8 +73,15 @@ async def _fallback(
         _fail("ledger", exc, "ledger_delta")
         print("BACKEND=none")
         return 1
-    if not os.getenv("LITELLM_AGENT_KEY", "").strip():
-        print("FAIL normal reason=missing_key error=GatewayError status=missing_key")
+    root = Path(__file__).resolve().parents[3]
+    users = {
+        row["label"]: row["team"]
+        for row in json.loads((root / "data/seed/users.json").read_bytes())["users"]
+    }
+    user = env_or("SMOKE_USER", "demo-platform-g3")
+    resolver = TeamKeyResolver(users)
+    if user not in users or users[user] in resolver.missing():
+        print("FAIL " + (team_env_name(users[user]) if user in users else "SMOKE_USER"))
         print("BACKEND=none")
         return 1
     passed = {}
@@ -74,6 +90,9 @@ async def _fallback(
         for stage in ("normal", "down_alias"):
             client = LiteLLMChatClient(
                 ledger=ledger,
+                key_resolver=resolver.key_for,
+                expected_digests=compute_digests(root),
+                require_guardrail=True,
                 http_client=http,
                 fault_mode=None if stage == "normal" else stage,
                 fault_script=None if stage == "normal" else ModelFaultScript("all"),
@@ -91,7 +110,7 @@ async def _fallback(
                     messages=[{"role": "user", "content": MESSAGE}],
                     tools=[],
                     task_id=uuid4().hex,
-                    user_id="demo-platform-g3",
+                    user_id=user,
                     max_output_tokens=16,
                 )
             except Exception as exc:  # noqa: BLE001 — suppress secret-bearing errors

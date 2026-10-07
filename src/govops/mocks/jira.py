@@ -40,7 +40,14 @@ def _utc_now() -> str:
 
 
 def _response(ticket: dict) -> dict:
-    return {field: deepcopy(ticket[field]) for field in sorted(RESPONSE_FIELDS)}
+    result = {field: deepcopy(ticket[field]) for field in sorted(RESPONSE_FIELDS)}
+    if "comments" in ticket:
+        # Optional overlay payloads must reach the model's ticket read response.
+        result["comments"] = deepcopy(ticket["comments"])
+        result["children"] = []
+        if "description" in ticket:
+            result["description"] = ticket["description"]
+    return result
 
 
 def _readable(ticket: dict, user: MockUser) -> bool:
@@ -76,7 +83,18 @@ class JiraState:
                 t["ticket_id"]: {**deepcopy(t), "parent_id": None, "metadata": {}}
                 for t in self._seed
             }
-            self.comments: list[dict] = []
+            self.comments: list[dict] = [
+                {
+                    "comment_id": f"seed-comment-{t['ticket_id']}-{index}",
+                    "ticket_id": t["ticket_id"],
+                    "author": comment["author"],
+                    "body": comment["body"],
+                    "metadata": {},
+                    "created_at": t["created_at"],
+                }
+                for t in self._seed
+                for index, comment in enumerate(t.get("comments", []), 1)
+            ]
             self.child_ids: list[str] = []
             self.counter = deepcopy(self._initial_counter)
 
@@ -193,7 +211,24 @@ def add_rest_routes(
     @app.get("/tickets/{ticket_id}")
     def get_ticket(ticket_id: str, user: User) -> dict:
         with state.lock:
-            return _response(state.visible_ticket(ticket_id, user))
+            ticket = state.visible_ticket(ticket_id, user)
+            result = _response(ticket)
+            if "comments" in ticket:
+                result["comments"] = deepcopy(
+                    [
+                        c
+                        for c in state.comments
+                        if c["ticket_id"] == ticket_id
+                        and is_visible(c, state.timestamp())
+                    ]
+                )
+                result["children"] = [
+                    _response(state.tickets[key])
+                    for key in state.child_ids
+                    if state.tickets[key]["parent_id"] == ticket_id
+                    and _readable(state.tickets[key], user)
+                ]
+            return result
 
     @app.get("/tickets/{ticket_id}/comments")
     def get_comments(ticket_id: str, user: User) -> dict:

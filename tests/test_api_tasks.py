@@ -94,6 +94,7 @@ async def test_tasks_identity_fields_and_secrecy(caplog):
             "observed_doc_ids": ["syn-one", "syn-unused"],
             "steps": 2,
             "error": None,
+            "guardrail": {"quarantined": 0, "quarantined_at_least": False, "masked": 0},
         }
         assert tools.calls[0][2] == "a"
         public = (
@@ -294,6 +295,8 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
                 "observed_doc_ids",
                 "messages",
                 "evidence_ids",
+                "guardrail",
+                "block",
             }
             & view.json().keys()
         )

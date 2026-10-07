@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "ignore_en",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "ignore\\s+(?:all\\s+)?(?:previous|prior|above)\\s+instructions",
+      "family": "ignore_instructions"
+    },
+    {
+      "id": "discard_en",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "disregard\\s+(?:all\\s+)?(?:previous|prior)\\s+instructions",
+      "family": "ignore_instructions"
+    },
+    {
+      "id": "ignore_ko",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "(?:이전|앞선|위의)\\s*(?:모든\\s*)?지시(?:를|사항을)?\\s*(?:무시하라|무시해|무시하고|폐기하라)",
+      "family": "ignore_instructions"
+    },
+    {
+      "id": "role_en",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "(?:you\\s+are\\s+now\\s+(?:an?\\s+)?(?:unrestricted|uncensored)\\s+(?:assistant|ai)|enter\\s+developer\\s+mode)",
+      "family": "role_change"
+    },
+    {
+      "id": "role_ko",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "(?:제한\\s*없는\\s*역할로\\s*행동|탈옥\\s*모드로\\s*전환)",
+      "family": "role_change"
+    },
+    {
+      "id": "prompt_en",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "(?:reveal|print|show)\\s+(?:your\\s+|the\\s+)?system\\s+prompt",
+      "family": "prompt_exposure"
+    },
+    {
+      "id": "prompt_ko",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "시스템\\s*프롬프트(?:를)?\\s*(?:공개하라|출력하라|보여줘)",
+      "family": "prompt_exposure"
+    },
+    {
+      "id": "delimiter",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "(?:</system>|\\[system\\]|새로운\\s*지시\\s*:)",
+      "family": "authority_spoof"
+    },
+    {
+      "id": "identity_en",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "act\\s+as\\s+(?:an?\\s+)?(?:administrator|another\\s+team\\s+user)",
+      "family": "identity_spoof"
+    },
+    {
+      "id": "identity_ko",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "(?:관리자로\\s*행동|다른\\s*팀\\s*사용자로\\s*행동)",
+      "family": "identity_spoof"
+    },
+    {
+      "id": "send_ko",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "이\\s*내용을\\s*전체\\s*채널에\\s*발송하라",
+      "family": "forced_tool"
+    },
+    {
+      "id": "send_en",
+      "scope": [
+        "input",
+        "tool"
+      ],
+      "pattern": "send\\s+this\\s+(?:content|message)\\s+to\\s+all\\s+channels",
+      "family": "forced_tool"
+    }
+  ]
+}

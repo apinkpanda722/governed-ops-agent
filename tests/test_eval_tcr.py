@@ -449,3 +449,31 @@ def test_successful_approve_is_not_a_reject_record():
         ),
     )
     assert verdict.reasons == ("reject_not_recorded",)
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        "answer",
+        "not_found",
+        "not_found_or_partial",
+        "approved_executed",
+        "blocked",
+        "approval_rejected",
+    ],
+)
+def test_blocked_input_never_passes(outcome):
+    obs = observation(
+        status="blocked_input",
+        approvals=[
+            {
+                "approval_id": "a",
+                "actor": "demo-platform-g3",
+                "decision": "reject",
+                "http_status": 200,
+            }
+        ],
+    )
+    result = grade_tcr(spec(expected={"outcome": outcome, "effects": []}), obs)
+    assert not result.passed
+    assert "blocked_input" in result.reasons

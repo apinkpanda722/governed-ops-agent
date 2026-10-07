@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -5,6 +6,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from govops.agent.graph import READ_ONLY, WITH_WRITES
 from govops.api.wiring import build_task_service
+from govops.gateway.team_keys import load_teams, team_env_name
 from govops.tools.outbox import InMemoryOutboxStore
 from govops.tools.resilience import ToolPolicy
 
@@ -13,6 +15,8 @@ from govops.tools.resilience import ToolPolicy
 def test_injected_assembly_ignores_environment(tmp_path, monkeypatch, profile):
     monkeypatch.setenv("GOVOPS_AGENT_PROFILE", "invalid")
     monkeypatch.setenv("LITELLM_AGENT_KEY", "synthetic")
+    for team in load_teams():
+        monkeypatch.setenv(team_env_name(team), "synthetic-team-wiring-key")
     monkeypatch.setenv("AUDIT_DIR", str(tmp_path / "wrong"))
     tools = SimpleNamespace(jira=object(), slack=object(), policy=ToolPolicy())
     service = build_task_service(
@@ -148,10 +152,24 @@ def test_environment_profile_selection(monkeypatch, value):
     # Use a distinct fake key: startup registers secrets process-wide, and
     # "synthetic" is ordinary data in other tests' saved manifests.
     monkeypatch.setenv("LITELLM_AGENT_KEY", "synthetic-profile-selection-key")
+    for team in load_teams():
+        monkeypatch.setenv(team_env_name(team), "synthetic-team-wiring-key")
     monkeypatch.setattr(wiring, "AMcpClient", lambda url: object())
     monkeypatch.setattr(wiring, "langfuse_sink_from_env", lambda: None)
     monkeypatch.setattr(wiring, "configure", lambda sinks: None)
-    monkeypatch.setattr(wiring, "LiteLLMChatClient", lambda: object())
+
+    def chat(**kwargs):
+        from govops.gateway.hook_digest import compute_digests
+
+        assert kwargs["require_guardrail"] is True
+        assert kwargs["expected_digests"] == compute_digests(
+            Path(__file__).resolve().parents[1]
+        )
+        assert kwargs["key_resolver"]("demo-platform-g3") == "synthetic-team-wiring-key"
+        assert "api_key" not in kwargs
+        return object()
+
+    monkeypatch.setattr(wiring, "LiteLLMChatClient", chat)
 
     async def verify(client):
         pass

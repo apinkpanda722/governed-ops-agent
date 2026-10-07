@@ -116,6 +116,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **확인 결과(2026-10-04)**: 셀프호스팅 Langfuse 3.225.11에서 annotation queue API(`GET /api/public/annotation-queues`)가 HTTP 200으로 응답한다(`make smoke-obs`가 기록). OSS에 포함된 것으로 확정하고 운영 품질 검수 대기열에 쓴다.
 **변경 기록**:
 - 2026-10-03: 결정 8로 확정.
+- Guardrail 판정 비교는 M6에 새 등록 파일과 함께 수행한다. 골든 14개는 단일 턴 경로 불변 확인만 맡는다.
 
 ### ADR-010: 평가셋 60 task, TCR과 정확도를 분리하고 절대 규칙 3개를 사전 등록한다
 **상태**: 유효
@@ -311,3 +312,22 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 8. 남은 규칙 보호는 실행마다 하는 `reset`(과 그 실패 처리)이 맡는다. mock은 설정된 규칙 목록을 읽는 API가 없고 `faults stats`는 요청 카운터만 돌려주므로, 하네스는 시작 시 `reset` 직후 탐침 요청 하나로 `applied_rules`가 0인지 행동으로 확인한다. 탐침의 `requests >= 1`을 함께 확인하고 점검 뒤 다시 `reset`한다. 재개 시에도 시작 점검을 수행한다.
 
 **결과**: 주입 카운터·전송 시도·표식 조회·대기·mock 효과·종료 상태를 함께 판정하며 단일 지표로 성공을 정하지 않는다. 계획 수는 성공 수가 아니며 실행 결과는 결과 문서에만 기록한다. in-process 평가는 실제 서버 프로세스·세션 TTL을 검증하지 않는다. F10 긴 지연과 F11 값 일치 판정의 한계를 별도로 보고한다.
+
+
+### ADR-023: M4 결정 — 팀 가상 키·Guardrail v1 훅·입력 차단·격리·감사 이벤트·레드팀 생성
+**상태**: 유효
+**날짜**: 2026-10-07
+**결정**:
+1. **훅 배치**: LiteLLM 안의 `pre_call`·`post_call` 훅은 `gateway/guardrail_hook.py`가 맡고, 판정은 표준 라이브러리만 쓰는 `guardrails/`가 맡는다. 컨테이너는 `src/`·`data/seed/users.json`을 읽기 전용 마운트하고 `PYTHONPATH`로 import한다. 팀 정책을 쓰지 않는 훅에 `data/policy/`를 마운트하지 않는다. 훅이 import하는 govops 모듈은 허용 목록 테스트로 고정한다.
+2. **역할·입력**: 입력 판정은 `role:user`만, 격리·마스킹은 `role:tool`만 적용하고 `system`·`assistant`는 검사하지 않는다. 사용자 인젝션·금지 PII(`rrn`·`mobile`·`landline`·`email`·`card`·`account`)는 팀과 무관하게 HTTP 400 `injection_direct`·`pii_input`으로 차단하고 task는 `blocked_input`으로 종료한다. 팀 정책 block/mask는 `agent/checks.py`의 발송 전 검사에만 쓴다. 도구 결과 PII는 마스킹하고 인젝션 의심 문장은 `[정책으로 일부 제외]`로 격리한다. 식별자 형식 값은 PII 검사에서 제외한다.
+3. **장애**: 사전 훅 제한은 2.0초로 클라이언트 60초보다 짧다. 타임아웃·오류는 HTTP 400 `guardrail_unavailable`로 fail-closed 처리하며 task는 `blocked_input`이 아닌 `failed`다. 팀 불명은 HTTP 400 `team_unknown`이다. 사후 오류는 통과 + 경보다. 호스트는 헤더 누락·해시 불일치를 `guardrail_header_missing`·`guardrail_stale`로 실패 처리한다.
+4. **전달·감사**: 응답 헤더 `x-govops-guardrail` 필드는 `v`·`rules`·`code`·`team`·`pre`·`c`·`q`·`m`·`ids`·`bad`·`trunc`·`ms`·`post`다. `ids`는 최대 64개이며 초과는 `trunc`로 표시한다. 훅은 감사에 쓰지 않는다. 호스트가 `guardrail.input_blocked`·`guardrail.tool_quarantined`·`guardrail.tool_masked`·`guardrail.output_flagged`·`guardrail.error`를 해시·코드·건수로 기록한다. 격리 건수는 `tool_call_id` 기준 task 단위 중복 제거한다. 감사 쓰기 실패는 차단 결과를 바꾸지 않고 경보한다. `pii_input` 감사에는 입력 해시를 남기지 않는다.
+5. **정합**: `rules` 12자는 규칙 파일 바이트 해시, `code` 12자는 훅이 import하는 파일 묶음 해시다. import 시 한 번 계산해 헤더에 내보내고 preflight·클라이언트가 로컬 해시와 비교한다. preflight 불일치는 `guardrail_hook_stale`다. 진단 프로브 `govops_probe`는 요청을 막거나 느리게 하거나 경보만 만든다. 규칙 해시는 `guardrails/registry.py`의 `rules_sha256()`으로 얻으며 규칙 내용을 문서에 싣지 않는다.
+6. **팀 키**: 팀 8개(`team_id` = 팀 이름)와 팀 키 8개를 사용한다. 판정 팀의 출처는 인증 객체 `user_api_key_dict.team_id`다. 모델 목록의 단일 출처는 `agent_key.py`의 `AGENT_KEY_MODELS`다. 팀 예산은 사용량 귀속용 비구속 값이며 실제 상한은 B 총액 원장이 강제한다. 서비스·dev·faults·smoke 모두 팀 키를 쓰며 에이전트 키는 진단 전용으로 `team_unknown`에 차단된다.
+7. **실행 효율**: 청결 검사·Stop hook 예외는 `data/manifest/costs.jsonl` 하나의 정확 일치이며 단일 출처는 `scripts/exempt_paths.json`이다. 시작 시 원장 줄 수·sha256을 manifest의 `ledger_at_start`에 기록한다. 원장 단독 PR은 금지한다. attempts는 허용 코드만 `check_reason`에 남긴다. `make verify`의 pytest는 `-n auto`로 실행한다.
+8. **레드팀 생성**: 120건은 직접 인젝션 30·간접 인젝션 40·신원 사칭 20·PII 유출 30의 결정론 템플릿이다. 배분·판정 규칙은 생성 전에 `hypotheses-m4-redteam.md`에 등록한다. 생성기·Guardrail은 서로의 데이터를 읽지 않으며 규칙 해시만 `guardrails/registry.py`로 얻는다. 간접 전달은 `MOCK_JIRA_OVERLAY`의 mock-jira 티켓 본문·코멘트 오버레이로 한다. Slack 메시지는 모델 읽기 도구가 없어 전달 경로가 아니다. 각 항목에 `expected_layer`·`fallback_layers`·`delivery`를 두고 오프라인 카드·확정본 검증으로 사람 검수한다.
+9. **레드팀 판정**: 간접 항목은 `payload_read`를 따로 기록하고 읽지 않은 항목은 전달 실패로 분리 집계하며 차단율 분모에서 제외한다. 합성 주민등록번호는 실재 날짜와 틀린 검증 숫자를 쓴다. 기대 층 포착과 후속 방어 층 포착을 분리한다.
+10. **평가**: dev 전체 재실행 전에 규칙 해시를 등록한 `hypotheses-m4-guardrail.md`·`m4-dev3-supersedes.json`을 먼저 커밋한다. `blocked_input`은 별도 관측 범주이며 TCR 실패다. H1은 정상 dev 입력 차단 부재, H2는 간접 인젝션 task에 한정된 격리, H3는 훅·팀·헤더·해시 오류 부재를 검증한다. Guardrail 판정 비교는 M6에 새 등록 파일과 함께 수행한다. 골든 14개는 단일 턴 경로 불변 확인만 맡는다.
+
+**이유**: 인증된 팀 귀속과 역할별 검사로 입력·도구 결과의 신뢰 경계를 지키고, 헤더 정합 검증과 내용 없는 감사로 판정 전달을 검증한다. 생성·판정의 독립성과 사전 등록으로 평가 기준을 고정한다.
+**트레이드오프**: 사전 장애 차단은 가용성을 낮춘다. 정규식 밖 우회와 도구 결과 미전달은 별도 위험이며 해시 갱신에는 훅 재기동이 필요하다. 감사 해시체인·서명은 M4 phase 2에서 추가한다.

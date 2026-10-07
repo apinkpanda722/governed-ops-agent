@@ -185,8 +185,17 @@ def test_registration_topics(number, keywords):
     if number == 3:
         assert all(task in sections["3"] for task in GOLDEN_TASKS)
     if number == 4:
+        registered_sources = set(
+            re.findall(r"^\| `([^`]+)` \| `[^`]+` \|", sections["4"], re.MULTILINE)
+        )
+        assert set(STATUS_MAP) - registered_sources == {"blocked_input"}
         for source, target in STATUS_MAP.items():
+            if source == "blocked_input":
+                continue
             assert f"| `{source}` | `{target}` |" in sections["4"]
+        assert STATUS_MAP["blocked_input"] == "blocked_input"
+        guardrail_text = (ROOT / "docs/results/hypotheses-m4-guardrail.md").read_text()
+        assert "| `blocked_input` | `blocked_input` |" in guardrail_text
     assert "작성 시점: dev 실행 전" in text
     assert "결과를 본 뒤 바꾸지 않는다" in text
 

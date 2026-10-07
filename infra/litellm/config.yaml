@@ -42,4 +42,14 @@ general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/LITELLM_DATABASE_URL
 
-# Guardrail 훅 자리: Guardrail은 M4
+guardrails:
+  - guardrail_name: govops-pre
+    litellm_params:
+      guardrail: govops.gateway.guardrail_hook.GovopsGuardrail
+      mode: pre_call
+      default_on: true
+  - guardrail_name: govops-post
+    litellm_params:
+      guardrail: govops.gateway.guardrail_hook.GovopsGuardrail
+      mode: post_call
+      default_on: true

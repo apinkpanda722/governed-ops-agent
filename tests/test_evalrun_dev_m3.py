@@ -45,6 +45,9 @@ def metadata():
         "hypotheses_m3_unchanged": True,
         "hypotheses_m3_prompt_committed": True,
         "hypotheses_m3_prompt_unchanged": True,
+        "hypotheses_m4_guardrail_committed": True,
+        "hypotheses_m4_guardrail_unchanged": True,
+        "guardrail_rules_registered": True,
         "previous_supersedes": {"previous_run_id": "m2"},
         "a_git_head": "d2eec9c",
         "index_name": "synthetic",
@@ -464,15 +467,25 @@ def test_smoke_no_registration_records_or_manifest(tmp_path, monkeypatch):
 def test_git_registration_probe(tmp_path, monkeypatch, change):
     from govops.evalrun.dev_m3 import (
         FIRST_REGISTRATION_FILES,
+        GUARDRAIL_REGISTRATION_FILES,
         PROMPT_REGISTRATION_FILES,
         git_metadata_m3,
     )
+    from govops.guardrails.registry import rules_sha256
 
     calls = []
-    for path in (*FIRST_REGISTRATION_FILES, *PROMPT_REGISTRATION_FILES):
+    for path in (
+        *FIRST_REGISTRATION_FILES,
+        *PROMPT_REGISTRATION_FILES,
+        *GUARDRAIL_REGISTRATION_FILES,
+    ):
         file = tmp_path / path
         file.parent.mkdir(parents=True, exist_ok=True)
-        file.write_text("{}")
+        file.write_text(
+            "rules_sha256: " + rules_sha256() + "\n"
+            if path == GUARDRAIL_REGISTRATION_FILES[0]
+            else "{}"
+        )
 
     def git(root, *args):
         calls.append(args)
@@ -921,17 +934,24 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
     git("init", "-q")
     (tmp_path / "base").write_text("base")
     commit()
+    from govops.guardrails.registry import rules_sha256
+
     commits = {}
     for label, paths in [
         ("first", dev_m3.FIRST_REGISTRATION_FILES),
         ("prompt", dev_m3.PROMPT_REGISTRATION_FILES),
+        ("guardrail", dev_m3.GUARDRAIL_REGISTRATION_FILES),
     ]:
         if label == bundle and change == "missing":
             continue
         for path in paths:
             file = tmp_path / path
             file.parent.mkdir(parents=True, exist_ok=True)
-            file.write_text(json.dumps({"bundle": label}))
+            file.write_text(
+                "rules_sha256: " + rules_sha256() + "\n"
+                if path == dev_m3.GUARDRAIL_REGISTRATION_FILES[0]
+                else json.dumps({"bundle": label})
+            )
         if label != bundle or change != "uncommitted":
             commits[label] = commit(paths)
     paths = (
@@ -968,8 +988,8 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
                 result[prefix + "_sha256"]
                 == hashlib.sha256((tmp_path / files[0]).read_bytes()).hexdigest()
             )
-        assert result["supersedes"] == {"bundle": "prompt"}
-        assert result["previous_supersedes"] == {"bundle": "first"}
+        assert result["supersedes"] == {"bundle": "guardrail"}
+        assert result["previous_supersedes"] == {"bundle": "prompt"}
 
 
 def test_org_runner_and_record_status_share_m3_grading():
@@ -1002,3 +1022,104 @@ def test_org_runner_and_record_status_share_m3_grading():
     assert grade.tcr.passed
     assert status["status"] == "pass"
     assert status["profile"] == "writes_org"
+
+
+@pytest.fixture(autouse=True)
+def exempt_config(tmp_path):
+    from pathlib import Path
+
+    target = tmp_path / "scripts/exempt_paths.json"
+    target.parent.mkdir(exist_ok=True)
+    target.write_bytes(
+        (Path(__file__).resolve().parents[1] / "scripts/exempt_paths.json").read_bytes()
+    )
+
+
+def test_start_ledger_snapshot_and_block_reason(tmp_path, monkeypatch):
+    import hashlib
+
+    ledger = json.loads((tmp_path / "scripts/exempt_paths.json").read_text())[
+        "ledger_paths"
+    ][0]
+    path = tmp_path / ledger
+    path.parent.mkdir(parents=True)
+    initial = b"{}\n"
+    path.write_bytes(initial)
+    base = next(s for s in specs() if s.task_id == "T5-11")
+    from govops.evalrun.driver import ApprovalDriver
+
+    original = ApprovalDriver.run
+
+    async def growing(self, *args, **kwargs):
+        result = await original(self, *args, **kwargs)
+        path.write_bytes(initial * 2)
+        return result
+
+    monkeypatch.setattr(ApprovalDriver, "run", growing)
+    result, _, _ = asyncio.run(exercise(tmp_path, monkeypatch, selected=[base]))
+    manifest = result["manifest"]
+    assert manifest["ledger_at_start"] == {
+        "lines": 1,
+        "sha256": hashlib.sha256(initial).hexdigest(),
+    }
+    assert (
+        manifest["attempts"][base.task_id][0]["check_reason"] == "recipient_not_allowed"
+    )
+
+
+def test_guardrail_task_deduplication_and_hypotheses():
+    from types import SimpleNamespace
+
+    from govops.evalrun.dev_m3 import guardrail_summary
+    from govops.gateway.client import GuardrailUnavailable
+    from govops.gateway.hook_header import GuardrailInfo
+
+    tasks = [
+        SimpleNamespace(task_id="a", subtype="indirect_injection"),
+        SimpleNamespace(task_id="b", subtype="normal"),
+    ]
+    header = GuardrailInfo(
+        "a" * 12, "b" * 12, q=1, m=1, ids=("call_one",), ms=10, post="flag"
+    )
+    rows = [
+        {
+            "task_id": "a",
+            "view": {
+                "status": "completed",
+                "guardrail": {"quarantined": 1, "masked": 1},
+            },
+            "infos": [header, header],
+        },
+        {
+            "task_id": "b",
+            "view": {"status": "blocked_input"},
+            "infos": [header],
+            "errors": [GuardrailUnavailable("guardrail_stale")],
+        },
+    ]
+    summary = guardrail_summary(tasks, rows, "c" * 64)
+    assert summary["quarantined_total"] == 2
+    assert summary["masked_total"] == 2
+    assert summary["output_flagged"] == 2
+    assert summary["blocked_input"] == summary["unavailable"] == 1
+    assert summary["hook_digests_seen"] == [{"rules": "a" * 12, "code": "b" * 12}]
+    assert summary["hook_ms"] == {"p50": 10, "p95": 10}
+    assert summary["hypotheses"] == {
+        "h1_blocked_input_zero": False,
+        "h2_quarantine_only_indirect_injection": False,
+        "h2_false_positive_tasks": ["b"],
+        "h3_unavailable_zero": False,
+    }
+    clean = guardrail_summary(tasks, [], "c" * 64)
+    assert clean["hypotheses"]["h1_blocked_input_zero"]
+    assert clean["hypotheses"]["h2_quarantine_only_indirect_injection"]
+    assert clean["hypotheses"]["h3_unavailable_zero"]
+
+
+@pytest.fixture(autouse=True)
+def current_rules_hash(monkeypatch):
+    from govops.guardrails.registry import rules_sha256
+
+    monkeypatch.setattr(
+        "govops.evalrun.dev_m3.rules_sha256_full", lambda _: rules_sha256()
+    )

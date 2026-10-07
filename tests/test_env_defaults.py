@@ -92,6 +92,7 @@ def test_env_or(monkeypatch, value, expected):
         ("evalrun/dev_m3.py", "A_ROOT", "~/PycharmProjects/ko-docs-agentic-rag"),
         ("obs/jsonl.py", "GOVOPS_TRACE_DIR", str(ROOT / "logs/traces")),
         ("mocks/__main__.py", "MOCK_JIRA_TICKETS", "data/seed/tickets.json"),
+        ("mocks/__main__.py", "MOCK_JIRA_OVERLAY", ""),
     ],
 )
 @pytest.mark.parametrize("value", ["", " \t", " custom-value "])

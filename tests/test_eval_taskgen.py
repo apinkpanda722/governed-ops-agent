@@ -1,4 +1,4 @@
-import functools
+import hashlib
 import json
 import re
 from collections import Counter
@@ -257,7 +257,7 @@ def test_fixed_composition_and_determinism():
 
 def test_subtype_rules():
     meta, tickets, users = fixture()
-    specs = generate_tasks(meta, tickets, users, titles=fixture_titles(meta))
+    specs = generated(True)[0]
     index = {u["label"]: u for u in users}
     pairs = set()
     for s in specs:
@@ -333,8 +333,8 @@ def test_committed_tasks_if_present():
 
 
 def test_effects_approvals_and_absent_identifiers():
-    meta, tickets, users = fixture()
-    specs = generate_tasks(meta, tickets, users, titles=fixture_titles(meta))
+    meta, tickets, _ = fixture()
+    specs = generated(True)[0]
     known = {f.source_id for f in meta.facts} | {t["ticket_id"] for t in tickets}
     ticket_index = {t["ticket_id"]: t for t in tickets}
     for s in specs:
@@ -396,15 +396,38 @@ def test_public_incident_id_is_not_a_forbidden_answer():
 # ---------- no_permission 선정 규칙: 선정 후 감사·위반 문항만 교체 ----------
 
 
-@functools.cache
+_artifact_factory = None
+
+
 def generated(repair: bool):
-    """같은 fixture의 생성 결과(생성은 수 초 걸리므로 한 번만 한다). 반환 값은 수정하지 않는다."""
-    meta, tickets, users = fixture()
+    """Share serialized generation, returning independent models on every read."""
+    from corpus_cache import cached_artifact
+
+    from govops.eval.spec import TaskSpec
     from govops.eval.taskgen import generate_with_report
 
-    return generate_with_report(
-        meta, tickets, users, repair=repair, titles=fixture_titles(meta)
+    meta, tickets, users = fixture()
+    titles = fixture_titles(meta)
+    inputs = json.dumps(
+        [meta.model_dump(), tickets, users, titles, repair], sort_keys=True
     )
+    # Include fixture source bytes as well as serialized inputs: fixture edits invalidate.
+    digest = hashlib.sha256(inputs.encode() + Path(__file__).read_bytes()).hexdigest()
+
+    def build():
+        specs, report = generate_with_report(
+            meta, tickets, users, repair=repair, titles=titles
+        )
+        return [[s.model_dump() for s in specs], report]
+
+    payload = cached_artifact(
+        _artifact_factory,
+        "generated-" + digest,
+        build,
+        dump=lambda value, path: path.write_text(json.dumps(value)),
+        load=lambda path: json.loads(path.read_text()),
+    )
+    return [TaskSpec.model_validate(s) for s in payload[0]], payload[1]
 
 
 def test_access_index_record_is_the_report_and_tickets_not_mentions():
@@ -833,3 +856,35 @@ def test_audit_flags_document_rules_without_values():
         v.rule for v in audit_specs([spec], twin_meta, users, tickets, titles=ambiguous)
     }
     assert audit_specs([spec], meta, users, tickets, titles=titles) == []
+
+
+def test_cached_artifact_serializes_concurrent_builds_and_isolates_names(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    from types import SimpleNamespace
+
+    from corpus_cache import cached_artifact
+
+    factory = SimpleNamespace(getbasetemp=lambda: tmp_path / "worker")
+    calls = []
+
+    def build():
+        calls.append(1)
+        return {"rows": [1]}
+
+    def get(name):
+        return cached_artifact(
+            factory,
+            name,
+            build,
+            dump=lambda value, path: path.write_text(json.dumps(value)),
+            load=lambda path: json.loads(path.read_text()),
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first, second = list(pool.map(get, ["same", "same"]))
+    assert calls == [1]
+    assert first == second == {"rows": [1]}
+    first["rows"].append(2)
+    assert second == get("same") == {"rows": [1]}
+    assert get("other") == {"rows": [1]}
+    assert calls == [1, 1]

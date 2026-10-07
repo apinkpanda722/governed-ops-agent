@@ -22,6 +22,7 @@ from langgraph.types import Command
 from govops.agent.approval import approval_id
 from govops.agent.checkpointer import open_checkpointer
 from govops.agent.graph import AgentContext, get_task
+from govops.agent.users import load_users
 from govops.api.app import create_app
 from govops.api.sessions import SessionStore
 from govops.api.wiring import build_task_service
@@ -32,12 +33,14 @@ from govops.eval.meta import load_meta
 from govops.eval.observation import ApprovalRecord
 from govops.eval.run_grade import M3_GRADING, grade_run, guard_grading_rules
 from govops.eval.spec import TaskSpec
+from govops.evalrun import worktree
 from govops.evalrun.dev import ROOT, _Capture, _git, _write, infrastructure_failure
 from govops.evalrun.dev_m3 import (
     PARAMS,
     PROFILE,
     _invoke,
     _TaskTools,
+    check_reason,
     git_metadata_m3,
     new_tool_policy,
 )
@@ -56,6 +59,8 @@ from govops.evalrun.preflight import run_preflight
 from govops.evalrun.tool_trace import extract_tool_trace, observation_calls
 from govops.gateway.client import _MODEL, LiteLLMChatClient
 from govops.gateway.faults import model_fault_script
+from govops.gateway.hook_digest import compute_digests
+from govops.gateway.team_keys import TeamKeyResolver
 from govops.obs.mask import register_secret_values
 from govops.obs.trace import SpanKind, configure, trace
 from govops.replay.chaos_a import ChaosAServer, ChaosMode, judge_f11
@@ -239,6 +244,7 @@ async def run_faults(
         manifest = {
             **metadata,
             **signature,
+            "ledger_at_start": worktree.ledger_state(root),
             "started_at": now(),
             "finished_at": None,
             "interruptions": [],
@@ -292,6 +298,7 @@ async def run_faults(
                     )
                 finally:
                     await _invoke(admin.faults_clear)
+                result.setdefault("check_reason", None)
                 attempts.append(result)
                 # Persist a provisional attempt before the single infrastructure retry.
                 record = {
@@ -617,9 +624,17 @@ async def execute_live(
         tools = _TaskTools(runtime, runtime, task_id=uuid4().hex)
         script = ModelFaultAdapter(row.variant) if row.scenario == "F6" else None
         counted_outbox = CountingOutbox(outbox)
+        resolver = TeamKeyResolver(
+            {label: user.team for label, user in load_users().items()}
+        )
+        if resolver.missing():
+            raise ValueError("team_keys_missing")
         chat = _Capture(
             LiteLLMChatClient(
                 ledger=ledger,
+                key_resolver=resolver.key_for,
+                expected_digests=compute_digests(root),
+                require_guardrail=True,
                 **(
                     {
                         "fault_mode": "down_alias",
@@ -691,6 +706,7 @@ async def execute_live(
             wait_seconds = max(wait_seconds, evidence.retry_wait)
         verdict = judge_f11(spec, obs) if server else None
         return {
+            "check_reason": check_reason(result.view),
             "duplicates": counts.duplicates,
             "missing": counts.missing,
             "status": "no_effect"
@@ -731,6 +747,9 @@ FAULT_REGISTRATION = "docs/results/hypotheses-m3-faults.md"
 
 def guard_fault_registration(root, *, git=_git):
     """Freeze the first registration before any official fault execution."""
+    status_code, status = git(root, "status", "--porcelain")
+    if status_code or worktree.dirty_entries(status, root):
+        raise ValueError("dirty_worktree")
     path = root / FAULT_REGISTRATION
     error = "hypotheses_m3_faults_not_committed"
     code, history = git(
@@ -864,6 +883,7 @@ def main(argv=None):
             "invalid_resume",
             "postgres_required",
             "dirty_worktree",
+            "exempt_paths_invalid",
             "fault_registration_not_committed",
             "stale_mock_image",
             "litellm_config_stale",

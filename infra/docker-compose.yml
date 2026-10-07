@@ -23,6 +23,8 @@ services:
     image: ghcr.io/berriai/litellm:v1.103.3
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
+      PYTHONPATH: /app/src
+      PYTHONDONTWRITEBYTECODE: "1"
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_DATABASE_URL: ${LITELLM_DATABASE_URL}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -34,6 +36,8 @@ services:
       - "127.0.0.1:4000:4000"
     volumes:
       - ${LITELLM_CONFIG_FILE:-./litellm/config.yaml}:/app/config.yaml:ro
+      - ../src:/app/src:ro
+      - ../data/seed/users.json:/app/data/seed/users.json:ro
     depends_on:
       postgres:
         condition: service_healthy

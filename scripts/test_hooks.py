@@ -30,6 +30,7 @@ def run_hook(project: Path, env: dict | None = None) -> subprocess.CompletedProc
         text=True,
         check=False,
         env={**base, **(env or {})},
+        cwd=project,
     )
 
 
@@ -112,4 +113,75 @@ def test_does_not_depend_on_ps(project, tmp_path):
 def test_garbage_lock_verifies(project):
     (project / ".harness" / "executing").write_text("not-a-pid\n")
     result = run_hook(project)
+    assert result.returncode == 2 and (project / "ran").exists()
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        "",
+        ".bak",
+        "docs/a",
+        "data/results/a",
+        "data/replay/a",
+        "data/manifest/costs_grading.jsonl",
+    ],
+)
+def test_ledger_only_skips(tmp_path, extra):
+    import shutil
+
+    config = tmp_path / "scripts/exempt_paths.json"
+    config.parent.mkdir()
+    shutil.copyfile(HOOK.parents[1] / "exempt_paths.json", config)
+    ledger = json.loads(config.read_text())["ledger_paths"][0]
+    (tmp_path / "Makefile").write_text("verify:\n\ttouch ran\n\texit 1\n")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    path = tmp_path / ledger
+    path.parent.mkdir(parents=True)
+    path.write_text("")
+    subprocess.run(
+        ["git", "add", "Makefile", "scripts", ledger], cwd=tmp_path, check=True
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Synthetic",
+            "-c",
+            "user.email=synthetic@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        cwd=tmp_path,
+        check=True,
+    )
+    path = tmp_path / ledger
+    path.write_text("{}\n")
+    if extra:
+        other = tmp_path / (ledger + extra if extra == ".bak" else extra)
+        other.parent.mkdir(parents=True, exist_ok=True)
+        other.write_text("synthetic")
+    result = run_hook(tmp_path)
+    assert result.returncode == (2 if extra else 0)
+    assert (tmp_path / "ran").exists() == bool(extra)
+
+
+@pytest.mark.parametrize("config", ["missing", "broken", "wrong_type"])
+def test_invalid_exempt_config_verifies(project, config):
+    target = project / "scripts/exempt_paths.json"
+    target.parent.mkdir()
+    if config != "missing":
+        target.write_text("{" if config == "broken" else '{"ledger_paths":"x"}')
+    result = run_hook(project)
+    assert result.returncode == 2 and (project / "ran").exists()
+
+
+def test_missing_jq_verifies(project):
+    stub = project / "bin"
+    stub.mkdir()
+    jq = stub / "jq"
+    jq.write_text("#!/bin/sh\nexit 127\n")
+    jq.chmod(0o755)
+    result = run_hook(project, {"PATH": f"{stub}:{os.environ['PATH']}"})
     assert result.returncode == 2 and (project / "ran").exists()

@@ -15,9 +15,12 @@ import httpx
 from langgraph.graph import END, START, StateGraph
 
 from govops.agent.checkpointer import open_checkpointer
+from govops.agent.users import load_users
 from govops.api.tasks import TaskService
 from govops.api.wiring import open_task_service
 from govops.costs import CostLedger
+from govops.env import env_or
+from govops.gateway.team_keys import team_env_name
 from govops.obs.jsonl import JsonlSink
 
 EXPECTED_DOC = "syn-incident-022"
@@ -36,7 +39,6 @@ OBS_EXPECTATIONS = (
 )
 OBS_INFO = "INFO annotation_queues_status="
 OBS_REQUIRED_ENV = (
-    "LITELLM_AGENT_KEY",
     "KODOCS_MCP_URL",
     "LANGFUSE_HOST",
     "LANGFUSE_PUBLIC_KEY",
@@ -381,12 +383,17 @@ async def _run(command: str) -> SmokeResult:
     if command == "checkpointer":
         return await smoke_checkpointer(os.getenv("GOVOPS_DATABASE_URL", ""))
     lines = []
+    user = env_or("SMOKE_USER", "demo-platform-g3")
+    users = load_users()
+    if user not in users:
+        return SmokeResult(False, ["SMOKE_USER 필요"])
+    key_name = team_env_name(users[user].team)
     missing = [
         name
         for name in (
-            OBS_REQUIRED_ENV
+            (key_name, *OBS_REQUIRED_ENV)
             if command == "obs"
-            else ("LITELLM_AGENT_KEY", "KODOCS_MCP_URL")
+            else (key_name, "KODOCS_MCP_URL")
         )
         if not os.getenv(name, "").strip()
     ]
@@ -410,7 +417,7 @@ async def _run(command: str) -> SmokeResult:
                     secrets=tuple(
                         os.environ[name]
                         for name in (
-                            "LITELLM_AGENT_KEY",
+                            key_name,
                             "LANGFUSE_SECRET_KEY",
                             "OPENAI_API_KEY",
                         )

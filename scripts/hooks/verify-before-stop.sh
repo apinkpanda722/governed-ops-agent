@@ -28,7 +28,26 @@ fi
 
 # 검증 진입점이 없거나, 이번 세션에서 바뀐 파일이 없으면(읽기 전용 리뷰 등) 통과시킨다.
 [[ -f "$cwd/Makefile" ]] || exit 0
-[[ -z "$(git -C "$cwd" status --porcelain 2>/dev/null)" ]] && exit 0
+porcelain=$(git -C "$cwd" status --porcelain 2>/dev/null)
+[[ -z "$porcelain" ]] && exit 0
+
+# Only exact configured ledger paths may skip verification. Missing jq or an
+# invalid contract falls back to the existing verify behavior.
+if jq -e --arg status "$porcelain" '
+  .ledger_paths as $paths |
+  if type != "object" or keys != ["ledger_paths"] or
+     ($paths | type) != "array" or ($paths | length) != 1 then false
+  elif ($paths | all(.[]; type == "string" and length > 0 and
+       (startswith("/") | not) and
+       (split("/") | all(.[]; . != "" and . != "." and . != "..")))) | not then false
+  else $status | split("\n") | map(select(length > 0) |
+    .[3:] | split(" -> ") | last |
+    if startswith("\"") then fromjson else . end) |
+    all(.[]; . as $path | $paths | index($path) != null)
+  end
+' "$cwd/scripts/exempt_paths.json" >/dev/null 2>&1; then
+  exit 0
+fi
 
 output=$(cd "$cwd" && make verify 2>&1)
 status=$?

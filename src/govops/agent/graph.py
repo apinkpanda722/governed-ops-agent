@@ -1,5 +1,6 @@
 """조회와 승인된 초안 실행을 분리하는 사용자 context 기반 그래프."""
 
+import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
@@ -28,7 +29,12 @@ from govops.agent.scope import ScopeIndex, evidence_ids, run_checks
 from govops.agent.users import UserInfo
 from govops.audit.log import AuditPort, AuditWriteError
 from govops.costs import BudgetExceededError, LedgerMissingError
-from govops.gateway.client import ChatClient, GatewayError
+from govops.gateway.client import (
+    ChatClient,
+    GatewayError,
+    GuardrailBlocked,
+    GuardrailUnavailable,
+)
 from govops.guardrails.policy import TeamPolicy
 from govops.obs.trace import SpanKind, set_attributes, span
 from govops.tools.contract import find_identity_fields
@@ -123,10 +129,16 @@ class AgentState(TypedDict):
         "completed",
         "failed",
         "blocked",
+        "blocked_input",
         "rejected",
         "expired",
         "interrupted",
     ]
+    quarantined_ids: list[str]
+    quarantine_unmatched: int
+    masked_total: int
+    guardrail_truncated: bool
+    guardrail_block: dict | None
     answer: str | None
     error: str | None
     observed_ids: list[str]
@@ -177,6 +189,61 @@ def build_graph(
     }
     allowed_names = {d["function"]["name"] for d in definitions}
 
+    def guardrail_record(state, event, **fields):
+        # Defense already happened: audit failure cannot undo it.
+        try:
+            if audit is None:
+                raise AuditWriteError("Audit sink unavailable")
+            audit.append(
+                event, task_id=state["task_id"], actor_sub=state["user_id"], **fields
+            )
+        except Exception:  # noqa: BLE001 — content-free observability only
+            set_attributes(**{"guardrail.audit_gap": True})
+
+    def guardrail_trace(info):
+        if info is not None:
+            set_attributes(
+                **{
+                    f"guardrail.{key}": getattr(info, key)
+                    for key in ("pre", "q", "m", "ms", "team", "rules", "code")
+                }
+            )
+
+    def guardrail_success(state, info):
+        ids = list(state.get("quarantined_ids", []))
+        unmatched = state.get("quarantine_unmatched", 0)
+        masked = state.get("masked_total", 0)
+        truncated = state.get("guardrail_truncated", False)
+        if info is not None:
+            guardrail_trace(info)
+            seen = set(ids)
+            for identifier in info.ids:
+                digest = hashlib.sha256(identifier.encode("utf-8")).hexdigest()
+                if digest not in seen:
+                    seen.add(digest)
+                    ids.append(digest)
+                    guardrail_record(
+                        state,
+                        "guardrail.tool_quarantined",
+                        tool_call_sha256=digest,
+                        count=1,
+                    )
+            unmatched = max(unmatched, info.bad)
+            if info.m > masked:
+                guardrail_record(state, "guardrail.tool_masked", count=info.m - masked)
+                masked = info.m
+            truncated = truncated or bool(info.trunc)
+            if info.post == "flag":
+                guardrail_record(state, "guardrail.output_flagged")
+            elif info.post == "error":
+                guardrail_record(state, "guardrail.error", code="guardrail_post_error")
+        return {
+            "quarantined_ids": ids,
+            "quarantine_unmatched": unmatched,
+            "masked_total": masked,
+            "guardrail_truncated": truncated,
+        }
+
     async def model_body(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
         if state["steps"] >= MAX_STEPS:
             return {"status": "failed", "error": "max_steps"}
@@ -189,6 +256,33 @@ def build_graph(
                     task_id=state["task_id"],
                     user_id=runtime.context.user_id,
                 )
+            except GuardrailBlocked as exc:
+                set_attributes(error_code=exc.code)
+                guardrail_trace(exc.info)
+                fields = {"code": exc.code}
+                if exc.info is not None:
+                    fields.update(
+                        rules_digest=exc.info.rules, code_digest=exc.info.code
+                    )
+                if exc.code == "injection_direct":
+                    request = next(
+                        m["content"] for m in state["messages"] if m["role"] == "user"
+                    )
+                    fields["input_sha256"] = hashlib.sha256(
+                        request.encode("utf-8")
+                    ).hexdigest()
+                guardrail_record(state, "guardrail.input_blocked", **fields)
+                return {
+                    "steps": steps,
+                    "status": "blocked_input",
+                    "error": exc.code,
+                    "guardrail_block": {"code": exc.code},
+                    "answer": None,
+                }
+            except GuardrailUnavailable as exc:
+                set_attributes(error_code=exc.code)
+                guardrail_record(state, "guardrail.error", code=exc.code)
+                return {"steps": steps, "status": "failed", "error": exc.code}
             except (BudgetExceededError, LedgerMissingError, GatewayError) as exc:
                 code = (
                     "budget_exceeded"
@@ -202,6 +296,9 @@ def build_graph(
             except Exception:  # noqa: BLE001 — safe error codes only
                 set_attributes(error_code="model_error")
                 return {"steps": steps, "status": "failed", "error": "model_error"}
+            guardrail_update = guardrail_success(
+                state, getattr(result, "guardrail", None)
+            )
             # Keep response interpretation outside the existing call error handler.
             content = result.message.get("content")
             calls = result.message.get("tool_calls") or []
@@ -234,7 +331,11 @@ def build_graph(
                 }
                 for c in calls
             ]
-        update = {"steps": steps, "messages": [*state["messages"], message]}
+        update = {
+            "steps": steps,
+            "messages": [*state["messages"], message],
+            **guardrail_update,
+        }
         if not calls:
             answer = content or ""
             update.update(
@@ -290,8 +391,7 @@ def build_graph(
                 )
                 set_attributes(
                     **{
-                        "tool.args": function["arguments"],
-                        "tool.result": {"ids": result_ids, "excerpt": content},
+                        "tool.result": {"ids": result_ids},
                     },
                     success=success,
                     error_code=payload.get("error", {}).get("code")
@@ -675,6 +775,11 @@ async def run_task(
         ],
         "steps": 0,
         "status": "running",
+        "quarantined_ids": [],
+        "quarantine_unmatched": 0,
+        "masked_total": 0,
+        "guardrail_truncated": False,
+        "guardrail_block": None,
         "answer": None,
         "error": None,
         "observed_ids": [],

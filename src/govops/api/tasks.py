@@ -83,7 +83,7 @@ class TaskService:
     async def _run(self, task_id: str, user_id: str, request: str) -> None:
         with trace(task_id, user_id=user_id):
             set_attributes(
-                **{"input.request": request, "output.answer": None},
+                **{"output.answer": None},
                 steps=0,
                 cited_doc_ids=[],
             )
@@ -135,6 +135,27 @@ class TaskService:
                 steps=state.get("steps", 0),
                 error=state.get("error"),
             )
+            view["guardrail"] = {
+                "quarantined": len(state.get("quarantined_ids", []))
+                + state.get("quarantine_unmatched", 0),
+                "quarantined_at_least": state.get("guardrail_truncated", False),
+                "masked": state.get("masked_total", 0),
+            }
+            if state["status"] == "blocked_input":
+                code = (state.get("guardrail_block") or {}).get(
+                    "code", state.get("error")
+                )
+                view.update(answer=None, cited_doc_ids=[], observed_doc_ids=[])
+                view["block"] = {
+                    "code": code,
+                    "message": {
+                        "injection_direct": "요청에 시스템 지시를 바꾸려는 표현이 있어 처리하지 않았습니다. 업무 내용만 다시 입력해 주세요.",
+                        "pii_input": "요청에 개인정보로 보이는 값이 있어 처리하지 않았습니다. 개인정보를 제거하고 다시 요청해 주세요.",
+                    }.get(
+                        code,
+                        "요청을 처리하지 않았습니다. 업무 내용만 다시 입력해 주세요.",
+                    ),
+                }
         if state.get("draft") or approval:
             view.update(
                 {

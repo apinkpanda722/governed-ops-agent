@@ -35,6 +35,9 @@ def tmp_project(tmp_path):
     (docs_dir / "arch.md").write_text("# Architecture\nSome content")
     (docs_dir / "guide.md").write_text("# Guide\nAnother doc")
 
+    config = tmp_path / "scripts/exempt_paths.json"
+    config.parent.mkdir()
+    config.write_bytes((Path(__file__).parent / "exempt_paths.json").read_bytes())
     return tmp_path
 
 
@@ -920,3 +923,25 @@ class TestExecutionLock:
         executor._lock_path.write_text(f"{dead.pid}\n")
         self.run_with(executor)
         assert not executor._lock_path.exists()
+
+
+@pytest.mark.parametrize(
+    "suffix,allowed", [("", True), (".bak", False), ("/child", False)]
+)
+def test_ledger_exact_exemption(executor, suffix, allowed):
+    config = Path(executor._root) / "scripts/exempt_paths.json"
+    ledger = json.loads(config.read_text())["ledger_paths"][0]
+    for entry in (f" M {ledger}{suffix}", f"R  old -> {ledger}{suffix}"):
+        _mock_git_sequence(executor, [MagicMock(returncode=0, stdout=entry, stderr="")])
+        if allowed:
+            executor._check_clean_worktree()
+        else:
+            with pytest.raises(SystemExit):
+                executor._check_clean_worktree()
+
+
+def test_exemption_config_missing_is_explicit(executor):
+    (Path(executor._root) / "scripts/exempt_paths.json").unlink()
+    _mock_git_sequence(executor, [MagicMock(returncode=0, stdout="", stderr="")])
+    with pytest.raises(ValueError, match="exempt_paths_invalid"):
+        executor._check_clean_worktree()

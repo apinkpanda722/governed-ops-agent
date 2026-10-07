@@ -233,3 +233,10 @@ def test_trace_inputs_have_no_implicit_defaults():
     assert observe(
         tool_results=[{"name": "lookup_id", "ok": True, "result": {}}]
     ).tool_results
+
+
+@pytest.mark.parametrize("remaining", [0, 1])
+def test_blocked_input_keeps_its_status(remaining):
+    result = observe(view={"status": "blocked_input"}, plan_remaining=remaining)
+    assert STATUS_MAP["blocked_input"] == result.status == "blocked_input"
+    assert not grade_tcr(spec(), result).passed

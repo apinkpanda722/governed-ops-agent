@@ -11,7 +11,7 @@ from govops.env import env_or
 from govops.mocks.auth import TokenHashStore
 from govops.mocks.faults import FaultH11Protocol
 from govops.mocks.jira import JiraState
-from govops.mocks.seed import load_tickets
+from govops.mocks.seed import load_tickets, merge_overlay
 from govops.mocks.service import create_admin_app, create_rest_app
 from govops.mocks.slack import SlackState
 
@@ -54,14 +54,15 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 )
             )
-            state = JiraState(
-                load_tickets(
-                    Path(env_or("MOCK_JIRA_TICKETS", "data/seed/tickets.json"))
-                )
+            tickets = load_tickets(
+                Path(env_or("MOCK_JIRA_TICKETS", "data/seed/tickets.json"))
             )
+            overlay = env_or("MOCK_JIRA_OVERLAY", "")
+            tickets = merge_overlay(tickets, Path(overlay) if overlay else None)
+            state = JiraState(tickets)
         except (OSError, ValueError):
             print(
-                "mock-jira startup failed: missing or invalid MOCK_JIRA_TOKEN_HASHES / MOCK_JIRA_TICKETS files",
+                "mock-jira startup failed: missing or invalid MOCK_JIRA_TOKEN_HASHES / MOCK_JIRA_TICKETS / MOCK_JIRA_OVERLAY files",
                 file=sys.stderr,
             )
             return 1

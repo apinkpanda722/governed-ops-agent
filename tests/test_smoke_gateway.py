@@ -1,11 +1,17 @@
 import json
 import logging
+from pathlib import Path
 
 import httpx
 import pytest
 
 from govops.costs import CostLedger, cost_report, init_ledgers
 from govops.gateway import smoke
+from govops.gateway.hook_digest import compute_digests
+from govops.gateway.hook_header import GuardrailInfo, format_header
+
+DIGESTS = compute_digests(Path(__file__).resolve().parents[1])
+HEADER = format_header(GuardrailInfo(DIGESTS.rules, DIGESTS.code, team="platform"))
 
 
 @pytest.mark.parametrize("attempt_headers", [True, False])
@@ -17,7 +23,7 @@ def test_fallback(
     tmp_path, monkeypatch, capsys, caplog, down, backend, code, attempt_headers
 ):
     init_ledgers(tmp_path)
-    monkeypatch.setenv("LITELLM_AGENT_KEY", "sentinel-smoke-key")
+    monkeypatch.setenv("LITELLM_TEAM_KEY_PLATFORM", "sentinel-smoke-key")
     caplog.set_level(logging.DEBUG)
     seen = []
 
@@ -33,6 +39,7 @@ def test_fallback(
         return httpx.Response(
             200,
             headers={
+                "x-govops-guardrail": HEADER,
                 "x-litellm-model-id": "openai-gpt-6-luna"
                 if stage == "normal"
                 else "anthropic-claude-sonnet-5-5",
@@ -104,11 +111,12 @@ def test_fallback(
 @pytest.mark.parametrize("model", ["gpt-6-luna", "unknown-model"])
 def test_unsupported_or_unmapped(tmp_path, monkeypatch, capsys, model):
     init_ledgers(tmp_path)
-    monkeypatch.setenv("LITELLM_AGENT_KEY", "sentinel-smoke-key")
+    monkeypatch.setenv("LITELLM_TEAM_KEY_PLATFORM", "sentinel-smoke-key")
 
     def handle(request):
         return httpx.Response(
             200,
+            headers={"x-govops-guardrail": HEADER},
             json={
                 "id": "synthetic",
                 "object": "chat.completion",
@@ -142,7 +150,7 @@ def test_unsupported_or_unmapped(tmp_path, monkeypatch, capsys, model):
 
 
 def test_missing_ledger(tmp_path, monkeypatch, capsys):
-    monkeypatch.setenv("LITELLM_AGENT_KEY", "sentinel-smoke-key")
+    monkeypatch.setenv("LITELLM_TEAM_KEY_PLATFORM", "sentinel-smoke-key")
 
     def handle(request):
         pytest.fail("preflight must prevent calls")
@@ -163,7 +171,7 @@ def test_missing_ledger(tmp_path, monkeypatch, capsys):
 
 def test_connection_failures_are_safe(tmp_path, monkeypatch, capsys, caplog):
     init_ledgers(tmp_path)
-    monkeypatch.setenv("LITELLM_AGENT_KEY", "sentinel-smoke-key")
+    monkeypatch.setenv("LITELLM_TEAM_KEY_PLATFORM", "sentinel-smoke-key")
     caplog.set_level(logging.DEBUG)
 
     def handle(request):
@@ -187,7 +195,7 @@ def test_connection_failures_are_safe(tmp_path, monkeypatch, capsys, caplog):
 
 def test_missing_key_prevents_calls(tmp_path, monkeypatch, capsys):
     init_ledgers(tmp_path)
-    monkeypatch.delenv("LITELLM_AGENT_KEY", raising=False)
+    monkeypatch.delenv("LITELLM_TEAM_KEY_PLATFORM", raising=False)
 
     def handle(request):
         pytest.fail("missing key must prevent calls")
@@ -200,9 +208,7 @@ def test_missing_key_prevents_calls(tmp_path, monkeypatch, capsys):
         )
         == 1
     )
-    assert capsys.readouterr().out == (
-        "FAIL normal reason=missing_key error=GatewayError status=missing_key\nBACKEND=none\n"
-    )
+    assert capsys.readouterr().out == ("FAIL LITELLM_TEAM_KEY_PLATFORM\nBACKEND=none\n")
 
 
 @pytest.mark.parametrize(
@@ -220,7 +226,7 @@ def test_missing_key_prevents_calls(tmp_path, monkeypatch, capsys):
 )
 def test_stage_checks(tmp_path, monkeypatch, capsys, stage, mode, reason):
     init_ledgers(tmp_path)
-    monkeypatch.setenv("LITELLM_AGENT_KEY", "sentinel-smoke-key")
+    monkeypatch.setenv("LITELLM_TEAM_KEY_PLATFORM", "sentinel-smoke-key")
 
     def handle(request):
         current = (
@@ -254,6 +260,7 @@ def test_stage_checks(tmp_path, monkeypatch, capsys, stage, mode, reason):
         return httpx.Response(
             200,
             headers={
+                "x-govops-guardrail": HEADER,
                 "x-litellm-model-id": deployment,
                 "x-litellm-model-group": "agent-primary"
                 if current == "normal"

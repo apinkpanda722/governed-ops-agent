@@ -159,8 +159,9 @@ def test_obs_document_contract():
     body, history = section.split("**변경 기록**:", 1)
     assert "existing_trace_id" in body
     assert "변경 기록" not in body
-    # 작업 시작 시 ADR-009에서 읽은 기존 항목 수.
-    assert len(re.findall(r"^- ", history, re.MULTILINE)) == 1
+    # ADR-009의 관측 계약과 M6 판정 비교 결정 두 항목을 고정한다.
+    assert len(re.findall(r"^- ", history, re.MULTILINE)) == 2
+    assert "Guardrail 판정 비교는 M6" in history
 
 
 def test_hypotheses_fixed_sentences_and_header():
@@ -334,3 +335,103 @@ def test_fault_harness_document_contract():
         "tests/test_a_mcp_status.py",
     ):
         assert marker in threat
+
+
+def test_m4_document_contract():
+    adr = read("docs/ADR.md")
+    section = adr.split("### ADR-023:", 1)[1].split("### ADR-", 1)[0]
+    for marker in (
+        "**상태**",
+        "**날짜**",
+        "**결정**",
+        "**이유**",
+        "**트레이드오프**",
+        "Guardrail 판정 비교는 M6",
+        "user_api_key_dict.team_id",
+        "payload_read",
+        "guardrail_unavailable",
+        "blocked_input",
+        "hypotheses-m4-guardrail.md",
+        "m4-dev3-supersedes.json",
+        "pii_input",
+        "AGENT_KEY_MODELS",
+    ):
+        assert marker in section, marker
+    commands = read("AGENTS.md").split("## 명령어", 1)[1]
+    for name in (
+        "team-keys",
+        "team-keys-update",
+        "smoke-guardrail",
+        "redteam-gen",
+        "redteam-cards",
+        "redteam-review-status",
+    ):
+        line = next(
+            line for line in commands.splitlines() if line.startswith(f"make {name} ")
+        )
+        assert "사용자 실행" in line
+        assert f"\n{name}:\n" in read("Makefile")
+    assert "make team-keys TEAM_KEYS_ARGS=--rotate" in commands
+    threat = read("docs/THREAT_MODEL.md")
+    for name in ("V1", "V2", "V11"):
+        row = next(
+            line for line in threat.splitlines() if line.startswith(f"| {name} ")
+        )
+        paths = re.findall(r"tests/test_[a-z_]+\.py", row)
+        assert paths, name
+        assert all((ROOT / path).is_file() for path in paths)
+        assert "make smoke-guardrail" in row
+
+
+def test_m4_decisions_have_no_result_values():
+    # Only the new decision section and explicitly marked M4 current-fact blocks.
+    blocks = [read("docs/ADR.md").split("### ADR-023:", 1)[1].split("### ADR-", 1)[0]]
+    for path in ("docs/ARCHITECTURE.md", "docs/THREAT_MODEL.md", "docs/EVAL.md"):
+        text = read(path)
+        blocks.extend(
+            re.findall(
+                r"<!-- m4-current:start -->(.*?)<!-- m4-current:end -->",
+                text,
+                re.DOTALL,
+            )
+        )
+    result = re.compile(r"\b\d+\s*/\s*\d+\b|\d+(?:\.\d+)?\s*%|\b\d+\.\d+\b")
+    assert len(blocks) == 4
+    for path, prefixes in (
+        ("docs/PRD.md", ("| M4 |", "현재 호스트가")),
+        (
+            "docs/THREAT_MODEL.md",
+            ("| V1 ", "| V2 ", "| V11 ", "| TH9 ", "| F6 ", "| F7 "),
+        ),
+        (
+            "docs/ARCHITECTURE.md",
+            (
+                "- 팀별 정책은",
+                "- 마스킹은",
+                "- 역할 구분",
+                "trace와 다르게",
+                "- 부작용 생애주기",
+                "- **비밀 값:**",
+            ),
+        ),
+        ("docs/EVAL.md", ("- CI는 도구 이름",)),
+        (
+            "AGENTS.md",
+            (
+                "- 게이트웨이:",
+                "| 게이트웨이 |",
+                "| Guardrail 판정 |",
+                "make team-keys",
+                "make smoke-guardrail",
+                "make redteam-",
+            ),
+        ),
+    ):
+        lines = read(path).splitlines()
+        for prefix in prefixes:
+            selected = [line for line in lines if line.startswith(prefix)]
+            assert selected, (path, prefix)
+            blocks.extend(selected)
+    for block in blocks:
+        assert not result.search(block.replace("2.0초", "사전 훅 제한"))
+        assert "채택" not in block and "미달" not in block

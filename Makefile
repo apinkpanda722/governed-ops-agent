@@ -168,6 +168,15 @@ smoke-faults:
 	uv run --env-file .env python -m govops.evalrun.faults_smoke
 
 
+.PHONY: team-keys team-keys-update
+# 사용자 실행, 팀별 키는 env 파일에만 기록한다. TEAM_KEYS_ARGS=--rotate 지원
+team-keys:
+	uv run --env-file .env python -m govops.gateway.team_keys $(TEAM_KEYS_ARGS)
+
+team-keys-update:
+	uv run --env-file .env python -m govops.gateway.team_keys --update $(TEAM_KEYS_ARGS)
+
+
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini smoke-fallback
 # 읽기 전용 A 저장소(A_ROOT) 필요, 사용자 실행
 eval-cards:
@@ -198,3 +207,23 @@ smoke-gemini:
 # compose LiteLLM 기동(설정 반영: `docker compose up -d litellm`)·`.env` 키 필요, 사용자 실행, 소액 호출
 smoke-fallback:
 	uv run --env-file .env python -m govops.gateway.smoke fallback
+
+.PHONY: smoke-guardrail
+# live LiteLLM·팀 키·재기동된 LiteLLM 필요, 실제 호출 수 센트, 사용자 실행
+smoke-guardrail:
+	uv run --env-file .env python -m govops.gateway.smoke_guardrail
+
+.PHONY: redteam-gen
+# 오프라인·결정론 생성, 사전 등록 커밋 필요, 키·네트워크 불필요
+redteam-gen:
+	uv run python -m govops.eval.redteam
+
+.PHONY: redteam-cards
+# 오프라인 카드 생성, 판정은 사람이 내려받은 파일만 인정, 사용자 실행
+redteam-cards:
+	uv run python -m govops.eval.redteam_cards
+
+.PHONY: redteam-review-status
+# 사람 확정본 읽기 전용, 사용자 실행
+redteam-review-status:
+	uv run python -m govops.eval.redteam_cards --status

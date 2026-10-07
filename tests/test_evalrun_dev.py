@@ -119,7 +119,8 @@ def test_internal_seed_probe_hash(monkeypatch):
     assert not mock_seed_check(ROOT)
 
 
-def test_git_probe_registration(monkeypatch, tmp_path):
+@pytest.mark.parametrize("change", ["clean", "ledger", "other", "git_failure"])
+def test_git_probe_registration(monkeypatch, tmp_path, change):
     from govops.evalrun.dev import git_metadata
 
     path = tmp_path / "docs/results/hypotheses.md"
@@ -128,7 +129,16 @@ def test_git_probe_registration(monkeypatch, tmp_path):
 
     def probe(root, *args):
         if args[0] == "status":
-            return 0, ""
+            ledger = json.loads((tmp_path / "scripts/exempt_paths.json").read_text())[
+                "ledger_paths"
+            ][0]
+            return (1 if change == "git_failure" else 0), (
+                f" M {ledger}"
+                if change == "ledger"
+                else " M docs/a"
+                if change == "other"
+                else ""
+            )
         if args[0] == "rev-parse":
             return 0, "d2eec9c" if root.name == "a" else "d" * 40
         if args[0] == "log":
@@ -137,6 +147,10 @@ def test_git_probe_registration(monkeypatch, tmp_path):
 
     monkeypatch.setattr("govops.evalrun.dev._git", probe)
     monkeypatch.setenv("KODOCS_INDEX_NAME", "synthetic")
+    if change in {"other", "git_failure"}:
+        with pytest.raises(ValueError, match="dirty_worktree"):
+            git_metadata(tmp_path, tmp_path / "a")
+        return
     result = git_metadata(tmp_path, tmp_path / "a")
     assert result["hypotheses_registration_commit"] == "e" * 40
     import hashlib
@@ -162,3 +176,14 @@ def test_index_name_comes_from_a_settings_else_env_with_its_source(tmp_path):
         "index_name": "kodocs-m5-x-y",
         "index_name_source": "env(사용자 입력)",
     }
+
+
+@pytest.fixture(autouse=True)
+def exempt_config(tmp_path):
+    from pathlib import Path
+
+    target = tmp_path / "scripts/exempt_paths.json"
+    target.parent.mkdir(exist_ok=True)
+    target.write_bytes(
+        (Path(__file__).resolve().parents[1] / "scripts/exempt_paths.json").read_bytes()
+    )

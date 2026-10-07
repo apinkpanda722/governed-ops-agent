@@ -13,6 +13,22 @@ from datetime import datetime
 
 from govops.costs import DEPLOYMENT_MODELS
 from govops.env import env_or
+from govops.gateway.hook_digest import compute_digests
+from govops.gateway.hook_header import GuardrailInfo, parse_header
+from govops.gateway.team_keys import TeamKeyResolver, load_teams, team_env_name
+
+
+def judge_guardrail_probe(status, headers, expected) -> bool:
+    info = parse_header(headers.get("x-govops-guardrail"))
+    return bool(
+        status == 400
+        and info is not None
+        and info.rules == expected.rules
+        and info.code == expected.code
+        and info.team == expected.team
+        and info.pre == "probe"
+        and info.c == "probe"
+    )
 
 
 def required_deployments() -> set[str]:
@@ -70,28 +86,63 @@ def run_preflight(*, root, runner, http, env=env_or, mock_admin, a_check) -> lis
     except Exception:  # noqa: BLE001 — command output can contain secrets
         failures.append("stale_mock_image")
     base = env("LITELLM_BASE_URL", "http://127.0.0.1:4000").rstrip("/")
-    headers = {"Authorization": "Bearer " + env("LITELLM_AGENT_KEY", "")}
     down = False
     try:
-        health = http.get(base + "/health/liveliness", timeout=10)
-        down = health.status_code != 200
-        response = http.get(base + "/model/info", headers=headers, timeout=10)
-        if response.status_code == 404:
-            response = http.get(base + "/v1/model/info", headers=headers, timeout=10)
-        if response.status_code != 200:
+        teams = load_teams(root / "data/seed/users.json")
+        resolver = TeamKeyResolver(
+            {team: team for team in teams},
+            {team_env_name(team): env(team_env_name(team), "") for team in teams},
+        )
+        missing = not teams or bool(resolver.missing())
+    except Exception:  # noqa: BLE001 — seed and environment errors are private
+        missing = True
+    if missing:
+        failures.append("team_keys_missing")
+    else:
+        headers = {"Authorization": "Bearer " + resolver.key_for(teams[0])}
+        try:
+            health = http.get(base + "/health/liveliness", timeout=10)
+            down = health.status_code != 200
+            response = http.get(base + "/model/info", headers=headers, timeout=10)
+            if response.status_code == 404:
+                response = http.get(
+                    base + "/v1/model/info", headers=headers, timeout=10
+                )
+            if response.status_code != 200:
+                down = True
+            else:
+                try:
+                    ids = {row["model_info"]["id"] for row in response.json()["data"]}
+                    if not required_deployments() <= ids:
+                        failures.append("litellm_config_stale")
+                except (ValueError, TypeError, KeyError):
+                    failures.append("litellm_config_stale")
+        except Exception:  # noqa: BLE001 — HTTP exceptions include request headers
             down = True
+        if down:
+            failures = [code for code in failures if code != "litellm_config_stale"]
+            failures.append("service_down:litellm")
         else:
             try:
-                ids = {row["model_info"]["id"] for row in response.json()["data"]}
-                if not required_deployments() <= ids:
-                    failures.append("litellm_config_stale")
-            except (ValueError, TypeError, KeyError):
-                failures.append("litellm_config_stale")
-    except Exception:  # noqa: BLE001 — HTTP exceptions include request headers
-        down = True
-    if down:
-        failures = [code for code in failures if code != "litellm_config_stale"]
-        failures.append("service_down:litellm")
+                digests = compute_digests(root)
+                expected = GuardrailInfo(digests.rules, digests.code, team=teams[0])
+                response = http.post(
+                    base + "/v1/chat/completions",
+                    headers=headers,
+                    timeout=10,
+                    json={
+                        "model": "agent-primary",
+                        "metadata": {"govops_probe": "digest"},
+                        "messages": [{"role": "user", "content": "합성 점검"}],
+                    },
+                )
+                valid = judge_guardrail_probe(
+                    response.status_code, response.headers, expected
+                )
+            except Exception:  # noqa: BLE001 — no response or headers are retained
+                valid = False
+            if not valid:
+                failures.append("guardrail_hook_stale")
     try:
         if runner(["postgres", "SELECT 1"], cwd=root).returncode:
             raise ValueError()

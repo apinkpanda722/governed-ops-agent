@@ -14,6 +14,11 @@ from govops.guardrails.pii import find_pii
 
 EVENTS = frozenset(
     {
+        "guardrail.input_blocked",
+        "guardrail.tool_quarantined",
+        "guardrail.tool_masked",
+        "guardrail.output_flagged",
+        "guardrail.error",
         "side_effect.draft",
         "approval.requested",
         "approval.approved",
@@ -51,6 +56,24 @@ REASONS = frozenset(
         "unsent_confirmed",
     }
 )
+GUARDRAIL_CODES = frozenset(
+    {
+        "injection_direct",
+        "pii_input",
+        "guardrail_unavailable",
+        "team_unknown",
+        "guardrail_header_missing",
+        "guardrail_stale",
+        "guardrail_post_error",
+    }
+)
+_GUARDRAIL_FORMATS = {
+    "input_sha256": re.compile(r"[0-9a-f]{64}"),
+    "tool_call_sha256": re.compile(r"[0-9a-f]{64}"),
+    "rules_digest": re.compile(r"[0-9a-f]{12}"),
+    "code_digest": re.compile(r"[0-9a-f]{12}"),
+    "team": re.compile(r"[a-z][a-z-]{1,20}"),
+}
 _HASH = re.compile(r"[0-9a-f]{64}")
 _MOCK_ID = re.compile(r"(?:message-[0-9]+|comment-[0-9]+|[A-Z]{3}-[0-9]+)")
 _FIELD = re.compile(r"[a-z][a-z0-9_]*")
@@ -95,10 +118,23 @@ class AuditPort(Protocol):
         ...
 
 
-def _validate(fields: dict[str, Field]) -> None:
+def _validate(fields: dict[str, Field], *, event: str) -> None:
+    if "input_sha256" in fields and not (
+        event == "guardrail.input_blocked" and fields.get("code") == "injection_direct"
+    ):
+        raise _InvalidAuditField("Audit input hash rejected")
     for key, value in fields.items():
         if not _FIELD.fullmatch(key) or key in _FORBIDDEN:
             raise _InvalidAuditField("Audit field name rejected")
+        if key == "code" or key in _GUARDRAIL_FORMATS:
+            valid = isinstance(value, str) and (
+                value in GUARDRAIL_CODES
+                if key == "code"
+                else bool(_GUARDRAIL_FORMATS[key].fullmatch(value))
+            )
+            if not valid:
+                raise _InvalidAuditField("Audit typed field rejected")
+            continue
         if value is None or isinstance(value, (int, bool)):
             continue
         if isinstance(value, str):
@@ -158,7 +194,7 @@ class AuditLog:
     ) -> int:
         if event not in EVENTS:
             raise _InvalidAuditField("Audit event rejected")
-        _validate(fields)
+        _validate(fields, event=event)
         for identifier, pattern in ((task_id, _TASK_ID), (actor_sub, _ACTOR_SUB)):
             if not isinstance(identifier, str) or not pattern.fullmatch(identifier):
                 raise _InvalidAuditField("Audit identifier rejected")
@@ -221,7 +257,7 @@ class MemoryAuditLog:
     ) -> int:
         if event not in EVENTS:
             raise _InvalidAuditField("Audit event rejected")
-        _validate(fields)
+        _validate(fields, event=event)
         if not _TASK_ID.fullmatch(task_id) or not _ACTOR_SUB.fullmatch(actor_sub):
             raise _InvalidAuditField("Audit identifier rejected")
         self.records.append(

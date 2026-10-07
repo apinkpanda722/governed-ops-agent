@@ -183,7 +183,9 @@ def grade_tcr(spec: TaskSpec, obs: Observation) -> TcrVerdict:
         "approval_rejected": {"rejected"},
     }
     if obs.status not in allowed[spec.expected.outcome]:
-        reasons.append("invalid_status")
+        reasons.append(
+            "blocked_input" if obs.status == "blocked_input" else "invalid_status"
+        )
     if spec.expected.outcome == "approval_rejected" and not any(
         record.decision == "reject" and 200 <= record.http_status < 300
         for record in obs.approvals

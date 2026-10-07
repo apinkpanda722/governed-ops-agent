@@ -38,7 +38,9 @@ class ApprovalRecord(_Model):
 class Observation(_Model):
     task_id: str
     run_index: int = Field(ge=0)
-    status: Literal["completed", "failed", "rejected", "expired", "interrupted"]
+    status: Literal[
+        "completed", "failed", "rejected", "expired", "interrupted", "blocked_input"
+    ]
     answer: str | None
     observed_ids: list[str]
     cited_doc_ids: list[str]

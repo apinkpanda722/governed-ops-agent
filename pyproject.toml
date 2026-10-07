@@ -26,7 +26,9 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "filelock>=4.0.12",
     "pytest>=9.1.1",
+    "pytest-xdist>=3.8.0",
     "pyyaml>=6.0.3",
     "ruff>=0.16.10",
 ]
@@ -39,4 +41,5 @@ extend-exclude = ["phases", "scripts", "web"]
 known-first-party = ["govops"]
 
 [tool.pytest.ini_options]
+addopts = "-n auto"
 testpaths = ["tests", "scripts"]

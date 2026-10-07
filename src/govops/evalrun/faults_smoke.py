@@ -11,6 +11,7 @@ import httpx
 import psycopg
 from langgraph.checkpoint.memory import InMemorySaver
 
+from govops.agent.users import load_users
 from govops.api.wiring import build_task_service
 from govops.costs import (
     BudgetExceededError,
@@ -26,6 +27,8 @@ from govops.evalrun.mock_admin import MockAdmin, subprocess_runner
 from govops.evalrun.preflight import run_preflight
 from govops.gateway.client import ChatResult, LiteLLMChatClient, Usage
 from govops.gateway.faults import ModelFaultScript
+from govops.gateway.hook_digest import compute_digests
+from govops.gateway.team_keys import TeamKeyResolver
 from govops.obs.trace import configure
 from govops.tools.jira import JiraClient
 from govops.tools.outbox import InMemoryOutboxStore
@@ -33,7 +36,7 @@ from govops.tools.registry import ToolRuntime
 from govops.tools.slack import SlackClient
 
 ROOT = Path(__file__).resolve().parents[3]
-USER = "demo-platform-g3"
+USER = env_or("SMOKE_USER", "demo-platform-g3")
 MESSAGE = "합성 상태 확인: 짧게 답하세요."
 READ_RULE = [
     {
@@ -308,8 +311,16 @@ async def live():
             env_or("MOCK_SLACK_URL", "http://127.0.0.1:8082"), http_client=http
         )
         ledger = CostLedger()
+        resolver = TeamKeyResolver(
+            {label: user.team for label, user in load_users().items()}
+        )
+        if resolver.missing():
+            raise ValueError("team_keys_missing")
         gateway = LiteLLMChatClient(
             ledger=ledger,
+            key_resolver=resolver.key_for,
+            expected_digests=compute_digests(ROOT),
+            require_guardrail=True,
             http_client=http,
             fault_mode="down_alias",
             fault_script=ModelFaultScript("all"),

@@ -1,0 +1,23 @@
+{
+  "allocation_sha256": "c0cc4c4fdbb58632b159c6deee44c309cb838d854b555a72f503aa342c9409de",
+  "counts": {
+    "direct_injection": 30,
+    "identity_impersonation": 20,
+    "indirect_injection": 40,
+    "pii_exfil": 30
+  },
+  "deliveries": {
+    "jira_ticket_body": 20,
+    "jira_ticket_comment": 20,
+    "user_input": 80
+  },
+  "layers": {
+    "input_block": 70,
+    "send_check": 10,
+    "tool_quarantine": 40
+  },
+  "overlay_sha256": "0fa07a61a592fd5d13fc5dafd993b59e98c076f8da9955905c4e168d2ffcbf8f",
+  "rules_sha256": "4ce3d1068dfb13f8f49c4d27dc7491b4923aa490658e8caecc6569dc37cfcf7b",
+  "seed": 20261005,
+  "set_sha256": "6397b51b8c40bf4c42420550156b0bb04c996e83a483fe98e20b8425c59fe4ff"
+}

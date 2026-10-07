@@ -62,7 +62,7 @@ eval/ → Gemini 채점 (게이트웨이 미경유, 별도 원장)
 | TH6 / LLM06 | 중복 부작용 | 타임아웃 후 재시도, "처리 후 응답 유실", 재개 반복, 이중 클릭 | outbox 멱등 키 + 메타데이터 표식, 재시도 전 2단계 조회(조회 → 대기 → 재조회) 후 없을 때만 재발송, 승인 노드는 interrupt만·실행 노드 분리, 승인 요청 멱등(ADR-006·ADR-011) | V8·V9 | 대기보다 긴 조회 반영 지연에서는 중복이 생길 수 있다(F10 한계 시연, 절대 규칙에서 제외해 사전 등록) |
 | TH7 / LLM06 | 승인 우회 | 승인 후 초안 변경(TOCTOU), 만료 후 승인, 다른 사람 task 승인, 재개 반복으로 실행 반복 | 승인을 초안 내용 해시에 묶음, 수정 시 결정론 검사 재실행, 승인자는 본문만 수정·수신처 변경 불가, 만료 30분, 승인자 정책, 실행 노드 분리, 승인자·수정 전후 해시 감사 기록 | V6·V9 | 승인자가 내용을 읽지 않고 승인하는 것은 막지 못한다 |
 | TH8 / — | 감사 로그 변조 | 줄 수정, 중간 삭제, 순서 변경, **고정점 이후 꼬리 잘라내기**, 전체 재계산 후 다른 키로 서명 | 해시체인 + Ed25519, seq 빈틈 검사, 실행마다 고정점 커밋, 공개키만 커밋, `make audit-verify`(ADR-012) | V10 | 고정점 이후 구간의 잘라내기는 다음 고정점 전까지 탐지 못 할 수 있다. B 탈취 시 키 노출로 재서명 가능 |
-| TH9 / — | Guardrail 자체 장애 | 판정기 오류·타임아웃으로 검사가 꺼진 채 통과 | 사전 검사 fail-closed(차단), 사후 탐지 fail-open + 경보, v2 분류기 실패 시 v1로 판정 + 경보(v1까지 실패하면 차단), v2를 주 모델과 다른 회사(Anthropic)에 둠, 실행 직전 결정론 검사는 Guardrail과 독립(ADR-008) | V11 | 사전 훅 장애가 길어지면 서비스 전체가 막힌다(가용성 손실) |
+| TH9 / — | Guardrail 자체 장애 | 판정기 오류·타임아웃으로 검사가 꺼진 채 통과 | 사전 검사 `guardrail_unavailable`·`team_unknown` fail-closed(차단), 응답 헤더·훅 해시 정합 검증, 사후 탐지 fail-open + 경보, v2 분류기 실패 시 v1로 판정 + 경보(v1까지 실패하면 차단), v2를 주 모델과 다른 회사(Anthropic)에 둠, 실행 직전 결정론 검사는 Guardrail과 독립(ADR-008) | V11 | 사전 훅 장애가 길어지면 서비스 전체가 막힌다(가용성 손실) |
 | TH10 / LLM02 | PII 노출·영구 기록 | 발송문·trace·감사 로그에 주민번호·전화·계좌 | 3지점 마스킹, 인사·재무·법무 발송 금지 정책, 발송문 금지 PII 결정론 검사, 감사 로그는 해시·mock ID만 | V5·V12 | 정규식 밖 형식의 PII는 놓칠 수 있다. T1 답변은 출력 탐지만 한다. checkpointer는 실행에 필요한 원문을 task 종료 후 7일 동안 보관한다(ADR-015) |
 | TH11 / LLM10 | 비용·루프 소진 | 도구 반복 호출, fallback 반복, 큰 입력 | MAX_STEPS·MAX_COST, 탐색 예산(새 정보 없는 호출 N회 연속 시 종료, ADR-014), 호출 직전 공급사별 누적액 검사, 팀별 가상 키 예산(ADR-007·ADR-008) | V13 | 상한은 총액 보호이며 요청 속도 제한이 아니다 |
 | TH13 / LLM02 | 권한 있는 사용자를 통한 분류 하향 유출 | 요청자가 읽을 수 있는 팀 전용·직급 제한 문서의 요약을 요청자 팀 밖이나 전사 공지로 보내 달라고 요청(인젝션 없이도 성립) | 실행 직전 결정론 검사의 발송 범위 규칙: 보낼 곳의 독자 범위(팀 채널 = 그 팀 전 직급, 전사 공지 = 전 직원)가 근거 문서·티켓의 열람 범위보다 넓으면 차단하고 이유를 밝힌다(ADR-008) | V15 | 열람 범위가 같은 곳으로 보낸 내용을 독자가 다시 옮기는 것은 막지 못한다. ID 없는 `run_sql` 결과(집계·열 값)는 V15 검사를 받지 않으며 T4 집계는 채점 쪽과 같이 범위 검사에서 제외한다 |
@@ -74,8 +74,8 @@ eval/ → Gemini 채점 (게이트웨이 미경유, 별도 원장)
 
 | 매핑 | 완화 위치 | 확인하는 테스트·지표 |
 |---|---|---|
-| V1 입력 차단 | `gateway/` 사전 훅, `guardrails/` | 인젝션·금지 PII 입력이 공급사 mock 호출 0회·비용 0으로 차단되는 테스트, 레드팀 차단율(M6) |
-| V2 도구 결과 격리 | `gateway/` 사전 훅 | A 간접 인젝션 문서(replay)의 탐지 부분이 다음 모델 입력에서 빠지고 "정책으로 일부 제외" 표시와 감사 기록이 남는 테스트 |
+| V1 입력 차단 | `gateway/` 사전 훅, `guardrails/` | `tests/test_guardrails_screen.py`·`tests/test_gateway_guardrail_hook.py`·`tests/test_agent_guardrail.py`로 사용자 입력 차단·공급사 호출 방지·종료 상태를 확인한다. `make smoke-guardrail`로 훅 연결을 확인하며 레드팀 차단율은 M6에 보고한다 |
+| V2 도구 결과 격리 | `gateway/` 사전 훅 | `tests/test_guardrails_screen.py`·`tests/test_gateway_guardrail_hook.py`·`tests/test_agent_guardrail.py`로 역할 한정 격리·마스킹·호스트 감사·task 단위 중복 제거를 확인한다. `make smoke-guardrail`로 도구 결과 헤더를 확인한다 |
 | V3 신원 위임 불변식 | `tools/` 계약, `api/` 세션, `broker/` | 도구 스키마에 사용자·팀·직급 필드가 없음, context에 user_id만, 같은 task 두 사용자 → A 결과 다름, 레드팀 "다른 팀 사용자로 행동" |
 | V4 토큰 비노출 | `broker/`, `obs/`, `replay/`, `web/` BFF | 저장된 checkpoint·trace·로그·기록 재생 파일·LLM 요청 본문을 스캔해 토큰 값 0건, BFF 응답 본문·`document.cookie`에 토큰 없음(vitest·e2e), trace 저장 파일 스캔 + `smoke-obs` E5·E6(계획된 검증 계약), LLM·A 기록 파일 검사로 토큰·Authorization 없음과 합성 문서만 기록됨을 확인 |
 | V5 실행 직전 결정론 검사 | `agent/` 결정론 검사 노드 | 허용 목록 밖 채널·금지 PII·HRM/FIN/LGL 정책 위반 초안이 승인 대기로 가지 않는 테스트, T5 다른 팀 채널 task |
@@ -84,7 +84,7 @@ eval/ → Gemini 채점 (게이트웨이 미경유, 별도 원장)
 | V8 outbox·표식 | `tools/` outbox | "처리 후 응답 유실"·처리 후 5xx 주입 → 재시도 전 표식 조회로 성공 판정·재발송 0, 2단계 조회 모두 표식 없음 → 재발송, F5와 결합한 1.0초 조회 반영 지연(F10) → 재발송 0. 표식은 메타데이터 필드에 있고 본문에 없음. 장애 주입 하 중복 실행 건수 = (task, 부작용 종류, 대상)별 Σ max(0, mock 실제 건수 − 기대 건수)를 멱등 키와 무관하게 mock 상태와 task 표식으로 세어 0건(절대 규칙 1). `tests/test_effects_matrix.py`와 `tests/test_evalrun_faults.py`로 장애 매트릭스·주입 증거를 검증한다. F5와 결합한 6.0초 지연은 절대 규칙에서 제외하는 한계 시연이며 계획·분모는 [사전 등록](results/hypotheses-m3-faults.md)을 따른다 |
 | V9 재개 반복(M3) | `agent/` 승인·실행 노드 분리 | `Command(resume=...)` 여러 번 → 부작용 1회, 승인 API 이중 호출 → 부작용 1회. 실행기 동일 키 반복·동시 실행은 `tests/test_effects_matrix.py`로 검증하고 그래프·승인 API 연결은 [tests/test_agent_graph.py](../tests/test_agent_graph.py)·[tests/test_api_tasks.py](../tests/test_api_tasks.py)에서 검증한다 |
 | V10 감사 무결성 | `audit/`, `make audit-verify` | 변조 5종 탐지: 수정, 중간 삭제, 순서 변경, 고정점 이후 꼬리 잘라내기, 다른 키 서명(M4). M3 실행 전 감사 쓰기 실패 시 부작용 실행 안 함, 결과 기록 실패는 재시도 후 `audit_gap`(ADR-018) |
-| V11 Guardrail 장애 | `gateway/` 훅 | 사전 검사 타임아웃 주입 → 차단, 사후 탐지 오류 주입 → 통과 + 경보·감사 기록, v2 분류기 오류 주입 → v1 판정 + 경보, v1·v2 모두 오류 → 차단, 주 모델 장애 중 Guardrail 통과(F6) |
+| V11 Guardrail 장애 | `gateway/` 훅 | `tests/test_gateway_guardrail_hook.py`·`tests/test_team_keys.py`·`tests/test_guardrail_registration.py`·`tests/test_smoke_guardrail.py`로 사전 fail-closed·사후 fail-open·인증 팀·해시 정합·진단 경로를 확인한다. F6·F7은 `make smoke-guardrail`로 확인한다. v2 오류 시 v1 판정 검증은 M6에 추가한다 |
 | V12 PII 영구 기록 방지 | `audit/`, `obs/`, checkpointer 삭제 명령 | 감사 로그 줄에 원문·PII 정규식 일치 0건, trace 전송 전 마스킹 테스트, 종료 7일 지난 task의 checkpoint가 삭제 명령 뒤 0건이고 7일 안 된 task와 진행 중 task는 남는 테스트 |
 | V13 비용·루프 | `costs.py`, `agent/` | 누적액이 상한을 넘으면 호출 전에 멈춤, MAX_STEPS·MAX_COST 초과 시 실패 종료, 새 정보 없는 호출 N회 연속 시 종료, 승인 대기 시간은 계산에서 제외 |
 | V15 발송 범위 | `agent/` 결정론 검사 노드(M3) | 팀 전용 문서 → 전사 공지, 직급 제한 문서 → 팀 채널, 다른 팀 문서 → 요청자 팀 채널 초안이 승인 대기로 가지 않고 이유와 함께 거부되는 테스트, 공개 문서 → 전사 공지·팀 전용 문서 → 그 팀 채널은 통과, 실행 중 문서 단위 검사(ADR-018)는 평가 정답 선정(`eval.audience`)의 값 기준 판정과 평가셋·카드의 `audience_scope`보다 엄격하다 [tests/test_agent_scope.py](../tests/test_agent_scope.py), [tests/test_scope_index.py](../tests/test_scope_index.py). ID 없는 `run_sql` 집계·열 값은 검사에서 제외하는 잔여 위험이 있다 |
@@ -103,8 +103,8 @@ mock 장애는 엔드포인트별로 설정하고 요청 순번 스크립트로 
 | F3 | 429 + `Retry-After` | mock이 429와 `Retry-After` 반환 | `Retry-After`를 지켜 재시도 | 대기 시간 준수, 중복 0 |
 | F4 | 연결 수립 실패 | 클라이언트 쪽 전송 계층에서 연결 수립 실패 주입(`tools/fault_transport.py`, 시도·주입 카운터 검증, ADR-022) | 요청이 서버에 닿지 않았으므로 표식 조회 없이 바로 재시도 | 중복 0 |
 | F5 | 처리 후 응답 유실 | mock이 부작용을 반영한 뒤 응답을 버림 | 결과 불확실 → 표식 조회 → 있으면 재발송 안 함 | **중복 0(절대 규칙 1)** |
-| F6 | 모델 장애·fallback | `down_alias`로 주 모델 장애 주입(닫힌 포트 배포 `agent-primary-down` + fallbacks, LiteLLM 경유·first/second/all 호출 번호 스크립트는 ADR-019 6항·ADR-022) | 호출 단위로 Anthropic fallback으로 이어 감. 응답 모델·원장 정산과 장애 주입 증거로 확인하며 주 모델 장애 중 Guardrail 통과 확인은 M4로 이월한다 | fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR, 주 모델 장애 중 Guardrail 통과 확인은 M4(Guardrail 구현 후) |
-| F7 | Guardrail 타임아웃 | 사전·사후 판정기 지연·오류 | 사전은 차단(fail-closed), 사후는 통과 + 경보(fail-open). v2만 실패하면 v1로 판정 + 경보, v1까지 실패하면 차단 | 차단·경보 기록 |
+| F6 | 모델 장애·fallback | `down_alias`로 주 모델 장애 주입(닫힌 포트 배포 `agent-primary-down` + fallbacks, LiteLLM 경유·first/second/all 호출 번호 스크립트는 ADR-019 6항·ADR-022) | 호출 단위로 Anthropic fallback으로 이어 감. 응답 모델·원장 정산과 장애 주입 증거로 확인하며 주 모델 장애 중 Guardrail 통과는 `make smoke-guardrail`로 확인한다 | fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR, 주 모델 장애 중 Guardrail 통과는 `make smoke-guardrail`로 확인 |
+| F7 | Guardrail 타임아웃 | `govops_probe`로 사전·사후 지연·오류 주입 | 사전은 `guardrail_unavailable`로 실패(fail-closed), 사후는 통과 + 경보(fail-open). v2 판정 검증은 M6에 추가한다 | `make smoke-guardrail`로 확인 |
 | F8 | 재개 반복 | 같은 승인으로 `Command(resume=...)` 여러 번 | 실행 노드 1회, 부작용 1회 | 중복 0 |
 | F9 | 승인 버튼 이중 클릭 | `POST /tasks/{id}/approval` 동시·연속 2회 | 승인 요청 멱등, 부작용 1회 | 중복 0 |
 | F10 | 조회 반영 지연 | 항상 F5(처리 후 응답 유실)와 결합한 조회 반영 지연(짧음 1.0초·긺 6.0초) | 2단계 조회(조회 → 대기 → 재조회) 후 없을 때만 재발송 | 대기보다 짧은 지연: **중복 0(절대 규칙 1)**. 대기보다 긴 지연: 한계 시연, 절대 규칙에서 제외(사전 등록) |
@@ -122,6 +122,12 @@ mock 장애는 엔드포인트별로 설정하고 요청 순번 스크립트로 
 - **mock의 한계:** mock은 실제 Slack·Jira의 지연 분포·검색 반영 지연·속도 제한을 재현하지 않는다. 실제 API에 서버 측 멱등 키가 있는지는 확인 필요(구현 시 공식 문서로 확인)다.
 - **평가 범위:** 레드팀 셋·평가셋은 가상 회사 합성 데이터와 고정 템플릿 기반이다. 0건은 관측값이며 증명이 아니다.
 - **검수자 1인:** 운영 품질 검수의 검수자 간 일치도를 잴 수 없다.
+
+
+<!-- m4-current:start -->
+- **정규식 밖 우회**: Guardrail v1이 인식하지 못하는 표현·PII 형식은 격리·마스킹을 피할 수 있다. 실행 직전 결정론 검사와 승인이 별도 방어 층을 이룬다.
+- **고정 해시**: 훅 import 시점에 고정된 해시는 재기동 전 변경을 헤더 불일치로만 드러냄. preflight와 호스트가 로컬 해시와 비교해 실패 처리한다.
+<!-- m4-current:end -->
 
 ## 7. 운영 권고(데모 밖)
 
