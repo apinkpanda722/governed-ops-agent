@@ -1,0 +1,61 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m4-audit",
+  "steps": [
+    {
+      "step": 0,
+      "name": "audit-crypto",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "audit-events",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "audit-log-chain",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "audit-verify",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "audit-anchors",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "service-start-event",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "model-call-event",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "auth-failed-event",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "runner-anchors",
+      "status": "pending"
+    },
+    {
+      "step": 9,
+      "name": "smoke-audit",
+      "status": "pending"
+    },
+    {
+      "step": 10,
+      "name": "docs",
+      "status": "pending"
+    }
+  ]
+}

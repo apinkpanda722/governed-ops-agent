@@ -77,6 +77,10 @@
       "dir": "m4-guardrail",
       "status": "completed",
       "completed_at": "2026-10-07T23:14:48+0900"
+    },
+    {
+      "dir": "m4-audit",
+      "status": "pending"
     }
   ]
 }
