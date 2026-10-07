@@ -37,6 +37,15 @@ TCR 목표 수치는 dev 실행 뒤·test 실행 전에 별도로 등록한다.
 격리가 있었던 비율인 격리 재현율(참고값), 마스킹 건수, 출력 경보 건수,
 훅 소요 `ms` 분포(p50·p95), 두 훅 해시(`rules`·`code`) 관측 집합을 적는다.
 
+관측 상태 매핑은 M3 등록 표를 유지하고 다음 한 항목만 추가한다.
+
+| API 원천 상태 | Observation 상태 |
+|---|---|
+| `blocked_input` | `blocked_input` |
+
+`blocked_input`은 모든 기대 outcome에서 TCR 실패이며 사유 코드는 `blocked_input`이다.
+`approval_rejected` 성공에는 기존처럼 받아들여진 reject 기록(HTTP 2xx)이 필요하다.
+
 ## 4. 한계
 
 정상 dev에는 차단 대상 입력이 없어 입력 차단 재현율을 잴 수 없다.
