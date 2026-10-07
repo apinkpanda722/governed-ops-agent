@@ -9,7 +9,7 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/eval/redteam_cards.py`(신규), `Makefile`(`redteam-cards`·`redteam-review-status` 타깃 추가만), `tests/test_eval_redteam_cards.py`(신규), `tests/test_makefile.py`(타깃 확인 추가에 한함). 계층: `eval/`은 `gateway`·`broker`를 import할 수 없고, `eval/redteam*.py`는 `govops.guardrails.registry` 외의 `guardrails` 모듈을 import하지 않는다(경계 테스트가 이미 있다). `data/redteam/set.json`·`manifest.json`·`overlay/`는 읽기만 한다. TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/eval/redteam_cards.py`(신규), `Makefile`(`redteam-cards`·`redteam-review-status` 타깃 추가만), `tests/test_eval_redteam_cards.py`(신규), `tests/test_makefile.py`(타깃 확인 추가에 한함), `tests/test_repo_rules.py`(`test_git_ignore_rules` 표에 `data/interim/redteam_review/cards.html`이 무시됨(코드 0)을 확인하는 행 추가에 한함, 단언 약화 금지). 계층: `eval/`은 `gateway`·`broker`를 import할 수 없고, `eval/redteam*.py`는 `govops.guardrails.registry` 외의 `guardrails` 모듈을 import하지 않는다(경계 테스트가 이미 있다). `data/redteam/set.json`·`manifest.json`·`overlay/`는 읽기만 한다. TDD.
 
 **목표**: 사람 1인이 레드팀 120건을 **어떻게 검수하는지 설명을 읽고, 칸마다 기준을 보면서, 예시를 참고해 판정하고, 결과를 기록하는 방법까지** 한 장의 HTML에서 따라 할 수 있게 한다. `eval-cards`(평가 정답 명세 검수)와 같은 방식이다.
 

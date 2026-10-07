@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "redteam-registration",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T21:06:29+0900",
+      "summary": "레드팀 120건 변형·전달 경로 배분, SHA-256 사전 등록, 독립 판정·전달 실패 분리 규칙과 테스트 작성 완료. make verify 통과(Python 2789 passed·1 skipped, 웹 15 passed); 항목 생성·live 실행·phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T21:14:29+0900",
+      "usage": {
+        "input_tokens": 1167187,
+        "cached_input_tokens": 1101440,
+        "output_tokens": 7480,
+        "attempts": 1
+      }
     },
     {
       "step": 8,

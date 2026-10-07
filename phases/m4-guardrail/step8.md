@@ -4,8 +4,8 @@
 
 - `/AGENTS.md`(고정 제약, 계층 경계 표의 `eval/`·`mocks/` 행), `/docs/ADR.md`(ADR-010·ADR-017 1·3항), `/docs/EVAL.md`
 - **사전 등록(읽기 전용)**: `/docs/results/hypotheses-m4-redteam.md`, `/data/redteam/allocation.json`, `/docs/results/hypotheses-m4-guardrail.md`(`rules_sha256` 줄)
-- `/src/govops/guardrails/registry.py`(**이 파일의 `rules_sha256`만 import한다**), `/src/govops/eval/taskgen.py`·`/src/govops/eval/request_text.py`·`/src/govops/eval/tone.py`(결정론 템플릿·시드 사용 방식 선례), `/src/govops/mocks/jira.py`(시드 로딩·`MOCK_JIRA_TICKETS`·티켓 접근 필드·키 검증), `/data/seed/tickets.json`·`/data/seed/users.json`·`/data/seed/access_index.json`(스키마만 본다), `/src/govops/agent/org_info.py`
-- `/tests/test_architecture.py`, `/tests/test_mocks_jira.py`(기존 mock-jira 테스트 방식; 파일 이름이 다르면 `tests/`에서 jira mock 테스트를 찾는다)
+- `/src/govops/guardrails/registry.py`(**이 파일의 `rules_sha256`만 import한다**), `/src/govops/eval/taskgen.py`·`/src/govops/eval/request_text.py`·`/src/govops/eval/tone.py`(결정론 템플릿·시드 사용 방식 선례), `/src/govops/mocks/__main__.py`(`env_or("MOCK_JIRA_TICKETS", …)`로 읽어 `load_tickets`에 넘김, 59행 부근·`env_or` import 10행)·`/src/govops/mocks/seed.py`(`load_tickets`, `TICKET_FIELDS`, 키 검증)·`/src/govops/mocks/jira.py`(`JiraState`, 티켓 접근 필드), `/data/seed/tickets.json`·`/data/seed/users.json`·`/data/seed/access_index.json`(스키마만 본다), `/src/govops/agent/org_info.py`
+- `/tests/test_architecture.py`, `/tests/test_mock_jira.py`·`/tests/test_mocks.py`(기동 경로 테스트: `MOCK_JIRA_TICKETS`를 `monkeypatch.setenv`로 지정, 106행 부근)·`/tests/test_env_defaults.py`(`test_variable_defaults` 표와 기본값 스캐너)·`/tests/test_seed_extract.py`·`/tests/test_golden_trace.py`·`/tests/test_smoke_tools.py`(`load_tickets` 소비자)
 - `/.claude/skills/failure-patterns/SKILL.md`(FP-010·032·042·043·050) — 읽기만 한다
 - **외부 계약 실측**(원자료: 위 파일들, 성공 여부와 반환 내용을 따로 적는다):
 
@@ -17,7 +17,7 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/eval/redteam.py`(신규), `src/govops/eval/redteam_templates.py`(신규), `src/govops/mocks/jira.py`(오버레이 로딩 추가에 한함), `data/redteam/set.json`(신규, 생성 산출물), `data/redteam/manifest.json`(신규), `data/redteam/overlay/jira_tickets.json`(신규), `Makefile`(`redteam-gen` 타깃 추가만), `tests/test_eval_redteam.py`(신규), `tests/test_redteam_boundary.py`(신규), `tests/test_mocks_overlay.py`(신규), `tests/test_makefile.py`(타깃 확인 추가에 한함). 계층: `eval/`은 `gateway`·`broker`를 import할 수 없고, **이 step은 `eval/redteam*.py`가 `govops.guardrails.registry` 외의 `guardrails` 모듈(`screen`·`injection`·`pii`·`policy`)을 import하지 못하게 경계 테스트로 고정한다.** `mocks/`는 `govops`의 다른 계층을 import할 수 없다. TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/eval/redteam.py`(신규), `src/govops/eval/redteam_templates.py`(신규), `src/govops/mocks/__main__.py`·`src/govops/mocks/seed.py`(둘 다 오버레이 로딩 추가에 한함), `src/govops/mocks/jira.py`(오버레이 때문에 꼭 필요할 때만, 그 밖의 변경 금지), `data/redteam/set.json`(신규, 생성 산출물), `data/redteam/manifest.json`(신규), `data/redteam/overlay/jira_tickets.json`(신규), `Makefile`(`redteam-gen` 타깃 추가만), `tests/test_eval_redteam.py`(신규), `tests/test_redteam_boundary.py`(신규), `tests/test_mocks_overlay.py`(신규), `tests/test_makefile.py`(타깃 확인 추가에 한함), `tests/test_mocks.py`·`tests/test_mock_jira.py`·`tests/test_env_defaults.py`(오버레이 때문에 필요한 기대값 갱신과 신규 케이스 추가에 한함: `test_env_defaults.py`에는 `MOCK_JIRA_OVERLAY` 행 추가. **단언 약화 금지**). `seed.py::load_tickets`의 시그니처·반환값은 바꾸지 않는다(소비자: `tests/test_seed_extract.py`·`tests/test_golden_trace.py`·`tests/test_smoke_tools.py`. 새 함수를 추가한다). 계층: `eval/`은 `gateway`·`broker`를 import할 수 없고, **이 step은 `eval/redteam*.py`가 `govops.guardrails.registry` 외의 `guardrails` 모듈(`screen`·`injection`·`pii`·`policy`)을 import하지 못하게 경계 테스트로 고정한다.** `mocks/`는 `govops`의 다른 계층을 import할 수 없다. TDD.
 
 ### 1. 생성기 (`eval/redteam.py`, `eval/redteam_templates.py`)
 
@@ -30,9 +30,9 @@
 - `manifest.json`: `{"seed", "allocation_sha256", "rules_sha256"(= `registry.rules_sha256()` 호출 결과 한 줄), "set_sha256", "overlay_sha256", "counts": {범주: n}, "layers": {expected_layer: n}, "deliveries": {delivery: n}}`. 이 외에 규칙 내용·패턴 정보를 쓰지 않는다.
 - **생성기는 Guardrail로 항목을 걸러내거나 조정하지 않는다**(`screen`·`injection`을 쓰지 않는다).
 
-### 2. mock-jira 오버레이 로딩 (`mocks/jira.py`)
+### 2. mock-jira 오버레이 로딩 (`mocks/__main__.py`·`mocks/seed.py`)
 
-- 선택 환경 변수 `MOCK_JIRA_OVERLAY`(경로, 빈 값·공백은 미설정으로 본다 — `govops.env.env_or`는 `mocks`에서 import할 수 없으니 같은 의미를 로컬로 구현한다)가 설정되면 기본 시드 로딩 직후 오버레이의 티켓을 **덧붙인다**. 키가 시드와 겹치면 시작 시 `ValueError`로 거부한다(조용한 덮어쓰기 금지). 설정이 없으면 동작·응답이 **이전과 완전히 같다**(기존 mock 테스트 전부 통과, 상태 스냅샷 동일을 테스트로 고정). compose에는 이 변수를 설정하지 않는다(M6에서 연결). 기본 시드 파일 `data/seed/*`는 수정하지 않는다.
+- 선택 환경 변수 `MOCK_JIRA_OVERLAY`(경로)는 `__main__.py`가 이미 import한 `govops.env.env_or`로 읽는다(`env_or("MOCK_JIRA_OVERLAY", "")`, 빈 값·공백은 미설정, FP-030). **`os.environ.get`·`os.getenv`에 기본값을 넘기지 않는다**(`tests/test_env_defaults.py` 스캐너). 로딩은 `__main__.py`가 `MOCK_JIRA_TICKETS` 시드를 `load_tickets`로 읽은 **직후**, `seed.py`에 추가하는 새 함수(예: `merge_overlay(base, overlay_path)`; 오버레이 파일은 `load_tickets`와 같은 검증을 통과해야 한다)로 한다. 설정되면 오버레이의 티켓을 **덧붙인다**. 키가 시드와 겹치면 시작 시 `ValueError`로 거부한다(조용한 덮어쓰기 금지). 설정이 없으면 동작·응답이 **이전과 완전히 같다**(기존 mock 테스트 전부 통과, 상태 스냅샷 동일을 테스트로 고정). compose에는 이 변수를 설정하지 않는다(M6에서 연결). 기본 시드 파일 `data/seed/*`는 수정하지 않는다.
 
 ### 3. 테스트
 
