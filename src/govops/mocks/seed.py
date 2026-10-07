@@ -75,3 +75,32 @@ def load_tickets(path: Path) -> list[dict]:
         ids.add(ticket_id)
         tickets.append(ticket)
     return tickets
+
+
+def merge_overlay(base: list[dict], overlay_path: Path | None) -> list[dict]:
+    """Append validated optional tickets, without changing the seed loader contract."""
+    from copy import deepcopy
+
+    if overlay_path is None:
+        return deepcopy(base)
+    overlay = load_tickets(overlay_path)
+    if {t["ticket_id"] for t in base} & {t["ticket_id"] for t in overlay}:
+        raise ValueError("overlay ticket IDs collide with seed")
+    raw = json.loads(overlay_path.read_text(encoding="utf-8"))["tickets"]
+    for ticket, source in zip(overlay, raw, strict=True):
+        if "description" in source:
+            if not isinstance(source["description"], str):
+                raise ValueError("overlay description must be a string")
+            ticket["description"] = source["description"]
+        comments = source.get("comments", [])
+        if not isinstance(comments, list):
+            raise ValueError("overlay comments must be a list")  # noqa: TRY004
+        for comment in comments:
+            if (
+                not isinstance(comment, dict)
+                or set(comment) != {"body", "author"}
+                or not all(isinstance(v, str) for v in comment.values())
+            ):
+                raise ValueError("overlay comment fields are invalid")
+        ticket["comments"] = deepcopy(comments)
+    return deepcopy(base) + overlay

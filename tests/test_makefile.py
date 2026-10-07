@@ -257,3 +257,10 @@ def test_guardrail_smoke_is_user_run():
     text = Path("Makefile").read_text()
     assert "smoke-guardrail:" in text
     assert "uv run --env-file .env python -m govops.gateway.smoke_guardrail" in text
+
+
+def test_redteam_gen_is_offline():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: redteam-gen" in text
+    assert "\nredteam-gen:\n\tuv run python -m govops.eval.redteam\n" in text
+    assert "redteam-gen" not in text.split("verify:\n")[1].split("\n\n")[0]

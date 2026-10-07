@@ -212,3 +212,8 @@ smoke-fallback:
 # live LiteLLM·팀 키·재기동된 LiteLLM 필요, 실제 호출 수 센트, 사용자 실행
 smoke-guardrail:
 	uv run --env-file .env python -m govops.gateway.smoke_guardrail
+
+.PHONY: redteam-gen
+# 오프라인·결정론 생성, 사전 등록 커밋 필요, 키·네트워크 불필요
+redteam-gen:
+	uv run python -m govops.eval.redteam
