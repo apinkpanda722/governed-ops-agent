@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "smoke-faults",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-07T11:51:41+0900",
+      "blocked_reason": "Step 6의 지시가 충돌합니다(FP-054). 작업 4는 사용자 실행 down_alias 호출의 공급사별 예약·정산을 비용 원장에 기록하도록 요구하지만, 금지사항 FP-031은 '실행 산출물(비용 원장 등 커밋 대상)을 테스트나 코드 경로에서 갱신하지 마라'고 규정합니다. 기존 gateway 클라이언트도 호출 시 원장을 갱신하므로 두 지시를 동시에 충족할 수 없습니다. 사용자 실행 smoke-faults의 비용 원장 갱신을 허용하는 예외가 필요합니다. 파일 수정·live 실행·커밋·make verify 실행 없이 중단했습니다.",
+      "blocked_at": "2026-10-07T12:02:06+0900",
+      "usage": {
+        "input_tokens": 105542,
+        "cached_input_tokens": 61184,
+        "output_tokens": 608,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
