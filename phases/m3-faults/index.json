@@ -131,7 +131,16 @@
     {
       "step": 9,
       "name": "remove-vacuous-guard",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T14:29:08+0900",
+      "summary": "stale_faults 가드를 탐침 행동 점검으로 교체하고 cleanup_failed·문서·F11 결정적 시도 단언 반영; 제거된 가드 전용 test_stale_rules_fail_closed 삭제. make verify 통과(Python 2513 passed·1 skipped, 웹 검사·vitest 15 passed), 계층·CRITICAL 준수, 커밋·phases 수정 없음.",
+      "completed_at": "2026-10-07T15:23:38+0900",
+      "usage": {
+        "input_tokens": 1925953,
+        "cached_input_tokens": 1847552,
+        "output_tokens": 3182,
+        "attempts": 2
+      }
     }
   ],
   "created_at": "2026-10-06T22:14:51+0900"
