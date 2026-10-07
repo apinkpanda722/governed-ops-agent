@@ -132,3 +132,99 @@ def test_unknown_attribute_uses_source_excerpt_limit():
     email = "fictitious" * 10 + "@example.invalid"
     text = (email + " ") * 4 + "BODY_SENTINEL_hidden"
     assert "BODY_SENTINEL" not in mask_attributes({"unknown": text})["unknown"]
+
+
+@pytest.mark.parametrize("key", ["generation_id", "task_id", "trace_id"])
+def test_random_identifier_attributes(key):
+    import random
+    from uuid import UUID
+
+    # Seeded bulk inputs reproduce collisions without fixing production randomness.
+    rng = random.Random(731)
+    values = [
+        rng.randbytes(8).hex()
+        if key == "generation_id"
+        else UUID(int=rng.getrandbits(128), version=4).hex
+        for _ in range(10000)
+    ]
+    assert [mask_attributes({key: value})[key] for value in values] == values
+
+
+@pytest.mark.parametrize("key", ["generation_id", "task_id", "trace_id"])
+@pytest.mark.parametrize(
+    "value", ["prefix-010-0000-0000", "cf0169859044bed", "CF0169859044BED2"]
+)
+def test_identifier_invalid_format_is_masked(key, value):
+    assert "[PII:mobile]" in mask_attributes({key: value})[key]
+
+
+def test_identifier_requires_known_key_and_string():
+    value = "cf0169859044bed2"
+    assert "[PII:mobile]" in mask_attributes({"unknown_id": value})["unknown_id"]
+    assert (
+        "[PII:mobile]"
+        in mask_attributes({"generation_id": [value]})["generation_id"][0]
+    )
+    assert mask_attributes({"nested": [{"generation_id": value}]}) == {
+        "nested": [{"generation_id": value}]
+    }
+
+
+@pytest.mark.parametrize("key", ["prompt_hash", "content_hash"])
+def test_hash_identifier_format(key):
+    value = "cf0169859044bed2" + "a" * 48
+    assert mask_attributes({key: value})[key] == value
+    for invalid in [value.upper(), value[:-1], value + "a"]:
+        assert "[PII:mobile]" in mask_attributes({key: invalid})[key]
+
+
+def test_deployment_identifier_registry():
+    from pathlib import Path
+
+    import yaml
+
+    from govops.costs import DEPLOYMENT_MODELS
+
+    configured = yaml.safe_load(
+        (Path(__file__).resolve().parents[1] / "infra/litellm/config.yaml").read_text()
+    )
+    identifiers = {row["model_info"]["id"] for row in configured["model_list"]}
+    assert set(DEPLOYMENT_MODELS) <= mask.DEPLOYMENT_IDS
+    assert identifiers == mask.DEPLOYMENT_IDS
+    for value in mask.DEPLOYMENT_IDS:
+        assert mask_attributes({"deployment_id": value})["deployment_id"] == value
+    assert (
+        "[PII:mobile]"
+        in mask_attributes({"deployment_id": "unknown-010-0000-0000"})["deployment_id"]
+    )
+
+
+def test_identifier_secrets_are_still_scrubbed():
+    value = "cf0169859044bed2"
+    register_secret_values([value])
+    try:
+        assert (
+            mask_attributes({"generation_id": value})["generation_id"] == "[REDACTED]"
+        )
+        for secret in ["Bearer synthetic-credential", "sk-synthetic-credential"]:
+            assert (
+                mask_attributes({"generation_id": secret})["generation_id"]
+                == "[REDACTED]"
+            )
+    finally:
+        # Remove only this test's registered hash; do not affect other registrations.
+        import hashlib
+
+        with mask._lock:
+            mask._registry[len(value)].remove(hashlib.sha256(value.encode()).digest())
+
+
+def test_identifier_survives_trace_jsonl_sink(tmp_path):
+    from govops.obs.jsonl import JsonlSink
+    from govops.obs.trace import set_attributes, trace
+
+    task_id = "a" * 32
+    with trace(task_id, sinks=[JsonlSink(tmp_path)]):
+        set_attributes(generation_id="cf0169859044bed2")
+    record = json.loads((tmp_path / f"{task_id}.jsonl").read_text())
+    assert record["attributes"]["generation_id"] == "cf0169859044bed2"

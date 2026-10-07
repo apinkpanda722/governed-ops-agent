@@ -325,6 +325,7 @@ sequenceDiagram
 - golden trace 두 층: CI(PR마다, 기록한 LLM 응답 + replay A + mock, 결정론)와 live 회귀 관문(사용자 실행). 비교 항목은 [EVAL.md](EVAL.md#golden-trace)를 따른다.
 
 마스킹은 sink 직전 한 지점(`obs/mask.py`)에서 수행한다. 비밀 제거는 모든 항목에 우선 적용한다.
+trace 마스킹은 키와 형식이 모두 맞는 식별자 속성(`generation_id`·`trace_id`·`task_id`·해시·등록된 `deployment_id`)에는 PII 검사를 건너뛴다. 형식 밖 값은 검사한다.
 
 | 대상 | 마스킹 기준 |
 |---|---|

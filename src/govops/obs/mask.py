@@ -32,6 +32,23 @@ _SECRET_PATTERNS = [
     re.compile(r"\b(?:sk|pk)-[A-Za-z0-9_-]+"),
     re.compile(r"\beyJ[A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+){2}"),
 ]
+# Exact keys and complete formats only; secret scrubbing remains mandatory.
+DEPLOYMENT_IDS = frozenset(
+    {
+        "openai-gpt-6-luna",
+        "openai-gpt-6-luna-only",
+        "openai-gpt-6-luna-down",
+        "anthropic-claude-sonnet-5-5",
+    }
+)
+IDENTIFIER_FORMATS = {
+    "generation_id": re.compile(r"^[0-9a-f]{16}$"),
+    "trace_id": re.compile(r"^[0-9a-f]{32}$"),
+    "task_id": re.compile(r"^[0-9a-f]{32}$"),
+    "prompt_hash": re.compile(r"^[0-9a-f]{64}$"),
+    "content_hash": re.compile(r"^[0-9a-f]{64}$"),
+    "deployment_id": DEPLOYMENT_IDS,
+}
 _registry: dict[int, set[bytes]] = {}
 _lock = threading.Lock()
 
@@ -141,11 +158,21 @@ def _walk(value: Any, role: str | None = None) -> Any:
         result = {}
         for key, child in value.items():
             safe_key = _clean(str(key))
-            result[safe_key] = (
-                "[REDACTED]"
-                if _SENSITIVE.search(str(key))
-                else _walk(child, _ROLES.get(str(key), role))
-            )
+            identifier_format = IDENTIFIER_FORMATS.get(str(key))
+            if _SENSITIVE.search(str(key)):
+                result[safe_key] = "[REDACTED]"
+            elif (
+                isinstance(child, str)
+                and identifier_format is not None
+                and (
+                    child in identifier_format
+                    if isinstance(identifier_format, frozenset)
+                    else identifier_format.fullmatch(child) is not None
+                )
+            ):
+                result[safe_key] = scrub_secrets(child)
+            else:
+                result[safe_key] = _walk(child, _ROLES.get(str(key), role))
         return result
     if isinstance(value, (list, tuple)):
         return [_walk(child, role) for child in value]
