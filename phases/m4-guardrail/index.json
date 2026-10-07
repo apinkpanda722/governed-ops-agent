@@ -89,15 +89,15 @@
     {
       "step": 6,
       "name": "dev-rerun-registration",
-      "status": "blocked",
-      "started_at": "2026-10-07T20:36:05+0900",
-      "blocked_reason": "남은 실패는 tests/test_prereg_m3.py::test_registration_topics[4-keywords3]입니다. 'STATUS_MAP에 \"blocked_input\": \"blocked_input\"을 넣는다'는 요구가 기존 M3 등록 표의 모든 상태 일치를 검사하는 테스트와 충돌합니다. '기존 테스트를 깨뜨리지 마라'를 충족하려면 해당 테스트 수정이 필요하지만, '수정할 파일(이 목록이 전부다)'에 포함되지 않았고 기존 등록 문서도 읽기 전용입니다. tests/test_prereg_m3.py 수정 허용이 필요합니다. live 실행·커밋·phases 수정은 하지 않았습니다.",
-      "blocked_at": "2026-10-07T20:57:57+0900",
+      "status": "completed",
+      "started_at": "2026-10-07T20:58:43+0900",
+      "summary": "Guardrail dev 재등록·러너·preflight·smoke·관측/TCR 경로 검증 완료; M3 표 예외를 정확히 blocked_input 한 키로 고정하고 M4 매핑 등록으로 증명하여 단언 유지. make verify 통과(Python 2784 passed·1 skipped, 웹 15 passed); live 실행·phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T21:06:29+0900",
       "usage": {
-        "input_tokens": 4091162,
-        "cached_input_tokens": 3848704,
-        "output_tokens": 29833,
-        "attempts": 3
+        "input_tokens": 2051076,
+        "cached_input_tokens": 1945344,
+        "output_tokens": 5150,
+        "attempts": 1
       }
     },
     {
