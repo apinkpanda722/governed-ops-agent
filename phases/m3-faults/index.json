@@ -1,0 +1,148 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m3-faults",
+  "steps": [
+    {
+      "step": 0,
+      "name": "golden-switch",
+      "status": "completed",
+      "started_at": "2026-10-06T22:14:51+0900",
+      "summary": "writes_org 단일 레지스트리·API/골든 기본값 전환, .env.example 설명 갱신, M2 run_dev·_live·main 삭제 완료; make verify 통과(Python 2211 passed·1 skipped, 웹 typecheck·eslint 통과, vitest 15 passed), 골든 14개 재생 통과(T3-01 recorded_fail 동일 재현·13개 pass). 초기 실패 4건: tests/test_agent_graph.py::test_profile_registry_and_recorded_hashes, tests/test_regolden.py::test_saved_golden_status_matches_all_fourteen_dev_grades, tests/test_regolden.py::test_regolden_uses_manifest_rules_without_registration_guard, tests/test_regolden.py::test_regolden_original_run_is_unchanged; 각각 커밋된 writes_org 헤더 해시·두 번째 실행 채점/manifest/status 기준으로 교체(지정된 test_evalrun_regolden.py는 없어 실제 test_regolden.py 사용). 추가 테스트 변경: test_golden_trace.py::test_optional_live_golden_replay는 새 기본값·기록 실패 동일성, test_golden_m3.py::test_manifest_profile_default_and_validation 및 exercise 기반 재생 테스트는 새 프로필, test_golden_harness.py::test_synthetic_record_replays_actual_a_response는 새 기본값 조립, test_api_wiring.py::test_wiring_approval_dependencies는 옛 프로필 거절, test_api_wiring_build.py::test_environment_profile_selection은 정상·잘못된 값·빈 값 기본값 검증, test_evalrun_dev_m3.py::test_profile_mismatch는 등록되지 않은 프로필 주입, test_env_defaults.py::test_variable_defaults는 A_ROOT 검증 대상을 현재 M3 실행 경로로 이동. test_evalrun_dev.py에서 제거된 실행 경로 전용 test_one_run_artifacts_and_replay·test_retry·test_tcr_failure_no_retry·test_seed_mismatch_stops_before_task·test_budget_no_retry·test_non_synthetic_a_excludes_task·test_runner_with_real_mock_runtime·test_observations_remain_grader_readable·test_retry_observation_denominator_is_one·test_models_seen_includes_rejected_response·test_dev_status_matches_the_golden_status_for_the_same_observation·test_mixed_response_models_in_manifest_and_recording·test_unmapped_response_model_in_manifest 삭제; 공용 헬퍼 테스트 유지. READ_ONLY 고정 해시 단언 삭제; READ_ONLY 객체는 그래프 기본값·단위 테스트, WITH_WRITES는 조직 프로필 구성·단위 테스트, WITH_WRITES_ORG와 _Capture는 현재 프로필·M3 사용 때문에 유지(객체 삭제 없음). 남은 read_only/writes 참조는 거절·불일치 테스트, 과거 등록 검증, 읽기 전용 처리 명칭·유지 객체이며 Makefile에 M2 실행 타깃 없음. 계층 경계·기술 스택 확인 완료, 기록·결과·사전등록·금지 경로 수정 및 git commit 없음; phases의 기존 diff는 건드리지 않음.",
+      "completed_at": "2026-10-06T22:35:04+0900",
+      "usage": {
+        "input_tokens": 6438608,
+        "cached_input_tokens": 6278272,
+        "output_tokens": 11525,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "a-client-status",
+      "status": "completed",
+      "started_at": "2026-10-06T23:29:04+0900",
+      "summary": "a_mcp.py에 호출별 전송 오류·HTTP 상태·Retry-After 우선 분류와 SDK 중복 타이머 제거 완료(401·예외 폴백 유지); 신규 tests/test_a_mcp_status.py의 test_measured_failures·test_read_retries_and_circuit·test_request_facts_do_not_leak·test_refusal_circuit_blocks_server_connections·test_transport_facts_precede_status_and_sdk_shape·test_transport_facts_store_only_last_kind로 장애 7종×시작 조건 6종·재시도·서킷·격리·기록 우선순위 검증 추가, 기존 테스트 수정 없음; make verify 통과(Python 2296 passed·1 skipped, 웹 typecheck·eslint·vitest 15 passed), 계층 경계 확인·금지 경로 수정·커밋 없음.",
+      "completed_at": "2026-10-06T23:57:08+0900",
+      "usage": {
+        "input_tokens": 3882665,
+        "cached_input_tokens": 3778304,
+        "output_tokens": 17214,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "chaos-a",
+      "status": "completed",
+      "started_at": "2026-10-06T23:57:08+0900",
+      "summary": "chaos_a.py에 루프백 장애 6종·합성 토큰 클라이언트·F11 복수 조건 판정 구현, a_mcp.py에 자격 공급자 주입 추가. 신규 tests/test_chaos_a.py 20건: test_measured_modes_and_credential_isolation(실측·토큰 격리), test_read_retries_then_open_circuit_stops_requests(재시도·서킷), test_judge_independent_conditions(조건별 판정), test_delay_exceeding_default_hard_deadline_runs_the_real_read_path(10초 제한), test_judge_is_weak_when_few_required_values_remain_outside_request·test_judge_limit_request_has_few_evidence_values_and_sparse_required_facts(탐지 한계). 기존 테스트 수정 없음. make verify 통과(Python 2316 passed·1 skipped, 웹 검사·vitest 15 passed), 계층·CRITICAL 규칙 확인; 금지 파일 수정·커밋 없음, phases 기존 diff 보존.",
+      "completed_at": "2026-10-07T00:27:29+0900",
+      "usage": {
+        "input_tokens": 4234169,
+        "cached_input_tokens": 4055168,
+        "output_tokens": 14290,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "faults-client",
+      "status": "completed",
+      "started_at": "2026-10-07T00:42:25+0900",
+      "summary": "MockAdmin.faults_set stdin 전달·독립 규칙 검증, F4 FaultTransport·주입 카운터, F6 model_fault_script/model_fault_alias(first·second·all), dev_m3.new_tool_policy 구현 완료; 신규 tests/test_faults_client.py 26건으로 규칙 동치·명령/오류 비노출·실제 F4 재시도·F6 별칭·서킷 격리 검증, 기존 테스트 수정 없음; make verify 통과(Python 2342 passed·1 skipped, 웹 typecheck·eslint·vitest 15 passed), 계층·ADR·CRITICAL 규칙 확인, 금지 경로 수정·커밋 없음, phases 기존 diff 보존.",
+      "completed_at": "2026-10-07T01:13:01+0900",
+      "usage": {
+        "input_tokens": 4590453,
+        "cached_input_tokens": 4460544,
+        "output_tokens": 14926,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "fault-harness",
+      "status": "completed",
+      "started_at": "2026-10-07T10:34:20+0900",
+      "summary": "faults.py·fault_scenarios.py와 eval-faults 타깃 구현: 154회 계획·분모 132, F6 분배 4/3/3, 장애 증거·보고·재개·재시도 가드. 신규 테스트 79건 추가, 기존 테스트 수정 없음. ps 허용 권한으로 make verify 통과(Python 2430 passed·1 skipped, 웹 검사·vitest 15 passed). 계층·CRITICAL 규칙 확인; live 실행·커밋·금지 경로 수정 없음, phases 기존 diff 보존.",
+      "completed_at": "2026-10-07T11:19:53+0900",
+      "usage": {
+        "input_tokens": 7283929,
+        "cached_input_tokens": 7020800,
+        "output_tokens": 46849,
+        "attempts": 2
+      }
+    },
+    {
+      "step": 5,
+      "name": "prereg-faults",
+      "status": "completed",
+      "started_at": "2026-10-07T11:19:53+0900",
+      "summary": "hypotheses-m3-faults.md 사전 등록과 faults.py의 미커밋·변경 차단 가드 및 manifest SHA-256 기록 완료; tests/test_prereg_faults.py에 test_scenario_table_matches_constants·test_registration_unchanged_after_first_commit(상수 일치·불변 검증), tests/test_evalrun_faults.py에 test_fault_registration_guard_rejects_changes·test_fault_registration_hash_in_manifest(가드·해시 검증) 추가, 기존 테스트 수정 없음. ps 권한 허용 후 make verify 통과(Python 2437 passed·1 skipped, 웹 검사·vitest 15 passed); 계층·CRITICAL 규칙 확인, 금지 경로 수정·커밋 없음.",
+      "completed_at": "2026-10-07T11:51:41+0900",
+      "usage": {
+        "input_tokens": 3257376,
+        "cached_input_tokens": 3186560,
+        "output_tokens": 8849,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 6,
+      "name": "smoke-faults",
+      "status": "completed",
+      "started_at": "2026-10-07T12:48:30+0900",
+      "summary": "기존 faults_smoke.py·smoke-faults 타깃 검토 완료; tests/test_evalrun_faults.py::test_each_f11_variant_has_transport_failure_evidence의 delay 타이밍만 수정(단언 유지), 느린 SDK 시작 0~4단계·무지연 통과; tests/test_evalrun_faults_smoke.py::test_stages에 실행 실패 분기 추가. ps 권한 확보 후 make verify 통과(Python 2462 passed·1 skipped, 웹 검사·vitest 15 passed); 계층·CRITICAL 규칙 확인, live 실행·원장 갱신·커밋·phases 수정 없음.",
+      "completed_at": "2026-10-07T13:20:17+0900",
+      "usage": {
+        "input_tokens": 3915008,
+        "cached_input_tokens": 3821312,
+        "output_tokens": 6310,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 7,
+      "name": "faults-docs",
+      "status": "completed",
+      "started_at": "2026-10-07T13:20:17+0900",
+      "summary": "ADR-022·아키텍처·위협 모델·평가·PRD·AGENTS에 장애 하네스와 writes_org 단일 프로필 반영; tests/test_docs_consistency.py::test_fault_harness_document_contract 신규 추가(문서 일관성 검증, 기존 검사 유지); make verify 통과(Python 2463 passed·1 skipped, 웹 검사·vitest 15 passed), 계층·CRITICAL 확인, 커밋·phases 수정 없음.",
+      "completed_at": "2026-10-07T13:44:29+0900",
+      "usage": {
+        "input_tokens": 2695091,
+        "cached_input_tokens": 2608128,
+        "output_tokens": 6896,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 8,
+      "name": "mask-identifiers",
+      "status": "completed",
+      "started_at": "2026-10-07T13:44:29+0900",
+      "summary": "mask.py에 키·형식 일치 식별자의 PII 검사 예외와 비밀 제거 유지 구현, ADR-022·ARCHITECTURE 규칙 반영. tests/test_obs_mask.py에 test_random_identifier_attributes(키별 10,000개), test_identifier_invalid_format_is_masked, test_identifier_requires_known_key_and_string, test_hash_identifier_format, test_deployment_identifier_registry, test_identifier_secrets_are_still_scrubbed, test_identifier_survives_trace_jsonl_sink 추가로 보존·PII·비밀·실제 sink 경로 검증; 기존 테스트 변경 없음. 기존 gateway 테스트 20회 통과, ps 권한 확보 후 make verify 통과(Python 2481 passed·1 skipped, 웹 검사·vitest 15 passed). 계층·CRITICAL 확인, 커밋·phases 수정 없음.",
+      "completed_at": "2026-10-07T14:15:46+0900",
+      "usage": {
+        "input_tokens": 4604741,
+        "cached_input_tokens": 4514816,
+        "output_tokens": 6653,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 9,
+      "name": "remove-vacuous-guard",
+      "status": "completed",
+      "started_at": "2026-10-07T14:29:08+0900",
+      "summary": "stale_faults 가드를 탐침 행동 점검으로 교체하고 cleanup_failed·문서·F11 결정적 시도 단언 반영; 제거된 가드 전용 test_stale_rules_fail_closed 삭제. make verify 통과(Python 2513 passed·1 skipped, 웹 검사·vitest 15 passed), 계층·CRITICAL 준수, 커밋·phases 수정 없음.",
+      "completed_at": "2026-10-07T15:23:38+0900",
+      "usage": {
+        "input_tokens": 1925953,
+        "cached_input_tokens": 1847552,
+        "output_tokens": 3182,
+        "attempts": 2
+      }
+    }
+  ],
+  "created_at": "2026-10-06T22:14:51+0900",
+  "completed_at": "2026-10-07T15:23:38+0900"
+}

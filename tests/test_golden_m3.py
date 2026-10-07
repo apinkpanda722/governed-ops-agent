@@ -11,7 +11,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import call, reply
 from test_regolden import grading_data
 
-from govops.agent.graph import WITH_WRITES, build_graph, run_task
+from govops.agent.graph import WITH_WRITES_ORG, build_graph, run_task
 from govops.api.tasks import ApprovalError
 from govops.golden import (
     GOLDEN_TASKS,
@@ -81,18 +81,13 @@ def test_manifest_profile_default_and_validation(tmp_path):
     path.write_text(json.dumps({key: row}))
     assert (
         manifest_tasks(golden_dir=golden, llm_dir=llm, a_dir=a)[key]["profile"]
-        == "read_only"
+        == "writes_org"
     )
-    row["profile"] = "writes"
-    path.write_text(json.dumps({key: row}))
-    assert (
-        manifest_tasks(golden_dir=golden, llm_dir=llm, a_dir=a)[key]["profile"]
-        == "writes"
-    )
-    row["profile"] = "unknown"
-    path.write_text(json.dumps({key: row}))
-    with pytest.raises(ValueError, match="invalid_profile"):
-        manifest_tasks(golden_dir=golden, llm_dir=llm, a_dir=a)
+    for label in ("read_only", "writes", "unknown"):
+        row["profile"] = label
+        path.write_text(json.dumps({key: row}))
+        with pytest.raises(ValueError, match="invalid_profile"):
+            manifest_tasks(golden_dir=golden, llm_dir=llm, a_dir=a)
 
 
 # Actions are fixture inputs, independent of the expected effects.
@@ -235,8 +230,8 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
             Chat(),
             task_id=key,
             directory=tmp_path / "llm",
-            system_prompt=WITH_WRITES.system_prompt,
-            tools=WITH_WRITES.tools,
+            system_prompt=WITH_WRITES_ORG.system_prompt,
+            tools=WITH_WRITES_ORG.tools,
             model="gpt-6-luna",
             params={},
         )
@@ -300,7 +295,7 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
                 a_dir=tmp_path / "a",
                 mock_executor=runtime,
                 graph_factory=factory,
-                profile="writes",
+                profile="writes_org",
                 run_id=run_id,
                 mock_state=lambda: {
                     "jira": jira.report(bodies=True),
@@ -327,7 +322,7 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
             requests[len(initial_messages) :],
         )
         keys = lambda rows: [
-            _hash(_request(messages, WITH_WRITES.tools, 1024)) for messages in rows
+            _hash(_request(messages, WITH_WRITES_ORG.tools, 1024)) for messages in rows
         ]
         assert keys(initial_messages) == keys(first) == keys(second)
         encoded = json.dumps(requests, ensure_ascii=False)
@@ -377,11 +372,11 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
                 spec,
                 observations[0],
                 summary,
-                profile="writes",
+                profile="writes_org",
                 **grading_data(),
                 grading_rules="registered",
             )["profile"]
-            == "writes"
+            == "writes_org"
         )
         expected = golden_expectations([spec], require_all=False)[key]
         if not all_hands:
@@ -437,7 +432,7 @@ async def exercise(tmp_path, monkeypatch, key, *, all_hands=False):
                 a_dir=tmp_path / "a",
                 mock_executor=runtime,
                 graph_factory=factory,
-                profile="writes",
+                profile="writes_org",
                 mock_state=dict,
             )
 

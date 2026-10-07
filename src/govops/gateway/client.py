@@ -30,7 +30,7 @@ from govops.costs import (
     response_cost_usd,
 )
 from govops.env import env_or
-from govops.gateway.faults import ModelFaultScript
+from govops.gateway.faults import ModelFaultScript, model_fault_alias
 from govops.obs.trace import current_span_id, set_attributes
 
 _MODEL = "gpt-6-luna"
@@ -167,8 +167,7 @@ class LiteLLMChatClient:
             "metadata": metadata,
             "max_completion_tokens": max_output_tokens,
         }
-        if self._fault_script is not None and self._fault_script.should_fail(task_id):
-            body["model"] = "agent-primary-down"
+        body["model"] = model_fault_alias(self._fault_script, task_id)
         # UTF-8 bytes bound token count conservatively; doubled serialization
         # plus fixed framing allowance covers per-message/tool protocol overhead.
         input_upper = (

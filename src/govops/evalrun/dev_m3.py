@@ -55,6 +55,7 @@ from govops.tools.contract import snapshot_sha256
 from govops.tools.jira import JiraClient
 from govops.tools.outbox import PostgresOutboxStore
 from govops.tools.registry import _WRITES, ToolRuntime
+from govops.tools.resilience import ToolPolicy
 from govops.tools.slack import SlackClient
 
 FIRST_REGISTRATION_FILES = (
@@ -68,6 +69,11 @@ PROMPT_REGISTRATION_FILES = (
     "docs/results/m3-dev2-supersedes.json",
 )
 PROFILE = PROFILES["writes_org"]
+
+
+def new_tool_policy() -> ToolPolicy:
+    """A run owns its circuit state; never reuse a previous run's policy."""
+    return ToolPolicy()
 
 
 class SmokeSpec(TaskSpec):
@@ -965,6 +971,7 @@ async def _live(specs, metadata, *, smoke=False):
             SlackClient(
                 env_or("MOCK_SLACK_URL", "http://127.0.0.1:8082"), http_client=rest
             ),
+            policy=new_tool_policy(),
         )
 
         async def seed_check():

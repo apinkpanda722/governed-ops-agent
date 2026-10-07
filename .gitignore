@@ -26,3 +26,6 @@ __pycache__/
 # local data (never committed)
 data/raw/
 data/interim/
+
+# harness execution lock (execute.py)
+.harness/

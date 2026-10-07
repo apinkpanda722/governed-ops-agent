@@ -113,3 +113,6 @@ make test-outbox-pg # 테스트 전용 Postgres outbox 검증(사용자 실행)
 make scope-index # A 커밋 접근 정책·비합성 문서 합친 접근 인덱스 생성(사용자 실행)
 make smoke-effects # compose mock·토큰·시드 필요, 부작용 표식·멱등성 검증(사용자 실행)
 make smoke-approval # 평가와 분리된 합성 승인·거부 스모크(사용자 실행)
+
+make eval-faults # M3 장애 주입 등록 계획 실행: caffeinate -i make eval-faults, 약 75~80분(사용자 실행)
+make smoke-faults # 환경·주입 규칙·F5+F10·down_alias 부품 확인(사용자 실행)

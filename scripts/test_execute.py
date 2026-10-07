@@ -833,3 +833,90 @@ class TestExecuteAllSteps:
         executor._execute_all_steps()
         assert "started_at" in _step(executor, 2)
         assert executor._all_steps_completed()
+
+
+# ---------------------------------------------------------------------------
+# 실행 중 표식(.harness/executing)
+# ---------------------------------------------------------------------------
+
+
+class TestExecutionLock:
+    def _patched_run(self, executor, body=None):
+        names = [
+            "_print_header",
+            "_check_blockers",
+            "_check_clean_worktree",
+            "_checkout_branch",
+            "_ensure_created_at",
+            "_all_steps_completed",
+        ]
+        patches = [patch.object(executor, n, return_value=None) for n in names]
+        patches.append(
+            patch.object(
+                executor,
+                "_execute_all_steps",
+                side_effect=body or (lambda *_: None),
+            )
+        )
+        return patches
+
+    def run_with(self, executor, body=None):
+        from contextlib import ExitStack
+
+        with ExitStack() as stack:
+            for p in self._patched_run(executor, body):
+                stack.enter_context(p)
+            executor.run()
+
+    def test_lock_exists_during_run_and_is_removed_after(self, executor):
+        import os
+
+        seen = {}
+
+        def body(*_):
+            seen["pid"] = executor._lock_path.read_text().strip()
+
+        def body_env(*_):
+            body()
+            seen["env"] = os.environ.get("HARNESS_EXECUTOR_PID")
+
+        self.run_with(executor, body_env)
+        assert seen["pid"] == str(os.getpid())
+        assert seen["env"] == str(os.getpid())
+        assert "HARNESS_EXECUTOR_PID" not in os.environ
+        assert not executor._lock_path.exists()
+
+    def test_lock_removed_when_run_exits_early(self, executor):
+        def body(*_):
+            raise SystemExit(1)
+
+        with pytest.raises(SystemExit):
+            self.run_with(executor, body)
+        assert not executor._lock_path.exists()
+
+    def test_live_other_pid_refuses_to_start(self, executor):
+        import subprocess as sp
+        import sys as _sys
+
+        other = sp.Popen([_sys.executable, "-c", "import time; time.sleep(60)"])
+        try:
+            executor._lock_path.parent.mkdir(parents=True, exist_ok=True)
+            executor._lock_path.write_text(f"{other.pid}\n")
+            with pytest.raises(SystemExit):
+                self.run_with(executor)
+            # 남의 잠금은 지우지 않는다.
+            assert executor._lock_path.read_text().strip() == str(other.pid)
+        finally:
+            other.kill()
+            other.wait()
+
+    def test_stale_lock_is_replaced(self, executor):
+        import subprocess as sp
+        import sys as _sys
+
+        dead = sp.Popen([_sys.executable, "-c", "pass"])
+        dead.wait()
+        executor._lock_path.parent.mkdir(parents=True, exist_ok=True)
+        executor._lock_path.write_text(f"{dead.pid}\n")
+        self.run_with(executor)
+        assert not executor._lock_path.exists()

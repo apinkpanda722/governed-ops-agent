@@ -154,10 +154,10 @@ def test_wiring_approval_dependencies(
             assert service.audit.directory == tmp_path
             assert len(service.users) == 38
             assert service.graph.agent_profile.name == profile
-            assert service.graph.agent_profile.allow_writes == (profile != "read_only")
+            assert service.graph.agent_profile.allow_writes
             assert service.policy is not None
 
-    if profile == "invalid":
+    if profile != "writes_org":
         with pytest.raises(StartupError, match="GOVOPS_AGENT_PROFILE"):
             asyncio.run(run())
     else:

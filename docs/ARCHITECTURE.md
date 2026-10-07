@@ -23,6 +23,7 @@ src/govops/
 │   └── prompts.py·graph.py·checkpointer.py  # 한국어 프롬프트·읽기·쓰기 그래프·DB 팩토리
 ├── tools/        # 도구 계약(스키마·버전·부작용 여부), A MCP 클라이언트, mock REST 클라이언트, outbox·표식 조회, 타임아웃·재시도·서킷
 │   ├── markers.py  # 정규화 멱등 키·메타데이터 표식
+│   ├── fault_transport.py  # F4 클라이언트 쪽 연결 수립 실패·시도/주입 카운터
 │   ├── resilience.py  # 도구 타임아웃·읽기 재시도·서비스별 서킷
 │   ├── outbox.py  # 해시 전용 in-memory·Postgres outbox
 │   └── effects.py  # 2단계 표식 조회 실행·재발송 없는 정리
@@ -41,17 +42,19 @@ src/govops/
 ├── env.py        # 빈 문자열·공백을 미설정으로 처리하는 env_or
 ├── costs.py      # 공급사별 비용 원장·전체 기간 상한(호출 직전 누적액 검사)
 ├── evalrun/      # 사용자 실행 dev 평가·관측·골든 record-through
-│   ├── dev.py·explore.py  # dev 진입점·구조 필드 기반 N 후보
+│   ├── dev.py·explore.py  # M2 공용 헬퍼·구조 필드 기반 N 후보
 │   ├── observe.py  # API 상태·승인 기록·mock 상태를 M3 관측으로 변환
 │   ├── mock_admin.py  # compose 내부 관리 CLI 래퍼
 │   ├── driver.py  # 세션 인증 in-process ASGI 승인 계획 실행
 │   ├── preflight.py  # mock 이미지·LiteLLM 배포·서비스 확인
 │   ├── tool_trace.py  # 자격 증명 없는 공용 도구 호출·구조 ID 추출
+│   ├── faults.py·fault_scenarios.py·faults_smoke.py  # 장애 계획·판정·재개·부품 스모크
 │   └── dev_m3.py  # dev 20 writes_org 실행·task별 캡처·절대 규칙·모델 혼합 보고
 ├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·cards_content.py·cards_text.py·cards_assets.py·a_source.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
 │   ├── scope_index.py  # 접근 전용 인덱스 생성
 │   └── duplicates.py  # mock 상태 기반 중복·누락 집계
 ├── replay/       # 가짜 A MCP 서버, llm.py(LLM 응답 기록·재생), a_through.py·a_replay.py(A record-through·순차 재생)
+│   └── chaos_a.py  # F11 루프백 원시 장애 서버·합성 토큰·fact 판정
 ├── golden.py     # 골든 기대값·자격·결정론 재생 조립
 └── mocks/        # mock-jira·mock-slack FastAPI 서비스, 장애 주입, 관리 엔드포인트
     └── faults.py  # 엔드포인트별 순번 장애 주입
@@ -94,7 +97,7 @@ tests/
 
 ## 배치도
 
-구현 모듈: `replay.llm`·`replay.a_through`·`replay.a_replay`는 안전한 기록과 순차 재생, `govops/golden.py`는 골든 실행 조립, `evalrun.dev`는 사용자 실행 dev 러너, `evalrun.explore`는 구조 필드 기반 N 후보 계산을 맡는다.
+구현 모듈: `replay.llm`·`replay.a_through`·`replay.a_replay`는 안전한 기록과 순차 재생, `govops/golden.py`는 골든 실행 조립, `evalrun.dev`는 M2 공용 헬퍼, `evalrun.explore`는 구조 필드 기반 N 후보 계산을 맡는다.
 
 ```mermaid
 flowchart LR
@@ -145,7 +148,7 @@ flowchart LR
 
 평가 실행기 `evalrun/dev_m3.py`는 `api/wiring.py`의 `build_task_service`로 서비스를 조립하며 `audit`·`guardrails`를 직접 import하지 않는다. `observe.py`는 초안 대신 mock 상태로 효과를 센다. `mock_admin.py`는 내부 관리 CLI를 호출하고 `driver.py`는 인증된 세션으로 실제 승인 API를 거친다. dev 20은 `PROFILES["writes_org"]`로 실행하고 공식 채점은 `m3-grading`이다(ADR-021). 등록 묶음은 `hypotheses-m3.md`·`data/replay/golden/expectations.json`·`m3-dev-supersedes.json`과 `hypotheses-m3-prompt.md`·`m3-dev2-supersedes.json` 두 개다(등록 문서·supersedes 파일은 `docs/results/` 아래). 각 묶음이 등록 커밋에 존재하지 않거나 이후 바뀌면 `hypotheses_m3_not_committed`·`hypotheses_m3_prompt_not_committed`로 중단하며 청결한 작업 트리도 검사한다. manifest에는 각 등록 파일의 sha256·등록 커밋과 `supersedes`(두 번째 파일)·`previous_supersedes`(첫 번째 파일)를 남긴다. `m3-dev-supersedes.json` ← `m3-dev2-supersedes.json` 사슬로 이전 결과를 보존한다. live dev는 Postgres 필수이며, in-process ASGI 경로는 실제 서버 프로세스·세션 TTL을 검증하지 않는다. `preflight.py`가 낡은 mock 이미지·미반영 LiteLLM 설정·서비스 장애를 막는다(ADR-020).
 
-골든 대상은 `hypotheses-m3.md`에 등록한 14개다. record-through는 이 14개만 수행하고 `profile`은 `read_only`·`writes`·`writes_org`로 저장한다. 두 번째 실행 직후 골든 14개를 `writes_org`로 재기록하고 `expectations.json`은 그대로 둔다(ADR-021). 쓰기 재생은 도구 순서·부작용 종류·대상·건수·종료 상태·거절·금지 도구 호출·승인자와 결정 순서를 비교하며 승인 ID·mock ID는 제외한다. `evalrun/tool_trace.py`는 도구 결과의 구조 ID를 추출한다. `evalrun/dev_m3.py`는 task 시도별 캡처를 격리하고 늦은 호출은 `late_tool_calls`로만 센다. `tool_trace_mismatch` task는 N 계산에서 제외하며 하나라도 있으면 결과 첫머리에 표시하고 원인 확인 전 N 등록을 보류한다(`n_registration_blocked`).
+골든 대상은 `hypotheses-m3.md`에 등록한 14개다. record-through는 이 14개만 수행하고 `profile`은 `writes_org`로 저장한다. 두 번째 실행 직후 골든 14개를 `writes_org`로 재기록하고 `expectations.json`은 그대로 둔다(ADR-021). 쓰기 재생은 도구 순서·부작용 종류·대상·건수·종료 상태·거절·금지 도구 호출·승인자와 결정 순서를 비교하며 승인 ID·mock ID는 제외한다. `evalrun/tool_trace.py`는 도구 결과의 구조 ID를 추출한다. `evalrun/dev_m3.py`는 task 시도별 캡처를 격리하고 늦은 호출은 `late_tool_calls`로만 센다. `tool_trace_mismatch` task는 N 계산에서 제외하며 하나라도 있으면 결과 첫머리에 표시하고 원인 확인 전 N 등록을 보류한다(`n_registration_blocked`).
 
 ## A 연동 모드
 | 모드 | A 쪽 | 용도 | 보고 수치 |
@@ -226,7 +229,7 @@ stateDiagram-v2
 
 승인 API 응답은 접수 202, 종료된 동일 해시·결정의 영수증 재요청 200, 전사 공지 요청자 본인의 승인 POST만 403, 다른 사용자·자격 없음·없는 task 404, 만료·상태·해시 충돌 409, 잘못된 수정·요청 422다. 승인자 GET은 검사 통과 상태(`passed`·`masked`)의 승인 대기 초안만 보여 준다.
 
-`PROFILES`는 읽기 전용 프로필 레지스트리이며 레이블은 `read_only`·`writes`·`writes_org`다. `GOVOPS_AGENT_PROFILE`은 이 세 값을 받으며 기본값은 `read_only`다. `read_only`는 `READ_ONLY`, `writes`는 `WITH_WRITES`, `writes_org`는 `WITH_WRITES_ORG`의 레지스트리 프로필이다. `writes_org`는 기존 쓰기 프롬프트에 `agent/org_info.py`의 조직 정보 절만 추가하고 도구 정의를 공유한다. 기존 두 프로필의 프롬프트 해시는 보존한다(ADR-021). 시작 정리는 checkpointer 전체 순회이며 수백 건 규모를 전제한다. 규모가 커지면 별도 테이블이 필요하다.
+`PROFILES = {writes_org}`인 읽기 전용 단일 레지스트리를 사용한다. `GOVOPS_AGENT_PROFILE` 허용값과 기본값은 `writes_org`다. `WITH_WRITES_ORG`는 조직 정보 절을 포함하며 `READ_ONLY`·`WITH_WRITES` 구성 객체는 단위 테스트·프로필 구성에 유지한다. M2 러너의 실행 경로는 삭제하고 공용 헬퍼·과거 결과 문서는 보존한다(ADR-022). 시작 정리는 checkpointer 전체 순회이며 수백 건 규모를 전제한다. 규모가 커지면 별도 테이블이 필요하다.
 
 ## 도구와 부작용·멱등성
 
@@ -322,6 +325,7 @@ sequenceDiagram
 - golden trace 두 층: CI(PR마다, 기록한 LLM 응답 + replay A + mock, 결정론)와 live 회귀 관문(사용자 실행). 비교 항목은 [EVAL.md](EVAL.md#golden-trace)를 따른다.
 
 마스킹은 sink 직전 한 지점(`obs/mask.py`)에서 수행한다. 비밀 제거는 모든 항목에 우선 적용한다.
+trace 마스킹은 키와 형식이 모두 맞는 식별자 속성(`generation_id`·`trace_id`·`task_id`·해시·등록된 `deployment_id`)에는 PII 검사를 건너뛴다. 형식 밖 값은 검사한다.
 
 | 대상 | 마스킹 기준 |
 |---|---|
@@ -395,3 +399,12 @@ M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec�
 - **mock 상태:** mock 서비스 메모리 또는 파일. 관리 엔드포인트로 초기화한다. 장애 주입은 요청 순번 스크립트로 재현한다.
 - **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 호출 직전에 상한 검사와 예약 행 기록을 원장 잠금 안에서 한 번에 하고 호출 뒤 같은 예약 ID로 정산하며, 정산되지 않은 예약은 상한 쪽으로 계속 센다(ADR-007). 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007, fallback 공급사별 예약·응답 모델 기준 정산은 ADR-019를 따른다.
 - **비밀 값:** API 키는 `.env`에서만 읽는다. M1은 에이전트 전용 가상 키 1개(`LITELLM_AGENT_KEY`)를 쓰고 팀별 키는 M4에 둔다. LiteLLM 팀별 가상 키의 보관·주입 방식은 미정(M4에서 결정)이다.
+
+
+## M3 장애 주입 실행 경계
+
+`evalrun/faults.py`는 API 조립·승인 실행·주입 증거·보고·재개를 맡고 `fault_scenarios.py`는 등록 계획과 기대 조건, `faults_smoke.py`는 부품 검증을 맡는다. `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 직접 import하지 않으며 다른 계층은 `evalrun`을 import하지 않는다. `tools/fault_transport.py`는 클라이언트 전송 계층의 F4 주입이며 에이전트·API에 의존하지 않는다. `replay/chaos_a.py`는 F11용 원시 chaos A 서버와 판정이며 `agent`·`api`·`broker`에 의존하지 않는다. 합성 토큰만 요청 헤더에 붙이고 헤더를 기록하지 않는다.
+
+사용자 실행 흐름은 `make smoke-faults`(환경 → 규칙 적용·해제 → F5+F10 표식 조회 → down_alias 측정) 다음 `make eval-faults`(등록 가드 → preflight → 고정 계획 → 증거·판정·manifest)다. 스모크는 A를 사용하지 않으며 공식 실행 preflight가 live A 계약을 확인한다. 계획·분모·시드는 [사전 등록](results/hypotheses-m3-faults.md)이 원본이다. 재개는 같은 계획의 남은 위치만 실행하고 결과에 따른 재실행은 금지한다. 실행마다 새 ToolPolicy로 서킷을 초기화한다(ADR-022).
+
+남은 규칙 보호는 실행마다 하는 `reset`(과 그 실패 처리)이 맡는다. mock은 설정된 규칙 목록을 읽는 API가 없고 `faults stats`는 요청 카운터만 돌려주므로, 하네스는 시작 시 `reset` 직후 탐침 요청 하나로 `applied_rules`가 0인지 행동으로 확인한다. 탐침은 mock마다 읽기 엔드포인트만 호출하고 `requests >= 1`도 함께 확인하며, 점검 뒤 다시 `reset`해 카운터를 지운다. 재개 시에도 이 시작 점검을 한 번 수행한다.

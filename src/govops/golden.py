@@ -177,10 +177,10 @@ def digest_for(spec, obs: Observation) -> dict:
 
 
 def record_status(
-    spec, obs, a_summary, *, meta, tickets, users, grading_rules, profile=None
+    spec, obs, a_summary, *, meta, tickets, users, grading_rules, profile="writes_org"
 ) -> dict:
     """Freeze the initial TCR outcome; skipped A calls exclude the entire task."""
-    if profile is not None and profile not in PROFILES:
+    if profile not in PROFILES:
         raise ValueError("invalid_profile")
     if spec.task_id not in GOLDEN_TASKS:
         raise ValueError("not_golden_task")
@@ -192,7 +192,7 @@ def record_status(
             **({"profile": profile} if profile is not None else {}),
         }
     return {
-        "profile": profile or "read_only",
+        "profile": profile or "writes_org",
         "status": tcr_status(
             spec,
             obs,
@@ -270,7 +270,7 @@ async def replay_task(
     a_dir,
     mock_executor,
     graph_factory=build_graph,
-    profile="read_only",
+    profile="writes_org",
     run_id=None,
     mock_state=None,
 ) -> Observation:
@@ -358,10 +358,10 @@ def manifest_tasks(*, golden_dir, llm_dir, a_dir) -> dict:
         if row is None and any(p.exists() for p in files):
             raise ValueError("record_without_status")
         if row is not None:
-            if row.get("profile", "read_only") not in PROFILES:
+            if row.get("profile", "writes_org") not in PROFILES:
                 raise ValueError("invalid_profile")
             if row.get("golden_eligible"):
-                row.setdefault("profile", "read_only")
+                row.setdefault("profile", "writes_org")
                 if (
                     row.get("status") not in {"pass", "recorded_fail"}
                     or not all(p.is_file() for p in files)
@@ -373,7 +373,9 @@ def manifest_tasks(*, golden_dir, llm_dir, a_dir) -> dict:
     return rows
 
 
-def _write_graph(chat, tools, runtime, saver, factory, *, profile=PROFILES["writes"]):
+def _write_graph(
+    chat, tools, runtime, saver, factory, *, profile=PROFILES["writes_org"]
+):
     """Assemble replay dependencies without live services or evaluation answers."""
     tools.policy = runtime.policy
     tools.executed_calls = []
