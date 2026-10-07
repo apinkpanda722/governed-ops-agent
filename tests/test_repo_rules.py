@@ -60,6 +60,7 @@ def test_git_ignore_rules(path: str, expected_code: int) -> None:
         cwd=REPO_ROOT,
         capture_output=True,
         check=False,
+        timeout=30,
     )
     assert result.returncode == expected_code, f"gitignore 규칙 위반: {path}"
 

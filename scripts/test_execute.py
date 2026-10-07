@@ -911,14 +911,14 @@ class TestExecutionLock:
             assert executor._lock_path.read_text().strip() == str(other.pid)
         finally:
             other.kill()
-            other.wait()
+            other.wait(timeout=10)
 
     def test_stale_lock_is_replaced(self, executor):
         import subprocess as sp
         import sys as _sys
 
         dead = sp.Popen([_sys.executable, "-c", "pass"])
-        dead.wait()
+        dead.wait(timeout=10)
         executor._lock_path.parent.mkdir(parents=True, exist_ok=True)
         executor._lock_path.write_text(f"{dead.pid}\n")
         self.run_with(executor)

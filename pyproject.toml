@@ -28,6 +28,7 @@ build-backend = "uv_build"
 dev = [
     "filelock>=4.0.12",
     "pytest>=9.1.1",
+    "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",
     "pyyaml>=6.0.3",
     "ruff>=0.16.10",
@@ -42,4 +43,8 @@ known-first-party = ["govops"]
 
 [tool.pytest.ini_options]
 addopts = "-n auto"
+# 멈춘 테스트가 이름과 스택을 남기고 실패하게 한다(pytest-timeout). 오래 걸리는 정당한 테스트는
+# 전역 값을 올리지 말고 그 테스트에만 @pytest.mark.timeout(N)을 붙인다.
+timeout = 120
+timeout_method = "thread"
 testpaths = ["tests", "scripts"]

@@ -15,7 +15,7 @@ HOOK = Path(__file__).parent / "hooks" / "verify-before-stop.sh"
 def project(tmp_path):
     """verify가 항상 실패하고 실행 흔적(ran)을 남기는 더러운 git 저장소."""
     (tmp_path / "Makefile").write_text("verify:\n\ttouch ran\n\texit 1\n")
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, timeout=30)
     (tmp_path / "dirty.txt").write_text("x")
     (tmp_path / ".harness").mkdir()
     return tmp_path
@@ -31,6 +31,7 @@ def run_hook(project: Path, env: dict | None = None) -> subprocess.CompletedProc
         check=False,
         env={**base, **(env or {})},
         cwd=project,
+        timeout=60,
     )
 
 
@@ -51,14 +52,14 @@ def test_live_foreign_pid_skips_verification(project):
         result = run_hook(project)
     finally:
         other.kill()
-        other.wait()
+        other.wait(timeout=10)
     assert result.returncode == 0
     assert not (project / "ran").exists()
 
 
 def test_dead_pid_verifies(project):
     other = subprocess.Popen([sys.executable, "-c", "pass"])
-    other.wait()
+    other.wait(timeout=10)
     write_lock(project, other.pid)
     result = run_hook(project)
     assert result.returncode == 2 and (project / "ran").exists()
@@ -73,7 +74,7 @@ def test_executor_descendant_still_verifies(project):
         result = run_hook(project, {"HARNESS_EXECUTOR_PID": str(other.pid)})
     finally:
         other.kill()
-        other.wait()
+        other.wait(timeout=10)
     assert result.returncode == 2 and (project / "ran").exists()
 
 
@@ -85,7 +86,7 @@ def test_other_executor_env_does_not_count(project):
         result = run_hook(project, {"HARNESS_EXECUTOR_PID": "1"})
     finally:
         other.kill()
-        other.wait()
+        other.wait(timeout=10)
     assert result.returncode == 0 and not (project / "ran").exists()
 
 
@@ -105,7 +106,7 @@ def test_does_not_depend_on_ps(project, tmp_path):
         )
     finally:
         other.kill()
-        other.wait()
+        other.wait(timeout=10)
     assert skipped.returncode == 0
     assert verified.returncode == 2
 
@@ -135,12 +136,15 @@ def test_ledger_only_skips(tmp_path, extra):
     shutil.copyfile(HOOK.parents[1] / "exempt_paths.json", config)
     ledger = json.loads(config.read_text())["ledger_paths"][0]
     (tmp_path / "Makefile").write_text("verify:\n\ttouch ran\n\texit 1\n")
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, timeout=30)
     path = tmp_path / ledger
     path.parent.mkdir(parents=True)
     path.write_text("")
     subprocess.run(
-        ["git", "add", "Makefile", "scripts", ledger], cwd=tmp_path, check=True
+        ["git", "add", "Makefile", "scripts", ledger],
+        cwd=tmp_path,
+        check=True,
+        timeout=30,
     )
     subprocess.run(
         [
@@ -155,6 +159,7 @@ def test_ledger_only_skips(tmp_path, extra):
         ],
         cwd=tmp_path,
         check=True,
+        timeout=30,
     )
     path = tmp_path / ledger
     path.write_text("{}\n")

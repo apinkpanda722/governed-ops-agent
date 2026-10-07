@@ -84,7 +84,9 @@ def test_actual_source_and_manifest_boundary():
 
 
 def run_git(root, *args):
-    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(root), *args], check=True, capture_output=True, timeout=30
+    )
 
 
 def committed_repo(tmp_path):

@@ -57,7 +57,7 @@ def test_m3_changes_only_t2_01_without_guard(monkeypatch, capsys):
     path = "docs/results/hypotheses-m3-grading.md"
     assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() in output
     commit = subprocess.check_output(
-        ["git", "log", "-1", "--format=%H", "--", path], cwd=ROOT, text=True
+        ["git", "log", "-1", "--format=%H", "--", path], cwd=ROOT, text=True, timeout=30
     ).strip()
     assert commit and commit in output
 
@@ -143,6 +143,7 @@ def test_cli_required_rules_and_data_unchanged():
             capture_output=True,
             check=False,
             text=True,
+            timeout=90,
         )
         assert result.returncode == 0, result.stderr
         assert not result.stderr
@@ -153,5 +154,6 @@ def test_cli_required_rules_and_data_unchanged():
         capture_output=True,
         check=False,
         text=True,
+        timeout=90,
     )
     assert result.returncode == 2

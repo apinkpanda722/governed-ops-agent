@@ -318,6 +318,7 @@ def test_grading_registration_guard(tmp_path, case):
             check=True,
             capture_output=True,
             text=True,
+            timeout=30,
         ).stdout.strip()
 
     git("init")

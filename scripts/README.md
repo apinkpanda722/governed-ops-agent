@@ -18,6 +18,7 @@
 | `AGENTS.md` | 에이전트 규칙 단일 원본. `CLAUDE.md`는 `@AGENTS.md` import만 한다 |
 | `Makefile` | `make verify` — Stop hook, execute.py, step AC가 공통으로 부르는 검증 진입점 |
 | `scripts/execute.py` | step 순차 실행기 (Codex 호출, 검증, 재시도, 커밋) |
+| `scripts/step_file_checks.py`, `scripts/test_step_files.py` | step 파일 형식 v2 기계 검사: 열람 금지 ↔ 읽기 목록, 실행 금지 대상 명시, 수정할 파일 ↔ 수정 허용 경로, 소비자 테스트 경고(`python scripts/step_file_checks.py phases/<phase>/step*.md`) |
 | `scripts/step-result.schema.json` | Codex 최종 응답 스키마 (`status`, `summary`, `reason`) |
 | `scripts/hooks/` | 위험 명령 차단, `make verify` Stop hook (스택 중립) |
 | `.codex/config.toml`, `.claude/settings.json` | 두 도구가 같은 hook 스크립트를 가리킨다 |

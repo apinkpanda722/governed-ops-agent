@@ -20,6 +20,9 @@
 
 **수정할 파일**(이 목록이 전부다): `src/govops/agent/graph.py`, `src/govops/api/tasks.py`, `src/govops/audit/log.py`, `tests/test_agent_graph.py`·`tests/test_api_tasks.py`·`tests/test_audit.py`·`tests/test_agent_guardrail.py`(신규)·`tests/test_api_guardrail_view.py`(신규). 위 변경으로 깨지는 기존 테스트 기대값 갱신은 허용하되 단언을 약화하지 않는다. 계층: `agent/`는 `broker`·`mocks`·`eval`·LLM SDK를 import할 수 없고, 모델 호출은 `gateway` 클라이언트로만 한다(`from govops.gateway.client import GuardrailBlocked, GuardrailUnavailable`은 허용). `api/`는 `broker`·`mocks`·LLM SDK를 import할 수 없다. TDD.
 
+열람 금지 경로: (없음)
+수정 허용 경로: `src/govops/agent/graph.py`, `src/govops/api/tasks.py`, `src/govops/audit/log.py`, `tests/test_agent_graph.py`, `tests/test_api_tasks.py`, `tests/test_audit.py`, `tests/test_agent_guardrail.py`, `tests/test_api_guardrail_view.py`
+
 **목표**: ① 입력 차단을 **새 종료 상태 `blocked_input`**으로 구조화해 API가 돌려준다(상태·사유 코드·사용자 안내 문구만, 입력 원문과 세부 판정 근거는 응답·로그에 없음). ② Guardrail 훅의 오류·타임아웃은 `blocked_input`이 **아니라** `failed` + `error: "guardrail_unavailable"`(그 밖에 `team_unknown`·`guardrail_header_missing`·`guardrail_stale`도 같은 방식)이다. ③ 차단·격리·마스킹·출력 경보·훅 오류를 감사 로그에 남긴다(원문 없이 해시·코드·건수만). ④ 격리 건수는 `tool_call_id` 기준 중복을 제거한다.
 
 ### 1. 상태와 그래프 (`agent/graph.py`)

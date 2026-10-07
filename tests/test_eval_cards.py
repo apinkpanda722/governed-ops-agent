@@ -452,7 +452,11 @@ def test_downloaded_json_passes_review_report_and_skips_unjudged(world):
     )
     out = json.loads(
         subprocess.run(
-            ["node", "-e", script], capture_output=True, text=True, check=True
+            ["node", "-e", script],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
         ).stdout
     )
     assert out["header"] and out["bad"] and out["ok"] == ""
@@ -689,9 +693,9 @@ def test_cli_reads_the_committed_previous_specs(tmp_path, monkeypatch, capsys, w
     previous = [reworded(s, s.request + " (이전)") for s in specs]
     dump_specs(previous, tmp / "data/eval/tasks.json")
     git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
-    subprocess.run(["git", "init", "-q"], check=True)
-    subprocess.run(["git", "add", "data/eval/tasks.json"], check=True)
-    subprocess.run([*git, "commit", "-q", "-m", "prev"], check=True)
+    subprocess.run(["git", "init", "-q"], check=True, timeout=30)
+    subprocess.run(["git", "add", "data/eval/tasks.json"], check=True, timeout=30)
+    subprocess.run([*git, "commit", "-q", "-m", "prev"], check=True, timeout=30)
     dump_specs(specs, tmp / "data/eval/tasks.json")  # 새 명세(커밋 전)
     review = tmp / "data/eval/review/confirmed.json"
     review.parent.mkdir(parents=True)
@@ -759,7 +763,11 @@ def test_seed_judgments_in_the_page_script():
     )
     out = json.loads(
         subprocess.run(
-            ["node", "-e", script], capture_output=True, text=True, check=True
+            ["node", "-e", script],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
         ).stdout
     )
     assert out["A"] == {"status": "approved", "note": "", "imported": True}

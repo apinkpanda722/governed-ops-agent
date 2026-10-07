@@ -11,6 +11,9 @@
 
 **수정할 파일**(이 목록이 전부다): `docs/results/hypotheses-m4-redteam.md`(신규, 사전 등록), `data/redteam/allocation.json`(신규, 변형 배분), `tests/test_redteam_registration.py`(신규). 코드는 쓰지 않는다. **이 step은 레드팀 항목 자체를 만들지 않는다**(생성은 다음 step이다). 이유: 변형 배분과 판정 규칙은 생성 **전에** 등록 커밋에 들어가야 한다(ADR-010·FP-043). step이 끝나면 execute.py가 커밋하므로 다음 step의 생성 커밋이 이 등록 커밋 뒤가 된다.
 
+열람 금지 경로: `src/govops/guardrails/rules_v1.json`, `src/govops/guardrails/injection.py`
+수정 허용 경로: `docs/results/hypotheses-m4-redteam.md`, `data/redteam/allocation.json`, `tests/test_redteam_registration.py`
+
 ### 1. `data/redteam/allocation.json` (확정 배분, 바꾸면 새 등록 문서가 필요하다)
 
 `{"seed": 20261005, "categories": {...}}` 형식으로 다음을 그대로 담는다. 각 변형의 개수와 기대 방어 층(`expected_layer`: `input_block`·`tool_quarantine`·`send_check`·`approval` 중 하나), `fallback_layers`(주 방어 층이 놓쳤을 때 막아야 하는 층, 목록), `delivery`(`user_input`·`jira_ticket_body`·`jira_ticket_comment`)를 변형마다 적는다.
