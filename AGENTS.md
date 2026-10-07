@@ -43,7 +43,7 @@
 - CRITICAL: 실제 API 호출·다운로드·설치는 사용자가 실행한다. 하네스 step과 테스트는 mock 또는 기록 재생만 쓴다. `make verify`는 API 키와 네트워크 없이 통과해야 한다.
 - CRITICAL: `data/raw/`·`data/interim/`은 커밋하지 않는다(감사 서명 개인키도 `data/interim/`에 0600으로 둔다).
 - CRITICAL: 실존 기관·사람 이름으로 합성 기록(티켓·메시지·코멘트)을 만들지 않는다. 실제 규정 원문은 재게시하지 않는다. 기록 재생 파일에는 합성 문서(`syn-*`)만 남기고 검사 테스트로 강제한다.
-- CRITICAL: 커밋 전에 `make verify`를 실행한다. 긴 실행은 `run_in_background`로 띄운다.
+- CRITICAL: 커밋 전에 `make verify`를 실행한다. 긴 실행은 `run_in_background`로 띄운다. 예외: 바뀐 파일이 비용 원장 `data/manifest/costs.jsonl` 하나뿐이면 로컬 검증을 생략한다. 원장은 다음 결과 커밋에 함께 넣고 원장만 올리는 PR은 만들지 않는다. 예외 목록의 단일 출처는 `scripts/exempt_paths.json`이다. `docs/`·`data/results/`·`data/replay/` 변경은 예외가 아니다.
 - CRITICAL: A 저장소(`~/PycharmProjects/ko-docs-agentic-rag`)는 수정하지 않는다. A 결함은 A 저장소의 별도 이슈·PR로 다룬다.
 - CRITICAL: 결과를 보기 전에 가설을 사전 등록한다. TCR·정확도·지연 목표는 dev 실행 뒤 test 실행 전에 `docs/results/`에 등록한다.
 

@@ -1002,3 +1002,46 @@ def test_org_runner_and_record_status_share_m3_grading():
     assert grade.tcr.passed
     assert status["status"] == "pass"
     assert status["profile"] == "writes_org"
+
+
+@pytest.fixture(autouse=True)
+def exempt_config(tmp_path):
+    from pathlib import Path
+
+    target = tmp_path / "scripts/exempt_paths.json"
+    target.parent.mkdir(exist_ok=True)
+    target.write_bytes(
+        (Path(__file__).resolve().parents[1] / "scripts/exempt_paths.json").read_bytes()
+    )
+
+
+def test_start_ledger_snapshot_and_block_reason(tmp_path, monkeypatch):
+    import hashlib
+
+    ledger = json.loads((tmp_path / "scripts/exempt_paths.json").read_text())[
+        "ledger_paths"
+    ][0]
+    path = tmp_path / ledger
+    path.parent.mkdir(parents=True)
+    initial = b"{}\n"
+    path.write_bytes(initial)
+    base = next(s for s in specs() if s.task_id == "T5-11")
+    from govops.evalrun.driver import ApprovalDriver
+
+    original = ApprovalDriver.run
+
+    async def growing(self, *args, **kwargs):
+        result = await original(self, *args, **kwargs)
+        path.write_bytes(initial * 2)
+        return result
+
+    monkeypatch.setattr(ApprovalDriver, "run", growing)
+    result, _, _ = asyncio.run(exercise(tmp_path, monkeypatch, selected=[base]))
+    manifest = result["manifest"]
+    assert manifest["ledger_at_start"] == {
+        "lines": 1,
+        "sha256": hashlib.sha256(initial).hexdigest(),
+    }
+    assert (
+        manifest["attempts"][base.task_id][0]["check_reason"] == "recipient_not_allowed"
+    )

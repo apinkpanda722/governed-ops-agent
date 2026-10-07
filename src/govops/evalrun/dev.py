@@ -10,6 +10,7 @@ from pathlib import Path
 import httpx
 
 from govops.eval.spec import TaskSpec
+from govops.evalrun import worktree
 from govops.evalrun.tool_trace import structure as _structure
 from govops.gateway.client import GatewayError
 from govops.obs.mask import scrub_secrets
@@ -110,7 +111,11 @@ def _git(root, *args):
     result = subprocess.run(
         ["git", "-C", str(root), *args], capture_output=True, text=True, check=False
     )
-    return result.returncode, result.stdout.strip()
+    return result.returncode, (
+        result.stdout.rstrip("\n")
+        if args == ("status", "--porcelain")
+        else result.stdout.strip()
+    )
 
 
 A_INDEX_FILE = "src/kodocs/tools/deps.py"
@@ -146,7 +151,8 @@ def git_metadata(root, a_root):
         "hypotheses_tracked": _git(root, "ls-files", "--error-unmatch", relative)[0]
         == 0,
         "hypotheses_in_head": _git(root, "cat-file", "-e", f"HEAD:{relative}")[0] == 0,
-        "worktree_clean": status_code == 0 and worktree_status == "",
+        "worktree_clean": status_code == 0
+        and not worktree.dirty_entries(worktree_status, root),
         "commit_hash": _git(root, "rev-parse", "HEAD")[1],
         "hypotheses_registration_commit": _git(
             root, "log", "-1", "--format=%H", "--", relative

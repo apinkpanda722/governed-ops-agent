@@ -19,6 +19,7 @@ import psycopg
 
 from govops import golden
 from govops.agent.checkpointer import open_checkpointer
+from govops.agent.checks import REASONS
 from govops.agent.graph import PROFILES, get_task
 from govops.api.wiring import build_task_service
 from govops.costs import BudgetExceededError, CostLedger, cost_report
@@ -27,6 +28,7 @@ from govops.eval.duplicates import count_effects
 from govops.eval.meta import load_meta
 from govops.eval.run_grade import M3_GRADING, grade_run, guard_grading_rules
 from govops.eval.spec import TaskSpec
+from govops.evalrun import worktree
 from govops.evalrun.dev import (
     ROOT,
     _Capture,
@@ -403,7 +405,7 @@ def _registration_metadata(root, files, prefix):
 def git_metadata_m3(root, a_root):
     status_code, status = _git(root, "status", "--porcelain")
     extra = {
-        "worktree_clean": status_code == 0 and not status,
+        "worktree_clean": status_code == 0 and not worktree.dirty_entries(status, root),
         **_registration_metadata(root, FIRST_REGISTRATION_FILES, "hypotheses_m3"),
         **_registration_metadata(
             root, PROMPT_REGISTRATION_FILES, "hypotheses_m3_prompt"
@@ -426,6 +428,17 @@ def git_metadata_m3(root, a_root):
         (root / FIRST_REGISTRATION_FILES[2]).read_text()
     )
     return metadata
+
+
+def check_reason(view):
+    """Only fixed deterministic reason codes may enter committed manifests."""
+    check = view.get("check") or {}
+    reason = (
+        check.get("reason")
+        if check.get("status") == "blocked"
+        else (view.get("rejected_edit") or {}).get("reason")
+    )
+    return reason if isinstance(reason, str) and reason in REASONS else None
 
 
 def trace_mismatch(state, captured):
@@ -551,6 +564,7 @@ async def run_dev_m3(
         guard_live_m3(metadata)
     if saver is None or outbox is None:
         raise ValueError("postgres_required")
+    start_ledger = worktree.ledger_state(root)
     failures = await _invoke(preflight)
     if failures:
         # No request details, service payloads, credentials or URLs are printed.
@@ -564,6 +578,7 @@ async def run_dev_m3(
     directory = root / "data/results/dev" / uuid4().hex
     manifest = dict(
         metadata,
+        ledger_at_start=start_ledger,
         mode="live",
         grading_rules=DEV_GRADING_RULES,
         **guard_grading_rules(root, DEV_GRADING_RULES),
@@ -702,6 +717,7 @@ async def run_dev_m3(
                 manifest["infrastructure_failures"] += int(infra)
                 mismatch = trace_mismatch(state or {}, captured_tools.results)
                 attempt = {
+                    "check_reason": check_reason(result.view),
                     "attempt": number + 1,
                     "trace_id": result.task_id,
                     "infrastructure_failure": infra,
@@ -1051,6 +1067,7 @@ def main(argv=None):
             "profile_mismatch",
             "hypotheses_m3_not_committed",
             "dirty_worktree",
+            "exempt_paths_invalid",
             "test_task_refused",
             "partial_dev_refused",
             "dev_task_count_mismatch",

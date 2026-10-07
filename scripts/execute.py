@@ -228,14 +228,39 @@ class StepExecutor:
             print(f"  {r.stderr.strip()}")
             sys.exit(1)
 
+        try:
+            value = json.loads(
+                (Path(self._root) / "scripts/exempt_paths.json").read_text()
+            )
+            paths = value["ledger_paths"]
+            if not isinstance(value, dict) or set(value) != {"ledger_paths"}:
+                raise ValueError
+            if not isinstance(paths, list) or len(paths) != 1:
+                raise ValueError
+            if any(
+                not isinstance(path, str)
+                or not path
+                or Path(path).is_absolute()
+                or any(part in {"", ".", ".."} for part in path.split("/"))
+                for path in paths
+            ):
+                raise ValueError
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            raise ValueError("exempt_paths_invalid") from error
+
         offending = []
         for line in r.stdout.splitlines():
             if not line.strip():
                 continue
-            path = line[3:].strip()
+            path = line[3:]
             if " -> " in path:  # rename entries: "old -> new"
                 path = path.split(" -> ", 1)[1]
-            if path.startswith("phases/"):
+            if path.startswith('"'):
+                try:
+                    path = json.loads(path)
+                except ValueError:
+                    pass
+            if path.startswith("phases/") or path in paths:
                 continue
             offending.append(line)
 

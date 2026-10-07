@@ -715,9 +715,10 @@ def test_each_f11_variant_has_transport_failure_evidence(
     assert capsys.readouterr().out == ""
 
 
+@pytest.mark.parametrize("reason", [None, "pii_masked", "synthetic body"])
 @pytest.mark.parametrize("variant", ["first", "second", "all"])
 def test_f6_live_assembly_with_fake_gateway_and_in_process_mocks(
-    effect_setup, monkeypatch, tmp_path, variant
+    effect_setup, monkeypatch, tmp_path, variant, reason
 ):
     from dataclasses import replace
     from pathlib import Path
@@ -728,11 +729,21 @@ def test_f6_live_assembly_with_fake_gateway_and_in_process_mocks(
     from test_regolden import grading_data
 
     from govops.eval.spec import ApprovalStep, Effect, Expected
+    from govops.evalrun.driver import ApprovalDriver
     from govops.evalrun.fault_scenarios import PlannedRun
     from govops.evalrun.faults import execute_live, select_specs
     from govops.gateway.faults import model_fault_alias
     from govops.tools.a_mcp import ToolResult
 
+    original = ApprovalDriver.run
+
+    async def with_rejected_edit(self, *args, **kwargs):
+        result = await original(self, *args, **kwargs)
+        if reason is not None:
+            result.view["rejected_edit"] = {"reason": reason}
+        return result
+
+    monkeypatch.setattr(ApprovalDriver, "run", with_rejected_edit)
     s = effect_setup
     spec = select_specs(json.loads(Path("data/eval/tasks.json").read_text()))["T2-01"]
     spec = spec.model_copy(
@@ -831,6 +842,7 @@ def test_f6_live_assembly_with_fake_gateway_and_in_process_mocks(
             rest_transport_factory=lambda: httpx.ASGITransport(app=s["app"]),
         )
     )
+    assert result["check_reason"] == ("pii_masked" if reason == "pii_masked" else None)
     assert result["status"] == "succeeded"
     assert result["duplicates"] == result["missing"] == 0
     assert result["posts"] == 1 and result["lookups"] == 0
@@ -1023,3 +1035,92 @@ def test_fault_registration_hash_in_manifest(tmp_path):
     )
     assert manifest["hypotheses_m3_faults_registration_commit"] == "first"
     assert ("diff", "first..HEAD", "--", FAULT_REGISTRATION) in calls
+
+
+@pytest.fixture(autouse=True)
+def exempt_config(tmp_path):
+    from pathlib import Path
+
+    target = tmp_path / "scripts/exempt_paths.json"
+    target.parent.mkdir(exist_ok=True)
+    target.write_bytes(
+        (Path(__file__).resolve().parents[1] / "scripts/exempt_paths.json").read_bytes()
+    )
+
+
+def test_fault_start_snapshot_and_legacy_attempt(tmp_path):
+    import hashlib
+
+    ledger = json.loads((tmp_path / "scripts/exempt_paths.json").read_text())[
+        "ledger_paths"
+    ][0]
+    path = tmp_path / ledger
+    path.parent.mkdir(parents=True)
+    initial = b"{}\n"
+    path.write_bytes(initial)
+
+    async def execute(*args):
+        path.write_bytes(initial * 2)
+        return {
+            "duplicates": 0,
+            "missing": 0,
+            "status": "succeeded",
+            "posts": 1,
+            "lookups": 0,
+            "injections": 1,
+            "tcr": True,
+            "models": [],
+            "infrastructure_failure": False,
+        }
+
+    manifest = asyncio.run(
+        run_faults(root=tmp_path, admin=Admin(), execute=execute, metadata={})
+    )
+    assert manifest["ledger_at_start"] == {
+        "lines": 1,
+        "sha256": hashlib.sha256(initial).hexdigest(),
+    }
+    directory = next((tmp_path / "data/results/faults").iterdir())
+    record = json.loads((directory / "0001.json").read_text())
+    assert record["attempts"][0]["check_reason"] is None
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["ledger", "backup", "grading", "docs", "results", "replay", "git_failure"],
+)
+def test_fault_guard_exact_exemption(tmp_path, change):
+    from govops.evalrun.faults import FAULT_REGISTRATION, guard_fault_registration
+
+    path = tmp_path / FAULT_REGISTRATION
+    path.parent.mkdir(parents=True)
+    path.write_text("prospective")
+    ledger = json.loads((tmp_path / "scripts/exempt_paths.json").read_text())[
+        "ledger_paths"
+    ][0]
+    changes = {
+        "ledger": ledger,
+        "backup": ledger + ".bak",
+        "grading": "data/manifest/costs_grading.jsonl",
+        "docs": "docs/a",
+        "results": "data/results/a",
+        "replay": "data/replay/a",
+    }
+
+    def git(root, *args):
+        if args[0] == "status":
+            return (1, "") if change == "git_failure" else (0, f" M {changes[change]}")
+        if args[0] == "log":
+            return 0, "first"
+        return 0, ""
+
+    if change == "ledger":
+        assert (
+            guard_fault_registration(tmp_path, git=git)[
+                "hypotheses_m3_faults_registration_commit"
+            ]
+            == "first"
+        )
+    else:
+        with pytest.raises(ValueError, match="dirty_worktree"):
+            guard_fault_registration(tmp_path, git=git)

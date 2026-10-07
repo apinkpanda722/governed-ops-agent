@@ -32,12 +32,14 @@ from govops.eval.meta import load_meta
 from govops.eval.observation import ApprovalRecord
 from govops.eval.run_grade import M3_GRADING, grade_run, guard_grading_rules
 from govops.eval.spec import TaskSpec
+from govops.evalrun import worktree
 from govops.evalrun.dev import ROOT, _Capture, _git, _write, infrastructure_failure
 from govops.evalrun.dev_m3 import (
     PARAMS,
     PROFILE,
     _invoke,
     _TaskTools,
+    check_reason,
     git_metadata_m3,
     new_tool_policy,
 )
@@ -239,6 +241,7 @@ async def run_faults(
         manifest = {
             **metadata,
             **signature,
+            "ledger_at_start": worktree.ledger_state(root),
             "started_at": now(),
             "finished_at": None,
             "interruptions": [],
@@ -292,6 +295,7 @@ async def run_faults(
                     )
                 finally:
                     await _invoke(admin.faults_clear)
+                result.setdefault("check_reason", None)
                 attempts.append(result)
                 # Persist a provisional attempt before the single infrastructure retry.
                 record = {
@@ -691,6 +695,7 @@ async def execute_live(
             wait_seconds = max(wait_seconds, evidence.retry_wait)
         verdict = judge_f11(spec, obs) if server else None
         return {
+            "check_reason": check_reason(result.view),
             "duplicates": counts.duplicates,
             "missing": counts.missing,
             "status": "no_effect"
@@ -731,6 +736,9 @@ FAULT_REGISTRATION = "docs/results/hypotheses-m3-faults.md"
 
 def guard_fault_registration(root, *, git=_git):
     """Freeze the first registration before any official fault execution."""
+    status_code, status = git(root, "status", "--porcelain")
+    if status_code or worktree.dirty_entries(status, root):
+        raise ValueError("dirty_worktree")
     path = root / FAULT_REGISTRATION
     error = "hypotheses_m3_faults_not_committed"
     code, history = git(
@@ -864,6 +872,7 @@ def main(argv=None):
             "invalid_resume",
             "postgres_required",
             "dirty_worktree",
+            "exempt_paths_invalid",
             "fault_registration_not_committed",
             "stale_mock_image",
             "litellm_config_stale",
