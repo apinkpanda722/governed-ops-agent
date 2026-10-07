@@ -264,3 +264,13 @@ def test_redteam_gen_is_offline():
     assert ".PHONY: redteam-gen" in text
     assert "\nredteam-gen:\n\tuv run python -m govops.eval.redteam\n" in text
     assert "redteam-gen" not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_redteam_review_targets_are_offline():
+    text = (REPO_ROOT / "Makefile").read_text()
+    for target, args in [("redteam-cards", ""), ("redteam-review-status", " --status")]:
+        assert f".PHONY: {target}\n" in text
+        assert (
+            f"\n{target}:\n\tuv run python -m govops.eval.redteam_cards{args}\n" in text
+        )
+        assert target not in text.split("verify:\n")[1].split("\n\n")[0]

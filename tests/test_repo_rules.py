@@ -46,6 +46,7 @@ def test_env_example_has_no_cost_limit_variables() -> None:
         (".env", 0),
         ("data/raw/x", 0),
         ("data/interim/x", 0),
+        ("data/interim/redteam_review/cards.html", 0),
         ("data/interim/eval/cards/index.html", 0),
         ("web/node_modules", 0),
         (".venv", 0),

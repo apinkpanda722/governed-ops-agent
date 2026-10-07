@@ -217,3 +217,13 @@ smoke-guardrail:
 # 오프라인·결정론 생성, 사전 등록 커밋 필요, 키·네트워크 불필요
 redteam-gen:
 	uv run python -m govops.eval.redteam
+
+.PHONY: redteam-cards
+# 오프라인 카드 생성, 판정은 사람이 내려받은 파일만 인정, 사용자 실행
+redteam-cards:
+	uv run python -m govops.eval.redteam_cards
+
+.PHONY: redteam-review-status
+# 사람 확정본 읽기 전용, 사용자 실행
+redteam-review-status:
+	uv run python -m govops.eval.redteam_cards --status
