@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "faults-docs",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T13:20:17+0900",
+      "summary": "ADR-022·아키텍처·위협 모델·평가·PRD·AGENTS에 장애 하네스와 writes_org 단일 프로필 반영; tests/test_docs_consistency.py::test_fault_harness_document_contract 신규 추가(문서 일관성 검증, 기존 검사 유지); make verify 통과(Python 2463 passed·1 skipped, 웹 검사·vitest 15 passed), 계층·CRITICAL 확인, 커밋·phases 수정 없음.",
+      "completed_at": "2026-10-07T13:44:29+0900",
+      "usage": {
+        "input_tokens": 2695091,
+        "cached_input_tokens": 2608128,
+        "output_tokens": 6896,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
