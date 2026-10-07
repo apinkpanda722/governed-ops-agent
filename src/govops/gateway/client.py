@@ -9,7 +9,7 @@ import secrets
 from collections.abc import Callable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 import httpx
 from openai import (
@@ -172,6 +172,7 @@ class LiteLLMChatClient:
         task_id: str,
         user_id: str,
         max_output_tokens: int = 1024,
+        guardrail_probe: Literal["post_raise"] | None = None,
     ) -> ChatResult:
         api_key = (
             self._key_resolver(user_id)
@@ -186,6 +187,8 @@ class LiteLLMChatClient:
             "generation_name": "agent-primary",
             "tags": ["govops"],
         }
+        if guardrail_probe is not None:
+            metadata["govops_probe"] = guardrail_probe
         if re.fullmatch(r"[0-9a-f]{32}", task_id):
             metadata["existing_trace_id"] = task_id
         # LiteLLM이 만드는 기본 generation ID(응답 ID 기반의 긴 base64)는 Langfuse가

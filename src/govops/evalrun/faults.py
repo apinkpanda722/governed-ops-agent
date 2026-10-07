@@ -22,6 +22,7 @@ from langgraph.types import Command
 from govops.agent.approval import approval_id
 from govops.agent.checkpointer import open_checkpointer
 from govops.agent.graph import AgentContext, get_task
+from govops.agent.users import load_users
 from govops.api.app import create_app
 from govops.api.sessions import SessionStore
 from govops.api.wiring import build_task_service
@@ -58,6 +59,8 @@ from govops.evalrun.preflight import run_preflight
 from govops.evalrun.tool_trace import extract_tool_trace, observation_calls
 from govops.gateway.client import _MODEL, LiteLLMChatClient
 from govops.gateway.faults import model_fault_script
+from govops.gateway.hook_digest import compute_digests
+from govops.gateway.team_keys import TeamKeyResolver
 from govops.obs.mask import register_secret_values
 from govops.obs.trace import SpanKind, configure, trace
 from govops.replay.chaos_a import ChaosAServer, ChaosMode, judge_f11
@@ -621,9 +624,17 @@ async def execute_live(
         tools = _TaskTools(runtime, runtime, task_id=uuid4().hex)
         script = ModelFaultAdapter(row.variant) if row.scenario == "F6" else None
         counted_outbox = CountingOutbox(outbox)
+        resolver = TeamKeyResolver(
+            {label: user.team for label, user in load_users().items()}
+        )
+        if resolver.missing():
+            raise ValueError("team_keys_missing")
         chat = _Capture(
             LiteLLMChatClient(
                 ledger=ledger,
+                key_resolver=resolver.key_for,
+                expected_digests=compute_digests(root),
+                require_guardrail=True,
                 **(
                     {
                         "fault_mode": "down_alias",

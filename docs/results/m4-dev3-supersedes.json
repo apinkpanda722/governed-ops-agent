@@ -1,0 +1,15 @@
+{
+  "previous_commit": "6de543ee164d19d88f2b3894e0b88182fc8abaf4",
+  "previous_files": {
+    "docs/results/2026-10-06-m3-dev2-live.md": "b868ab9e04c32c78dbcd5a96ab2e822314fefe1c530836d8e0381febc6799e7c",
+    "manifest.json": "33ec683f08d8b1c8e9562a7ca31583a444f5b27393ccf53ec85dfa80e1226665",
+    "grades.json": "78b74f9dee9e088be26c65f039c92474ce90be26ce1ecebc848def7ec057eb9b",
+    "observations.jsonl": "499c522cc1ecf23d771368811e17c8d7387f41e29a20be25a780f3b73bbad398"
+  },
+  "previous_official": {
+    "grading_rules": "m3-grading",
+    "tcr": "18/20"
+  },
+  "previous_run_id": "26c8553905bb4396b20ef2b2ff6399f1",
+  "reason": "Guardrail v1 활성화로 dev 20을 처음부터 다시 실행한다. 이전 공식 결과와 원자료는 보존한다."
+}

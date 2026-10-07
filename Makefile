@@ -207,3 +207,8 @@ smoke-gemini:
 # compose LiteLLM 기동(설정 반영: `docker compose up -d litellm`)·`.env` 키 필요, 사용자 실행, 소액 호출
 smoke-fallback:
 	uv run --env-file .env python -m govops.gateway.smoke fallback
+
+.PHONY: smoke-guardrail
+# live LiteLLM·팀 키·재기동된 LiteLLM 필요, 실제 호출 수 센트, 사용자 실행
+smoke-guardrail:
+	uv run --env-file .env python -m govops.gateway.smoke_guardrail

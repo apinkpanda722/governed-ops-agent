@@ -980,3 +980,46 @@ def test_resolver_called_each_request(tmp_path):
 
     asyncio.run(invoke())
     assert seen == ["Bearer synthetic-one", "Bearer synthetic-two"]
+
+
+@pytest.mark.parametrize("probe", [None, "post_raise"])
+def test_optional_post_probe_only_changes_metadata(tmp_path, probe):
+    costs.init_ledgers(tmp_path)
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content))
+        return httpx.Response(
+            200, json=response(), headers={"x-litellm-response-cost": "0.001"}
+        )
+
+    async def invoke():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            chat = LiteLLMChatClient(
+                api_key=KEY, ledger=costs.CostLedger(tmp_path), http_client=http
+            )
+            kwargs = {} if probe is None else {"guardrail_probe": probe}
+            await chat.complete(
+                messages=MESSAGES,
+                tools=TOOLS,
+                task_id="task-1",
+                user_id="synthetic-user",
+                **kwargs,
+            )
+
+    asyncio.run(invoke())
+    if probe is None:
+        assert "govops_probe" not in seen[0]["metadata"]
+    else:
+        assert seen[0]["metadata"]["govops_probe"] == probe
+    assert len(settled_rows(tmp_path)) == 2
+    assert {row["purpose"] for row in settled_rows(tmp_path)} == {
+        "agent_primary",
+        "agent_fallback",
+    }
+    assert (
+        next(
+            row for row in settled_rows(tmp_path) if row["purpose"] == "agent_fallback"
+        )["cost_usd"]
+        == 0
+    )

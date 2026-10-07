@@ -6,6 +6,7 @@ from govops.eval.observation import ApprovalRecord, Observation, ObservedEffect
 from govops.eval.spec import TaskSpec
 
 STATUS_MAP: Mapping[str, str] = {
+    "blocked_input": "blocked_input",
     "completed": "completed",
     "failed": "failed",
     "blocked": "rejected",
@@ -61,7 +62,7 @@ def build_observation_m3(
     if view.get("status") not in STATUS_MAP:
         raise ValueError("invalid_status")
     status = STATUS_MAP[view["status"]]
-    if plan_remaining > 0:
+    if plan_remaining > 0 and status != "blocked_input":
         status = "failed"
 
     effects = []

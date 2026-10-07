@@ -1124,3 +1124,16 @@ def test_fault_guard_exact_exemption(tmp_path, change):
     else:
         with pytest.raises(ValueError, match="dirty_worktree"):
             guard_fault_registration(tmp_path, git=git)
+
+
+@pytest.fixture(autouse=True)
+def fake_team_keys_and_hook_digests(monkeypatch):
+    from pathlib import Path
+
+    from govops.gateway.hook_digest import compute_digests
+    from govops.gateway.team_keys import load_teams, team_env_name
+
+    for team in load_teams():
+        monkeypatch.setenv(team_env_name(team), "synthetic-team-key-" + team)
+    digests = compute_digests(Path(__file__).resolve().parents[1])
+    monkeypatch.setattr("govops.evalrun.faults.compute_digests", lambda _: digests)

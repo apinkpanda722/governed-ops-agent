@@ -133,7 +133,12 @@ def test_review_targets_are_user_only():
             f"{comment}\n{target}:\n\tuv run python -m govops.eval.review_cli {command}"
             in text
         )
-        assert target in text.split(".PHONY:")[-1]
+        assert target in {
+            word
+            for line in text.splitlines()
+            if line.startswith(".PHONY:")
+            for word in line.split()[1:]
+        }
         assert target not in text.split("verify:\n")[1].split("\n\n")[0]
 
 
@@ -149,7 +154,12 @@ def test_grading_targets_user_only():
             f"# 사용자 실행\n{name}:\n\tuv run --env-file .env python -m govops.eval.grading_cli {command}"
             in text
         )
-        assert name in text.split(".PHONY:")[-1]
+        assert name in {
+            word
+            for line in text.splitlines()
+            if line.startswith(".PHONY:")
+            for word in line.split()[1:]
+        }
         assert name not in text.split("verify:\n")[1].split("\n\n")[0]
 
 
@@ -239,3 +249,11 @@ def test_team_keys_targets():
         "team-keys-update:\n\tuv run --env-file .env python -m govops.gateway.team_keys --update $(TEAM_KEYS_ARGS)"
         in text
     )
+
+
+def test_guardrail_smoke_is_user_run():
+    from pathlib import Path
+
+    text = Path("Makefile").read_text()
+    assert "smoke-guardrail:" in text
+    assert "uv run --env-file .env python -m govops.gateway.smoke_guardrail" in text

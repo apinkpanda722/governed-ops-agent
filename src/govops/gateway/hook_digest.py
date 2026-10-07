@@ -39,3 +39,8 @@ def compute_digests(root: Path) -> HookDigests:
         rules_sha256(root / "src/govops/guardrails/rules_v1.json")[:12],
         hashlib.sha256(payload).hexdigest()[:12],
     )
+
+
+def rules_sha256_full(root: Path) -> str:
+    """Full byte fingerprint without exposing rule contents across layers."""
+    return rules_sha256(root / "src/govops/guardrails/rules_v1.json")
