@@ -126,7 +126,7 @@ def test_measured_failures(
 
     async def exercise():
         async with endpoint(mode) as (url, counts):
-            client = AMcpClient(url, timeout_s=1.5)
+            client = AMcpClient(url, timeout_s=0.2 if mode == "connect" else 1.5)
             with pytest.raises(AMcpError) as caught:
                 await client.list_tools("demo-platform-g3")
             error = caught.value
@@ -157,14 +157,20 @@ def test_read_retries_and_circuit(synthetic_identity, monkeypatch, n, mode):
     async def exercise():
         delays = []
 
-        async def real_tick(delay):
-            delays.append(delay)
-            await asyncio.sleep(delay)
+        virtual_time = 0.0
 
-        policy = ToolPolicy(sleep=real_tick, jitter=lambda: 0)
+        async def real_tick(delay):
+            nonlocal virtual_time
+            delays.append(delay)
+            virtual_time += delay
+            await asyncio.sleep(0)
+
+        policy = ToolPolicy(
+            clock=lambda: virtual_time, sleep=real_tick, jitter=lambda: 0
+        )
         attempts = 0
         async with endpoint(mode) as (url, counts):
-            client = AMcpClient(url, timeout_s=1.5)
+            client = AMcpClient(url, timeout_s=0.2 if mode == "connect" else 1.5)
 
             async def call():
                 nonlocal attempts
@@ -227,7 +233,7 @@ def test_refusal_circuit_blocks_server_connections(synthetic_identity, monkeypat
     async def exercise():
         policy = ToolPolicy()
         async with endpoint("connect") as (url, _):
-            client = AMcpClient(url, timeout_s=1.5)
+            client = AMcpClient(url, timeout_s=0.2)
             for failure in range(1, 6):
                 with pytest.raises(AMcpError) as caught:
                     await policy.call_once(

@@ -41,4 +41,5 @@ extend-exclude = ["phases", "scripts", "web"]
 known-first-party = ["govops"]
 
 [tool.pytest.ini_options]
+addopts = "-n auto"
 testpaths = ["tests", "scripts"]

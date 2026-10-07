@@ -70,3 +70,12 @@ def temporary_a_tokens(path: Path):
 def a_tokens(tmp_path):
     path = tmp_path / "tokens.json"
     return path, temporary_a_tokens(path)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def corpus_artifact_factory(tmp_path_factory):
+    import test_eval_taskgen
+
+    test_eval_taskgen._artifact_factory = tmp_path_factory
+    yield
+    test_eval_taskgen._artifact_factory = None

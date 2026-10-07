@@ -42,7 +42,7 @@ def test_measured_modes_and_credential_isolation(
     monkeypatch.setattr(os.environ.__class__, "__getitem__", guarded)
 
     async def exercise():
-        async with ChaosAServer(ChaosMode(mode), retry_after=0.01, delay=11) as server:
+        async with ChaosAServer(ChaosMode(mode), retry_after=0.01, delay=0.5) as server:
             client = server.client(timeout_s=0.2)
             token = client.credential_for("demo-platform-g3", "kodocs-mcp")
             original_transport = _ObservedTransport.handle_async_request
@@ -82,13 +82,19 @@ def test_read_retries_then_open_circuit_stops_requests(mode):
     async def exercise():
         waits = []
 
-        async def real_tick(delay):
-            waits.append(delay)
-            await asyncio.sleep(delay)
+        virtual_time = 0.0
 
-        async with ChaosAServer(mode, delay=11, retry_after=0.01) as server:
+        async def real_tick(delay):
+            nonlocal virtual_time
+            waits.append(delay)
+            virtual_time += delay
+            await asyncio.sleep(0)
+
+        async with ChaosAServer(mode, delay=0.5, retry_after=0.01) as server:
             client = server.client(timeout_s=0.2)
-            policy = ToolPolicy(sleep=real_tick, jitter=lambda: 0)
+            policy = ToolPolicy(
+                clock=lambda: virtual_time, sleep=real_tick, jitter=lambda: 0
+            )
             attempts = 0
 
             async def call():

@@ -1,16 +1,14 @@
 import json
 
 import pytest
-from test_eval_taskgen import fixture, fixture_titles
+from test_eval_taskgen import generated
 
 from govops.eval.review import ReviewFormatError, confirmed_specs, review_report
 from govops.eval.spec import spec_hash
-from govops.eval.taskgen import generate_tasks
 
 
 def test_reports(tmp_path):
-    meta, tickets, users = fixture()
-    specs = generate_tasks(meta, tickets, users, titles=fixture_titles(meta))
+    specs = generated(True)[0]
     path = tmp_path / "confirmed.json"
     assert confirmed_specs(specs, path) == []
     rows = {
@@ -49,8 +47,7 @@ def test_reports(tmp_path):
     ],
 )
 def test_invalid_review(tmp_path, patch):
-    meta, tickets, users = fixture()
-    specs = generate_tasks(meta, tickets, users, titles=fixture_titles(meta))
+    specs = generated(True)[0]
     path = tmp_path / "confirmed.json"
     path.write_text(
         json.dumps(

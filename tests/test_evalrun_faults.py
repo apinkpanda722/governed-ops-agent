@@ -887,7 +887,13 @@ def test_f11_live_assembly_queries_chaos_then_judges_answer(
     async def forbidden_rest(request):
         pytest.fail("F11 must not execute a side effect")
 
-    # Scale the policy deadline only; the actual chaos server and client run.
+    from govops.replay.chaos_a import ChaosAServer
+
+    # Keep real loopback transport while scaling the server's otherwise 12 s delay.
+    monkeypatch.setattr(
+        "govops.evalrun.faults.ChaosAServer",
+        lambda mode, **kwargs: ChaosAServer(mode, **(kwargs | {"delay": 0.5})),
+    )
     monkeypatch.setattr(
         "govops.evalrun.faults.new_tool_policy", lambda: ToolPolicy(hard=0.01)
     )
