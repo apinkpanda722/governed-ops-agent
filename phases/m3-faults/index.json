@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "prereg-faults",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T11:19:53+0900",
+      "summary": "hypotheses-m3-faults.md 사전 등록과 faults.py의 미커밋·변경 차단 가드 및 manifest SHA-256 기록 완료; tests/test_prereg_faults.py에 test_scenario_table_matches_constants·test_registration_unchanged_after_first_commit(상수 일치·불변 검증), tests/test_evalrun_faults.py에 test_fault_registration_guard_rejects_changes·test_fault_registration_hash_in_manifest(가드·해시 검증) 추가, 기존 테스트 수정 없음. ps 권한 허용 후 make verify 통과(Python 2437 passed·1 skipped, 웹 검사·vitest 15 passed); 계층·CRITICAL 규칙 확인, 금지 경로 수정·커밋 없음.",
+      "completed_at": "2026-10-07T11:51:41+0900",
+      "usage": {
+        "input_tokens": 3257376,
+        "cached_input_tokens": 3186560,
+        "output_tokens": 8849,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
