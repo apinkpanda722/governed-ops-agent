@@ -117,7 +117,16 @@
     {
       "step": 8,
       "name": "mask-identifiers",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T13:44:29+0900",
+      "summary": "mask.py에 키·형식 일치 식별자의 PII 검사 예외와 비밀 제거 유지 구현, ADR-022·ARCHITECTURE 규칙 반영. tests/test_obs_mask.py에 test_random_identifier_attributes(키별 10,000개), test_identifier_invalid_format_is_masked, test_identifier_requires_known_key_and_string, test_hash_identifier_format, test_deployment_identifier_registry, test_identifier_secrets_are_still_scrubbed, test_identifier_survives_trace_jsonl_sink 추가로 보존·PII·비밀·실제 sink 경로 검증; 기존 테스트 변경 없음. 기존 gateway 테스트 20회 통과, ps 권한 확보 후 make verify 통과(Python 2481 passed·1 skipped, 웹 검사·vitest 15 passed). 계층·CRITICAL 확인, 커밋·phases 수정 없음.",
+      "completed_at": "2026-10-07T14:15:46+0900",
+      "usage": {
+        "input_tokens": 4604741,
+        "cached_input_tokens": 4514816,
+        "output_tokens": 6653,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-06T22:14:51+0900"
