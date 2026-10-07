@@ -81,34 +81,34 @@ eval/ → Gemini 채점 (게이트웨이 미경유, 별도 원장)
 | V5 실행 직전 결정론 검사 | `agent/` 결정론 검사 노드 | 허용 목록 밖 채널·금지 PII·HRM/FIN/LGL 정책 위반 초안이 승인 대기로 가지 않는 테스트, T5 다른 팀 채널 task |
 | V6 승인자·TOCTOU | `agent/` 승인 정책, `api/` approval | 다른 사용자 승인 거부, 전사 공지는 요청자 팀 4급 이상이면서 요청자 본인이 아닌 사용자만(본인 승인은 403, 그 밖의 작업은 요청자 본인만 승인·다른 사용자 task는 404, M3·ADR-018), 승인 후 초안 해시 변경 시 실행 안 함, 만료 후 승인 거부, 승인자 수정 요청에 수신처 변경이 있으면 거부, 발송 자격 증명은 요청자 것, 감사 로그에 승인자·수정 전후 해시, T6 [tests/test_agent_approval.py](../tests/test_agent_approval.py), [tests/test_api_tasks.py](../tests/test_api_tasks.py), [tests/test_agent_graph.py](../tests/test_agent_graph.py) |
 | V7 존재 보호·가시성 | `mocks/` mock-jira·mock-slack | mock-jira 읽기 및 읽을 수 없는 티켓 코멘트·후속 티켓 요청은 없는 번호와 같은 404, 존재가 공개된 mock-slack 채널의 쓰기·이력 조회 거부만 명시적 "권한 없음"(403), live 38명 × 표본 티켓 가시성 대조 |
-| V8 outbox·표식 | `tools/` outbox | "처리 후 응답 유실"·처리 후 5xx 주입 → 재시도 전 표식 조회로 성공 판정·재발송 0, 2단계 조회 모두 표식 없음 → 재발송, 대기보다 짧은 조회 반영 지연(F10) → 재발송 0. 표식은 메타데이터 필드에 있고 본문에 없음. 장애 주입 하 중복 실행 건수 = (task, 부작용 종류, 대상)별 Σ max(0, mock 실제 건수 − 기대 건수)를 멱등 키와 무관하게 mock 상태와 task 표식으로 세어 0건(절대 규칙 1). `tests/test_effects_matrix.py`로 장애 매트릭스를 검증한다 |
+| V8 outbox·표식 | `tools/` outbox | "처리 후 응답 유실"·처리 후 5xx 주입 → 재시도 전 표식 조회로 성공 판정·재발송 0, 2단계 조회 모두 표식 없음 → 재발송, F5와 결합한 1.0초 조회 반영 지연(F10) → 재발송 0. 표식은 메타데이터 필드에 있고 본문에 없음. 장애 주입 하 중복 실행 건수 = (task, 부작용 종류, 대상)별 Σ max(0, mock 실제 건수 − 기대 건수)를 멱등 키와 무관하게 mock 상태와 task 표식으로 세어 0건(절대 규칙 1). `tests/test_effects_matrix.py`와 `tests/test_evalrun_faults.py`로 장애 매트릭스·주입 증거를 검증한다. F5와 결합한 6.0초 지연은 절대 규칙에서 제외하는 한계 시연이며 계획·분모는 [사전 등록](results/hypotheses-m3-faults.md)을 따른다 |
 | V9 재개 반복(M3) | `agent/` 승인·실행 노드 분리 | `Command(resume=...)` 여러 번 → 부작용 1회, 승인 API 이중 호출 → 부작용 1회. 실행기 동일 키 반복·동시 실행은 `tests/test_effects_matrix.py`로 검증하고 그래프·승인 API 연결은 [tests/test_agent_graph.py](../tests/test_agent_graph.py)·[tests/test_api_tasks.py](../tests/test_api_tasks.py)에서 검증한다 |
 | V10 감사 무결성 | `audit/`, `make audit-verify` | 변조 5종 탐지: 수정, 중간 삭제, 순서 변경, 고정점 이후 꼬리 잘라내기, 다른 키 서명(M4). M3 실행 전 감사 쓰기 실패 시 부작용 실행 안 함, 결과 기록 실패는 재시도 후 `audit_gap`(ADR-018) |
 | V11 Guardrail 장애 | `gateway/` 훅 | 사전 검사 타임아웃 주입 → 차단, 사후 탐지 오류 주입 → 통과 + 경보·감사 기록, v2 분류기 오류 주입 → v1 판정 + 경보, v1·v2 모두 오류 → 차단, 주 모델 장애 중 Guardrail 통과(F6) |
 | V12 PII 영구 기록 방지 | `audit/`, `obs/`, checkpointer 삭제 명령 | 감사 로그 줄에 원문·PII 정규식 일치 0건, trace 전송 전 마스킹 테스트, 종료 7일 지난 task의 checkpoint가 삭제 명령 뒤 0건이고 7일 안 된 task와 진행 중 task는 남는 테스트 |
 | V13 비용·루프 | `costs.py`, `agent/` | 누적액이 상한을 넘으면 호출 전에 멈춤, MAX_STEPS·MAX_COST 초과 시 실패 종료, 새 정보 없는 호출 N회 연속 시 종료, 승인 대기 시간은 계산에서 제외 |
 | V15 발송 범위 | `agent/` 결정론 검사 노드(M3) | 팀 전용 문서 → 전사 공지, 직급 제한 문서 → 팀 채널, 다른 팀 문서 → 요청자 팀 채널 초안이 승인 대기로 가지 않고 이유와 함께 거부되는 테스트, 공개 문서 → 전사 공지·팀 전용 문서 → 그 팀 채널은 통과, 실행 중 문서 단위 검사(ADR-018)는 평가 정답 선정(`eval.audience`)의 값 기준 판정과 평가셋·카드의 `audience_scope`보다 엄격하다 [tests/test_agent_scope.py](../tests/test_agent_scope.py), [tests/test_scope_index.py](../tests/test_scope_index.py). ID 없는 `run_sql` 집계·열 값은 검사에서 제외하는 잔여 위험이 있다 |
-| V14 A MCP 장애 | `tools/` A MCP 클라이언트·서킷, `replay/` 가짜 A | F11 주입 → 부작용 0건 + 근거 없는 답변 0건, 서킷 열림 후 "일시적으로 조회할 수 없음" |
+| V14 A MCP 장애 | `tools/` A MCP 클라이언트·서킷, `replay/chaos_a.py` 원시 chaos A | 5xx·429 분류 복원은 `tests/test_a_mcp_status.py`로 재시도·Retry-After·서킷·401 경로를 검증한다. F11 판정은 ① 부작용 0건과 ② 요청 문장에 이미 있는 값을 제외한 필수 fact 값의 답변 포함 0건을 동시에 요구한다. `tests/test_chaos_a.py`로 전송 장애·토큰 격리·판정 한계를 검증한다 |
 
 절대 규칙 2(권한 밖 정보 노출 0건)는 V3·V5·V7·V15, 절대 규칙 3(승인 없는 부작용 0건)은 V6·V9·V10에서 확인한다.
 
 ## 5. 장애 주입 시나리오
 
-mock 장애는 엔드포인트별로 설정하고 요청 순번 스크립트로 재현한다. 관리 엔드포인트는 compose 내부 전용이다. A MCP 장애(F11)는 A를 고칠 수 없으므로 replay 가짜 A에 주입한다. 각 시나리오는 실행 계획표에 따라 T2·T3 표본으로 돌린다(EVAL).
+mock 장애는 엔드포인트별로 설정하고 요청 순번 스크립트로 재현한다. 관리 엔드포인트는 compose 내부 전용이다. A MCP 장애(F11)는 A를 고칠 수 없으므로 원시 chaos A 서버에 주입한다(가짜 A 미사용·합성 토큰만·요청 헤더 미기록). 각 시나리오는 실행 계획표에 따라 T2·T3 표본으로 돌린다(EVAL).
 
 | # | 시나리오 | 주입 방법 | 기대 동작 | 판정 |
 |---|---|---|---|---|
 | F1 | 지연 | mock 응답 지연(Soft/Hard Timeout 경계 전후) | Soft 초과는 기록, Hard 초과는 결과 불확실 → 표식 조회 | 중복 0, 상태 일치 |
 | F2 | 5xx | mock이 n번째 요청에 5xx(처리 후 실패 포함) | 부작용 도구는 재시도 전 표식 조회 → 있으면 성공, 없으면 지수 백오프 + Jitter 재시도, 연속 실패 시 서킷 열림. 읽기 도구는 바로 재시도 | 중복 0, 표식 조회·재시도·서킷 span |
 | F3 | 429 + `Retry-After` | mock이 429와 `Retry-After` 반환 | `Retry-After`를 지켜 재시도 | 대기 시간 준수, 중복 0 |
-| F4 | 연결 수립 실패 | 클라이언트 쪽 전송 계층에서 연결 수립 실패 주입(ADR-018) | 요청이 서버에 닿지 않았으므로 표식 조회 없이 바로 재시도 | 중복 0 |
+| F4 | 연결 수립 실패 | 클라이언트 쪽 전송 계층에서 연결 수립 실패 주입(`tools/fault_transport.py`, 시도·주입 카운터 검증, ADR-022) | 요청이 서버에 닿지 않았으므로 표식 조회 없이 바로 재시도 | 중복 0 |
 | F5 | 처리 후 응답 유실 | mock이 부작용을 반영한 뒤 응답을 버림 | 결과 불확실 → 표식 조회 → 있으면 재발송 안 함 | **중복 0(절대 규칙 1)** |
-| F6 | 모델 장애·fallback | `down_alias`로 주 모델 장애 주입(닫힌 포트 배포 `agent-primary-down` + fallbacks, LiteLLM 경유·호출 번호 스크립트는 ADR-019 6항) | 호출 단위로 Anthropic fallback으로 이어 감, 감사 로그에 fallback 여부 기록. 주 모델 장애 중에도 Guardrail(v2 분류기는 Anthropic)이 통과 판정을 낼 수 있어야 함 | fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR, 주 모델 장애 중 Guardrail 통과 확인은 M4(Guardrail 구현 후) |
+| F6 | 모델 장애·fallback | `down_alias`로 주 모델 장애 주입(닫힌 포트 배포 `agent-primary-down` + fallbacks, LiteLLM 경유·first/second/all 호출 번호 스크립트는 ADR-019 6항·ADR-022) | 호출 단위로 Anthropic fallback으로 이어 감. 응답 모델·원장 정산과 장애 주입 증거로 확인하며 주 모델 장애 중 Guardrail 통과 확인은 M4로 이월한다 | fallback 성공률·응답 시간, 모델이 섞인 task 수·TCR, 주 모델 장애 중 Guardrail 통과 확인은 M4(Guardrail 구현 후) |
 | F7 | Guardrail 타임아웃 | 사전·사후 판정기 지연·오류 | 사전은 차단(fail-closed), 사후는 통과 + 경보(fail-open). v2만 실패하면 v1로 판정 + 경보, v1까지 실패하면 차단 | 차단·경보 기록 |
 | F8 | 재개 반복 | 같은 승인으로 `Command(resume=...)` 여러 번 | 실행 노드 1회, 부작용 1회 | 중복 0 |
 | F9 | 승인 버튼 이중 클릭 | `POST /tasks/{id}/approval` 동시·연속 2회 | 승인 요청 멱등, 부작용 1회 | 중복 0 |
-| F10 | 조회 반영 지연 | F5(처리 후 응답 유실)와 결합한 조회 반영 지연 | 2단계 조회(조회 → 대기 → 재조회) 후 없을 때만 재발송 | 대기보다 짧은 지연: **중복 0(절대 규칙 1)**. 대기보다 긴 지연: 한계 시연, 절대 규칙에서 제외(사전 등록) |
-| F11 | A MCP 장애 | replay 가짜 A에 지연·5xx·연결 거부 주입 | 읽기 재시도 → 서킷 열림 → "일시적으로 조회할 수 없음" | 부작용 0건 + 근거 없는 답변 0건 |
+| F10 | 조회 반영 지연 | 항상 F5(처리 후 응답 유실)와 결합한 조회 반영 지연(짧음 1.0초·긺 6.0초) | 2단계 조회(조회 → 대기 → 재조회) 후 없을 때만 재발송 | 대기보다 짧은 지연: **중복 0(절대 규칙 1)**. 대기보다 긴 지연: 한계 시연, 절대 규칙에서 제외(사전 등록) |
+| F11 | A MCP 장애 | 원시 chaos A 서버에 지연·500·연결 거부 주입(합성 토큰만·요청 헤더 미기록) | 읽기 재시도 → 서킷 열림 → "일시적으로 조회할 수 없음" | ① 부작용 0건 + ② 요청 문장에 이미 있는 값을 제외한 필수 fact 값의 답변 포함 0건. 환각은 확률적 결과이며 발견하면 실패다. 필수 값이 적으면 판정이 약하고 임의 창작·의역은 탐지하지 못한다 |
 
 도구 호출의 재시도 횟수·백오프 계수·서킷 임계값·Timeout 값과 2단계 조회 대기 시간은 ADR-018을 따른다. 모델 호출 타임아웃은 ADR-019 3항, 모델 장애 주입 방법은 ADR-019 6항을 따른다.
 

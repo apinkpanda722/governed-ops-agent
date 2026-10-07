@@ -89,7 +89,7 @@
 - 모델 장애 주입 하 fallback 성공률과 응답 시간, 모델이 섞인 task 수와 그 TCR을 보고한다.
 - 레드팀 120건 기준 Guardrail v1·v2 차단율, 정상 task(인젝션·금지 PII 미포함) 오탐률, Guardrail 켬 대 끔 추가 지연·비용을 보고한다.
 - `make audit-verify`가 변조 테스트 5종(수정, 중간 삭제, 순서 변경, 고정점 이후 꼬리 잘라내기, 다른 키 서명)을 모두 탐지한다.
-- 사전 등록한 실행 계획표(약 480회 + 장애 주입 표본)대로 실행한다.
+- 사전 등록한 실행 계획표(약 480회 + [사전 등록 장애 주입 표본](results/hypotheses-m3-faults.md))대로 실행한다.
 - 보고 수치는 live 모드에서만 내고(실행마다 A git HEAD·계약 스냅샷 해시·인덱스 이름 기록), replay 모드 golden trace CI는 키 없이 PR마다 통과한다.
 - 상세 정의는 `docs/EVAL.md`.
 

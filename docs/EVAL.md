@@ -125,7 +125,7 @@ TCR·정확도·지연 목표는 **dev 실행 뒤, test 실행 전에** `docs/re
 | 레드팀 | 120 × v1·v2 = 240 (정상 대조는 위 실행 재사용) |
 | 장애 주입 | F1~F11 × T2·T3 표본 |
 
-장애 주입 시나리오별 표본 수는 미정(M3에서 결정)이다. 비용이 넘치면 ADR-013의 축소 순서(① test 3회 → 2회)를 따른다.
+장애 주입 시나리오별 표본 수·분모·기대 조건은 [M3 장애 주입 사전 등록](results/hypotheses-m3-faults.md)을 따른다. 비용이 넘치면 ADR-013의 축소 순서(① test 3회 → 2회)를 따른다.
 
 ### `m2-run` hypotheses.md에 그대로 넣을 문장
 
@@ -168,12 +168,12 @@ hypotheses.md에 반영 완료.
 - **live 회귀 관문(사용자 실행)**: 프롬프트·모델·도구 설명을 바꾼 PR은 머지 전에 평가셋 점수가 기준 이상인지 확인한다.
 - 기록 파일에 프롬프트 해시를 넣는다. 현재 프롬프트 해시와 다르면 CI는 "재기록 필요"로 실패한다.
 - 용어는 "응답 기록 / 기록 재생"이다(영상 녹화가 아님).
-- `govops/golden.py`는 계층 사이의 실행 조립을 맡는다. `status.json`은 task ID를 키로 하고 `record_status` 반환값을 저장한다. 자격 있는 항목은 `status`(`pass` 또는 `recorded_fail`), `golden_eligible`, `observation_digest`, `reason_codes`, `profile`(`read_only`·`writes`·`writes_org`)을 가진다. A 호출 중 비합성 응답을 하나라도 건너뛰면 `excluded`와 `non_synthetic_a_call`을 남긴다.
+- `govops/golden.py`는 계층 사이의 실행 조립을 맡는다. `status.json`은 task ID를 키로 하고 `record_status` 반환값을 저장한다. 자격 있는 항목은 `status`(`pass` 또는 `recorded_fail`), `golden_eligible`, `observation_digest`, `reason_codes`, `profile`(`writes_org`)을 가진다. A 호출 중 비합성 응답을 하나라도 건너뛰면 `excluded`와 `non_synthetic_a_call`을 남긴다.
 - CI는 도구 이름 순서·부작용 건수·종료 상태·거절 여부·금지 도구 호출 여부를 비교하며, 쓰기 기록은 부작용 종류·대상·건수와 승인자·결정 순서도 비교한다. 승인 ID·mock ID는 비교에서 제외한다. 거절은 `rejected` 상태 또는 찾을 수 없음·확인/조회할 수 없음·권한이 없음의 고정 표현으로 판정한다. 답변 본문은 digest에 저장하지 않는다. Guardrail 판정 비교는 M4 구현 전까지 제외한다.
 - `recorded_fail`은 최초 기록의 TCR 실패를 보존하고 재생과 기록의 동일성만 검사한다. `pass`는 사전 기대값도 검사한다. 미기록 task는 건너뛰지만 자격 있는 항목의 파일 누락이나 상태 없는 기록 파일은 일관성 실패다. 재생은 기록한 A 응답과 인프로세스 mock만 사용한다.
 
 - record-through: `make eval-run-dev` 한 번의 live 실행에서 dev 20을 `writes_org`로 실행하고 관측 JSONL을 남기며 골든 14개만 LLM 응답·A 호출 응답을 함께 기록한다(별도 `record-llm` 없음).
-- 두 번째 실행 직후 골든 14개를 `writes_org`로 재기록하고 `status.json`은 `m3-grading` 기준으로 둔다. 명세에서 계산한 `expectations.json`은 그대로 보존한다(ADR-021).
+- 골든 14개는 `writes_org` 단일 프로필 기록이다(ADR-022). 두 번째 실행 직후 골든 14개를 `writes_org`로 재기록하고 `status.json`은 `m3-grading` 기준으로 둔다. 명세에서 계산한 `expectations.json`은 그대로 보존한다(ADR-021).
 - 기존 7개는 `hypotheses.md`, 확장 14개는 `hypotheses-m3.md`의 등록을 따른다. test 문항은 넣지 않는다. 기록 실행 중 A 호출이 하나라도 기록 불가(비합성 문서)이면 그 task는 골든에서 빼고 제외 task와 사유를 결과 문서에 적는다.
 - 골든 기대값(부작용 종류·대상·구조·건수, 승인 계획, 금지 도구 미호출, 최종 상태)은 기록 전에 명세에서 계산해 `data/replay/golden/expectations.json`에 고정한다. 기록한 실행이 명세 기대에 실패하면 다시 기록해 통과시키지 않는다(`recorded_fail`로 표시, CI는 재생 결과가 기록과 같은지만 비교).
 - 프롬프트 해시에는 시스템 프롬프트·도구 정의·모델 ID·호출 파라미터가 들어가며 호출마다 실제 응답 모델을 기록한다. M2 당시 LiteLLM 설정에는 fallback이 없었으므로 M2 dev는 주 모델만 썼으며(결과 문서에 적는다), fallback 설정·정산은 ADR-019를 따른다. 재생에서 A 응답은 기록한 응답 그대로 사용한다.

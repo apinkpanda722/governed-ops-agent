@@ -273,3 +273,57 @@ def test_prereg_docs_match_implemented_boundaries():
     for path in ("docs/ADR.md", "docs/EVAL.md"):
         assert "구조 필드" in read(path) and "`doc_id`" in read(path)
     assert "LLM·A 기록 파일" in read("docs/THREAT_MODEL.md")
+
+
+def test_fault_harness_document_contract():
+    adr = read("docs/ADR.md").split("### ADR-022:", 1)[1]
+    for marker in (
+        "**상태**",
+        "**맥락**",
+        "**결정**",
+        "**결과**",
+        "154",
+        "132",
+        "401",
+        "down_alias",
+        "1.0초",
+        "6.0초",
+        "M4",
+    ):
+        assert marker in adr
+    commands = read("AGENTS.md").split("## 명령어", 1)[1]
+    for name in ("eval-faults", "smoke-faults"):
+        assert f"make {name} " in commands
+        assert f"\n{name}:\n" in read("Makefile")
+    assert "caffeinate -i make eval-faults" in commands
+    assert "75~80분" in commands
+    for path in ("docs/EVAL.md", "docs/PRD.md"):
+        assert "results/hypotheses-m3-faults.md" in read(path)
+        assert "장애 주입 시나리오별 표본 수는 미정" not in read(path)
+    architecture = read("docs/ARCHITECTURE.md")
+    for marker in (
+        "faults.py",
+        "fault_scenarios.py",
+        "faults_smoke.py",
+        "chaos_a.py",
+        "fault_transport.py",
+        "PROFILES = {writes_org}",
+        "기본값은 `writes_org`",
+        "M2 러너의 실행 경로",
+        "공용 헬퍼",
+    ):
+        assert marker in architecture
+    evaluation = read("docs/EVAL.md")
+    assert "골든 14개는 `writes_org` 단일 프로필 기록" in evaluation
+    assert "profile`(`read_only`·`writes`·`writes_org`)" not in evaluation
+    threat = read("docs/THREAT_MODEL.md")
+    for marker in (
+        "chaos A",
+        "①",
+        "②",
+        "1.0초",
+        "6.0초",
+        "5xx·429 분류",
+        "tests/test_a_mcp_status.py",
+    ):
+        assert marker in threat
