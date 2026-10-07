@@ -117,7 +117,16 @@
     {
       "step": 8,
       "name": "redteam-gen",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T21:14:29+0900",
+      "summary": "결정론 레드팀 120건·manifest·간접 전달 오버레이 40건 생성, 등록 가드·mock 오버레이·경계 회귀 테스트 구현; make verify 통과(Python 2824 passed·1 skipped, 웹 15 passed), phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T21:42:19+0900",
+      "usage": {
+        "input_tokens": 4338488,
+        "cached_input_tokens": 4218240,
+        "output_tokens": 25632,
+        "attempts": 1
+      }
     },
     {
       "step": 9,
