@@ -710,19 +710,41 @@ async def execute_live(
         }
 
 
+FAULT_REGISTRATION = "docs/results/hypotheses-m3-faults.md"
+
+
+def guard_fault_registration(root, *, git=_git):
+    """Freeze the first registration before any official fault execution."""
+    path = root / FAULT_REGISTRATION
+    error = "hypotheses_m3_faults_not_committed"
+    code, history = git(
+        root, "log", "--diff-filter=A", "--format=%H", "--", FAULT_REGISTRATION
+    )
+    if code or not history.strip() or not path.is_file():
+        raise ValueError(error)
+    commit = history.splitlines()[-1]
+    for revision in ("HEAD", commit):
+        if git(root, "cat-file", "-e", f"{revision}:{FAULT_REGISTRATION}")[0]:
+            raise ValueError(error)
+    code, delta = git(root, "diff", f"{commit}..HEAD", "--", FAULT_REGISTRATION)
+    work_code, work_delta = git(root, "diff", "HEAD", "--", FAULT_REGISTRATION)
+    if code or delta or work_code or work_delta:
+        raise ValueError(error)
+    return {
+        "hypotheses_m3_faults_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "hypotheses_m3_faults_registration_commit": commit,
+    }
+
+
 async def live(*, resume=None):
     root = ROOT
     specs = select_specs(json.loads((root / "data/eval/tasks.json").read_text()))
     a_root = Path(
         env_or("A_ROOT", "~/PycharmProjects/ko-docs-agentic-rag")
     ).expanduser()
+    registration_metadata = guard_fault_registration(root)
     metadata = git_metadata_m3(root, a_root)
-    registration = "docs/results/hypotheses-m3-faults.md"
-    if (
-        not (root / registration).is_file()
-        or _git(root, "cat-file", "-e", "HEAD:" + registration)[0]
-    ):
-        raise ValueError("fault_registration_not_committed")
+    metadata.update(registration_metadata)
     metadata.update(guard_grading_rules(root, M3_GRADING))
     url = env_or("GOVOPS_DATABASE_URL", "")
     if not url or url == "memory":

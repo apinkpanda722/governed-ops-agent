@@ -784,3 +784,70 @@ def test_preflight_refuses_before_any_task(tmp_path, code):
             )
         )
     assert admin.resets == 0 and admin.clears == 1
+
+
+@pytest.mark.parametrize("failure", ["uncommitted", "history", "worktree", "missing"])
+def test_fault_registration_guard_rejects_changes(tmp_path, failure):
+    from govops.evalrun.faults import FAULT_REGISTRATION, guard_fault_registration
+
+    path = tmp_path / FAULT_REGISTRATION
+    path.parent.mkdir(parents=True)
+    if failure != "missing":
+        path.write_text("prospective registration")
+
+    def git(root, *args):
+        if args[0] == "log":
+            return (0, "" if failure == "uncommitted" else "first")
+        if args[0] == "diff":
+            return (
+                0,
+                "changed"
+                if (failure == "history" and args[1] != "HEAD")
+                or (failure == "worktree" and args[1] == "HEAD")
+                else "",
+            )
+        if args[0] == "show":
+            return (0, "changed" if failure == "worktree" else path.read_text())
+        return (0, "")
+
+    with pytest.raises(ValueError, match="hypotheses_m3_faults_not_committed"):
+        guard_fault_registration(tmp_path, git=git)
+    assert not (tmp_path / "data/results").exists()
+
+
+def test_fault_registration_hash_in_manifest(tmp_path):
+    import hashlib
+
+    from govops.evalrun.faults import FAULT_REGISTRATION, guard_fault_registration
+
+    path = tmp_path / FAULT_REGISTRATION
+    path.parent.mkdir(parents=True)
+    path.write_text("prospective registration\n")
+    calls = []
+
+    def git(root, *args):
+        calls.append(args)
+        if args[0] == "log":
+            return (0, "newer\nfirst")
+        if args[0] == "show":
+            return (0, path.read_text().strip())
+        return (0, "")
+
+    metadata = guard_fault_registration(tmp_path, git=git)
+
+    async def execute(*args):
+        raise KeyboardInterrupt()
+
+    with pytest.raises(KeyboardInterrupt):
+        asyncio.run(
+            run_faults(root=tmp_path, admin=Admin(), execute=execute, metadata=metadata)
+        )
+    manifest = json.loads(
+        next((tmp_path / "data/results/faults").glob("*/manifest.json")).read_text()
+    )
+    assert (
+        manifest["hypotheses_m3_faults_sha256"]
+        == hashlib.sha256(path.read_bytes()).hexdigest()
+    )
+    assert manifest["hypotheses_m3_faults_registration_commit"] == "first"
+    assert ("diff", "first..HEAD", "--", FAULT_REGISTRATION) in calls
