@@ -3,7 +3,7 @@
 ## 읽어야 할 파일
 
 - `/AGENTS.md`, `/docs/PRD.md`(M4 행), `/docs/ADR.md`(전체 구조: ADR-008·ADR-009·ADR-010·ADR-012·ADR-018~022의 형식과 "변경 기록"), `/docs/ARCHITECTURE.md`, `/docs/THREAT_MODEL.md`(위협 표 TH1·TH2·TH9, 완화 ↔ 검증 매핑 V1·V2·V11, 장애 주입 F6·F7), `/docs/EVAL.md`, `/tests/test_docs_consistency.py`
-- 이번 phase 산출물(읽기 전용): `/src/govops/guardrails/`(`registry.py`·`injection.py`·`screen.py`·`rules_v1.json`), `/src/govops/gateway/`(`guardrail_hook.py`·`hook_digest.py`·`hook_header.py`·`team_keys.py`·`client.py`·`smoke_guardrail.py`), `/infra/litellm/config.yaml`·`/infra/docker-compose.yml`, `/src/govops/agent/graph.py`·`/src/govops/api/tasks.py`·`/src/govops/audit/log.py`, `/src/govops/evalrun/dev_m3.py`·`preflight.py`, `/docs/results/hypotheses-m4-guardrail.md`·`hypotheses-m4-redteam.md`, `/data/redteam/allocation.json`·`manifest.json`, `/scripts/exempt_paths.json`, `/Makefile`, 이전 step의 테스트 파일 이름들(`tests/`)
+- 이번 phase 산출물(읽기 전용): `/src/govops/guardrails/`(`registry.py`·`screen.py`의 **공개 함수·상수 이름과 독스트링만**. `rules_v1.json`과 `injection.py`의 규칙·패턴 내용은 열람하지 않는다. 문서에는 규칙 해시·모듈 이름만 쓴다), `/src/govops/gateway/`(`guardrail_hook.py`·`hook_digest.py`·`hook_header.py`·`team_keys.py`·`client.py`·`smoke_guardrail.py`), `/infra/litellm/config.yaml`·`/infra/docker-compose.yml`, `/src/govops/agent/graph.py`·`/src/govops/api/tasks.py`·`/src/govops/audit/log.py`, `/src/govops/evalrun/dev_m3.py`·`preflight.py`, `/docs/results/hypotheses-m4-guardrail.md`·`hypotheses-m4-redteam.md`, `/data/redteam/allocation.json`·`manifest.json`, `/scripts/exempt_paths.json`, `/Makefile`, 이전 step의 테스트 파일 이름들(`tests/`)
 - `/.claude/skills/failure-patterns/SKILL.md` — 읽기만 한다
 
 ## 작업

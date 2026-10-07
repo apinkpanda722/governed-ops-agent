@@ -75,8 +75,7 @@
     },
     {
       "dir": "m4-guardrail",
-      "status": "blocked",
-      "blocked_at": "2026-10-07T23:04:05+0900"
+      "status": "pending"
     }
   ]
 }

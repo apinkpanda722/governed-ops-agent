@@ -145,14 +145,14 @@
     {
       "step": 10,
       "name": "docs",
-      "status": "blocked",
-      "started_at": "2026-10-07T21:57:51+0900",
-      "blocked_reason": "선점검에서 지시 충돌을 확인했습니다. 읽어야 할 파일에 “`/src/govops/guardrails/`(`registry.py`·`injection.py`·`screen.py`·`rules_v1.json`)”을 지정했지만, 금지사항에는 “규칙 파일의 내용·패턴은 Codex가 직접 열람·출력·인용하지 않는다”라고 명시되어 있습니다. rules_v1.json을 필수 열람 대상에서 제외하거나, 내용 열람 없이 존재 확인만 하도록 허용해야 진행할 수 있습니다. 파일 수정과 명령 실행은 하지 않았습니다.",
-      "blocked_at": "2026-10-07T23:04:05+0900",
+      "status": "completed",
+      "started_at": "2026-10-07T23:04:43+0900",
+      "summary": "ADR-023·M4 구조·위협 검증 매핑·평가 지표·PRD·AGENTS 명령어와 문서 일관성 테스트 갱신 완료; make verify 통과(Python 2842 passed·1 skipped, 웹 15 passed), CRITICAL 유지·phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T23:14:47+0900",
       "usage": {
-        "input_tokens": 26722,
-        "cached_input_tokens": 0,
-        "output_tokens": 266,
+        "input_tokens": 2062780,
+        "cached_input_tokens": 1952768,
+        "output_tokens": 10962,
         "attempts": 1
       }
     }
