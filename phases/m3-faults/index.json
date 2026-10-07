@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "smoke-faults",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T12:48:30+0900",
+      "summary": "기존 faults_smoke.py·smoke-faults 타깃 검토 완료; tests/test_evalrun_faults.py::test_each_f11_variant_has_transport_failure_evidence의 delay 타이밍만 수정(단언 유지), 느린 SDK 시작 0~4단계·무지연 통과; tests/test_evalrun_faults_smoke.py::test_stages에 실행 실패 분기 추가. ps 권한 확보 후 make verify 통과(Python 2462 passed·1 skipped, 웹 검사·vitest 15 passed); 계층·CRITICAL 규칙 확인, live 실행·원장 갱신·커밋·phases 수정 없음.",
+      "completed_at": "2026-10-07T13:20:17+0900",
+      "usage": {
+        "input_tokens": 3915008,
+        "cached_input_tokens": 3821312,
+        "output_tokens": 6310,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
