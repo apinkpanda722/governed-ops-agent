@@ -131,7 +131,8 @@ flowchart LR
   SVC --> AUD
   SVC -->|REST| MJ
   SVC -->|REST| MS
-  SVC -->|OpenAI 호환 API| LLM --> PROV
+  SVC -->|팀 키 · OpenAI 호환 API| LLM --> PROV
+  LLM -->|x-govops-guardrail · 해시 검증| SVC
   LLM --> PG
   LLM -.->|trace| LF
   SVC --> PG
@@ -172,6 +173,8 @@ flowchart LR
 stateDiagram-v2
   [*] --> running: POST /tasks (세션 사용자)
   running --> running: 읽기 도구 호출 (재시도 안전)
+  running --> blocked_input: 사용자 입력 인젝션·금지 PII 차단
+  blocked_input --> [*]
   running --> completed: 부작용 없는 task (T1) 답변
   running --> 초안
   초안 --> 결정론_검사
@@ -213,7 +216,7 @@ stateDiagram-v2
   expired --> [*]
 ```
 
-그림의 초안·검사·실행 내부 상태는 처리 단계이며 task 응답의 상태는 `running`·`awaiting_approval`·`completed`·`failed`·`blocked`·`rejected`·`expired`·`interrupted`다.
+그림의 초안·검사·실행 내부 상태는 처리 단계이며 task 응답의 상태는 `running`·`awaiting_approval`·`completed`·`failed`·`blocked`·`blocked_input`·`rejected`·`expired`·`interrupted`다.
 
 - MAX_STEPS·MAX_COST 초과는 어느 활성 상태에서든 실패로 끝난다(값은 M5에서 정한다).
 - 탐색 예산(ADR-014): MAX_STEPS와 별도로, `running`에서 새 정보 없는 호출(결과에 이전까지 없던 문서·티켓 ID가 없는 도구 호출)이 N회 연속이면 task를 종료한다. N은 dev trace 재생에서 성공한 dev task를 하나도 자르지 않는 값 중 최솟값이며, 규칙은 dev 실행 전에 사전 등록한다. 권한 판정은 계속 에이전트에게 숨긴다. 사람 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다.
@@ -292,7 +295,19 @@ sequenceDiagram
 
 ## 게이트웨이와 Guardrail 비대칭 구조
 
-호출자 식별: M1은 에이전트 전용 가상 키 `LITELLM_AGENT_KEY`와 `user` 필드(사용자 ID)·메타데이터 task ID를 쓴다. M4에서는 LiteLLM **팀별 가상 키 + `user` 필드(사용자 ID) + 메타데이터 task ID**. 팀별 예산·사용량·정책은 LiteLLM 기능으로 둔다.
+<!-- m4-current:start -->
+호출자 식별은 LiteLLM 팀 가상 키 + `user` 필드(사용자 ID) + 메타데이터 task ID다. `gateway/team_keys.py`가 인증된 사용자에 맞는 팀 키를 요청 직전에 선택한다. 키는 `.env`에만 보관하며 요청 헤더로만 전달한다. 팀 이름을 `team_id`로 쓰고 훅은 인증 객체 `user_api_key_dict.team_id`에서 팀을 얻는다. 모델 목록은 `agent_key.py`의 `AGENT_KEY_MODELS`가 단일 출처다. 팀 예산은 비구속 사용량 귀속 값이며 B 총액 원장이 실제 상한을 강제한다. 서비스·dev·faults·smoke는 팀 키를 쓰고 에이전트 키는 진단 전용이다.
+
+LiteLLM 컨테이너 안의 `guardrail_hook.py`가 `pre_call`·`post_call`을 수행한다. 표준 라이브러리만 쓰는 `guardrails/`가 판정한다. `src/`와 `data/seed/users.json`은 읽기 전용 마운트하고 `PYTHONPATH`로 import한다. 훅은 팀 정책을 쓰지 않아 `data/policy/`를 마운트하지 않는다. govops import 허용 목록은 테스트로 고정한다.
+
+입력 검사는 `role:user`, 도구 결과 격리·마스킹은 `role:tool`에만 적용한다. `system`·`assistant`는 검사하지 않는다. 입력의 인젝션·금지 PII는 팀과 무관하게 HTTP 400 `injection_direct`·`pii_input`으로 차단하며 API 상태는 `blocked_input`이다. API는 다시 작성할 안내와 내용 없는 판정 요약을 제공한다. 도구 결과 PII는 마스킹하고 의심 문장은 `[정책으로 일부 제외]`로 격리한다. 식별자 형식 값은 PII 검사에서 제외한다. 팀 정책 block/mask는 `agent/checks.py`의 발송 전 검사에만 적용한다.
+
+사전 훅 제한은 2.0초로 클라이언트 60초보다 짧다. 오류·타임아웃은 `guardrail_unavailable`, 인증 팀 불명은 `team_unknown`으로 HTTP 400을 반환하고 task는 `failed`다. 사후 오류는 응답을 통과시키고 경보한다. `govops_probe`는 차단·지연·사후 경보 진단에 사용한다.
+
+응답 헤더 `x-govops-guardrail`은 `v`·`rules`·`code`·`team`·`pre`·`c`·`q`·`m`·`ids`·`bad`·`trunc`·`ms`·`post`를 전달한다. `ids`는 최대 64개이며 초과는 `trunc`로 표시한다. `rules`는 규칙 파일 바이트 해시 12자, `code`는 `hook_digest.py`의 파일 묶음 해시 12자다. 훅 import 시 한 번 계산하며 preflight·클라이언트가 로컬 해시와 비교한다. preflight는 `guardrail_hook_stale`, 클라이언트는 `guardrail_header_missing`·`guardrail_stale`로 실패한다.
+
+훅은 감사에 직접 쓰지 않는다. 호스트는 `guardrail.input_blocked`·`guardrail.tool_quarantined`·`guardrail.tool_masked`·`guardrail.output_flagged`·`guardrail.error`를 해시·코드·건수로 기록하며 원문을 남기지 않는다. `pii_input`에는 입력 해시도 남기지 않는다. 격리는 task 안에서 `tool_call_id`로 중복 제거한다. 감사 실패는 차단 결과를 유지하고 경보한다. 감사 JSONL 해시체인·서명은 M4 phase 2에 추가한다.
+<!-- m4-current:end -->
 
 | 지점 | 위치 | 대상 | 동작 | Guardrail 오류·타임아웃 시 | 이유 |
 |---|---|---|---|---|---|
@@ -302,12 +317,12 @@ sequenceDiagram
 | 부작용 실행 직전 | 에이전트 `결정론_검사` 노드 | 발송문·수신처·티켓 내용 | 수신 채널 허용 목록, 발송문 금지 PII, 팀별 정책, **발송 범위**(보낼 곳 독자 ⊆ 근거 열람 범위, 거부 시 이유 명시)를 **결정론으로 강제** + 사람 승인 | 검사 실패 = 실행 안 함 | 탐지는 확률적이다. 되돌릴 수 없는 피해 지점은 확률 판정이 아니라 결정론과 승인으로 막는다 |
 
 - PII 범위: 주민번호, 전화, 개인 이메일, 계좌·카드번호. 직원 이름·사번·담당자는 업무 데이터라 제외한다.
-- 팀별 정책: 인사(HRM)·재무(FIN)·법무(LGL)는 출력 PII 탐지 시 발송 단계 진입 금지, 나머지 팀은 마스킹 후 진행. 정책 표는 설정 파일 하나이고, 서비스 시작 시 그 해시를 감사 로그에 남긴다.
-- 3지점 마스킹: 입력(사전 훅), trace(전송 전 마스킹 함수), 출력(사후 훅).
+- 팀별 정책은 `agent/checks.py`가 발송 직전에 강제한다. 서비스 시작 정책 해시 감사는 M4 phase 2의 감사 이벤트 확장에 포함한다.
+- 마스킹은 도구 결과와 trace 전송 전에 적용한다. 사용자 입력은 차단하고 모델 출력은 탐지·경보한다.
 - 탐지기 두 버전(M6): v1 = 규칙(한국 형식 PII 정규식, 인젝션 패턴 사전), v2 = v1 + 게이트웨이 경유 Anthropic 소형 분류 모델(Haiku 계열). **확인 필요(구현 시 공식 문서로 확인): v2 분류기 모델 ID와 가격.**
 - v2 분류기를 주 모델(OpenAI)과 다른 회사에 두는 이유: 같은 회사면 주 모델 장애 때 사전 검사가 타임아웃 나고 fail-closed로 전부 차단되어 fallback이 무력화된다.
 - v2 실패 시 v1 결과로 판정하고 경보한다. v1까지 실패하면 차단한다(fail-closed).
-- 같은 사전 훅에서 사용자 입력과 도구 결과를 메시지 역할로 구분하는지, Guardrail 판정을 LiteLLM 응답의 어느 필드로 B에 돌려받아 감사 로그에 쓰는지는 미정(M4에서 결정)이다.
+- 역할 구분·헤더 전달·호스트 감사 계약은 ADR-023을 따른다.
 - fallback: Anthropic `claude-sonnet-5-5`, 호출 단위(LiteLLM Router) 전환·단가·모델 호출 타임아웃·정산은 ADR-019를 따른다. 모델이 섞인 task 수와 그 TCR을 따로 보고한다.
 - 응답 모델과 단가는 응답 헤더 `x-litellm-model-id`의 배포 ID로 매핑하고, 헤더가 없을 때만 본문 `model`을 사용한다. 두 LiteLLM 설정 파일의 `model_info.id`는 `openai-gpt-6-luna`·`openai-gpt-6-luna-only`·`openai-gpt-6-luna-down`·`anthropic-claude-sonnet-5-5`다. 응답할 수 없는 down 배포 ID는 매핑하지 않고 미등록으로 경보한다. LLM 기록은 `response_model`(매핑 결과)·`deployment_id`를, dev manifest는 제공자 모델 ID인 `models_seen`·미등록 식별자인 `unmapped_models`를 남긴다.
 - F6 장애 주입 백엔드는 `down_alias` 하나이며, 닫힌 포트를 가리키는 `agent-primary-down` + fallbacks를 호출 번호 스크립트로 선택한다. `GOVOPS_MODEL_FAULT_MODE`는 `down_alias`만 허용하며 설정된 상태로는 일반 서비스가 시작되지 않는다. 요청 파라미터를 통한 fallback 시험은 프록시 기본 거부를 유지하고 이를 켜는 설정은 사용하지 않는다.
@@ -340,11 +355,11 @@ Langfuse annotation queue는 셀프호스팅 3.225.11에서 API가 HTTP 200으�
 
 ## 감사 로그
 
-trace와 다르게 책임 추적용이다. M3는 `audit/log.py`의 비체인 JSONL(`data/interim/audit/`, 0600)과 AuditPort로 부작용 생애주기를 기록한다. M4는 같은 인터페이스에 해시체인·서명을 추가해 보안·부작용 사건 전체의 위변조를 탐지한다(ADR-012·ADR-018).
+trace와 다르게 책임 추적용이다. 현재 `audit/log.py`의 비체인 JSONL(`data/interim/audit/`, 0600)과 AuditPort로 부작용 생애주기·Guardrail 이벤트를 기록한다. M4 phase 2는 같은 인터페이스에 해시체인·서명을 추가해 보안·부작용 사건 전체의 위변조를 탐지한다(ADR-012·ADR-018).
 
-**기록 대상:** 부작용 생애주기 전부(초안, 승인 요청, 승인·수정·거부·만료, 실행 시도, 결과, 표식 조회), Guardrail 차단·격리, 쓰기 권한 거부, 인증 실패, 모델 호출마다 최소 기록(task, 사용자, 팀 키, 모델, fallback 여부, 비용, Guardrail 판정), 서비스 시작 시 정책 파일 해시. 승인·수정 사건에는 승인자와 수정 전후 초안 해시를 넣는다.
+**M4 phase 2 확장 대상:** 부작용 생애주기 전부(초안, 승인 요청, 승인·수정·거부·만료, 실행 시도, 결과, 표식 조회), Guardrail 차단·격리, 쓰기 권한 거부, 인증 실패, 모델 호출마다 최소 기록(task, 사용자, 팀 키, 모델, fallback 여부, 비용, Guardrail 판정), 서비스 시작 시 정책 파일 해시. 승인·수정 사건에는 승인자와 수정 전후 초안 해시를 넣는다.
 
-**M4 형식(JSONL 한 줄 = 사건 하나):**
+**M4 phase 2 형식(JSONL 한 줄 = 사건 하나):**
 
 ```json
 {"seq": 42, "ts": "2026-10-20T10:15:03.120+09:00", "prev_hash": "<직전 줄 hash>",
@@ -361,7 +376,7 @@ trace와 다르게 책임 추적용이다. M3는 `audit/log.py`의 비체인 JSO
 - 고정점: 실행마다 마지막 `seq`·`hash`를 서명해 `docs/results/` manifest에 커밋한다. 체인만으로는 꼬리 잘라내기와 전체 재계산을 막지 못하기 때문이다.
 - 키: 개인키는 gitignore된 `data/interim/`에 0600(사용자 생성), 공개키만 커밋한다.
 - `make audit-verify`: 체인·서명·seq 빈틈·고정점을 검증한다.
-- M3 부작용 생애주기 이벤트는 ADR-018을 따른다. 해시체인·서명과 나머지 사건별 추가 필드는 M4에서 구현한다.
+- 부작용 생애주기 이벤트는 ADR-018, Guardrail 이벤트는 ADR-023을 따른다. 해시체인·서명과 나머지 사건별 추가 필드는 M4 phase 2에서 구현한다.
 
 ## BFF 인증 흐름 (httpOnly 쿠키)
 
@@ -398,7 +413,7 @@ M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec�
 - **outbox:** 멱등 키별 상태(기록됨·시도됨·불확실·성공·실패), 해시·mock ID·`audit_gap`을 같은 Postgres 인스턴스의 `govops` DB 테이블에 둔다(ADR-018).
 - **mock 상태:** mock 서비스 메모리 또는 파일. 관리 엔드포인트로 초기화한다. 장애 주입은 요청 순번 스크립트로 재현한다.
 - **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 호출 직전에 상한 검사와 예약 행 기록을 원장 잠금 안에서 한 번에 하고 호출 뒤 같은 예약 ID로 정산하며, 정산되지 않은 예약은 상한 쪽으로 계속 센다(ADR-007). 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007, fallback 공급사별 예약·응답 모델 기준 정산은 ADR-019를 따른다.
-- **비밀 값:** API 키는 `.env`에서만 읽는다. M1은 에이전트 전용 가상 키 1개(`LITELLM_AGENT_KEY`)를 쓰고 팀별 키는 M4에 둔다. LiteLLM 팀별 가상 키의 보관·주입 방식은 미정(M4에서 결정)이다.
+- **비밀 값:** API 키는 `.env`에서만 읽는다. 팀 가상 키는 `gateway/team_keys.py`가 사용자별로 선택해 요청 헤더에만 붙인다. 에이전트 키는 진단 전용이다.
 
 
 ## M3 장애 주입 실행 경계

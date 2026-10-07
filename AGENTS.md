@@ -9,7 +9,7 @@
 - 에이전트: LangGraph 단일 에이전트, `interrupt()` + Postgres checkpointer, `Command(resume=...)` 재개
 - API: FastAPI (`POST /tasks`, `GET /tasks/{id}`, `POST /tasks/{id}/approval`, 진행 SSE)
 - 도구 연결: MCP 클라이언트(streamable HTTP, A MCP live / 기록 재생용 가짜 A), mock-jira·mock-slack(FastAPI REST, compose)
-- 게이트웨이: LiteLLM proxy(팀별 가상 키, `async_pre_call_hook`·`async_post_call_success_hook` Guardrail)
+- 게이트웨이: LiteLLM proxy(팀 가상 키 + Guardrail 훅(`pre_call`·`post_call`), `async_pre_call_hook`·`async_post_call_success_hook`)
 - LLM: 주 모델 OpenAI `gpt-6-luna`, fallback Anthropic `claude-sonnet-5-5`(호출 단위, ADR-019), Guardrail v2 분류기 Anthropic Haiku 계열(ID·가격 확인 필요), 채점 Gemini `gemini-3.8-flash`(게이트웨이 미경유)
 - 관측: Langfuse v3 셀프호스팅(compose profile `obs`), 꺼져 있으면 로컬 JSONL trace
 - 저장소: Postgres(compose, 인스턴스 하나에 DB 분리)
@@ -27,8 +27,8 @@
 | 에이전트 | `agent/` | 그래프·상태·노드, 실행 전 결정론 검사, 승인 정책, MAX_STEPS/MAX_COST | `broker`, `mocks`, `eval`, LLM SDK(모델 호출은 `gateway` 클라이언트만) |
 | 도구 | `tools/` | 도구 계약(스키마·버전), A MCP·mock REST 클라이언트, outbox·표식 조회, 타임아웃·재시도·서킷 | `agent`, `api`, `eval`, `mocks`, `langgraph`, LLM SDK |
 | 중개 | `broker/` | `credential_for(user, audience) -> bearer`, A 토큰 파일을 읽는 유일한 곳 | `agent`, `api`, `tools`, `gateway`, `obs`, `eval`, `langgraph` |
-| 게이트웨이 | `gateway/` | LiteLLM 호출 클라이언트, LiteLLM 안에서 도는 Guardrail 훅 어댑터 | `agent`, `tools`, `broker`, `api` |
-| Guardrail 판정 | `guardrails/` | PII 정규식·인젝션 패턴·팀별 정책 표(순수 Python) | `litellm`, `langgraph`, `fastapi`, 다른 `govops` 계층 전부 |
+| 게이트웨이 | `gateway/` | LiteLLM 호출 클라이언트, LiteLLM 안에서 도는 Guardrail 훅 어댑터. Guardrail 훅 어댑터는 `govops.guardrails`·`govops.obs.mask`만 import(허용 목록 테스트) | `agent`, `tools`, `broker`, `api` |
+| Guardrail 판정 | `guardrails/` | PII 정규식·인젝션 패턴·팀별 정책 표(순수 Python). `registry.py`는 `govops`를 import하지 않는다(레드팀 해시용) | `litellm`, `langgraph`, `fastapi`, 다른 `govops` 계층 전부 |
 | 감사 | `audit/` | 감사 로그 쓰기(유일한 쓰기 지점)·검증 | `agent`, `tools`, `broker`, `api` |
 | 관측 | `obs/` | trace span·전송 전 마스킹·JSONL/Langfuse 출력 | `broker` |
 | 평가 | `eval/` | 평가셋·TCR·정확도·채점(Gemini 직접 호출) | `gateway`(채점은 게이트웨이를 거치지 않는다), `broker` |
@@ -116,3 +116,10 @@ make smoke-approval # 평가와 분리된 합성 승인·거부 스모크(사용
 
 make eval-faults # M3 장애 주입 등록 계획 실행: caffeinate -i make eval-faults, 약 75~80분(사용자 실행)
 make smoke-faults # 환경·주입 규칙·F5+F10·down_alias 부품 확인(사용자 실행)
+
+make team-keys # 팀 가상 키 멱등 발급, 키 회전은 `make team-keys TEAM_KEYS_ARGS=--rotate`(사용자 실행)
+make team-keys-update # 팀·키 허용 모델 목록 갱신(사용자 실행)
+make smoke-guardrail # 훅 해시·차단·격리·장애·fallback 검증(사용자 실행)
+make redteam-gen # 사전 등록에 따른 결정론 레드팀·오버레이 생성(사용자 실행)
+make redteam-cards # 오프라인 레드팀 사람 검수 카드 생성(사용자 실행)
+make redteam-review-status # 레드팀 사람 확정본·해시 검증(사용자 실행)
