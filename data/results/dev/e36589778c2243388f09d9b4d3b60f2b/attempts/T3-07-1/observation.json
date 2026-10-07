@@ -1,0 +1,73 @@
+{
+  "task_id": "T3-07",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "SRE-1004",
+    "syn-meeting-004"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "SRE-1004"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-004"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "SRE-1004",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "SRE-1004",
+        "project_key": "SRE"
+      },
+      "approval_id": "b9b44b41fdadbc9eff8306f48d4def9b1e4b8da9649c81b1db584e012ab8ed44",
+      "body_sha256": "b023464566e55d7e72491de08bb07d332040561319a4b029a88d3b93cfffbb6d"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-014 지표 압축 메모리 상한 검증 및 재발 방지\nSRE-1004 후속 작업. INC-2026-014의 원인은 지표 압축 작업의 메모리 상한이 낮게 설정된 것입니다. 지표 압축 작업의 메모리 상한 설정을 점검·조정하고, 운영 변경 시 리소스 설정값 검증 절차를 보완하여 재발을 방지합니다. [syn-meeting-004]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "b9b44b41fdadbc9eff8306f48d4def9b1e4b8da9649c81b1db584e012ab8ed44",
+      "actor": "demo-sre-g1",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "79f4debb6a244f73b1900d4ad1729ecb"
+}

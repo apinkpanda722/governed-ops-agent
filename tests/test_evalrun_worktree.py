@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from govops.agent.checks import REASONS
+from govops.agent.scope import SCOPE_REASONS
+from govops.audit.log import REASONS as AUDIT_REASONS
 from govops.evalrun.dev_m3 import check_reason
 from govops.evalrun.worktree import dirty_entries, ledger_state
 
@@ -123,3 +125,21 @@ def test_check_reason_precedence(reason):
 )
 def test_check_reason_rejects_unknown(view):
     assert check_reason(view) is None
+
+
+@pytest.mark.parametrize("reason", sorted(SCOPE_REASONS))
+def test_check_reason_keeps_the_v15_scope_codes(reason):
+    # V15 범위 차단(T2-09의 scope_wider_than_evidence 등)도 고정 사유 코드로 manifest에 남긴다.
+    assert check_reason({"check": {"status": "blocked", "reason": reason}}) == reason
+    assert check_reason({"check": {"status": "passed", "reason": reason}}) is None
+    assert check_reason({"rejected_edit": {"reason": reason}}) == reason
+
+
+def test_scope_reason_codes_are_fixed_and_audit_compatible():
+    assert SCOPE_REASONS == {
+        "scope_wider_than_evidence",
+        "evidence_scope_unknown",
+        "ticket_not_found",
+    }
+    # 감사 로그가 허용하는 사유 집합 안에 있다(manifest와 감사가 같은 코드를 쓴다).
+    assert SCOPE_REASONS <= AUDIT_REASONS

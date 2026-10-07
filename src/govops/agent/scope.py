@@ -16,6 +16,9 @@ from govops.guardrails.policy import TeamPolicy
 SCOPE_WIDER_THAN_EVIDENCE = "scope_wider_than_evidence"
 EVIDENCE_SCOPE_UNKNOWN = "evidence_scope_unknown"
 TICKET_NOT_FOUND = "ticket_not_found"
+SCOPE_REASONS = frozenset(
+    {SCOPE_WIDER_THAN_EVIDENCE, EVIDENCE_SCOPE_UNKNOWN, TICKET_NOT_FOUND}
+)
 _MESSAGES = {
     SCOPE_WIDER_THAN_EVIDENCE: (
         "보낼 곳의 독자 범위가 근거 문서의 열람 범위보다 넓어 발송할 수 없습니다. "

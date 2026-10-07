@@ -1,2 +1,1 @@
 {"arguments":{"kind":"incident","value":"INC-2026-069"},"caller":"demo-payments-g3","is_error":false,"result":{"documents":[],"truncated":false},"tool":"lookup_id"}
-{"arguments":{"sql":"SELECT ticket_id, project_key, owner_team, title, status, priority, service, incident_id, created_at, resolved_at FROM tickets WHERE incident_id = 'INC-2026-069'"},"caller":"demo-payments-g3","is_error":false,"result":{"columns":["ticket_id","project_key","owner_team","title","status","priority","service","incident_id","created_at","resolved_at"],"rows":[],"truncated":false},"tool":"run_sql"}
