@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "agent-blocked-input",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T19:04:39+0900",
+      "summary": "blocked_input 종료 상태·API 안내, 훅 장애 failed 분류, 원문 없는 Guardrail 감사·trace와 격리 중복 제거 구현; make verify 통과(Python 2748 passed·1 skipped, 웹 15 passed), 계층·CRITICAL 준수, phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T19:17:58+0900",
+      "usage": {
+        "input_tokens": 2969651,
+        "cached_input_tokens": 2860288,
+        "output_tokens": 14293,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
