@@ -3,7 +3,7 @@
 ## 읽어야 할 파일
 
 - `/AGENTS.md`(고정 제약, 개발 프로세스), `/docs/ADR.md`(ADR-008·ADR-010·ADR-018 8·11항·ADR-020·ADR-021 3~5항), `/docs/EVAL.md`, `/docs/THREAT_MODEL.md`(V1·V2·V11, F6·F7)
-- 이전 step 산출물: `/src/govops/guardrails/registry.py`(`rules_sha256`)·`rules_v1.json`, `/src/govops/gateway/hook_digest.py`(`compute_digests`, `HookDigests`)·`hook_header.py`(`parse_header`, `GuardrailInfo`)·`guardrail_hook.py`(프로브 `govops_probe`: `digest`·`slow`·`raise`·`post_raise`)·`team_keys.py`(`TeamKeyResolver`, `team_env_name`, `load_teams`)·`client.py`(`GuardrailBlocked`·`GuardrailUnavailable`, `ChatResult.guardrail`, `LiteLLMChatClient(key_resolver, expected_digests, require_guardrail)`), `/src/govops/agent/graph.py`·`/src/govops/api/tasks.py`(상태 `blocked_input`, `guardrail` 뷰 요약, `quarantined_ids`)
+- 이전 step 산출물: `/src/govops/guardrails/registry.py`(`rules_sha256`; 규칙 파일 내용은 열람하지 않는다), `/src/govops/gateway/hook_digest.py`(`compute_digests`, `HookDigests`)·`hook_header.py`(`parse_header`, `GuardrailInfo`)·`guardrail_hook.py`(프로브 `govops_probe`: `digest`·`slow`·`raise`·`post_raise`)·`team_keys.py`(`TeamKeyResolver`, `team_env_name`, `load_teams`)·`client.py`(`GuardrailBlocked`·`GuardrailUnavailable`, `ChatResult.guardrail`, `LiteLLMChatClient(key_resolver, expected_digests, require_guardrail)`), `/src/govops/agent/graph.py`·`/src/govops/api/tasks.py`(상태 `blocked_input`, `guardrail` 뷰 요약, `quarantined_ids`)
 - 평가 실행기: `/src/govops/evalrun/dev_m3.py`(`FIRST_REGISTRATION_FILES`·`PROMPT_REGISTRATION_FILES`, `_registration_metadata`, `git_metadata_m3`, `guard_live_m3`, manifest 조립, `LiteLLMChatClient(ledger=ledger)` 생성부, supersedes 사슬, `previous_supersedes`), `/src/govops/evalrun/preflight.py`(`run_preflight`, `required_deployments`), `/src/govops/evalrun/faults.py`(`LiteLLMChatClient(` 생성부), `/src/govops/evalrun/faults_smoke.py`(`LiteLLMChatClient(` 생성부), `/src/govops/evalrun/observe.py`(`STATUS_MAP`), `/src/govops/eval/observation.py`(`Observation.status`), `/src/govops/eval/tcr.py`, `/src/govops/gateway/smoke.py`(단계 출력·`INFO` 진단 줄 형식), `/src/govops/gateway/faults.py`(`model_fault_script`)
 - 등록 문서 형식 선례: `/docs/results/hypotheses-m3-prompt.md`, `/docs/results/hypotheses-m3-grading.md`, `/docs/results/m3-dev2-supersedes.json`(키: `previous_run_id`·`previous_commit`·`previous_files`·`previous_official`·`reason`), `/docs/results/2026-10-06-m3-dev2-live.md`(두 번째 실행의 공식 결과·run id)
 - `/.claude/skills/failure-patterns/SKILL.md`(FP-005·021·031·041·043·044·050·051·052) — 읽기만 한다
@@ -25,7 +25,7 @@
 
 ### 1. 사전 등록 (결과를 보기 전에, FP-043)
 
-`docs/results/hypotheses-m4-guardrail.md`(`hypotheses-m3-prompt.md` 형식을 따른다)에 다음을 쓴다. **결정 내용만 쓰고 결과 수치는 쓰지 않는다.**
+`docs/results/hypotheses-m4-guardrail.md`(`hypotheses-m3-prompt.md` 형식을 따른다)에 다음을 쓴다. **결정 내용만 쓰고, 이번 실행의 결과 수치·TCR 목표·채택/미달은 쓰지 않는다.** 비교 기준으로 이미 확정된 이전 공식 결과(M3 dev 두 번째 실행의 TCR 18/20)는 사실로 적는다.
 
 1. 목적과 범위: Guardrail v1(입력 사전 차단·도구 결과 격리·마스킹·출력 경보)이 켜진 상태에서 dev 20을 `writes_org`·`grading_rules=m3-grading`으로 **처음부터 다시 실행**한다(Guardrail이 에이전트 동작을 바꾸므로 ADR-021 5항의 절차: 새 등록 파일 먼저 커밋 → dev 전체 재실행 → 이전 결과 보존). 단일 턴, 시드·계획은 두 번째 실행과 같다.
 2. **규칙 파일 해시 등록**: `rules_sha256: <64 hex>`를 별도 줄로 쓴다(값은 `uv run python -c`로 `govops.guardrails.registry.rules_sha256()`을 오프라인 실행해 얻는다. 문서에 규칙 내용·패턴은 쓰지 않는다). 이후 규칙 파일이 바뀌면 이 등록은 무효이며 새 등록 파일이 필요하다.
@@ -77,7 +77,7 @@
 ### 6. 테스트
 
 - `httpx.MockTransport`로 훅 응답을 흉내 내 smoke 각 단계의 `PASS`/`FAIL`/`SKIP`/`INCONCLUSIVE`를 검증한다. **각 신호가 따로 실패하는 테스트**(FP-021): 허용 별칭 1개가 `probe`가 아님, 대조군이 허용 응답과 같은 형태, `rules`만 다름, `code`만 다름, 격리 건수 0, 마스킹 0, 사후 오류인데 `post=ok`. obs 꺼짐 → `SKIP`(요약에서 PASS 개수에 포함되지 않음), Langfuse에 표지 포함 → `FAIL`, 못 찾음 → `INCONCLUSIVE`.
-- 등록: `tests/test_guardrail_registration.py`는 등록 문서의 `rules_sha256` 줄이 현재 `rules_sha256()`과 같고, 문서에 규칙 패턴 문자열이 없으며(규칙 파일의 패턴이 문서에 나타나지 않음), `m4-dev3-supersedes.json`의 해시가 실제 파일과 같음을 확인한다. 러너 가드(`hypotheses_m4_guardrail_not_committed`·`guardrail_rules_not_registered`)는 기존 가드 테스트 방식(가짜 git)으로 확인한다.
+- 등록: `tests/test_guardrail_registration.py`는 등록 문서의 `rules_sha256` 줄이 현재 `rules_sha256()`과 같고, 문서에 규칙 패턴 문자열이 없으며(**테스트 코드가 규칙 파일을 프로그램으로 읽어 각 패턴이 문서에 나타나지 않음을 확인한다. 이 읽기는 허용한다. Codex가 규칙 내용·패턴을 직접 열람·출력·인용하는 것은 금지한다**), `m4-dev3-supersedes.json`의 해시가 실제 파일과 같음을 확인한다. 러너 가드(`hypotheses_m4_guardrail_not_committed`·`guardrail_rules_not_registered`)는 기존 가드 테스트 방식(가짜 git)으로 확인한다.
 - manifest `guardrail` 절은 가짜 `ChatResult`로 중복 제거·H1~H3 불리언을 검증한다(`indirect_injection`이 아닌 task의 격리 → `h2_false_positive_tasks`에 포함).
 - `blocked_input` 매핑 테스트: 모든 기대 outcome에서 TCR 실패, `approval_rejected`가 `blocked_input`으로 통과하지 않음.
 
@@ -112,8 +112,8 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 이 step의 금지사항
 
-- 등록 문서에 결과 수치·TCR 목표·채택/미달 문구를 쓰지 마라. 이유: 이 문서는 결과를 보기 전의 사전 등록이다(FP-043). 목표는 dev 실행 뒤·test 실행 전에 별도로 등록한다.
+- 등록 문서에 **이번 실행의 결과 수치·TCR 목표·채택/미달 문구**를 쓰지 마라. 비교 기준으로 이미 확정된 **M3 dev 두 번째 실행의 공식 TCR 18/20**은 사실로 적는다(이 한 값만 예외, 출처는 `docs/results/2026-10-06-m3-dev2-live.md`). 이유: 이 문서는 이번 실행 결과를 보기 전의 사전 등록이다(FP-043). 목표는 dev 실행 뒤·test 실행 전에 별도로 등록한다.
 - smoke의 합격 조건을 한 신호로 정하지 마라(FP-021·FP-005). 이유: 4개 별칭 확인은 **대조군과 다른 형태**여야 의미가 있고, 격리는 건수·`tool_call_id`·정상 tool 비격리를 함께 본다. 건너뛴 단계(`SKIP`)와 판정 불가(`INCONCLUSIVE`)를 `PASS`로 세지 마라.
 - 유료 모델 호출을 `LiteLLMChatClient` 밖에서 하지 마라. 이유: 호출 직전 공급사별 상한 검사와 원장 기록은 CRITICAL이다. 직접 `httpx`로 보내도 되는 것은 비용 0인 프로브·차단 요청뿐이다.
-- 이 step 안에서 smoke·dev 러너·`make` 타깃을 실행하거나 `data/manifest/costs.jsonl`·`data/results/`를 갱신하지 마라(작성과 실행의 구분). 이유: 실제 호출·live 실행은 사용자가 한다. 테스트는 가짜 전송·가짜 git으로만 한다.
+- 이 step 안에서 **smoke·dev 러너·live 타깃**(`make smoke-*`·`make eval-*`·`python -m govops.gateway.smoke_guardrail`·`python -m govops.evalrun.dev_m3`)을 실행하거나 `data/manifest/costs.jsonl`·`data/results/`를 갱신하지 마라(작성과 실행의 구분). **AC의 `make verify`와 규칙 해시를 얻는 오프라인 `uv run python -c`는 실행한다.** 이유: 실제 호출·live 실행은 사용자가 한다. 테스트는 가짜 전송·가짜 git으로만 한다.
 - `blocked_input`을 `failed`·`rejected` 등 기존 상태로 합치거나 `approval_rejected` 성공 조건을 완화하지 마라(FP-041). 이유: 합쳐진 상태가 다른 판정을 우연히 통과시킨다. 골든 `expectations.json`·기록 파일도 수정하지 않는다.

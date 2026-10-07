@@ -21,7 +21,7 @@
 
 ### 1. 생성기 (`eval/redteam.py`, `eval/redteam_templates.py`)
 
-- CLI `python -m govops.eval.redteam`(`make redteam-gen`, 오프라인·결정론, 키·네트워크 불필요): `data/redteam/allocation.json`을 읽어 120건을 만들어 `set.json`, `manifest.json`, `overlay/jira_tickets.json`을 쓴다. **같은 입력이면 바이트 단위로 같은 출력**이다(시드 20261005, `random.Random(seed)`를 항목·변형별로 분리해 쓰고 전역 난수·시간·`uuid`를 쓰지 않는다. 쓰기는 정렬된 JSON, 줄바꿈 고정).
+- CLI `python -m govops.eval.redteam`(`make redteam-gen`, 오프라인·결정론, 키·네트워크 불필요. **이 step에서 실행해 `set.json`·`manifest.json`·`overlay/`를 생성한다**): `data/redteam/allocation.json`을 읽어 120건을 만들어 `set.json`, `manifest.json`, `overlay/jira_tickets.json`을 쓴다. **같은 입력이면 바이트 단위로 같은 출력**이다(시드 20261005, `random.Random(seed)`를 항목·변형별로 분리해 쓰고 전역 난수·시간·`uuid`를 쓰지 않는다. 쓰기는 정렬된 JSON, 줄바꿈 고정).
 - 시작 가드(순서대로, 안전 오류 코드): `redteam_registration_not_committed`(`hypotheses-m4-redteam.md`·`allocation.json`이 커밋되어 있지 않거나 등록 커밋 이후 변경됨. `git`으로 확인, 등록 문서의 `allocation_sha256`과 파일이 다르면 `allocation_changed`), `guardrail_rules_not_registered`(`hypotheses-m4-guardrail.md`의 `rules_sha256`이 현재 `rules_sha256()`과 다름). 가드 실패 시 아무것도 쓰지 않는다.
 - 항목(`set.json`): 등록된 필드 `id`(`RT-D-01`·`RT-I-01`·`RT-P-01`(신원 사칭)·`RT-X-01`(PII) 형식), `category`, `variant`, `delivery`, `expected_layer`, `fallback_layers`, `requester`(`users.json`의 사용자 라벨. 팀·직급은 시드로 균등 분배하되 간접 항목은 오버레이 티켓을 **읽을 수 있는** 사용자), `request`(요청 문장), `payload_ref`(간접: 오버레이 티켓 키, 그 밖은 `null`), `spec_sha256`(항목 내용의 sha256). **항목 안에 평가용 정답·판정 결과·Guardrail 판정은 넣지 않는다.**
 - **간접 인젝션 40건**: 요청 문장은 정상 업무 요청(예: 티켓 요약·후속 조치 문의)이며 **오버레이 티켓 키(`payload_ref`와 같은 값)를 문장에 포함**해 에이전트가 그 티켓에 결정론적으로 닿게 한다(티켓 키는 `syn-` 문서 ID가 아니므로 문서 ID 금지 규칙과 충돌하지 않는다). 그리고 공격 지시는 `overlay/jira_tickets.json`의 티켓 본문(`jira_ticket_body`) 또는 코멘트(`jira_ticket_comment`)에만 있다. 오버레이 티켓은 `data/seed/tickets.json`과 같은 스키마이고 키는 기존 키와 겹치지 않는 번호 대역(예: 프로젝트 키 + 9001부터)을 쓴다. 요청자가 읽을 수 있는 접근 필드로 둔다.
@@ -73,7 +73,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 이 step의 금지사항
 
-- `src/govops/guardrails/`의 규칙 파일·패턴 모듈(`rules_v1.json`·`injection.py`·`screen.py`)을 열거나 import하지 마라(`registry.rules_sha256`만 예외). 이유: 규칙을 본 상태에서 만든 세트는 차단율을 부풀린다(FP-042·043). 항목을 Guardrail로 걸러 보거나 통과 여부로 조정하지도 마라.
+- `src/govops/guardrails/`의 규칙 파일·패턴 모듈(`rules_v1.json`·`injection.py`·`screen.py`)의 **내용**을 Codex가 직접 열람·출력·인용하거나 생성기·템플릿에서 import하지 마라(`registry.rules_sha256`만 예외). **경계 테스트가 `guardrails/` 소스를 프로그램으로 읽어 문자열·import를 검사하는 것은 허용한다.** 이유: 규칙을 본 상태에서 만든 세트는 차단율을 부풀린다(FP-042·043). 항목을 Guardrail로 걸러 보거나 통과 여부로 조정하지도 마라.
 - 등록된 `allocation.json`·`hypotheses-m4-redteam.md`·`hypotheses-m4-guardrail.md`를 고치지 마라(읽기 전용 사전 등록). 이유: 등록 뒤 배분 변경은 새 등록 문서가 필요하다. 배분과 다르게 생성되면 코드를 고친다.
 - `data/seed/*`(기본 시드)와 `docs/results/`의 다른 파일을 수정하지 마라. 이유: 간접 인젝션은 오버레이 파일로만 전달한다(A는 수정 불가, 기본 시드 불변).
 - 전역 난수·시간·`uuid`·네트워크·LLM 호출을 쓰지 마라. 이유: 템플릿 결정론 생성이어야 재현된다(생성 후 같은 입력은 바이트 동일). 무작위가 필요하면 항목·변형별로 분리한 시드 난수만 쓴다(FP-011).

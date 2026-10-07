@@ -28,7 +28,7 @@
 4. `docs/EVAL.md`: Guardrail 지표 정의(차단율은 `stopped_layer == expected_layer`, 방어 층별 포착률, 정상 대조 오탐률의 분모 60, 격리 건수의 중복 제거 기준, 훅 소요 `ms`)와 레드팀 세트 구성·판정 규칙 요약을 추가한다.
 5. `docs/PRD.md`: M4 행을 현재 구성(팀 키·Guardrail v1·감사 해시체인은 phase 2)으로 갱신하고 "M3에서는 허용 감사 이벤트가 없어 …" 같은 지난 시점 문장은 현재 사실에 맞게 고친다. 일정·범위 축소는 하지 않는다.
 6. `AGENTS.md`: 명령어 절에 `make team-keys`(키 회전은 `make team-keys TEAM_KEYS_ARGS=--rotate`)·`team-keys-update`·`smoke-guardrail`·`redteam-gen`·`redteam-cards`·`redteam-review-status`를 한 줄씩(사용자 실행 표기) 추가한다. 계층 경계 표의 `gateway/` 행에 "Guardrail 훅 어댑터는 `govops.guardrails`·`govops.obs.mask`만 import(허용 목록 테스트)"를, `guardrails/` 행에 "`registry.py`는 `govops`를 import하지 않는다(레드팀 해시용)"를 덧붙인다. 기술 스택의 LiteLLM 줄에 "팀 가상 키 + Guardrail 훅(`pre_call`·`post_call`)"이 반영되도록 한다. **CRITICAL 목록의 기존 문장은 바꾸지 않는다.**
-7. `tests/test_docs_consistency.py`: 새 문구 확인을 추가한다 — ADR-023 존재, ADR-009 변경 기록의 "Guardrail 판정 비교는 M6", AGENTS.md 새 명령어 6개가 `Makefile`에 실제 타깃으로 있음, THREAT_MODEL V1·V2·V11이 가리키는 테스트 파일이 실제로 존재함, 문서에 결과 수치(TCR·차단율 값)가 없음.
+7. `tests/test_docs_consistency.py`: 새 문구 확인을 추가한다 — ADR-023 존재, ADR-009 변경 기록의 "Guardrail 판정 비교는 M6", AGENTS.md 새 명령어 6개가 `Makefile`에 실제 타깃으로 있음, THREAT_MODEL V1·V2·V11이 가리키는 테스트 파일이 실제로 존재함, **이번 step이 추가한 ADR-023 절과 새로 쓴 문장**에 결과 수치가 없음(**검사 대상은 "TCR" 같은 단어가 아니라 수치 형태**: `n/N`·`%`·소수 점수로 쓴 값. ADR-023에 "TCR 실패" 같은 단어가 들어가는 것은 허용한다. 기존 문서에는 이미 TCR과 `n/n` 수치가 있으므로 문서 전체를 검사하지 않고, 테스트가 `## ADR-023`부터 다음 `### ADR-` 앞까지와 이번 step의 새 문장으로 범위를 한정해 검사한다).
 
 ## Acceptance Criteria
 
@@ -61,8 +61,8 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 이 step의 금지사항
 
-- 결과 수치(TCR·차단율·건수·지연)·"채택/미달"·실행 경위를 문서에 쓰지 마라(FP-043). 이유: live 실행 전이며 결과는 결과 문서가 쓴다. 문서는 결정 내용과 현재 사실만 가진다.
+- **이번 step이 추가·수정하는 문장**에 결과 수치(수치 형태: `n/N`·`%`·소수 점수의 TCR·차단율·건수·지연 값)·"채택/미달"·실행 경위를 쓰지 마라(FP-043). 기존 문서의 기존 수치 문장은 건드리지 않는다. "TCR 실패" 같은 용어 사용은 허용한다. 이유: live 실행 전이며 결과는 결과 문서가 쓴다. 문서는 결정 내용과 현재 사실만 가진다.
 - `AGENTS.md`의 CRITICAL 문장을 바꾸거나 지우지 마라(위 6번에서 허용한 표·명령어 추가만). 이유: 프로젝트 고정 제약이며 이번 phase의 예외 문장은 step 1이 이미 넣었다.
-- 문서에 토큰·키 값·규칙 패턴 문자열을 쓰지 마라. 이유: 비밀 값 비노출과 규칙 비공개(레드팀 오염 방지)가 CRITICAL이다.
-- 코드·`docs/results/`·`data/`를 수정하지 마라. 이유: 이 step은 문서·문서 일관성 테스트만 다룬다. 사전 등록 파일은 읽기 전용이다.
+- 문서에 토큰·키 값·규칙 패턴 문자열을 쓰지 마라. 규칙 파일의 내용·패턴은 Codex가 직접 열람·출력·인용하지 않는다(문서에 규칙 해시·코드 이름을 쓰는 것은 허용). 이유: 비밀 값 비노출과 규칙 비공개(레드팀 오염 방지)가 CRITICAL이다.
+- 수정할 파일 목록 밖의 코드·`docs/results/`·`data/`를 수정하지 마라(목록의 `tests/test_docs_consistency.py`는 예외). 이유: 이 step은 문서·문서 일관성 테스트만 다룬다. 사전 등록 파일은 읽기 전용이다.
 - 존재하지 않는 테스트 파일·명령어·타깃을 문서가 가리키게 하지 마라(FP-050). 이유: 일관성 테스트로 강제한다. 문서를 쓰기 전에 실제 파일·`Makefile` 타깃을 확인한다.
