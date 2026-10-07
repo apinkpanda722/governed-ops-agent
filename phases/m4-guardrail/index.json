@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "run-guards",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T18:19:33+0900",
+      "summary": "단일 JSON 기반 원장 정확 일치 예외, ledger_at_start 스냅샷, 허용 코드만 기록하는 check_reason 및 회귀 테스트 구현; make verify 통과(2577 passed·1 skipped, 웹 15 passed), 계층·CRITICAL 준수, phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T18:30:57+0900",
+      "usage": {
+        "input_tokens": 2368851,
+        "cached_input_tokens": 2265856,
+        "output_tokens": 13489,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
