@@ -131,14 +131,14 @@
     {
       "step": 9,
       "name": "redteam-review-cards",
-      "status": "blocked",
-      "started_at": "2026-10-07T21:42:19+0900",
-      "blocked_reason": "make verify의 남은 실패는 tests/test_redteam_boundary.py:47의 `assert len(files) == 2`입니다. “src/govops/eval/redteam_cards.py(신규)” 요구는 파일을 3개로 만들지만, “수정할 파일(이 목록이 전부다)”에는 해당 경계 테스트가 없습니다. 테스트의 검사 범위를 유지하면서 파일 개수 조건을 갱신할 수 있도록 수정 허용 목록 변경이 필요합니다. phases 수정·커밋 없음.",
-      "blocked_at": "2026-10-07T21:48:53+0900",
+      "status": "completed",
+      "started_at": "2026-10-07T21:49:27+0900",
+      "summary": "레드팀 120건 오프라인 검수 카드·확정본 검증·Makefile 타깃과 회귀 테스트 검증 완료; make verify 통과(Python 2840 passed·1 skipped, 웹 15 passed), 계층·CRITICAL 준수, phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T21:57:51+0900",
       "usage": {
-        "input_tokens": 1883156,
-        "cached_input_tokens": 1804544,
-        "output_tokens": 9155,
+        "input_tokens": 1592341,
+        "cached_input_tokens": 1515520,
+        "output_tokens": 4080,
         "attempts": 1
       }
     },
