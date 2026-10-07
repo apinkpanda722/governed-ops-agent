@@ -313,6 +313,13 @@ def test_fault_harness_document_contract():
         "공용 헬퍼",
     ):
         assert marker in architecture
+    decision = (
+        "남은 규칙 보호는 실행마다 하는 `reset`(과 그 실패 처리)이 맡는다. "
+        "mock은 설정된 규칙 목록을 읽는 API가 없고 `faults stats`는 요청 카운터만 돌려주므로, "
+        "하네스는 시작 시 `reset` 직후 탐침 요청 하나로 `applied_rules`가 0인지 행동으로 확인한다."
+    )
+    assert decision in architecture
+    assert decision in adr
     evaluation = read("docs/EVAL.md")
     assert "골든 14개는 `writes_org` 단일 프로필 기록" in evaluation
     assert "profile`(`read_only`·`writes`·`writes_org`)" not in evaluation

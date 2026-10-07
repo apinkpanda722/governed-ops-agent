@@ -6,23 +6,42 @@ import json
 import pytest
 
 from govops.evalrun.fault_scenarios import build_plan
-from govops.evalrun.faults import parser, run_faults
+from govops.evalrun.faults import parser
+from govops.evalrun.faults import run_faults as _run_faults
+
+
+async def run_faults(**kwargs):
+    return await _run_faults(probe=kwargs["admin"].probe, **kwargs)
 
 
 class Admin:
-    def __init__(self, stale=False):
+    def __init__(self):
         self.clears = 0
-        self.stale = stale
         self.resets = 0
+        self.probes = 0
+        self.counters = {"jira": {}, "slack": {}}
 
     def faults_clear(self):
         self.clears += 1
+        self.counters = {"jira": {}, "slack": {}}
 
     def faults_stats(self):
-        return {"jira": {"left": 1} if self.stale else {}, "slack": {}}
+        return self.counters
 
     def reset(self):
         self.resets += 1
+        self.counters = {"jira": {}, "slack": {}}
+
+    def probe(self):
+        assert self.faults_stats() == {"jira": {}, "slack": {}}
+        self.probes += 1
+        self.counters = {
+            service: {endpoint: {"requests": 1, "applied_rules": 0}}
+            for service, endpoint in (
+                ("jira", "jira.ticket.get"),
+                ("slack", "slack.channels"),
+            )
+        }
 
 
 def test_no_selective_rerun_options():
@@ -33,17 +52,150 @@ def test_no_selective_rerun_options():
     assert "--only" not in actions and "--rerun-failed" not in actions
 
 
-def test_stale_rules_fail_closed(tmp_path):
-    admin = Admin(stale=True)
+@pytest.mark.parametrize("service", ["jira", "slack"])
+@pytest.mark.parametrize("fault", ["active", "unobserved", "missing"])
+def test_probe_fail_closed(tmp_path, service, fault):
+    class BrokenProbe(Admin):
+        def probe(self):
+            super().probe()
+            endpoint = "jira.ticket.get" if service == "jira" else "slack.channels"
+            if fault == "missing":
+                self.counters[service] = {}
+            else:
+                self.counters[service][endpoint][
+                    "applied_rules" if fault == "active" else "requests"
+                ] = 1 if fault == "active" else 0
+
+    admin = BrokenProbe()
 
     async def execute(*args):
-        pytest.fail("stale faults must prevent execution")
+        pytest.fail("failed probe must prevent execution")
 
-    with pytest.raises(ValueError, match="stale_faults"):
+    code = "fault_rules_active" if fault == "active" else "probe_not_observed"
+    with pytest.raises(ValueError, match=code):
         asyncio.run(
             run_faults(root=tmp_path, admin=admin, execute=execute, metadata={})
         )
-    assert admin.clears == 2 and admin.resets == 0
+    assert admin.probes == 1 and admin.resets == 1 and admin.clears == 2
+
+
+@pytest.mark.parametrize("fail_at", [1, 2, 3])
+def test_probe_and_attempt_reset_fail_closed(tmp_path, fail_at):
+    from govops.evalrun.mock_admin import MockAdminError
+
+    async def execute(*args):
+        pytest.fail("failed reset must prevent execution")
+
+    class BrokenReset(Admin):
+        def reset(self):
+            super().reset()
+            if self.resets == fail_at:
+                raise MockAdminError("command_failed")
+
+    admin = BrokenReset()
+    with pytest.raises(MockAdminError, match="command_failed"):
+        asyncio.run(
+            run_faults(root=tmp_path, admin=admin, execute=execute, metadata={})
+        )
+    assert admin.resets == fail_at and admin.clears == 2
+
+
+def test_probe_counters_reset_before_execution(tmp_path):
+    admin = Admin()
+
+    async def execute(*args):
+        assert admin.probes == 1 and admin.resets == 3
+        assert admin.faults_stats() == {"jira": {}, "slack": {}}
+        raise KeyboardInterrupt()
+
+    with pytest.raises(KeyboardInterrupt):
+        asyncio.run(
+            run_faults(root=tmp_path, admin=admin, execute=execute, metadata={})
+        )
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_cleanup_failure_code_and_manifest(tmp_path, interrupted):
+    from govops.evalrun.mock_admin import MockAdminError
+
+    class BrokenCleanup(Admin):
+        def faults_clear(self):
+            super().faults_clear()
+            # Startup clear succeeds; only the final cleanup fails.
+            if self.clears == (3 if interrupted else 156):
+                raise MockAdminError("command_failed")
+
+    admin = BrokenCleanup()
+
+    async def execute(*args):
+        if interrupted:
+            raise KeyboardInterrupt()
+        return {
+            "duplicates": 0,
+            "missing": 0,
+            "status": "succeeded",
+            "posts": 1,
+            "lookups": 0,
+            "injections": 1,
+            "tcr": True,
+            "models": [],
+            "infrastructure_failure": False,
+        }
+
+    with pytest.raises(KeyboardInterrupt if interrupted else ValueError) as caught:
+        asyncio.run(
+            run_faults(root=tmp_path, admin=admin, execute=execute, metadata={})
+        )
+    if not interrupted:
+        assert str(caught.value) == "cleanup_failed"
+    directory = next((tmp_path / "data/results/faults").iterdir())
+    assert (
+        json.loads((directory / "manifest.json").read_text())["cleanup_failed"] is True
+    )
+
+
+@pytest.mark.parametrize(
+    "code", ["cleanup_failed", "fault_rules_active", "probe_not_observed"]
+)
+def test_startup_and_cleanup_errors_are_safe(monkeypatch, capsys, code):
+    from govops.evalrun import faults
+
+    async def fail(**kwargs):
+        raise ValueError(code)
+
+    monkeypatch.setattr(faults, "live", fail)
+    assert faults.main([]) == 1
+    assert capsys.readouterr().out == code + "\n"
+
+
+def test_probe_reads_rest_endpoints_only(monkeypatch):
+    import httpx
+
+    from govops.broker import credentials
+    from govops.evalrun.faults import probe_mock_reads
+    from govops.tools.jira import JiraClient
+    from govops.tools.slack import SlackClient
+
+    requests = []
+
+    def handle(request):
+        requests.append((request.method, request.url.path))
+        if request.url.path.startswith("/tickets/"):
+            return httpx.Response(404, json={"error": {"code": "not_found"}})
+        return httpx.Response(200, json={"channels": []})
+
+    monkeypatch.setattr(credentials, "credential_for", lambda *args: "synthetic-probe")
+
+    async def exercise():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
+            await probe_mock_reads(
+                JiraClient("http://synthetic", http_client=http),
+                SlackClient("http://synthetic", http_client=http),
+                "demo-platform-g3",
+            )
+
+    asyncio.run(exercise())
+    assert requests == [("GET", "/tickets/syn-fault-probe"), ("GET", "/channels")]
 
 
 def test_resume_preserves_completed_files(tmp_path):
@@ -101,6 +253,7 @@ def test_resume_preserves_completed_files(tmp_path):
             resume=directory.name,
         )
     )
+    assert admin.probes == 2
     assert seen == list(range(4, 155))
     for name, before in files.items():
         p = directory / name
@@ -440,8 +593,6 @@ def test_repeated_resume_and_api_double_click_execute_once(
 
 
 def test_infrastructure_retry_is_limited_and_preserved_on_resume(tmp_path):
-    from govops.evalrun.faults import run_faults
-
     calls = []
 
     def result(infra=False):
@@ -518,34 +669,47 @@ def test_resume_rejects_plan_or_seed_changes_before_execution(tmp_path, change):
     assert admin.clears == 0
 
 
+@pytest.mark.parametrize("startup", range(5))
 @pytest.mark.parametrize("variant", ["delay", "http_500", "refuse"])
-def test_each_f11_variant_has_transport_failure_evidence(monkeypatch, variant, capsys):
+def test_each_f11_variant_has_transport_failure_evidence(
+    monkeypatch, variant, startup, capsys
+):
+    import httpx2
+
     from govops.evalrun.faults import chaos_client
     from govops.replay.chaos_a import ChaosAServer, ChaosMode
     from govops.tools.a_mcp import AMcpError
     from govops.tools.resilience import ToolPolicy
 
+    enter = httpx2.AsyncClient.__aenter__
+
+    async def slow_enter(client):
+        await asyncio.sleep(0.05 * startup)
+        return await enter(client)
+
+    monkeypatch.setattr(httpx2.AsyncClient, "__aenter__", slow_enter)
     monkeypatch.setenv("KODOCS_MCP_TOKENS_FILE", "/unreadable-real-tokens")
 
     async def exercise():
-        async with ChaosAServer(
-            ChaosMode(variant), delay=2.0 if variant == "delay" else 0.05
-        ) as server:
+        async with ChaosAServer(ChaosMode(variant), delay=0.05) as server:
             client = chaos_client(server)
-            # Scale only the injected test policy, not production scenario budgets.
-            policy = ToolPolicy(hard=0.5 if variant == "delay" else 0.01)
-            with pytest.raises((AMcpError, TimeoutError)):
-                await policy.call_read(
-                    "a_mcp",
-                    lambda: client.call_tool(
-                        "demo-platform-g3", "search_docs", {"query": "합성"}
-                    ),
+            policy = ToolPolicy(hard=0.01)
+            attempts = 0
+
+            async def call():
+                nonlocal attempts
+                attempts += 1
+                return await client.call_tool(
+                    "demo-platform-g3", "search_docs", {"query": "합성"}
                 )
+
+            with pytest.raises((AMcpError, TimeoutError)):
+                await policy.call_read("a_mcp", call)
+            assert attempts == 3
             assert policy.circuits["a_mcp"].failures == 3
+            assert server.requests <= attempts
             if variant == "refuse":
                 assert server.requests == 0
-            else:
-                assert server.requests == 3
 
     asyncio.run(exercise())
     assert capsys.readouterr().out == ""

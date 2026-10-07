@@ -189,8 +189,14 @@ def summarize(plan, records):
     return report
 
 
+async def probe_mock_reads(jira, slack, user_id):
+    """One side-effect-free request per mock; an absent ticket still counts."""
+    await jira.get_ticket(user_id, "syn-fault-probe")
+    await slack.list_channels(user_id)
+
+
 async def run_faults(
-    *, root, admin, execute, metadata, resume=None, plan=None, preflight=list
+    *, root, admin, execute, metadata, probe, resume=None, plan=None, preflight=list
 ):
     plan = build_plan() if plan is None else tuple(plan)
     validate_plan(plan)
@@ -248,9 +254,19 @@ async def run_faults(
             raise ValueError(failures[0])
         # Exactly once at startup, including resume. Always clear on exit as well.
         await _invoke(admin.faults_clear)
+        await _invoke(admin.reset)
+        await _invoke(probe)
         stats = await _invoke(admin.faults_stats)
-        if any(stats.values()):
-            raise ValueError("stale_faults")
+        for service, endpoint in (
+            ("jira", "jira.ticket.get"),
+            ("slack", "slack.channels"),
+        ):
+            counters = stats.get(service, {}).get(endpoint, {})
+            if counters.get("applied_rules", 0) > 0:
+                raise ValueError("fault_rules_active")
+            if counters.get("requests", 0) < 1 or counters.get("applied_rules") != 0:
+                raise ValueError("probe_not_observed")
+        await _invoke(admin.reset)
         for row in plan:
             if row.position in records:
                 continue
@@ -305,7 +321,7 @@ async def run_faults(
         except Exception:  # noqa: BLE001 — cleanup must preserve the original safe failure
             manifest["cleanup_failed"] = True
             if not interrupted:
-                raise ValueError("stale_faults") from None
+                raise ValueError("cleanup_failed") from None
         finally:
             manifest["report"] = summarize(plan, records)
             save(directory / "manifest.json", manifest)
@@ -810,6 +826,13 @@ async def live(*, resume=None):
                 grading=grading,
             )
 
+        async def probe():
+            await probe_mock_reads(
+                JiraClient(env_or("MOCK_JIRA_URL", "http://127.0.0.1:8081")),
+                SlackClient(env_or("MOCK_SLACK_URL", "http://127.0.0.1:8082")),
+                specs[POOL[0]].user,
+            )
+
         return await run_faults(
             root=root,
             admin=AsyncAdmin(admin),
@@ -817,6 +840,7 @@ async def live(*, resume=None):
             metadata=metadata,
             resume=resume,
             preflight=initialize,
+            probe=probe,
         )
 
 
@@ -834,7 +858,9 @@ def main(argv=None):
         code = str(error) if isinstance(error, ValueError) else ""
         safe = {
             "plan_mismatch",
-            "stale_faults",
+            "cleanup_failed",
+            "fault_rules_active",
+            "probe_not_observed",
             "invalid_resume",
             "postgres_required",
             "dirty_worktree",

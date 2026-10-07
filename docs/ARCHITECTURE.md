@@ -406,3 +406,5 @@ M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec�
 `evalrun/faults.py`는 API 조립·승인 실행·주입 증거·보고·재개를 맡고 `fault_scenarios.py`는 등록 계획과 기대 조건, `faults_smoke.py`는 부품 검증을 맡는다. `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 직접 import하지 않으며 다른 계층은 `evalrun`을 import하지 않는다. `tools/fault_transport.py`는 클라이언트 전송 계층의 F4 주입이며 에이전트·API에 의존하지 않는다. `replay/chaos_a.py`는 F11용 원시 chaos A 서버와 판정이며 `agent`·`api`·`broker`에 의존하지 않는다. 합성 토큰만 요청 헤더에 붙이고 헤더를 기록하지 않는다.
 
 사용자 실행 흐름은 `make smoke-faults`(환경 → 규칙 적용·해제 → F5+F10 표식 조회 → down_alias 측정) 다음 `make eval-faults`(등록 가드 → preflight → 고정 계획 → 증거·판정·manifest)다. 스모크는 A를 사용하지 않으며 공식 실행 preflight가 live A 계약을 확인한다. 계획·분모·시드는 [사전 등록](results/hypotheses-m3-faults.md)이 원본이다. 재개는 같은 계획의 남은 위치만 실행하고 결과에 따른 재실행은 금지한다. 실행마다 새 ToolPolicy로 서킷을 초기화한다(ADR-022).
+
+남은 규칙 보호는 실행마다 하는 `reset`(과 그 실패 처리)이 맡는다. mock은 설정된 규칙 목록을 읽는 API가 없고 `faults stats`는 요청 카운터만 돌려주므로, 하네스는 시작 시 `reset` 직후 탐침 요청 하나로 `applied_rules`가 0인지 행동으로 확인한다. 탐침은 mock마다 읽기 엔드포인트만 호출하고 `requests >= 1`도 함께 확인하며, 점검 뒤 다시 `reset`해 카운터를 지운다. 재개 시에도 이 시작 점검을 한 번 수행한다.
