@@ -22,6 +22,7 @@ from govops import golden
 from govops.agent.checkpointer import open_checkpointer
 from govops.agent.checks import REASONS
 from govops.agent.graph import PROFILES, get_task
+from govops.agent.scope import SCOPE_REASONS
 from govops.agent.users import load_users
 from govops.api.wiring import build_task_service
 from govops.costs import BudgetExceededError, CostLedger, cost_report
@@ -468,7 +469,8 @@ def check_reason(view):
         if check.get("status") == "blocked"
         else (view.get("rejected_edit") or {}).get("reason")
     )
-    return reason if isinstance(reason, str) and reason in REASONS else None
+    allowed = REASONS | SCOPE_REASONS
+    return reason if isinstance(reason, str) and reason in allowed else None
 
 
 def trace_mismatch(state, captured):

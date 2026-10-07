@@ -1,0 +1,69 @@
+{
+  "task_id": "T2-01",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-incident-019"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-incident-019"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-019",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-sre",
+      "count": 1,
+      "structure": {},
+      "approval_id": "4720ab5faa30612674e65ee5117c0e95298ebd5cb0d14ee7d3ea7ae49626ecaa",
+      "body_sha256": "78e3c235917cb8b85ee03c314508eed688ab14338116f9d50929170f9cbf4eeb"
+    }
+  ],
+  "effect_bodies": [
+    "[장애보고 요약] INC-2026-009 청구 응답 지연\n\n- 서비스/심각도: billing-api / 심각도 2\n- 발생·복구: 2026-05-05 12:12 발생, 13:02 복구\n- 영향: 대량 청구 요청뿐 아니라 소규모 청구 요청도 대기 시간이 늘어 청구 조회·처리 응답이 전반적으로 지연됨\n- 원인: 대량·소규모 청구 요청이 단일 대기열을 공유해 대량 요청에 처리 자원이 집중됨\n- 조치 및 재발방지: 대량 요청 전용 대기열 분리 완료. 효과 모니터링, 요청 유형별 처리 현황 및 타 서비스 구간 점검, 모니터링·알림 체계 재검토 예정\n- 관련 조치 티켓: PAY-1004\n\n근거: [syn-incident-019]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "4720ab5faa30612674e65ee5117c0e95298ebd5cb0d14ee7d3ea7ae49626ecaa",
+      "actor": "demo-sre-g5",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "d28b777579a54d638d1ed171d81ef985"
+}

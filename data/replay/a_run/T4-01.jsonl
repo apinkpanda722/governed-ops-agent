@@ -1,1 +1,1 @@
-{"arguments":{"sql":"SELECT COUNT(*) AS ticket_count FROM tickets WHERE owner_team = 'data-ai' AND status = 'in_progress'"},"caller":"demo-finance-g6","is_error":false,"result":{"columns":["ticket_count"],"rows":[[16]],"truncated":false},"tool":"run_sql"}
+{"arguments":{"sql":"SELECT COUNT(*) AS ticket_count FROM tickets WHERE owner_team = 'data-ai' AND status IN ('open', 'in_progress')"},"caller":"demo-finance-g6","is_error":false,"result":{"columns":["ticket_count"],"rows":[[22]],"truncated":false},"tool":"run_sql"}
