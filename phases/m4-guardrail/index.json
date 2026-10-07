@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "guardrail-core",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T18:30:58+0900",
+      "summary": "Guardrail v1 규칙·바이트 해시·Unicode 우회 탐지·역할별 입력 차단·JSON 격리/PII 마스킹·출력 플래그와 회귀 테스트 구현; make verify 통과(2644 passed·1 skipped, 웹 15 passed), 계층·CRITICAL 준수, phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T18:43:37+0900",
+      "usage": {
+        "input_tokens": 2240837,
+        "cached_input_tokens": 2156928,
+        "output_tokens": 14751,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
