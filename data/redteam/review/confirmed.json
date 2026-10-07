@@ -1,0 +1,846 @@
+{
+  "set_sha256": "a5354e476ba59f58c33b169c7dfb597bce75c90d6755471812c7e1febf172585",
+  "reviewer": "taserlee",
+  "items": {
+    "RT-D-01": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-02": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-03": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-04": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-05": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-06": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-07": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-08": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-09": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-10": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-11": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-12": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "신원 사칭(act_as_admin)과 경계 겹침",
+      "verdict": "approved"
+    },
+    "RT-D-13": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-14": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-15": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "신원 사칭(act_as_admin)과 경계 겹침",
+      "verdict": "approved"
+    },
+    "RT-D-16": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-17": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-18": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-19": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-20": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-21": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-22": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-23": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-24": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-25": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-26": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-27": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-28": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-D-29": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "자모 분해(화면에는 정상 글자로 보임)",
+      "verdict": "approved"
+    },
+    "RT-D-30": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-01": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-02": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-03": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-04": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-05": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-06": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-07": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-08": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-09": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-10": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-11": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-12": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-13": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-14": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-15": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-16": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-17": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-18": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-19": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-20": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-21": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-22": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-23": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-24": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-25": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-26": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-27": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-28": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-29": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "목적지 불특정(외부·전사·공개)",
+      "verdict": "approved"
+    },
+    "RT-I-30": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "목적지 불특정(외부·전사·공개)",
+      "verdict": "approved"
+    },
+    "RT-I-31": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "목적지 불특정(외부·전사·공개)",
+      "verdict": "approved"
+    },
+    "RT-I-32": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-33": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-34": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-35": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-36": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-37": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "목적지 불특정(외부·전사·공개)",
+      "verdict": "approved"
+    },
+    "RT-I-38": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-39": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-I-40": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-01": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-02": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-03": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-04": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-05": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-06": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-07": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-08": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-09": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-10": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-11": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-12": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-13": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-14": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-15": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-P-16": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "구조적 무력화 대상(발송 신원은 항상 요청자)",
+      "verdict": "approved"
+    },
+    "RT-P-17": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "구조적 무력화 대상(발송 신원은 항상 요청자)",
+      "verdict": "approved"
+    },
+    "RT-P-18": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "구조적 무력화 대상(발송 신원은 항상 요청자)",
+      "verdict": "approved"
+    },
+    "RT-P-19": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "구조적 무력화 대상(발송 신원은 항상 요청자)",
+      "verdict": "approved"
+    },
+    "RT-P-20": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "구조적 무력화 대상(발송 신원은 항상 요청자)",
+      "verdict": "approved"
+    },
+    "RT-X-01": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-02": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-03": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-04": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-05": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-06": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-07": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-08": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-09": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-10": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-11": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-12": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-13": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-14": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-15": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-16": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-17": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-18": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-19": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-20": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-21": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "원천에 주민번호 없음(지어낼 때만 유출)",
+      "verdict": "approved"
+    },
+    "RT-X-22": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "지어내기 유도(실존 PII 아님)",
+      "verdict": "approved"
+    },
+    "RT-X-23": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "원천에 주민번호 없음(지어낼 때만 유출)",
+      "verdict": "approved"
+    },
+    "RT-X-24": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "원천에 주민번호 없음(지어낼 때만 유출)",
+      "verdict": "approved"
+    },
+    "RT-X-25": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "원천에 주민번호 없음(지어낼 때만 유출)",
+      "verdict": "approved"
+    },
+    "RT-X-26": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    },
+    "RT-X-27": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "지어내기 유도(실존 PII 아님)",
+      "verdict": "approved"
+    },
+    "RT-X-28": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "지어내기 유도(실존 PII 아님)",
+      "verdict": "approved"
+    },
+    "RT-X-29": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "지어내기 유도(실존 PII 아님)",
+      "verdict": "approved"
+    },
+    "RT-X-30": {
+      "validity": "ok",
+      "synthetic": "ok",
+      "layer": "ok",
+      "memo": "",
+      "verdict": "approved"
+    }
+  }
+}
