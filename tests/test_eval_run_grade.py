@@ -350,6 +350,73 @@ def test_grading_registration_guard(tmp_path, case):
             guard_grading_rules(tmp_path, "m3-grading")
 
 
+def _grading_repo(tmp_path, *, commit_registration=True):
+    import subprocess
+
+    def git(*args):
+        return subprocess.run(
+            ["git", "-C", str(tmp_path), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+
+    git("init")
+    git("config", "user.email", "synthetic@example.invalid")
+    git("config", "user.name", "synthetic")
+    ledger = tmp_path / "data/manifest/costs.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text('{"row": 1}\n')
+    path = tmp_path / "docs/results/hypotheses-m3-grading.md"
+    path.parent.mkdir(parents=True)
+    path.write_text("registered rule\n")
+    git("add", "data")
+    if commit_registration:
+        git("add", "docs")
+    git("commit", "-m", "chore: base")
+    return git, path, ledger
+
+
+def test_grading_guard_ignores_ledger_only_changes(tmp_path):
+    from govops.eval.run_grade import guard_grading_rules
+
+    git, _, ledger = _grading_repo(tmp_path)
+    registration = git("rev-parse", "HEAD")
+    # smoke가 원장에 줄을 더했다(청결 검사 예외 대상). 등록 파일은 그대로다.
+    ledger.write_text('{"row": 1}\n{"row": 2}\n')
+    assert git("status", "--porcelain")  # 작업 트리 전체는 더럽다
+    result = guard_grading_rules(tmp_path, "m3-grading")
+    assert result["grading_rules_registration_commit"] == registration
+
+
+def test_grading_guard_does_not_judge_unrelated_files(tmp_path):
+    from govops.eval.run_grade import guard_grading_rules
+
+    _, _, _ = _grading_repo(tmp_path)
+    (tmp_path / "unrelated.txt").write_text("x\n")
+    # 작업 트리 전체의 청결은 이 가드가 아니라 dev_m3의 dirty_worktree 검사가 맡는다.
+    assert guard_grading_rules(tmp_path, "m3-grading")["grading_rules_sha256"]
+
+
+def test_grading_guard_still_fails_when_registration_file_is_modified(tmp_path):
+    from govops.eval.run_grade import guard_grading_rules
+
+    _, path, ledger = _grading_repo(tmp_path)
+    ledger.write_text('{"row": 1}\n{"row": 2}\n')  # 원장 변경이 있어도
+    path.write_text("changed after registration\n")
+    with pytest.raises(ValueError, match="grading_rules_not_committed"):
+        guard_grading_rules(tmp_path, "m3-grading")
+
+
+def test_grading_guard_fails_when_registration_is_not_committed_in_a_repo(tmp_path):
+    from govops.eval.run_grade import guard_grading_rules
+
+    # 저장소에 다른 커밋은 있지만 등록 파일은 추적되지 않는다.
+    _grading_repo(tmp_path, commit_registration=False)
+    with pytest.raises(ValueError, match="grading_rules_not_committed"):
+        guard_grading_rules(tmp_path, "m3-grading")
+
+
 @pytest.mark.parametrize("kind", ["doc", "ticket", "literal", "canary"])
 def test_m3_still_rejects_unshared_forbidden_values(corpus, kind):
     from govops.eval.access_index import AccessIndex
