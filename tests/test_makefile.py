@@ -225,3 +225,17 @@ def test_approval_smoke_user_only():
         in text
     )
     assert "smoke-approval" not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_team_keys_targets():
+    from pathlib import Path
+
+    text = Path("Makefile").read_text()
+    assert (
+        "team-keys:\n\tuv run --env-file .env python -m govops.gateway.team_keys $(TEAM_KEYS_ARGS)"
+        in text
+    )
+    assert (
+        "team-keys-update:\n\tuv run --env-file .env python -m govops.gateway.team_keys --update $(TEAM_KEYS_ARGS)"
+        in text
+    )

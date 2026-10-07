@@ -864,3 +864,119 @@ def test_deployment_configuration_ids():
 def test_client_rejects_invalid_fault_mode(mode):
     with pytest.raises(ValueError, match="Invalid fault_mode"):
         LiteLLMChatClient(api_key=KEY, fault_mode=mode)
+
+
+@pytest.mark.parametrize(
+    "code",
+    ["injection_direct", "pii_input", "guardrail_unavailable", "team_unknown", "other"],
+)
+def test_guardrail_errors(tmp_path, code, caplog):
+    from govops.gateway.client import GuardrailBlocked, GuardrailUnavailable
+    from govops.gateway.hook_header import GuardrailInfo, format_header
+
+    costs.init_ledgers(tmp_path)
+    info = GuardrailInfo("a" * 12, "b" * 12, team="platform")
+
+    def handle(request):
+        return httpx.Response(
+            400,
+            json={
+                "error": {
+                    "message": KEY,
+                    "provider_specific_fields": {
+                        "error": "guardrail_blocked",
+                        "code": code,
+                        "guardrail_name": "govops-v1",
+                        "guardrail_mode": "pre_call",
+                    },
+                }
+            },
+            headers={"x-govops-guardrail": format_header(info)},
+        )
+
+    cls = (
+        GuardrailBlocked
+        if code in ("injection_direct", "pii_input")
+        else GuardrailUnavailable
+        if code != "other"
+        else GatewayError
+    )
+    with pytest.raises(cls) as caught:
+        run(tmp_path, handle)
+    assert str(caught.value) == (code if code != "other" else "gateway HTTP 400")
+    if isinstance(caught.value, GuardrailBlocked):
+        assert caught.value.info == info
+    assert caught.value.__context__ is None
+    assert KEY not in repr(caught.value) + caplog.text
+    rows = settled_rows(tmp_path)
+    assert len(rows) == 2 and all(r["cost_usd"] == 0 for r in rows)
+    for supplier in ("openai", "anthropic"):
+        assert costs.CostLedger(tmp_path).committed_usd(supplier) == 0
+
+
+@pytest.mark.parametrize("header", ["valid", "missing", "invalid", "rules", "code"])
+def test_guardrail_success_validation_and_cost(tmp_path, header):
+    from govops.gateway.client import GuardrailUnavailable
+    from govops.gateway.hook_digest import HookDigests
+    from govops.gateway.hook_header import GuardrailInfo, format_header
+
+    costs.init_ledgers(tmp_path)
+    expected = HookDigests("a" * 12, "b" * 12)
+    info = GuardrailInfo(
+        "c" * 12 if header == "rules" else expected.rules,
+        "c" * 12 if header == "code" else expected.code,
+    )
+    headers = (
+        {}
+        if header == "missing"
+        else {
+            "x-govops-guardrail": "bad" if header == "invalid" else format_header(info)
+        }
+    )
+
+    def handle(request):
+        assert request.headers["authorization"] == "Bearer synthetic-team-key"
+        assert "synthetic-team-key" not in request.content.decode()
+        return httpx.Response(200, json=response(), headers=headers)
+
+    kwargs = {
+        "require_guardrail": True,
+        "expected_digests": expected,
+        "key_resolver": lambda user: "synthetic-team-key",
+    }
+    if header == "valid":
+        assert run(tmp_path, handle, **kwargs).guardrail == info
+    else:
+        with pytest.raises(
+            GuardrailUnavailable,
+            match="^guardrail_"
+            + ("header_missing" if header in ("missing", "invalid") else "stale")
+            + "$",
+        ):
+            run(tmp_path, handle, **kwargs)
+    rows = settled_rows(tmp_path)
+    assert rows[0]["cost_usd"] > 0 and rows[1]["cost_usd"] == 0
+
+
+def test_resolver_called_each_request(tmp_path):
+    costs.init_ledgers(tmp_path)
+    seen = []
+
+    async def invoke():
+        def handle(request):
+            seen.append(request.headers["authorization"])
+            return httpx.Response(200, json=response())
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http:
+            client = LiteLLMChatClient(
+                key_resolver=lambda user: "synthetic-" + user,
+                http_client=http,
+                ledger=costs.CostLedger(tmp_path),
+            )
+            for user in ("one", "two"):
+                await client.complete(
+                    messages=MESSAGES, tools=TOOLS, task_id="task", user_id=user
+                )
+
+    asyncio.run(invoke())
+    assert seen == ["Bearer synthetic-one", "Bearer synthetic-two"]

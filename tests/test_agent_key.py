@@ -154,7 +154,7 @@ def test_master_reference_is_isolated():
         for p in root.rglob("*.py")
         if "LITELLM_MASTER_KEY" in p.read_text()
     ]
-    assert matches == ["gateway/agent_key.py"]
+    assert sorted(matches) == ["gateway/agent_key.py", "gateway/team_keys.py"]
 
 
 def test_atomic_write_failure_preserves_file(tmp_path, monkeypatch, capsys, caplog):

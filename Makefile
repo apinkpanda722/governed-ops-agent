@@ -168,6 +168,15 @@ smoke-faults:
 	uv run --env-file .env python -m govops.evalrun.faults_smoke
 
 
+.PHONY: team-keys team-keys-update
+# 사용자 실행, 팀별 키는 env 파일에만 기록한다. TEAM_KEYS_ARGS=--rotate 지원
+team-keys:
+	uv run --env-file .env python -m govops.gateway.team_keys $(TEAM_KEYS_ARGS)
+
+team-keys-update:
+	uv run --env-file .env python -m govops.gateway.team_keys --update $(TEAM_KEYS_ARGS)
+
+
 .PHONY: eval-cards eval-review-status eval-human-sheet eval-human-register eval-gemini-grade smoke-gemini smoke-fallback
 # 읽기 전용 A 저장소(A_ROOT) 필요, 사용자 실행
 eval-cards:

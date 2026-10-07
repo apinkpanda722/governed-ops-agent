@@ -22,6 +22,8 @@ from govops.audit.log import AuditLog
 from govops.env import env_or
 from govops.gateway.client import LiteLLMChatClient
 from govops.gateway.faults import model_fault_mode
+from govops.gateway.hook_digest import compute_digests
+from govops.gateway.team_keys import TeamKeyResolver
 from govops.guardrails.policy import load_team_policy
 from govops.obs.jsonl import JsonlSink
 from govops.obs.langfuse import langfuse_sink_from_env
@@ -87,7 +89,12 @@ async def open_task_service():
     )
     langfuse_sink = langfuse_sink_from_env()
     configure([JsonlSink(), *([langfuse_sink] if langfuse_sink is not None else [])])
-    for name in ("KODOCS_MCP_URL", "LITELLM_AGENT_KEY"):
+    resolver = TeamKeyResolver(
+        {label: user.team for label, user in load_users().items()}
+    )
+    if resolver.missing():
+        raise StartupError("team_keys_missing")
+    for name in ("KODOCS_MCP_URL",):
         if not os.environ.get(name, "").strip():
             raise StartupError(name)
     a_client = AMcpClient(os.environ["KODOCS_MCP_URL"])
@@ -119,7 +126,13 @@ async def open_task_service():
                 else InMemoryOutboxStore()
             )
             service = build_task_service(
-                chat=LiteLLMChatClient(),
+                chat=LiteLLMChatClient(
+                    key_resolver=resolver.key_for,
+                    expected_digests=compute_digests(
+                        Path(__file__).resolve().parents[3]
+                    ),
+                    require_guardrail=True,
+                ),
                 tools=tools,
                 saver=saver,
                 outbox=outbox,

@@ -8,15 +8,18 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from govops.api.startup import StartupError
 from govops.api.wiring import open_task_service
+from govops.gateway.team_keys import load_teams, team_env_name
 from govops.replay.fake_a import create_app
 from govops.replay.recordings import RecordingSet
 from govops.tools.contract import load_snapshot
 
 
-@pytest.mark.parametrize("missing", ["KODOCS_MCP_URL", "LITELLM_AGENT_KEY"])
+@pytest.mark.parametrize("missing", ["KODOCS_MCP_URL", "LITELLM_TEAM_KEY_PLATFORM"])
 def test_missing_configuration(monkeypatch, missing):
     monkeypatch.setenv("KODOCS_MCP_URL", "PRIVATE-VALUE")
     monkeypatch.setenv("LITELLM_AGENT_KEY", "PRIVATE-KEY")
+    for team in load_teams():
+        monkeypatch.setenv(team_env_name(team), "synthetic-team-wiring-key")
     monkeypatch.delenv(missing)
 
     async def run():
@@ -25,7 +28,9 @@ def test_missing_configuration(monkeypatch, missing):
 
     with pytest.raises(StartupError) as error:
         asyncio.run(run())
-    assert str(error.value) == missing
+    assert str(error.value) == (
+        "team_keys_missing" if missing.startswith("LITELLM_TEAM_KEY") else missing
+    )
     assert error.value.__context__ is None
 
 
@@ -33,6 +38,8 @@ def test_wiring_contract_and_memory(serve_asgi, a_tokens, monkeypatch):
     path, _ = a_tokens
     monkeypatch.setenv("KODOCS_MCP_TOKENS_FILE", str(path))
     monkeypatch.setenv("LITELLM_AGENT_KEY", "fake-key")
+    for team in load_teams():
+        monkeypatch.setenv(team_env_name(team), "synthetic-team-wiring-key")
     monkeypatch.setenv("GOVOPS_DATABASE_URL", "")
     recordings = RecordingSet.load(Path(__file__).parent / "fixtures/a_recordings")
     monkeypatch.setenv(
@@ -61,6 +68,8 @@ def test_wiring_closes_shared_rest_client(serve_asgi, a_tokens, monkeypatch, fai
     path, _ = a_tokens
     monkeypatch.setenv("KODOCS_MCP_TOKENS_FILE", str(path))
     monkeypatch.setenv("LITELLM_AGENT_KEY", "fake-key")
+    for team in load_teams():
+        monkeypatch.setenv(team_env_name(team), "synthetic-team-wiring-key")
     monkeypatch.setenv("GOVOPS_DATABASE_URL", "")
     recordings = RecordingSet.load(Path(__file__).parent / "fixtures/a_recordings")
     monkeypatch.setenv(
@@ -139,6 +148,8 @@ def test_wiring_approval_dependencies(
     path, _ = a_tokens
     monkeypatch.setenv("KODOCS_MCP_TOKENS_FILE", str(path))
     monkeypatch.setenv("LITELLM_AGENT_KEY", "synthetic-key")
+    for team in load_teams():
+        monkeypatch.setenv(team_env_name(team), "synthetic-team-wiring-key")
     monkeypatch.setenv("GOVOPS_DATABASE_URL", "")
     monkeypatch.setenv("GOVOPS_AGENT_PROFILE", profile)
     monkeypatch.setenv("AUDIT_DIR", str(tmp_path))
@@ -173,4 +184,23 @@ def test_service_rejects_fault_mode(monkeypatch, mode):
             pytest.fail("must not start")
 
     with pytest.raises(StartupError, match="GOVOPS_MODEL_FAULT_MODE"):
+        asyncio.run(run())
+
+
+@pytest.mark.parametrize("value", [None, "", "   "])
+def test_agent_key_cannot_replace_missing_team_key(monkeypatch, value):
+    monkeypatch.setenv("KODOCS_MCP_URL", "http://synthetic.invalid")
+    monkeypatch.setenv("LITELLM_AGENT_KEY", "synthetic-diagnostic-key")
+    for team in load_teams():
+        monkeypatch.setenv(team_env_name(team), "synthetic-team-wiring-key")
+    if value is None:
+        monkeypatch.delenv(team_env_name("platform"))
+    else:
+        monkeypatch.setenv(team_env_name("platform"), value)
+
+    async def run():
+        async with open_task_service():
+            pytest.fail("must not start")
+
+    with pytest.raises(StartupError, match="^team_keys_missing$"):
         asyncio.run(run())

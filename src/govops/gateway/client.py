@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import secrets
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -31,6 +31,8 @@ from govops.costs import (
 )
 from govops.env import env_or
 from govops.gateway.faults import ModelFaultScript, model_fault_alias
+from govops.gateway.hook_digest import HookDigests
+from govops.gateway.hook_header import GuardrailInfo, parse_header
 from govops.obs.trace import current_span_id, set_attributes
 
 _MODEL = "gpt-6-luna"
@@ -87,10 +89,33 @@ class ChatResult:
     body_model: str | None = None
     model_group: str | None = None
     attempted_fallbacks: int | None = None
+    guardrail: GuardrailInfo | None = None
 
 
 class GatewayError(Exception):
     """HTTP 상태 또는 오류 종류만 담는 안전한 호출 오류."""
+
+
+class GuardrailBlocked(GatewayError):
+    def __init__(self, code: str, info: GuardrailInfo | None):
+        if code not in {"injection_direct", "pii_input"}:
+            raise ValueError("invalid guardrail code")
+        self.code = code
+        self.info = info
+        super().__init__(code)
+
+
+class GuardrailUnavailable(GatewayError):
+    def __init__(self, code: str):
+        if code not in {
+            "guardrail_unavailable",
+            "team_unknown",
+            "guardrail_header_missing",
+            "guardrail_stale",
+        }:
+            raise ValueError("invalid guardrail code")
+        self.code = code
+        super().__init__(code)
 
 
 class ChatClient(Protocol):
@@ -111,6 +136,9 @@ class LiteLLMChatClient:
         *,
         base_url: str | None = None,
         api_key: str | None = None,
+        key_resolver: Callable[[str], str] | None = None,
+        expected_digests: HookDigests | None = None,
+        require_guardrail: bool = False,
         ledger: CostLedger | None = None,
         http_client: httpx.AsyncClient | None = None,
         timeout_s: float = 60.0,
@@ -123,8 +151,13 @@ class LiteLLMChatClient:
             raise ValueError("fault_script requires fault_mode")
         self._fault_script = fault_script
         self._fault_mode = fault_mode
+        self._key_resolver = key_resolver
+        self._expected_digests = expected_digests
+        self._require_guardrail = require_guardrail
         self._api_key = (
-            api_key if api_key is not None else os.getenv("LITELLM_AGENT_KEY")
+            None
+            if key_resolver is not None
+            else (api_key if api_key is not None else os.getenv("LITELLM_AGENT_KEY"))
         )
         self._base_url = base_url or env_or("LITELLM_BASE_URL", "http://127.0.0.1:4000")
         self._ledger = ledger if ledger is not None else CostLedger()
@@ -140,7 +173,12 @@ class LiteLLMChatClient:
         user_id: str,
         max_output_tokens: int = 1024,
     ) -> ChatResult:
-        if not self._api_key or not self._api_key.strip():
+        api_key = (
+            self._key_resolver(user_id)
+            if self._key_resolver is not None
+            else self._api_key
+        )
+        if not api_key or not api_key.strip():
             raise GatewayError("LITELLM_AGENT_KEY가 설정되지 않았습니다")
         metadata = {
             "task_id": task_id,
@@ -221,8 +259,10 @@ class LiteLLMChatClient:
                 deployment_id,
                 model_group,
                 attempted_fallbacks,
+                guardrail,
             ) = await self._send(
                 body,
+                api_key=api_key,
                 user_id=user_id,
                 task_id=task_id,
                 max_output_tokens=max_output_tokens,
@@ -249,6 +289,17 @@ class LiteLLMChatClient:
                 max_output_tokens,
                 response_model if resolved.mapped else "unregistered",
             )
+            if self._require_guardrail and guardrail is None:
+                raise GuardrailUnavailable("guardrail_header_missing")
+            if (
+                self._expected_digests is not None
+                and guardrail is not None
+                and (
+                    guardrail.rules != self._expected_digests.rules
+                    or guardrail.code != self._expected_digests.code
+                )
+            ):
+                raise GuardrailUnavailable("guardrail_stale")
             return _result(
                 completion,
                 usage,
@@ -260,6 +311,7 @@ class LiteLLMChatClient:
                 attempted_fallbacks=attempted_fallbacks,
                 fallback_used=fallback_used,
                 unmapped_model=unmapped,
+                guardrail=guardrail,
             )
         finally:
             set_attributes(
@@ -293,14 +345,20 @@ class LiteLLMChatClient:
                 )
 
     async def _send(
-        self, body: dict, *, user_id: str, task_id: str, max_output_tokens: int
+        self,
+        body: dict,
+        *,
+        api_key: str,
+        user_id: str,
+        task_id: str,
+        max_output_tokens: int,
     ):
         _protect_transport_logs()
         token = _IN_CALL.set(True)
         error = None
         try:
             sdk = AsyncOpenAI(
-                api_key=self._api_key,
+                api_key=api_key,
                 base_url=self._base_url,
                 http_client=self._http_client,
                 timeout=self._timeout_s,
@@ -325,6 +383,7 @@ class LiteLLMChatClient:
                     )
                 except (ValueError, TypeError):
                     attempted_fallbacks = None
+                guardrail = parse_header(raw.headers.get("x-govops-guardrail"))
                 completion = raw.parse()
             finally:
                 # An injected HTTP client remains owned by its caller.
@@ -336,6 +395,22 @@ class LiteLLMChatClient:
             error = GatewayError("gateway connection failure")
         except APIStatusError as exc:
             error = GatewayError(f"gateway HTTP {exc.status_code}")
+            if exc.status_code == 400:
+                body = exc.body
+                details = body.get("error", body) if isinstance(body, dict) else {}
+                fields = (
+                    details.get("provider_specific_fields", {})
+                    if isinstance(details, dict)
+                    else {}
+                )
+                code = fields.get("code") if isinstance(fields, dict) else None
+                if code in {"injection_direct", "pii_input"}:
+                    error = GuardrailBlocked(
+                        code,
+                        parse_header(exc.response.headers.get("x-govops-guardrail")),
+                    )
+                elif code in {"guardrail_unavailable", "team_unknown"}:
+                    error = GuardrailUnavailable(code)
         except OpenAIError:
             error = GatewayError("gateway SDK failure")
         finally:
@@ -344,7 +419,7 @@ class LiteLLMChatClient:
         # are not attached as exception context.
         if error is not None:
             raise error
-        return completion, deployment_id, model_group, attempted_fallbacks
+        return completion, deployment_id, model_group, attempted_fallbacks, guardrail
 
 
 def _usage_and_cost(

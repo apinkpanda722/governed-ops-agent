@@ -143,12 +143,12 @@ def test_checkpointer(monkeypatch, mismatch):
 
 def test_preflight(monkeypatch, tmp_path, capsys, caplog):
     monkeypatch.setattr(smoke, "CostLedger", lambda: CostLedger(tmp_path))
-    for name in ("LITELLM_AGENT_KEY", "KODOCS_MCP_URL", "GOVOPS_DATABASE_URL"):
+    for name in ("LITELLM_TEAM_KEY_PLATFORM", "KODOCS_MCP_URL", "GOVOPS_DATABASE_URL"):
         monkeypatch.delenv(name, raising=False)
     assert smoke.main(["agent"]) == 1
     output = capsys.readouterr().out
-    assert "LITELLM_AGENT_KEY" in output and "KODOCS_MCP_URL" in output
-    monkeypatch.setenv("LITELLM_AGENT_KEY", "key-sentinel")
+    assert "LITELLM_TEAM_KEY_PLATFORM" in output and "KODOCS_MCP_URL" in output
+    monkeypatch.setenv("LITELLM_TEAM_KEY_PLATFORM", "key-sentinel")
     monkeypatch.setenv("KODOCS_MCP_URL", "token-sentinel")
     assert smoke.main(["agent"]) == 1
     assert "sentinel" not in capsys.readouterr().out + caplog.text
@@ -191,7 +191,7 @@ def test_agent_main_wiring_and_memory_warning(monkeypatch, tmp_path, capsys):
     init_ledgers(tmp_path)
     ledger = CostLedger(tmp_path)
     monkeypatch.setattr(smoke, "CostLedger", lambda: ledger)
-    monkeypatch.setenv("LITELLM_AGENT_KEY", "key-sentinel")
+    monkeypatch.setenv("LITELLM_TEAM_KEY_PLATFORM", "key-sentinel")
     monkeypatch.setenv("KODOCS_MCP_URL", "token-sentinel")
     monkeypatch.delenv("GOVOPS_DATABASE_URL", raising=False)
 
@@ -374,6 +374,7 @@ def test_obs_preflight(monkeypatch, capsys):
 def test_obs_cli_wiring_and_safe_failure(monkeypatch, tmp_path, capsys, caplog):
     init_ledgers(tmp_path)
     monkeypatch.setattr(smoke, "CostLedger", lambda: CostLedger(tmp_path))
+    monkeypatch.setenv("LITELLM_TEAM_KEY_PLATFORM", "secret-sentinel")
     for name in smoke.OBS_REQUIRED_ENV:
         monkeypatch.setenv(name, "secret-sentinel")
     seen = []
