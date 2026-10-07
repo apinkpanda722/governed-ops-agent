@@ -51,7 +51,7 @@ def test_structure_masking_and_isolation(sink):
     root = records[-1]
     assert root.kind == SpanKind.TASK and root.trace_id == ident
     assert root.attributes["steps"] == result["steps"] == 2
-    assert root.attributes["input.request"] == "조회 [PII:mobile]"
+    assert "input.request" not in root.attributes
     assert root.attributes["output.answer"] == "[syn-one] [PII:mobile]"
     assert root.attributes["cited_doc_ids"] == ["syn-one"]
     nodes = [r for r in records if r.kind == SpanKind.GRAPH_NODE]
@@ -128,6 +128,7 @@ def test_concurrent_tasks_and_cancellation(sink):
                 "observed_doc_ids",
                 "steps",
                 "error",
+                "guardrail",
             }
         cancelled = await service.start("demo-platform-g3", "wait")
         await entered.wait()

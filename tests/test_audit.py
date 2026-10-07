@@ -58,7 +58,7 @@ def test_concurrent_instances(tmp_path):
 
 def test_events(tmp_path):
     log = AuditLog(tmp_path)
-    assert len(EVENTS) == 9
+    assert len(EVENTS) == 14
     for event in EVENTS:
         log.append(event, task_id=uuid4().hex, actor_sub="demo-platform-g3")
     with pytest.raises(ValueError):
@@ -235,3 +235,90 @@ def test_invalid_identifiers(tmp_path, task_id, actor):
     with pytest.raises(AuditWriteError) as error:
         AuditLog(tmp_path).append("side_effect.draft", task_id=task_id, actor_sub=actor)
     assert isinstance(error.value, ValueError)
+
+
+@pytest.mark.parametrize(
+    "event,fields",
+    [
+        (
+            "guardrail.input_blocked",
+            {
+                "code": "injection_direct",
+                "input_sha256": "a" * 64,
+                "rules_digest": "b" * 12,
+                "code_digest": "c" * 12,
+            },
+        ),
+        ("guardrail.input_blocked", {"code": "pii_input"}),
+        ("guardrail.tool_quarantined", {"tool_call_sha256": "a" * 64, "count": 1}),
+        ("guardrail.tool_masked", {"count": 2}),
+        ("guardrail.output_flagged", {"team": "platform"}),
+        ("guardrail.error", {"code": "guardrail_post_error"}),
+    ],
+)
+def test_guardrail_events_jsonl(tmp_path, event, fields):
+    log = AuditLog(tmp_path)
+    log.append(event, task_id=uuid4().hex, actor_sub="demo-platform-g3", **fields)
+    row = rows(tmp_path)[0]
+    assert row["event"] == event
+    assert all(row[k] == v for k, v in fields.items())
+    if fields.get("code") == "pii_input":
+        assert "input_sha256" not in row
+
+
+@pytest.mark.parametrize(
+    "event,fields",
+    [
+        ("guardrail.input_blocked", {"code": "pii_input", "input_sha256": "a" * 64}),
+        ("guardrail.error", {"code": "injection_direct", "input_sha256": "a" * 64}),
+        ("guardrail.input_blocked", {"code": "unknown"}),
+        ("guardrail.tool_quarantined", {"tool_call_sha256": "a" * 63}),
+        (
+            "guardrail.input_blocked",
+            {"code": "injection_direct", "input_sha256": "g" * 64},
+        ),
+        ("guardrail.error", {"rules_digest": "a" * 64}),
+        ("guardrail.error", {"code_digest": "A" * 12}),
+        ("guardrail.error", {"team": "Platform"}),
+        ("guardrail.error", {"content": "a" * 64}),
+        ("guardrail.error", {"code": 1}),
+        ("guardrail.error", {"tool_call_sha256": None}),
+    ],
+)
+def test_guardrail_fields_rejected(tmp_path, event, fields):
+    from govops.audit.log import MemoryAuditLog
+
+    for log in (AuditLog(tmp_path), MemoryAuditLog()):
+        with pytest.raises(AuditWriteError):
+            log.append(
+                event, task_id=uuid4().hex, actor_sub="demo-platform-g3", **fields
+            )
+
+
+def test_guardrail_random_identifiers_never_run_pii(monkeypatch):
+    from uuid import UUID
+
+    from govops.audit.log import MemoryAuditLog
+
+    # Seeded v4 UUIDs make the 10,000 random samples reproducible.
+    rng = random.Random(731)
+    log = MemoryAuditLog()
+
+    def forbidden(value):
+        pytest.fail("PII regex called for a typed identifier")
+
+    monkeypatch.setattr("govops.audit.log.find_pii", forbidden)
+    for _ in range(10000):
+        ident = UUID(bytes=rng.randbytes(16), version=4).hex
+        log.append(
+            "guardrail.input_blocked",
+            task_id=ident,
+            actor_sub="demo-platform-g3",
+            code="injection_direct",
+            input_sha256=ident * 2,
+            tool_call_sha256=ident * 2,
+            rules_digest=ident[:12],
+            code_digest=ident[:12],
+            team="platform",
+        )
+    assert len(log.records) == 10000
