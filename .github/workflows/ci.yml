@@ -11,6 +11,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # 테스트 하나가 끝나지 않아 job이 시간 제한까지 매달리는 일을 막는다(PR #63의 13분 정지).
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

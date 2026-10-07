@@ -94,9 +94,9 @@ def test_load_committed_specs_reads_the_last_commit_only(tmp_path):
         "-c",
         "user.email=t@example.invalid",
     ]
-    subprocess.run([*git, "init", "-q"], check=True)
-    subprocess.run([*git, "add", "."], check=True)
-    subprocess.run([*git, "commit", "-q", "-m", "x"], check=True)
+    subprocess.run([*git, "init", "-q"], check=True, timeout=30)
+    subprocess.run([*git, "add", "."], check=True, timeout=30)
+    subprocess.run([*git, "commit", "-q", "-m", "x"], check=True, timeout=30)
     # 작업 트리의 새 명세로 덮어써도 커밋된 이전 명세를 읽는다
     dump_specs([reword(s, "새 문장") for s in specs], repo / "data/eval/tasks.json")
     committed = load_committed_specs(repo / "data/eval/tasks.json")

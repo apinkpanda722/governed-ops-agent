@@ -124,7 +124,9 @@ def a_root(tmp_path):
             "fixture",
         ],
     ):
-        subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(root), *args], check=True, capture_output=True, timeout=30
+        )
     return root
 
 

@@ -177,7 +177,7 @@ def test_threads_never_reserve_beyond_cap(tmp_path):
     target = ledger(tmp_path, used=round(CAP - 0.01, 10))
     results = []
     lock = threading.Lock()
-    barrier = threading.Barrier(16)
+    barrier = threading.Barrier(16, timeout=30)
 
     def worker():
         barrier.wait()
@@ -193,7 +193,8 @@ def test_threads_never_reserve_beyond_cap(tmp_path):
     for thread in threads:
         thread.start()
     for thread in threads:
-        thread.join()
+        thread.join(timeout=30)
+    assert not any(thread.is_alive() for thread in threads)
     assert results.count("reserved") == 2  # 0.01 / 0.004 = 2.5
     assert target.committed_usd("openai") <= CAP + 1e-9
 
@@ -201,8 +202,15 @@ def test_threads_never_reserve_beyond_cap(tmp_path):
 def test_processes_never_reserve_beyond_cap(tmp_path):
     ledger(tmp_path, used=round(CAP - 0.01, 10))
     context = multiprocessing.get_context("spawn")
-    with context.Pool(6) as pool:
-        outcomes = pool.starmap(reserve_once, [(str(tmp_path), 0.004)] * 12)
+    pool = context.Pool(6)
+    try:
+        # 풀 워커가 죽으면 starmap은 영원히 끝나지 않는다(CI 정지 사례). 유한 대기로 바꾼다.
+        outcomes = pool.starmap_async(reserve_once, [(str(tmp_path), 0.004)] * 12).get(
+            timeout=60
+        )
+    finally:
+        pool.terminate()
+        pool.join()
     assert outcomes.count("reserved") == 2
     assert CostLedger(tmp_path).committed_usd("openai") <= CAP + 1e-9
     assert len([r for r in rows(tmp_path) if r.get("kind") == "reservation"]) == 2

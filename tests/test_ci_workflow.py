@@ -2,6 +2,7 @@
 
 import json
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -105,3 +106,19 @@ def test_ci_checkout_fetches_full_history(workflow):
     )
     # git 이력에 의존하는 테스트(`git log --diff-filter=A`)는 얕은 복제에서 다른 커밋을 돌려준다.
     assert checkout.get("with") == {"fetch-depth": 0}
+
+
+def test_ci_verify_job_has_a_timeout(workflow):
+    _, parsed = workflow
+    # 테스트가 끝나지 않으면 job이 기본 6시간까지 매달린다(PR #63에서 13분 넘게 정지).
+    assert parsed["jobs"]["verify"]["timeout-minutes"] == 20
+
+
+def test_pytest_per_test_timeout_is_configured():
+    config = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    options = config["tool"]["pytest"]["ini_options"]
+    # thread 방식은 멈춘 테스트의 스택을 출력하고 워커를 끝내 xdist가 테스트 이름을 보고하게 한다.
+    assert options["timeout"] == 120
+    assert options["timeout_method"] == "thread"
+    dev = config["dependency-groups"]["dev"]
+    assert any(item.startswith("pytest-timeout") for item in dev)

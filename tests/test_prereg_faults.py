@@ -36,10 +36,11 @@ def test_registration_unchanged_after_first_commit():
         ["git", "log", "--diff-filter=A", "--format=%H", "--", PATH],
         cwd=ROOT,
         text=True,
+        timeout=30,
     ).splitlines()
     if not commits:
         return  # The step executor commits a new registration after verification.
     original = subprocess.check_output(
-        ["git", "show", f"{commits[-1]}:{PATH}"], cwd=ROOT
+        ["git", "show", f"{commits[-1]}:{PATH}"], cwd=ROOT, timeout=30
     )
     assert (ROOT / PATH).read_bytes() == original

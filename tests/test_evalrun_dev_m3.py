@@ -915,7 +915,7 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
 
     def git(*args):
         return subprocess.check_output(
-            ["git", "-C", str(tmp_path), *args], text=True
+            ["git", "-C", str(tmp_path), *args], text=True, timeout=30
         ).strip()
 
     def commit(paths=(".",)):

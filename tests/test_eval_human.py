@@ -49,7 +49,9 @@ def filled(path):
 
 
 def git(root, *args):
-    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(root), *args], check=True, capture_output=True, timeout=30
+    )
 
 
 def test_selection_sheet(tmp_path):

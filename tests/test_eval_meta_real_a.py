@@ -25,6 +25,7 @@ def a_head() -> str:
         capture_output=True,
         text=True,
         check=True,
+        timeout=30,
     ).stdout.strip()
 
 

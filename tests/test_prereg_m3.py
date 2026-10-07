@@ -39,11 +39,13 @@ def test_frozen_expectations():
         ["git", "log", "--diff-filter=A", "-1", "--format=%H", "--", str(path)],
         cwd=ROOT,
         text=True,
+        timeout=30,
     ).strip()
     old = json.loads(
         subprocess.check_output(
             ["git", "show", f"{original_commit}:data/replay/golden/expectations.json"],
             cwd=ROOT,
+            timeout=30,
         )
     )
     # The first seven IDs are the original read-only contract.
@@ -67,6 +69,7 @@ def test_superseded_run_evidence():
             ["git", "log", "--diff-filter=A", "-1", "--format=%H", "--", str(path)],
             cwd=ROOT,
             text=True,
+            timeout=30,
         ).strip()
         if name != report:
             assert row["previous_commit"] == commit
@@ -231,10 +234,13 @@ def test_prompt_superseded_run_evidence():
                 ["git", "log", "--diff-filter=A", "-1", "--format=%H", "--", str(path)],
                 cwd=ROOT,
                 text=True,
+                timeout=30,
             ).strip()
             assert commit and row["previous_commit"] == commit
             committed = subprocess.check_output(
-                ["git", "show", f"{commit}:{path.relative_to(ROOT)}"], cwd=ROOT
+                ["git", "show", f"{commit}:{path.relative_to(ROOT)}"],
+                cwd=ROOT,
+                timeout=30,
             )
             assert committed == path.read_bytes()
     manifest = json.loads((directory / "manifest.json").read_text())
