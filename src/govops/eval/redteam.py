@@ -12,7 +12,7 @@ from pathlib import Path
 
 from govops.guardrails.registry import rules_sha256
 
-from .redteam_templates import NORMAL_REQUESTS, render
+from .redteam_templates import normal_request, render
 
 ALLOCATION = "data/redteam/allocation.json"
 REDTEAM_REGISTRATION = "docs/results/hypotheses-m4-redteam.md"
@@ -207,11 +207,7 @@ def build(
                             else [],
                         }
                     )
-                    text = (
-                        random.Random(f"{seed}:{variant}:request:{index}")
-                        .choice(NORMAL_REQUESTS)
-                        .format(key=key)
-                    )
+                    text = normal_request(variant, index, seed, key)
                 row = {
                     "id": f"RT-{PREFIXES[category]}-{sequence:02d}",
                     "category": category,
