@@ -9,6 +9,8 @@
 
 ## 작업
 
+**live 접속 코드의 범위**: 이 step이 만드는 사용자 실행 코드는 실제 서비스에 접속해야 한다. 작성은 허용되고, 테스트는 가짜로만 검증하며, 이 step에서 live로 실행하지 않는다(금지사항의 "접속하는 테스트나 코드 실행"은 이 범위를 뜻한다).
+
 **수정할 파일**(이 목록이 전부다): 신규 `src/govops/evalrun/faults.py`·`src/govops/evalrun/fault_scenarios.py`, 신규 테스트 `tests/test_evalrun_faults.py`·`tests/test_fault_scenarios.py`, 수정 `Makefile`(`eval-faults` 타깃 추가만), 수정 `src/govops/evalrun/dev_m3.py`(하네스가 재사용할 공용 조립 함수를 노출하는 경우에만, 동작 불변·기존 dev_m3 테스트 수정 없이 통과). 계층: `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 import할 수 없다. `agent`·`api`·`tools`·`gateway`·`replay`·`eval`은 import할 수 있다.
 
 **배경**: 장애 주입 하네스 `evalrun/faults.py`와 `make eval-faults`를 만든다. 사전 등록 파일(`hypotheses-m3-faults.md`)은 다음 step이 만들므로 **이 step에서는 `docs/results/`를 수정하지 않는다**. 시나리오 표는 코드 상수로 먼저 두고, 다음 step이 그 상수와 등록 파일의 일치를 테스트한다. 실제 live 실행은 하지 않는다(가짜 환경으로만 검증). TDD.
@@ -78,7 +80,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - 결과를 본 뒤 표본을 고르거나 일부만 다시 돌리는 옵션(`--only`·`--rerun-failed` 등)을 만들지 마라(FP-043). 이유: 결과에 따른 재실행은 선택 편향이다. 재개(`--resume`)는 같은 시드·순서로 남은 계획만 실행한다.
 - `docs/results/`의 어떤 파일도 만들거나 수정하지 마라(이 step에서는). 이유: 사전 등록 파일은 다음 step이 만들고 가드한다. 상수와 등록 파일의 일치는 다음 step 테스트가 강제한다.
 - 위 "수정할 파일" 목록 밖의 파일을 수정하지 마라. 목록 밖 수정이 필요해 보이면 임의로 고치지 말고 `blocked`로 보고한다(FP-054). 이유: step 범위 누락은 멈춰서 설계에서 고친다.
-- 하네스 코드·테스트에서 실제 A·LiteLLM·mock·Docker에 접속하지 마라. 이유: `make verify`는 키·네트워크 없이 통과해야 하고 live 실행은 사용자가 한다.
+- 하네스 **테스트**에서 실제 A·LiteLLM·mock·Docker에 접속하지 마라. 이유: `make verify`는 키·네트워크 없이 통과해야 하고 live 실행은 사용자가 한다. 하네스 **코드**는 사용자가 `make eval-faults`로 실행할 때 실제 A(`tools/list` 계약 확인)·LiteLLM·mock(`docker compose exec`)에 접속하도록 작성해야 한다. 작성은 허용되고 이 step에서 실행하는 것만 금지다(아래 공통 금지사항과 같은 범위).
 - F11 경로(chaos A 서버·클라이언트·하네스)에서 `KODOCS_MCP_TOKENS_FILE`과 실제 A 사용자 토큰을 읽거나 보내지 마라. 합성 토큰만 쓴다. chaos 서버는 요청 헤더(특히 `Authorization`)를 기록·출력·저장하지 않는다. 이유: 장애를 주입하는 서버는 외부 프로세스 역할이고 실제 자격 증명이 닿으면 안 된다(AGENTS.md CRITICAL: 토큰을 로그·trace에 남기지 않는다). 테스트로 강제한다.
 - 주입한 장애가 시험하려는 경로를 타지 않는 시나리오를 만들지 마라(FP-005). 이유: 장애가 방어 로직을 실행시키지 않으면 중복 0이 아무 일도 안 일어나서 저절로 나온다. 시나리오마다 그 경로가 실제로 실행됐다는 증거(조회 호출 수 > 0, 대기 발생, 재시도 횟수)를 단언한다. F10은 항상 F5와 결합한다.
 - 무작위·시간·ID를 `monkeypatch`로 고정해 간헐적 실패를 덮지 마라(FP-011). 이유: 무작위 입력에서만 나타나는 실패는 실제 결함이다. 고정이 필요하면 사유 주석을 달고 시드 고정 대량 테스트를 함께 둔다.
@@ -97,6 +99,6 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - `scripts/`, `phases/`, `web/`, `data/contract/`, `data/eval/`을 수정하지 마라(이 step이 명시적으로 허용한 경우 제외).
 - `.env`와 A의 `data/interim/mcp/tokens.json`을 열거나 출력하지 마라. 토큰·키 값을 코드·테스트·문서·로그에 남기지 마라.
 - A 저장소(`~/PycharmProjects/ko-docs-agentic-rag`)를 수정하지 마라(읽기 전용으로 참고하는 것만 허용).
-- 실제 LiteLLM·OpenAI·Anthropic·Gemini·A MCP·Langfuse·Docker에 접속하는 테스트나 코드 실행을 하지 마라(로컬 루프백 서버와 합성 토큰은 허용). 이유: `make verify`는 키·네트워크 없이 통과해야 한다.
+- 실제 LiteLLM·OpenAI·Anthropic·Gemini·A MCP·Langfuse·Docker에 접속하는 **테스트를 만들거나 이 step에서 그런 코드를 실행**하지 마라(로컬 루프백 서버와 합성 토큰은 허용). 단 **사용자가 실행하는 live 코드(`make eval-faults`)를 작성하는 것은 허용**한다: 그 코드는 실제 서비스에 접속하도록 작성하되 테스트는 가짜 실행기·가짜 gateway·로컬 루프백으로만 검증하고, 이 step 안에서 한 번도 실행하지 않는다. 이유: `make verify`는 키·네트워크 없이 통과해야 하고 live 실행은 사용자가 한다.
 - `data/results/`의 실행 결과 디렉토리와 `data/replay/llm/`·`data/replay/a_run/`·`data/replay/golden/`의 기록 파일을 수정하지 마라(읽기만). 이유: 실행 기록과 골든 기록은 증거이며 live 러너가 만든다.
 - 기존 테스트를 약화하지 마라(단언 삭제·`require_all=False`·슬라이스 비교·허용 오차 확대). 이름·시그니처 변경 때문에 필요한 호출·기대값 수정만 허용한다(FP-056). 계층 가드(`tests/test_architecture.py`)를 약화하지 마라.

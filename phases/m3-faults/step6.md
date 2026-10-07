@@ -8,6 +8,8 @@
 
 ## 작업
 
+**live 접속 코드의 범위**: 이 step이 만드는 사용자 실행 코드는 실제 서비스에 접속해야 한다. 작성은 허용되고, 테스트는 가짜로만 검증하며, 이 step에서 live로 실행하지 않는다(금지사항의 "접속하는 테스트나 코드 실행"은 이 범위를 뜻한다).
+
 **수정할 파일**(이 목록이 전부다): 신규 `src/govops/evalrun/faults_smoke.py`, 신규 테스트 `tests/test_evalrun_faults_smoke.py`, 수정 `Makefile`(`smoke-faults` 타깃 추가만). 계층: `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 import할 수 없다(`tools`·`gateway`·`replay`는 가능). mock 토큰은 기존 `tools/smoke.py`와 같은 방식(환경 변수·기존 토큰 로더)으로 읽고 값은 출력하지 않는다.
 
 **배경**: 사용자가 실행하는 `make smoke-faults`를 만든다. 154회 live 실행 전에 **실제 mock 컨테이너·LiteLLM에서 장애 부품이 작동하는지**와 `down_alias` 지연을 측정한다. 코드 테스트는 가짜 실행기로만 한다. TDD.
@@ -66,6 +68,6 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - `scripts/`, `phases/`, `web/`, `data/contract/`, `data/eval/`을 수정하지 마라(이 step이 명시적으로 허용한 경우 제외).
 - `.env`와 A의 `data/interim/mcp/tokens.json`을 열거나 출력하지 마라. 토큰·키 값을 코드·테스트·문서·로그에 남기지 마라.
 - A 저장소(`~/PycharmProjects/ko-docs-agentic-rag`)를 수정하지 마라(읽기 전용으로 참고하는 것만 허용).
-- 실제 LiteLLM·OpenAI·Anthropic·Gemini·A MCP·Langfuse·Docker에 접속하는 테스트나 코드 실행을 하지 마라(로컬 루프백 서버와 합성 토큰은 허용). 이유: `make verify`는 키·네트워크 없이 통과해야 한다.
+- 실제 LiteLLM·OpenAI·Anthropic·Gemini·A MCP·Langfuse·Docker에 접속하는 **테스트를 만들거나 이 step에서 그런 코드를 실행**하지 마라(로컬 루프백 서버와 합성 토큰은 허용). 단 **사용자가 실행하는 live 코드(`make smoke-faults`)를 작성하는 것은 허용**한다: 그 코드는 실제 서비스에 접속하도록 작성하되 테스트는 가짜 실행기·가짜 gateway·로컬 루프백으로만 검증하고, 이 step 안에서 한 번도 실행하지 않는다. 이유: `make verify`는 키·네트워크 없이 통과해야 하고 live 실행은 사용자가 한다.
 - `data/results/`의 실행 결과 디렉토리와 `data/replay/llm/`·`data/replay/a_run/`·`data/replay/golden/`의 기록 파일을 수정하지 마라(읽기만). 이유: 실행 기록과 골든 기록은 증거이며 live 러너가 만든다.
 - 기존 테스트를 약화하지 마라(단언 삭제·`require_all=False`·슬라이스 비교·허용 오차 확대). 이름·시그니처 변경 때문에 필요한 호출·기대값 수정만 허용한다(FP-056). 계층 가드(`tests/test_architecture.py`)를 약화하지 마라.

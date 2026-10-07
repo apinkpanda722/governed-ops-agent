@@ -61,16 +61,7 @@
     {
       "step": 4,
       "name": "fault-harness",
-      "status": "blocked",
-      "started_at": "2026-10-07T10:26:19+0900",
-      "blocked_reason": "작업은 하네스 시작 시 실제 A에 tools/list 계약 확인을 한 번 수행하도록 요구하지만, 금지사항은 '하네스 코드·테스트에서 실제 A·LiteLLM·mock·Docker에 접속하지 마라'고 명시합니다. 실제 접속 코드 구현을 금지하는 것인지, 이 step에서 해당 코드를 실행하는 것만 금지하는 것인지 충돌합니다. 지시 충돌 시 임의 해석 없이 즉시 중단하라는 FP-054에 따라 중단했습니다. 사용자 실행용 live 하네스 코드에는 접속을 허용하고 이번 개발·검증 실행에서만 금지한다는 범위 명확화가 필요합니다.",
-      "blocked_at": "2026-10-07T10:33:42+0900",
-      "usage": {
-        "input_tokens": 107674,
-        "cached_input_tokens": 64640,
-        "output_tokens": 884,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 5,
