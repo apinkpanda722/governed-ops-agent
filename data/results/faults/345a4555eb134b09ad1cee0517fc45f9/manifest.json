@@ -1,0 +1,644 @@
+{
+  "hypotheses_tracked": true,
+  "hypotheses_in_head": true,
+  "worktree_clean": true,
+  "commit_hash": "6b3d348202c7c9b9a45865d00c3db6af1deed314",
+  "hypotheses_registration_commit": "66be7b3a9f2b3e0c2f5286278a816a82dac8958e",
+  "a_git_head": "d2eec9c08ffbd61cf8ab5d84d4dd817452d044cc",
+  "index_name": "kodocs-m5-composite-structural",
+  "index_name_source": "a_repo:src/kodocs/tools/deps.py:TOOL_INDEX",
+  "hypotheses_sha256": "8851549fcbbb4a8a3e23f84b30f7311d0757ae227c8b6519399eaa0c13111236",
+  "hypotheses_m3_committed": true,
+  "hypotheses_m3_unchanged": true,
+  "hypotheses_m3_registration_commit": "e95f39430deb2b54a37079a31d6d711b06fa1558",
+  "hypotheses_m3_prompt_committed": true,
+  "hypotheses_m3_prompt_unchanged": true,
+  "hypotheses_m3_prompt_registration_commit": "1700f3584229bfce82db68d28a66b1593e58766e",
+  "hypotheses_m3_sha256": "a4e37e251a7fc9947b7619bf74ba7efe38ab089340a9520380a29935c818db71",
+  "hypotheses_m3_prompt_sha256": "a386f47c03cf2c9f61995c37ff04a048c1ab29d4c6389ef535436f72bf0de6f7",
+  "supersedes": {
+    "previous_commit": "d17160a19cae77aee0abd738080dd9a8ae3bf51d",
+    "previous_files": {
+      "docs/results/2026-10-06-m3-dev-live.md": "5e91f40f1fbf351468862ed709c0f57e437d03e6bcf3cd2ac9cb3db0228308c0",
+      "grades.json": "3f36860d06e6170b5794907a10de88f105f0c6a93c33fa6b888b41fc88b97728",
+      "manifest.json": "28c86f6cf311995033c1d99abfe584c07af7821ffaea95bf4988860e9c765074",
+      "observations.jsonl": "600317a759dff03fbcd5ed590a81a895da651aaa0f3916e7f22f813c77dcf12c"
+    },
+    "previous_official": {
+      "grading_rules": "registered",
+      "tcr": "17/20"
+    },
+    "previous_run_id": "da337bb7471c4bceae14a2e9b3ce5884",
+    "reason": "시스템 프롬프트에 조직 스키마 정보(팀 한글 이름 ↔ owner_team 코드 ↔ project_key, 티켓 status·priority·ticket_type 값)를 보완해 dev 20을 처음부터 다시 실행한다(`hypotheses.md` §10). 첫 실행의 T4-06은 `run_sql`에 한글 팀 이름으로 `owner_team`을 걸러 0행이 나왔다."
+  },
+  "previous_supersedes": {
+    "previous_commit": "632bffaab96931c0c0c9c079515576bbd90380eb",
+    "previous_files": {
+      "docs/results/2026-10-05-m2-dev-live.md": "795256f8fd6420e96db920d65dec237f27c36dba57a7a32e86337492f410ca0b",
+      "grades.json": "ae1cfb84c880f0b1ba2a1954c4192dfecf8d7961e7a4c405a485f55dbb4498f1",
+      "manifest.json": "78c549e128d2ee3cb2cd809a8f930626a31b28ab298aedeb68940353ea7892c8",
+      "observations.jsonl": "f73ee6d7367ab9616e4e249ab177732885868905e14037b010ca5169e8b09249"
+    },
+    "previous_run_id": "8c18df863b2949f58d9c3550fec3b8cf",
+    "reason": "2026-10-06: 도구 정의·시스템 프롬프트가 WITH_WRITES로 바뀌어 고정 문장 5와 §10에 따라 dev 전체를 처음부터 다시 실행한다. 이전 결과 7개는 보존한다."
+  },
+  "hypotheses_m3_faults_sha256": "e8f10fc04839537feef082eea7a4c1177a5028a193fb997e99fb12e3037ddbc4",
+  "hypotheses_m3_faults_registration_commit": "26ae3b744eb7b603b180ac488de06d3e07f2740c",
+  "grading_rules_sha256": "728a39b8df075de51a639220dc12bad47f7b1c992d29801cbcff2dc1cee35258",
+  "grading_rules_registration_commit": "5ae5c1623ef1f58ebf4f7a843440b281a71952d7",
+  "seed": 20261005,
+  "plan_hash": "5a768b01f81b1baca0613cdc5ee12692d11d543bd57a036c078db932ec6167c4",
+  "profile": "writes_org",
+  "grading_rules": "m3-grading",
+  "prompt_hash": "0a82447c0360f47db5f433d2d9e8b56e70a70c8c95f37479b86d8d6af95cdda7",
+  "contract_snapshot_sha256": "0e3a05e4439eaee5ed963aeeda3f47ac3b703fc578de6fb1593654ac21d8f9c5",
+  "started_at": "2026-10-07T06:54:16.927239+00:00",
+  "finished_at": "2026-10-07T07:34:13.410110+00:00",
+  "interruptions": [],
+  "planned_count": 154,
+  "absolute_rule_denominator": 132,
+  "report": {
+    "F1/soft": {
+      "planned": 6,
+      "executed": 6,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 6
+      },
+      "task_status": {
+        "completed": 6
+      },
+      "posts": 6,
+      "marker_lookups": 0,
+      "injections": 6,
+      "known_limit": 0,
+      "passed": 6,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 6,
+        "total": 6
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F1/hard": {
+      "planned": 10,
+      "executed": 10,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 10
+      },
+      "task_status": {
+        "completed": 10
+      },
+      "posts": 10,
+      "marker_lookups": 10,
+      "injections": 10,
+      "known_limit": 0,
+      "passed": 10,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 10,
+        "total": 10
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F2/before": {
+      "planned": 10,
+      "executed": 10,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 10
+      },
+      "task_status": {
+        "completed": 10
+      },
+      "posts": 20,
+      "marker_lookups": 20,
+      "injections": 10,
+      "known_limit": 0,
+      "passed": 10,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 10,
+        "total": 10
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F2/after": {
+      "planned": 10,
+      "executed": 10,
+      "duplicates": 0,
+      "missing": 1,
+      "final_status": {
+        "succeeded": 9,
+        "blocked": 1
+      },
+      "task_status": {
+        "completed": 9,
+        "blocked": 1
+      },
+      "posts": 9,
+      "marker_lookups": 9,
+      "injections": 9,
+      "known_limit": 0,
+      "passed": 9,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 9,
+        "total": 10
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F2/continuous": {
+      "planned": 6,
+      "executed": 6,
+      "duplicates": 0,
+      "missing": 6,
+      "final_status": {
+        "uncertain": 6
+      },
+      "task_status": {
+        "interrupted": 6
+      },
+      "posts": 18,
+      "marker_lookups": 36,
+      "injections": 18,
+      "known_limit": 0,
+      "passed": 6,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 0,
+        "total": 6
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F3/retry_after": {
+      "planned": 10,
+      "executed": 10,
+      "duplicates": 0,
+      "missing": 1,
+      "final_status": {
+        "succeeded": 9,
+        "blocked": 1
+      },
+      "task_status": {
+        "completed": 9,
+        "blocked": 1
+      },
+      "posts": 18,
+      "marker_lookups": 0,
+      "injections": 9,
+      "known_limit": 0,
+      "passed": 9,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 9,
+        "total": 10
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F4/connect": {
+      "planned": 10,
+      "executed": 10,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 10
+      },
+      "task_status": {
+        "completed": 10
+      },
+      "posts": 20,
+      "marker_lookups": 0,
+      "injections": 10,
+      "known_limit": 0,
+      "passed": 10,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 10,
+        "total": 10
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F5/loss": {
+      "planned": 20,
+      "executed": 20,
+      "duplicates": 0,
+      "missing": 2,
+      "final_status": {
+        "succeeded": 18,
+        "blocked": 2
+      },
+      "task_status": {
+        "completed": 18,
+        "blocked": 2
+      },
+      "posts": 18,
+      "marker_lookups": 18,
+      "injections": 18,
+      "known_limit": 0,
+      "passed": 18,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 18,
+        "total": 20
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F6/first": {
+      "planned": 4,
+      "executed": 4,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 4
+      },
+      "task_status": {
+        "completed": 4
+      },
+      "posts": 4,
+      "marker_lookups": 0,
+      "injections": 4,
+      "known_limit": 0,
+      "passed": 4,
+      "mixed_model_tasks": 4,
+      "mixed_model_tcr": {
+        "passed": 4,
+        "total": 4
+      },
+      "tcr": {
+        "passed": 4,
+        "total": 4
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F6/second": {
+      "planned": 3,
+      "executed": 3,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 3
+      },
+      "task_status": {
+        "completed": 3
+      },
+      "posts": 3,
+      "marker_lookups": 0,
+      "injections": 3,
+      "known_limit": 0,
+      "passed": 3,
+      "mixed_model_tasks": 3,
+      "mixed_model_tcr": {
+        "passed": 3,
+        "total": 3
+      },
+      "tcr": {
+        "passed": 3,
+        "total": 3
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F6/all": {
+      "planned": 3,
+      "executed": 3,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 3
+      },
+      "task_status": {
+        "completed": 3
+      },
+      "posts": 3,
+      "marker_lookups": 0,
+      "injections": 7,
+      "known_limit": 0,
+      "passed": 3,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 3,
+        "total": 3
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F8/resume": {
+      "planned": 10,
+      "executed": 10,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 10
+      },
+      "task_status": {
+        "completed": 10
+      },
+      "posts": 10,
+      "marker_lookups": 0,
+      "injections": 39,
+      "known_limit": 0,
+      "passed": 10,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 10,
+        "total": 10
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F9/concurrent": {
+      "planned": 5,
+      "executed": 5,
+      "duplicates": 0,
+      "missing": 1,
+      "final_status": {
+        "blocked": 1,
+        "succeeded": 4
+      },
+      "task_status": {
+        "blocked": 1,
+        "completed": 4
+      },
+      "posts": 4,
+      "marker_lookups": 0,
+      "injections": 8,
+      "known_limit": 0,
+      "passed": 4,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 4,
+        "total": 5
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F9/sequential": {
+      "planned": 5,
+      "executed": 5,
+      "duplicates": 0,
+      "missing": 1,
+      "final_status": {
+        "blocked": 1,
+        "succeeded": 4
+      },
+      "task_status": {
+        "blocked": 1,
+        "completed": 4
+      },
+      "posts": 4,
+      "marker_lookups": 0,
+      "injections": 8,
+      "known_limit": 0,
+      "passed": 4,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 4,
+        "total": 5
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F10/short": {
+      "planned": 20,
+      "executed": 20,
+      "duplicates": 0,
+      "missing": 0,
+      "final_status": {
+        "succeeded": 20
+      },
+      "task_status": {
+        "completed": 20
+      },
+      "posts": 20,
+      "marker_lookups": 40,
+      "injections": 40,
+      "known_limit": 0,
+      "passed": 20,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 20,
+        "total": 20
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F10/long": {
+      "planned": 10,
+      "executed": 10,
+      "duplicates": 9,
+      "missing": 1,
+      "final_status": {
+        "succeeded": 9,
+        "blocked": 1
+      },
+      "task_status": {
+        "completed": 9,
+        "blocked": 1
+      },
+      "posts": 18,
+      "marker_lookups": 18,
+      "injections": 18,
+      "known_limit": 9,
+      "passed": 9,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 0,
+        "total": 10
+      },
+      "f11": {
+        "passed": 0,
+        "total": 0
+      }
+    },
+    "F11/delay": {
+      "planned": 4,
+      "executed": 4,
+      "duplicates": 0,
+      "missing": 4,
+      "final_status": {
+        "no_effect": 4
+      },
+      "task_status": {
+        "completed": 4
+      },
+      "posts": 0,
+      "marker_lookups": 0,
+      "injections": 20,
+      "known_limit": 0,
+      "passed": 4,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 0,
+        "total": 4
+      },
+      "f11": {
+        "passed": 4,
+        "total": 4
+      }
+    },
+    "F11/http_500": {
+      "planned": 4,
+      "executed": 4,
+      "duplicates": 0,
+      "missing": 4,
+      "final_status": {
+        "no_effect": 4
+      },
+      "task_status": {
+        "completed": 4
+      },
+      "posts": 0,
+      "marker_lookups": 0,
+      "injections": 18,
+      "known_limit": 0,
+      "passed": 4,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 0,
+        "total": 4
+      },
+      "f11": {
+        "passed": 4,
+        "total": 4
+      }
+    },
+    "F11/refuse": {
+      "planned": 4,
+      "executed": 4,
+      "duplicates": 0,
+      "missing": 4,
+      "final_status": {
+        "no_effect": 4
+      },
+      "task_status": {
+        "completed": 4
+      },
+      "posts": 0,
+      "marker_lookups": 0,
+      "injections": 20,
+      "known_limit": 0,
+      "passed": 4,
+      "mixed_model_tasks": 0,
+      "mixed_model_tcr": {
+        "passed": 0,
+        "total": 0
+      },
+      "tcr": {
+        "passed": 0,
+        "total": 4
+      },
+      "f11": {
+        "passed": 4,
+        "total": 4
+      }
+    }
+  }
+}

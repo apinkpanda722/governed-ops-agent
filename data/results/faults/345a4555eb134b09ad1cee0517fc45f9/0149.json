@@ -1,0 +1,54 @@
+{
+  "plan": {
+    "position": 149,
+    "scenario": "F11",
+    "variant": "http_500",
+    "task_id": "T3-02",
+    "absolute_rule": false
+  },
+  "plan_hash": "5a768b01f81b1baca0613cdc5ee12692d11d543bd57a036c078db932ec6167c4",
+  "attempts": [
+    {
+      "duplicates": 0,
+      "missing": 1,
+      "status": "no_effect",
+      "posts": 0,
+      "server_posts": 0,
+      "resends": 0,
+      "task_status": "completed",
+      "lookups": 0,
+      "wait_seconds": 2.0647421239991672,
+      "injections": 5,
+      "models": [
+        "gpt-6-luna"
+      ],
+      "tcr": false,
+      "absolute_violations": false,
+      "leak_pending": 0,
+      "infrastructure_failure": false,
+      "resume_calls": 0,
+      "approval_requests": 0,
+      "execute_nodes": 0,
+      "a_attempts": 5,
+      "f11_passed": true,
+      "f11_effect_count": 0,
+      "f11_unsupported_fact_count": 0,
+      "timed_out": false,
+      "unexpected_http_count": 0
+    }
+  ],
+  "completed_at": "2026-10-07T07:30:21.520661+00:00",
+  "checks": {
+    "duplicates": true,
+    "missing": true,
+    "status": true,
+    "posts": true,
+    "lookups": true,
+    "injection": true,
+    "wait": true,
+    "grading": true,
+    "driver": true,
+    "infrastructure": true,
+    "f11": true
+  }
+}
