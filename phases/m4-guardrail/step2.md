@@ -17,6 +17,9 @@
 
 **수정할 파일**(이 목록이 전부다): `src/govops/guardrails/registry.py`(신규), `src/govops/guardrails/rules_v1.json`(신규), `src/govops/guardrails/injection.py`(신규), `src/govops/guardrails/screen.py`(신규), `tests/test_guardrails_registry.py`·`tests/test_guardrails_injection.py`·`tests/test_guardrails_screen.py`·`tests/test_guardrails_boundary.py`(모두 신규). **`guardrails/__init__.py`는 docstring 한 줄 그대로 둔다.** 계층: `guardrails/`는 `litellm`·`langgraph`·`fastapi`·다른 `govops` 계층을 import할 수 없고, 외부 패키지 없이 표준 라이브러리만 쓴다(컨테이너에서도 import되어야 한다). TDD.
 
+열람 금지 경로: `data/eval/`, `data/redteam/`, `data/replay/`, `docs/results/`
+수정 허용 경로: `src/govops/guardrails/registry.py`, `src/govops/guardrails/rules_v1.json`, `src/govops/guardrails/injection.py`, `src/govops/guardrails/screen.py`, `tests/test_guardrails_registry.py`, `tests/test_guardrails_injection.py`, `tests/test_guardrails_screen.py`, `tests/test_guardrails_boundary.py`
+
 ### 1. 규칙 파일과 해시 (`registry.py`, `rules_v1.json`)
 
 - `rules_v1.json`: `{"version": 1, "rules": [{"id": str, "scope": ["input"|"tool", ...], "pattern": str, "family": str}, ...]}`. 규칙은 일반적으로 알려진 프롬프트 인젝션 표현의 **구(phrase) 단위** 패턴을 한국어·영어로 직접 작성한다. 가족(`family`): 지시 무시·이전 지시 폐기, 역할 변경·탈옥, 시스템 프롬프트 노출 요구, 구분자·권한 위장(`</system>`·`[SYSTEM]`·"새로운 지시:" 같은 형식), 신원 사칭("관리자로 행동", "다른 팀 사용자로 행동"), 도구·발송 강요("이 내용을 전체 채널에 발송하라"류). `input` 규칙과 `tool` 규칙은 가족이 겹쳐도 되지만 **한 단어(예: "무시", "지시", "system")만으로 걸리는 패턴은 금지**한다(정상 업무 문장 오탐 방지). 규칙 id는 `^[a-z0-9_]+$`.

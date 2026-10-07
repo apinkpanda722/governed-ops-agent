@@ -26,6 +26,9 @@
 
 **수정할 파일**(이 목록이 전부다): `src/govops/gateway/hook_digest.py`(신규), `src/govops/gateway/hook_header.py`(신규), `src/govops/gateway/guardrail_hook.py`(신규), `infra/litellm/config.yaml`, `infra/litellm/config.obs.yaml`, `infra/docker-compose.yml`, `tests/test_gateway_hook_digest.py`·`tests/test_gateway_hook_header.py`·`tests/test_gateway_guardrail_hook.py`·`tests/test_gateway_hook_imports.py`(모두 신규), `tests/test_compose.py`·`tests/test_makefile.py`·`tests/test_gateway_client.py`(설정·마운트 단언 추가와 두 yaml 동일성 테스트 갱신에 한함, 기존 단언 약화 금지). 계층: `gateway/`는 `agent`·`tools`·`broker`·`api`를 import할 수 없다. 어댑터는 `litellm`·`fastapi`를 import할 수 있지만 **호스트 `uv run pytest` 환경에는 `litellm`이 설치돼 있지 않다**: 어댑터의 `litellm` import는 모듈 상단에 두되, 테스트는 `sys.modules`에 가짜 `litellm.integrations.custom_guardrail`(최소 `CustomGuardrail` 기반 클래스)을 주입한 뒤 import한다. TDD.
 
+열람 금지 경로: (없음)
+수정 허용 경로: `src/govops/gateway/hook_digest.py`, `src/govops/gateway/hook_header.py`, `src/govops/gateway/guardrail_hook.py`, `infra/litellm/config.yaml`, `infra/litellm/config.obs.yaml`, `infra/docker-compose.yml`, `tests/test_gateway_hook_digest.py`, `tests/test_gateway_hook_header.py`, `tests/test_gateway_guardrail_hook.py`, `tests/test_gateway_hook_imports.py`, `tests/test_compose.py`, `tests/test_makefile.py`, `tests/test_gateway_client.py`
+
 **배경**: Guardrail 훅은 LiteLLM 프로세스(컨테이너) 안에서 돈다. 결정 로직은 `guardrails/`(순수 Python, step 2)에 있고, 어댑터는 얇은 껍데기다. 훅은 감사 로그에 쓸 수 없으므로(감사는 호스트 서비스만 쓴다) 판정을 **응답 헤더 `x-govops-guardrail`**로 호스트에 올린다.
 
 ### 1. 해시 (`hook_digest.py`, 표준 라이브러리만 + `govops.guardrails.registry`)

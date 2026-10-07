@@ -13,6 +13,9 @@
 
 **수정할 파일**(이 목록이 전부다): `pyproject.toml`(`[tool.pytest.ini_options]`만), `tests/conftest.py`, `tests/corpus_cache.py`(신규: 병렬 안전 공유 생성물 캐시 헬퍼), 느린 테스트 파일 위의 목록 — `tests/test_eval_taskgen.py`, `tests/test_eval_review.py`, `tests/test_eval_audience.py`, `tests/test_a_mcp_status.py`, `tests/test_chaos_a.py`, `tests/test_evalrun_faults.py`, `tests/test_evalrun_regrade.py`, `tests/test_evalrun_dev_m3.py` — 와, **병렬 실행에서 실패하는 것으로 확인된 `tests/` 아래 테스트 파일**과 `scripts/test_*.py`(`testpaths`에 `scripts`가 들어 있어 병렬 실행에 포함된다. 병렬 실패가 확인된 경우에 한해 테스트 파일만 고치고 `scripts/execute.py` 등 비테스트 파일은 고치지 않는다)(파일별로 수정 사유를 최종 보고에 적는다). `Makefile`은 `pytest` 줄이 `-n auto`를 `pyproject.toml`의 `addopts`로 받으므로 고치지 않는다.
 
+열람 금지 경로: (없음)
+수정 허용 경로: `pyproject.toml`, `tests/conftest.py`, `tests/corpus_cache.py`, `tests/test_eval_taskgen.py`, `tests/test_eval_review.py`, `tests/test_eval_audience.py`, `tests/test_a_mcp_status.py`, `tests/test_chaos_a.py`, `tests/test_evalrun_faults.py`, `tests/test_evalrun_regrade.py`, `tests/test_evalrun_dev_m3.py`, `tests/`, `Makefile`, `scripts/test_*.py`
+
 **목표**: `make verify`를 로컬에서 3분(180초) 이내로 줄인다. 단언은 약화하지 않는다. TDD: 느린 테스트를 고치기 전에 현재 시간을 `--durations`로 확인하고 고친 뒤 다시 잰다.
 
 ### 1. 병렬 실행 (`pyproject.toml`)

@@ -24,6 +24,9 @@
 
 **수정할 파일**(이 목록이 전부다): `src/govops/gateway/team_keys.py`(신규), `src/govops/gateway/client.py`, `src/govops/gateway/smoke.py`, `src/govops/api/wiring.py`, `src/govops/api/smoke.py`, `Makefile`(`team-keys`·`team-keys-update` 타깃 추가), `.env.example`(팀 키 변수 이름 추가·`LITELLM_AGENT_KEY` 주석 갱신), `tests/test_team_keys.py`(신규), `tests/test_gateway_client.py`·`tests/test_smoke_gateway.py`·`tests/test_api_wiring.py`·`tests/test_api_wiring_build.py`·`tests/test_api_smoke.py`·`tests/test_e2e_isolation.py`·`tests/test_agent_key.py`·`tests/test_makefile.py`(위 변경으로 깨지는 기대값 갱신과 신규 케이스 추가에 한함, 단언 약화 금지). **`evalrun/`은 이 step에서 고치지 않는다**(다음 phase step). `gateway/agent_key.py`는 읽기만 한다(`AGENT_KEY_MODELS`는 그대로 import해서 쓴다). 계층: `gateway/`는 `agent`·`tools`·`broker`·`api`를 import할 수 없다 — 팀 정보는 `gateway/`가 `agent.users`를 import하지 않고 `data/seed/users.json`을 직접 읽거나 호출자가 `Mapping[str, str]`(사용자 라벨 → 팀)로 넘긴다. `api/wiring.py`는 `agent`·`gateway`를 import할 수 있다. TDD.
 
+열람 금지 경로: (없음)
+수정 허용 경로: `src/govops/gateway/team_keys.py`, `src/govops/gateway/client.py`, `src/govops/gateway/smoke.py`, `src/govops/api/wiring.py`, `src/govops/api/smoke.py`, `Makefile`, `.env.example`, `tests/test_team_keys.py`, `tests/test_gateway_client.py`, `tests/test_smoke_gateway.py`, `tests/test_api_wiring.py`, `tests/test_api_wiring_build.py`, `tests/test_api_smoke.py`, `tests/test_e2e_isolation.py`, `tests/test_agent_key.py`, `tests/test_makefile.py`
+
 ### 1. 팀·팀 키 발급 (`gateway/team_keys.py`)
 
 - `TEAM_MAX_BUDGET_USD = 1000.0`: **구속하지 않는 값**이다. 실제 비용 상한은 B 총액 원장(ADR-007)이 맡고 팀 예산은 사용량 귀속용이다. 상수 옆 주석에 이 의도를 쓴다.

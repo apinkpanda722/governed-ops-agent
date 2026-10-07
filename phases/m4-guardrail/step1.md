@@ -18,6 +18,9 @@
 
 **수정할 파일**(이 목록이 전부다): `scripts/exempt_paths.json`(신규, 단일 출처), `scripts/execute.py`, `scripts/test_execute.py`, `scripts/hooks/verify-before-stop.sh`, `scripts/test_hooks.py`, `src/govops/evalrun/worktree.py`(신규), `src/govops/evalrun/dev.py`, `src/govops/evalrun/dev_m3.py`, `src/govops/evalrun/faults.py`, `tests/test_evalrun_worktree.py`(신규), `tests/test_evalrun_dev.py`·`tests/test_evalrun_dev_m3.py`·`tests/test_evalrun_faults.py`(위 변경으로 깨지는 기대값 갱신과 신규 테스트 추가에 한함), `AGENTS.md`. 계층: `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 import할 수 없다. `scripts/`는 `src/govops`를 import하지 않는다(독립 실행).
 
+열람 금지 경로: (없음)
+수정 허용 경로: `scripts/exempt_paths.json`, `scripts/execute.py`, `scripts/test_execute.py`, `scripts/hooks/verify-before-stop.sh`, `scripts/test_hooks.py`, `src/govops/evalrun/worktree.py`, `src/govops/evalrun/dev.py`, `src/govops/evalrun/dev_m3.py`, `src/govops/evalrun/faults.py`, `tests/test_evalrun_worktree.py`, `tests/test_evalrun_dev.py`, `tests/test_evalrun_dev_m3.py`, `tests/test_evalrun_faults.py`, `AGENTS.md`
+
 **배경**: 사용자 실행 명령이 비용 원장(`data/manifest/costs.jsonl`)에 행을 추가하면 청결 검사(`dirty_worktree`)가 phase 실행·live 실행을 막아, 원장만 올리는 PR이 M3에서 반복됐다(FP-031). 원장을 제외하고, 시작 시 원장 상태를 manifest에 남겨 쌓인 변경이 다음 결과 커밋에 함께 들어가게 한다. **예외는 원장 `data/manifest/costs.jsonl` 하나뿐이다**(`costs_grading.jsonl`·`docs/`·`data/results/`·`data/replay/`는 제외하지 않는다: 테스트가 읽는다). TDD.
 
 ### 1. 단일 출처 (`scripts/exempt_paths.json`)
@@ -75,4 +78,4 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - 예외 목록을 코드·셸 스크립트·문서에 복사하지 마라(AGENTS.md의 사람용 문장 한 곳만 예외, 일치 테스트 필수). 이유: 다섯 곳이 따로 정의하면 한 곳만 고쳐져 판정이 갈린다(FP-044).
 - `scripts/test_execute.py`·`scripts/test_hooks.py`의 기존 단언을 약화하지 마라(`phases/` 예외·잠금·PID 판정 테스트 포함). 이유: Stop hook의 실행 잠금 판정(FP-057)을 깨면 phase 실행 중 세션이 막힌다.
 - `check_reason`에 초안 원문·ID·메시지 본문을 넣지 마라. 이유: manifest는 커밋 대상이고 고정 사유 코드만 허용된다(AGENTS.md 감사·PII 규칙).
-- 실행 중인 `execute.py`가 자기 자신(`scripts/execute.py`)을 고치는 step이다. 이 step 안에서 `execute.py`를 실행하거나 `.harness/executing` 잠금 파일을 만들거나 지우지 마라. 이유: 실행 중 잠금을 건드리면 Stop hook 판정이 어긋난다(FP-057). 테스트는 임시 저장소(`tmp_path`)에서 한다.
+- 실행 중인 `execute.py`가 자기 자신(`scripts/execute.py`)을 고치는 step이다. 이 step 안에서 `python3 scripts/execute.py`를 실행하거나 `.harness/executing` 잠금 파일을 만들거나 지우지 마라. 이유: 실행 중 잠금을 건드리면 Stop hook 판정이 어긋난다(FP-057). 테스트는 임시 저장소(`tmp_path`)에서 한다.
