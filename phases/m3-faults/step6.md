@@ -4,6 +4,7 @@
 
 - `/AGENTS.md`, `/docs/ADR.md`(ADR-018·019·020·021), `/docs/EVAL.md`, `/docs/THREAT_MODEL.md`("F1~F11" 표), `/docs/results/hypotheses.md`, `/docs/results/hypotheses-m3.md`, `/docs/results/2026-10-06-m3-dev2-live.md`, `/.claude/skills/failure-patterns/SKILL.md`
 - `/src/govops/evalrun/mock_admin.py`(`faults_set`), `/src/govops/evalrun/faults.py`(preflight·시나리오·`MockAdmin` 사용), `/src/govops/gateway/smoke.py`(`smoke-fallback` 출력 형식: 응답 모델·원장만 출력, **소요 시간 없음**), `/src/govops/tools/smoke.py`·`/src/govops/api/smoke.py`(스모크 패턴), `/Makefile`(`smoke-effects`·`smoke-fallback`·`eval-faults`), `/tests/test_smoke_gateway.py`·`/tests/test_smoke_effects.py`(스모크 테스트 패턴), `/docs/results/hypotheses-m3-faults.md`(이전 step)
+- **외부 계약 실측(mock 장애 관리, 원자료 `src/govops/mocks/faults.py`·`jira.py`·`slack.py`·`admin.py`)**: `faults stats`(GET `/faults/stats`)는 **요청 카운터만** 돌려준다(`{endpoint: {"requests": n, "applied_rules": m}}`). **설정된 규칙 목록을 읽는 API는 없다.** `faults set`은 카운터를 비우고, `faults clear`와 `POST /reset`은 규칙과 카운터를 모두 지운다(`FaultState.reset()`). 따라서 규칙이 남아 있어도 요청 전 `stats`는 `{}`이고, `set` 직후 `stats`에서 설정된 규칙을 볼 수 없다. 규칙이 걸렸는지는 **그 엔드포인트에 요청을 보내 `requests`·`applied_rules` 카운터가 오르는지**로만 확인할 수 있다. 이 step은 mock 코드를 바꾸지 않는다.
 - **외부 계약 실측**: LiteLLM `down_alias`(닫힌 포트 배포 `agent-primary-down` + fallbacks) 호출은 `smoke-fallback`에서 PASS(`model_id=anthropic-claude-sonnet-5-5`, `attempted_fallbacks=1`, 0.024센트)이나 **소요 시간은 미실측**이다. 닫힌 포트라 주 모델 단계는 즉시 거절될 것으로 보이나 가정이다. mock 규칙은 `docker compose exec`로 거는데 사용자 환경의 실제 mock 컨테이너 상태는 코드 테스트로 알 수 없다.
 
 ## 작업
@@ -18,8 +19,8 @@
 
 단계마다 `INFO`/`PASS`/`FAIL` 한 줄을 출력한다(비밀 값은 출력하지 않는다). 순서:
 
-1. **환경 점검**: preflight 재사용(`stale_mock_image`·`litellm_config_stale`·`service_down:<이름>`), 양쪽 mock의 **남은 장애 규칙**(`faults stats`가 비어 있지 않으면 `stale_faults` FAIL).
-2. **규칙 걸기·풀기**: 살아 있는 mock에 `docker compose exec`로 `faults_set`(stdin)을 보내고 `faults stats`에서 규칙이 보이는지 확인한 뒤 `faults clear`로 풀고 비어 있는지 확인한다.
+1. **환경 점검**: preflight 재사용(`stale_mock_image`·`litellm_config_stale`·`service_down:<이름>`), 양쪽 mock에 `reset`(규칙·카운터·상태 초기화)을 실행하고 `faults stats`가 `{}`인지 확인한다. 남은 규칙은 **읽어서 탐지할 수 없고 `reset`이 지운다**(위 계약). 그래서 이 단계는 `INFO`로 "남은 규칙은 reset으로 제거함(목록 조회 불가)"를 출력하고, reset 명령이 실패하면 FAIL이다.
+2. **규칙 걸기·풀기**: 살아 있는 mock에 `docker compose exec`로 `faults_set`(stdin)으로 규칙 하나(읽기 엔드포인트, `nth: "all"`, 짧은 `delay`)를 보낸 뒤 **그 엔드포인트에 합성 요청을 1회 보내** `faults stats`의 해당 엔드포인트가 `requests >= 1`·`applied_rules >= 1`인지 확인한다(규칙 목록 조회 불가이므로 행동 증거로 확인). 이어서 `faults clear`를 하고 `faults stats`가 `{}`이며 같은 요청의 `applied_rules`가 더 오르지 않는지 확인한다. 마지막에 mock을 reset한다.
 3. **F5 + F10 짧은 지연 합성 요청 1회**: mock-slack(또는 mock-jira)에 합성 요청 한 번을 보내 처리 후 응답 유실 + 짧은 반영 지연(1.0초)을 걸고, 클라이언트 재시도 정책이 **표식 조회 > 0, 재발송 0, 최종 효과 1건**으로 끝나는지 확인한다(합성 메시지·합성 ID만 사용, 실존 이름 금지). 끝에서 mock을 reset한다.
 4. **`down_alias` 호출 소요 시간**: 게이트웨이 클라이언트로 아주 짧은 합성 프롬프트 1회를 `down_alias` 경로로 호출해 **응답 모델 ID·`attempted_fallbacks`·소요 시간(초)을 `INFO`로 출력**한다. 원장에는 공급사별 예약·정산이 기록된다(호출 전 양쪽 공급사 상한 검사, 상한 초과면 호출하지 않고 FAIL).
 5. **마무리 안내**: 출력 마지막에 "비용 원장(`data/manifest/costs.jsonl`)이 변경되었으면 `chore:` 커밋으로 먼저 올린 뒤 `make eval-faults`를 실행하세요(FP-031)"와 실행 명령(`caffeinate -i make eval-faults`, 약 75~80분, `down_alias` 소요 시간 측정값으로 소요 예상을 다시 계산)을 출력한다.
@@ -28,7 +29,7 @@
 
 ### 테스트 (가짜 실행기·가짜 gateway만)
 
-- 각 단계의 PASS/FAIL 분기(남은 규칙, 규칙이 stats에 없음, 표식 조회 0, 재발송 > 0, 상한 초과 시 호출 없음).
+- 각 단계의 PASS/FAIL 분기(reset 실패, 요청 뒤 `applied_rules`가 오르지 않음, clear 뒤 stats가 비지 않음, 표식 조회 0, 재발송 > 0, 상한 초과 시 호출 없음). 가짜 `MockAdmin`의 `stats`는 실제 계약과 같이 카운터만 돌려주고 규칙 목록은 주지 않는다(FP-020).
 - 출력에 토큰·키·요청 헤더·응답 본문이 없다(캡처한 출력 검사).
 - `down_alias` 소요 시간 출력 형식(`INFO duration_s=…`)과 마무리 안내 문구(원장 커밋·`caffeinate -i make eval-faults`)가 출력된다.
 
