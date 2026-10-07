@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "dev-rerun-registration",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-07T19:17:58+0900",
+      "blocked_reason": "사전 점검에서 지시 충돌을 확인하여 코드를 수정하지 않았습니다. 사전 등록 문서 작업은 “비교 기준: M3 dev 두 번째 실행의 TCR **18/20**.”을 요구하지만, 이 step의 금지사항은 “등록 문서에 결과 수치·TCR 목표·채택/미달 문구를 쓰지 마라.”라고 명시합니다. 또한 검증 절차는 “위 AC 커맨드를 실행한다.”(make verify)를 요구하지만, 금지사항은 “이 step 안에서 smoke·dev 러너·`make` 타깃을 실행하거나 `data/manifest/costs.jsonl`·`data/results/`를 갱신하지 마라(작성과 실행의 구분).”라고 명시합니다. 기존 결과의 기준값 18/20과 make verify를 각각 금지사항의 예외로 인정하는지 명확히 해 주세요.",
+      "blocked_at": "2026-10-07T19:20:07+0900",
+      "usage": {
+        "input_tokens": 28891,
+        "cached_input_tokens": 0,
+        "output_tokens": 310,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
