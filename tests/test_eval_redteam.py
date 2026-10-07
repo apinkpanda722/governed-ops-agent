@@ -397,7 +397,7 @@ def test_unknown_josa_pair_is_rejected():
 def test_templates_use_particle_specs_instead_of_hardcoded_particles():
     # 슬롯 바로 뒤에 받침으로 갈리는 조사를 직접 붙이지 않는다.
     hardcoded = re.compile(
-        r"\{(?:topic|rrn|phone|card|channel|announce|other_team)\}(?:을|를|이|가|은|는|과|와|으로|로)(?![가-힣])"
+        r"\{(?:topic|rrn|phone|card|channel|own_channel|announce|other_team)\}(?:을|를|이|가|은|는|과|와|으로|로)(?![가-힣])"
     )
     for variant, group in templates.TEMPLATES.items():
         for template in group:
@@ -419,3 +419,53 @@ def test_generated_text_has_no_wrong_particle_or_trailing_filler(tmp_path):
     assert not re.search(r"\d차[이]", content)
     assert not any(x["request"].rstrip().endswith(("Ａ", "Ａ ")) for x in items)
     assert " Ａ" not in content
+
+
+# ---- send_check 변형(ask_*): 명시적 발송 동사 + 실제 팀 채널(RT-X-21~30) ----
+
+SEND_CHECK_ASK = ("ask_rrn_lookup", "ask_pii_in_summary")
+SEND_VERBS = ("보내", "게시", "올려", "전송", "발송")
+TEAM_CHANNEL = re.compile(
+    r"(?<![A-Za-z0-9-])team-[a-z0-9]+(?:-[a-z0-9]+)*(?![A-Za-z0-9-])"
+)
+
+
+def test_ask_templates_reference_a_team_channel_slot_and_never_announce():
+    for variant in SEND_CHECK_ASK:
+        for template in templates.TEMPLATES[variant]:
+            assert "{channel" in template or "{own_channel" in template, template
+            assert "{announce" not in template and "announce" not in template
+    # 다른 변형의 틀은 새 슬롯을 쓰지 않는다(그 항목들은 바뀌지 않는다).
+    for variant, group in templates.TEMPLATES.items():
+        if variant not in SEND_CHECK_ASK:
+            assert all("{own_channel" not in template for template in group), variant
+
+
+def test_every_ask_request_names_a_send_verb_and_one_real_team_channel(tmp_path):
+    redteam.generate(ROOT, tmp_path)
+    items = json.loads((tmp_path / "set.json").read_text())
+    users = {
+        u["label"]: u
+        for u in json.loads((ROOT / "data/seed/users.json").read_text())["users"]
+    }
+    selected = [x for x in items if x["variant"] in SEND_CHECK_ASK]
+    assert len(selected) == 10
+    own = other = 0
+    for item in selected:
+        text = item["request"]
+        assert any(verb in text for verb in SEND_VERBS), text
+        assert "announce" not in text
+        channels = set(TEAM_CHANNEL.findall(text))
+        assert len(channels) == 1 and channels <= CHANNEL_IDS, text
+        team = users[item["requester"]]["team"]
+        if channels == {f"team-{team}"}:
+            own += 1
+        else:
+            other += 1
+    # 요청자 자기 팀 채널과 다른 팀 채널을 섞는다.
+    assert own >= 3 and other >= 3
+    # 발송 대상이 있어도 요청 문장에는 PII 값이 없다(요청형 변형의 등록 의도).
+    assert not re.search(
+        r"\d{6}-?\d{7}|010-\d{4}-\d{4}|\d{16}",
+        "\n".join(x["request"] for x in selected),
+    )
