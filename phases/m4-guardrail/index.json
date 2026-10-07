@@ -1,0 +1,71 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m4-guardrail",
+  "steps": [
+    {
+      "step": 0,
+      "name": "verify-speed",
+      "status": "completed",
+      "started_at": "2026-10-07T18:00:32+0900",
+      "summary": "pytest 기본 load 병렬화(-n auto), SHA-256 입력 키·FileLock·변형 격리를 갖춘 공유 생성물 캐시, 테스트 대기 최적화 완료. make verify 약 116.11초로 180초 목표 충족(ruff·pytest·tsc·eslint·vitest 모두 통과). 최종 전체 병렬 테스트 3회 연속 통과: 각각 2514 passed·1 skipped, 109.61초/89.82초/110.11초. 수정 사유: pyproject.toml=병렬 설정만 추가; tests/conftest.py=공유 캐시용 세션 팩토리 연결; tests/corpus_cache.py=락으로 단일 생성·원자적 저장·독립 반환; test_eval_taskgen.py=반복 생성 공유 및 동시 호출·이름 격리·변형 격리 TDD 테스트; test_eval_review.py=동일 생성물 재사용; test_a_mcp_status.py=연결 타임아웃 축소·가상 sleep; test_chaos_a.py=가짜 서버 지연 축소·가상 sleep; test_evalrun_faults.py=F11 가짜 서버 지연 축소. 기존 단언·느린 시작 변형·Retry-After 요청 값·2단계 조회 2.0초·F10 경계·기본 hard deadline 유지. 원복 검증: test_measured_failures[connect-*], test_read_retries_and_circuit[connect-*], test_refusal_circuit_blocks_server_connections[*]의 timeout_s 1.5→0.2초; test_measured_modes_and_credential_isolation[delay-*], test_read_retries_then_open_circuit_stops_requests[delay]의 delay 11→0.5초; test_f11_live_assembly_queries_chaos_then_judges_answer[delay]의 delay 12→0.5초; 재시도 가상 sleep도 실제 sleep으로 복원하여 해당 96개 테스트 모두 통과(21.62초), 이후 최종 축소 값 복구. 수정 전 uv run pytest -q --durations=15: 2513 passed·1 skipped, 457.91초(일부 초기 병렬·부분 실행과 중첩); 수정 후 동일 측정: 2514 passed·1 skipped, 109.61초. 아래 시간은 초, 모듈 약칭 T=test_eval_taskgen.py, M=test_a_mcp_status.py, C=test_chaos_a.py, F=test_evalrun_faults.py, R=test_eval_review.py, U=test_eval_audience.py, K=test_eval_cards.py, V=test_eval_carryover.py, N=test_eval_tone.py(모두 tests/ 아래). 수정 전 느린 15개: T::test_fixed_composition_and_determinism 24.84; T::test_real_corpus_requests_follow_the_natural_request_rules 22.29; T::test_repair_replaces_only_the_violating_specs 15.14; F::test_f11_live_assembly_queries_chaos_then_judges_answer[delay] 12.42; C::test_read_retries_then_open_circuit_stops_requests[delay] 11.84; C::test_measured_modes_and_credential_isolation[delay-timeout-None-uncertain] 11.01; C::test_delay_exceeding_default_hard_deadline_runs_the_real_read_path 11.01; T::test_public_incident_id_is_not_a_forbidden_answer 9.12; T::test_ticket_summary_falls_back_to_other_readable_tickets 8.76; M::test_read_retries_and_circuit[connect-4] 8.56; R::test_invalid_review[patch1] 8.56; T::test_documents_with_few_facts_or_ambiguous_titles_are_replaced 8.56; M::test_refusal_circuit_blocks_server_connections[4] 8.56; U::test_generated_specs_never_send_wider_than_the_source_is_readable 8.54; T::test_subtype_rules 8.40. 수정 후 느린 15개: T::test_fixed_composition_and_determinism 22.41; T::test_real_corpus_requests_follow_the_natural_request_rules 21.43; T::test_repair_replaces_only_the_violating_specs 14.39; C::test_delay_exceeding_default_hard_deadline_runs_the_real_read_path 11.00; T::test_public_incident_id_is_not_a_forbidden_answer 8.97; T::test_documents_with_few_facts_or_ambiguous_titles_are_replaced 8.20; T::test_ticket_summary_falls_back_to_other_readable_tickets 8.05; K::test_a_legacy_no_permission_spec_is_flagged 7.35(setup); U::test_generated_specs_never_send_wider_than_the_source_is_readable 7.32; T::test_no_eligible_document_candidates_fails_loudly 7.28; V::test_only_request_changed_specs_inherit_the_previous_decision 7.27; R::test_reports 7.03; T::test_repair_failure_is_loud_when_no_candidate_exists 6.91; N::test_assignment_matches_the_table_and_is_deterministic 6.63; T::test_insufficient_candidates 4.37. 병렬 실패에 따른 추가 파일 수정 없음. 계층 경계·ADR 스택·CRITICAL 규칙 확인 완료; 의존성 설치·프로덕션 코드 수정·phases 수정·git commit 없음.",
+      "completed_at": "2026-10-07T18:19:33+0900",
+      "usage": {
+        "input_tokens": 4487570,
+        "cached_input_tokens": 4377344,
+        "output_tokens": 15259,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "run-guards",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "guardrail-core",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "hook-adapter",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "team-keys",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "agent-blocked-input",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "dev-rerun-registration",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "redteam-registration",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "redteam-gen",
+      "status": "pending"
+    },
+    {
+      "step": 9,
+      "name": "redteam-review-cards",
+      "status": "pending"
+    },
+    {
+      "step": 10,
+      "name": "docs",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-07T18:00:32+0900"
+}
