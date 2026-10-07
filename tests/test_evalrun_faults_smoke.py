@@ -84,6 +84,7 @@ class Gateway:
         "wait",
         "effects",
         "injections",
+        "succeeded",
         "gateway",
     ],
 )
@@ -101,7 +102,7 @@ async def test_stages(tmp_path, capsys, failure):
             "wait_seconds": 0 if failure == "wait" else 2,
             "effects": 2 if failure == "effects" else 1,
             "injections": 0 if failure == "injections" else 2,
-            "succeeded": True,
+            "succeeded": failure != "succeeded",
         }
 
     if failure == "gateway":

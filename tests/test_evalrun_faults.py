@@ -528,10 +528,12 @@ def test_each_f11_variant_has_transport_failure_evidence(monkeypatch, variant, c
     monkeypatch.setenv("KODOCS_MCP_TOKENS_FILE", "/unreadable-real-tokens")
 
     async def exercise():
-        async with ChaosAServer(ChaosMode(variant), delay=0.05) as server:
+        async with ChaosAServer(
+            ChaosMode(variant), delay=2.0 if variant == "delay" else 0.05
+        ) as server:
             client = chaos_client(server)
             # Scale only the injected test policy, not production scenario budgets.
-            policy = ToolPolicy(hard=0.01)
+            policy = ToolPolicy(hard=0.5 if variant == "delay" else 0.01)
             with pytest.raises((AMcpError, TimeoutError)):
                 await policy.call_read(
                     "a_mcp",
