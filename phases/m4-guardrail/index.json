@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "team-keys",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T18:53:33+0900",
+      "summary": "팀 키 멱등 발급·갱신·제한 회전 CLI, 사용자별 키 선택, Guardrail 오류·헤더 검증·비용 정산 및 서비스·스모크 연결 구현; make verify 통과(2711 passed·1 skipped, 웹 15 passed), 계층·CRITICAL 준수, phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T19:04:39+0900",
+      "usage": {
+        "input_tokens": 2335969,
+        "cached_input_tokens": 2215808,
+        "output_tokens": 15307,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
