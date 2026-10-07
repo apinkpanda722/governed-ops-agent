@@ -876,8 +876,14 @@ class TestExecutionLock:
         def body(*_):
             seen["pid"] = executor._lock_path.read_text().strip()
 
-        self.run_with(executor, body)
+        def body_env(*_):
+            body()
+            seen["env"] = os.environ.get("HARNESS_EXECUTOR_PID")
+
+        self.run_with(executor, body_env)
         assert seen["pid"] == str(os.getpid())
+        assert seen["env"] == str(os.getpid())
+        assert "HARNESS_EXECUTOR_PID" not in os.environ
         assert not executor._lock_path.exists()
 
     def test_lock_removed_when_run_exits_early(self, executor):

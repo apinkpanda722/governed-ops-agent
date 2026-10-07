@@ -15,19 +15,14 @@ cwd=$(jq -r '.cwd // empty' <<< "$input" 2>/dev/null)
 
 # phase 실행 중(execute.py가 .harness/executing에 PID를 적어 둔다)이면 중간 작업 트리를
 # 검증하지 않는다. 그 PID가 죽어 있으면(비정상 종료) 잠금은 무효다. 실행기의 자손
-# 프로세스(step을 실행하는 Codex 세션)는 계속 검증해 스스로 고치게 한다.
+# 프로세스(step을 실행하는 Codex 세션)는 execute.py가 환경 변수 HARNESS_EXECUTOR_PID로
+# 자신의 PID를 물려 주므로 그 값이 잠금의 PID와 같으면 계속 검증해 스스로 고치게 한다.
+# (ps에 의존하지 않는다: Codex 샌드박스는 ps를 막을 수 있다.)
 lock="$cwd/.harness/executing"
 if [[ -f "$lock" ]]; then
   lock_pid=$(tr -dc '0-9' < "$lock" 2>/dev/null | head -c 10)
   if [[ -n "$lock_pid" ]] && kill -0 "$lock_pid" 2>/dev/null; then
-    owned=false
-    p=$$
-    for _ in $(seq 1 30); do
-      p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')
-      [[ -z "$p" || "$p" -le 1 ]] && break
-      if [[ "$p" == "$lock_pid" ]]; then owned=true; break; fi
-    done
-    [[ "$owned" == "false" ]] && exit 0
+    [[ "${HARNESS_EXECUTOR_PID:-}" == "$lock_pid" ]] || exit 0
   fi
 fi
 

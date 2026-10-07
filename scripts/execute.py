@@ -78,6 +78,7 @@ class StepExecutor:
     FEAT_MSG = "feat({phase}): step {num} — {name}"
     CHORE_MSG = "chore({phase}): step {num} {status}"
     TZ = timezone(timedelta(hours=9))
+    EXECUTOR_ENV = "HARNESS_EXECUTOR_PID"
 
     def __init__(self, phase_dir_name: str, *, auto_push: bool = False):
         self._root = str(ROOT)
@@ -146,8 +147,13 @@ class StepExecutor:
                 sys.exit(1)
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text(f"{os.getpid()}\n")
+        # 자식 프로세스(step을 실행하는 Codex 세션과 그 Stop hook)가 상속한다.
+        # hook은 ps 없이 이 값으로 "실행기의 자손"인지 판단한다.
+        os.environ[self.EXECUTOR_ENV] = str(os.getpid())
 
     def _release_lock(self):
+        if os.environ.get(self.EXECUTOR_ENV) == str(os.getpid()):
+            del os.environ[self.EXECUTOR_ENV]
         lock = self._lock_path
         try:
             if lock.read_text().strip() == str(os.getpid()):
