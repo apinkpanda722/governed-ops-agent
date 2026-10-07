@@ -42,7 +42,7 @@ general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/LITELLM_DATABASE_URL
 
-# Guardrail 훅 자리: Guardrail은 M4
+
 
 # 프롬프트·응답 원문은 obs 마스킹을 거치지 않으므로 끈다(요청·답변은 에이전트 span이 PII 마스킹 후 보낸다).
 # 끄면 LiteLLM은 내용을 비우지 않고 messages·응답 내용을 `redacted-by-litellm` 자리 표시자로 바꿔 보낸다.
@@ -51,3 +51,15 @@ litellm_settings:
   success_callback: ["langfuse"]
   failure_callback: ["langfuse"]
   turn_off_message_logging: true
+
+guardrails:
+  - guardrail_name: govops-pre
+    litellm_params:
+      guardrail: govops.gateway.guardrail_hook.GovopsGuardrail
+      mode: pre_call
+      default_on: true
+  - guardrail_name: govops-post
+    litellm_params:
+      guardrail: govops.gateway.guardrail_hook.GovopsGuardrail
+      mode: post_call
+      default_on: true

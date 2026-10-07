@@ -147,6 +147,8 @@ def test_litellm_config_mount_dependencies_and_environment(compose: dict) -> Non
         "ANTHROPIC_API_KEY",
     }
     assert litellm["environment"] == {
+        "PYTHONPATH": "/app/src",
+        "PYTHONDONTWRITEBYTECODE": "1",
         **{v: "${" + v + "}" for v in variables},
         "LANGFUSE_HOST": "http://langfuse-web:3000",
         "LANGFUSE_PUBLIC_KEY": "${LANGFUSE_PUBLIC_KEY:-}",
@@ -185,7 +187,8 @@ def test_litellm_has_primary_model_and_environment_settings() -> None:
         "master_key": "os.environ/LITELLM_MASTER_KEY",
         "database_url": "os.environ/LITELLM_DATABASE_URL",
     }
-    assert "Guardrail은 M4" in text
+    assert "Guardrail은 M4" not in text
+    assert len(config["guardrails"]) == 2
 
 
 @pytest.mark.parametrize(("name", "port"), [("jira", 8081), ("slack", 8082)])
@@ -287,3 +290,31 @@ def test_gateway_fallback_configs_match():
         assert models["agent-fallback"]["timeout"] == 30
         assert models["agent-primary-down"]["api_base"] == "http://127.0.0.1:9"
         assert models["agent-primary-only"] == models["agent-primary"]
+
+
+def test_guardrail_mounts_and_configs(compose):
+    service = compose["services"]["litellm"]
+    for mount in (
+        "../src:/app/src:ro",
+        "../data/seed/users.json:/app/data/seed/users.json:ro",
+    ):
+        assert mount in service["volumes"]
+        assert (REPO_ROOT / "infra" / mount.split(":")[0]).exists()
+    assert not any("data/policy" in mount for mount in service["volumes"])
+    configs = [
+        yaml.safe_load((REPO_ROOT / "infra/litellm" / name).read_text())
+        for name in ("config.yaml", "config.obs.yaml")
+    ]
+    for key in ("guardrails", "model_list", "router_settings"):
+        assert configs[0][key] == configs[1][key]
+    assert len(configs[0]["guardrails"]) == 2
+    assert {g["litellm_params"]["mode"] for g in configs[0]["guardrails"]} == {
+        "pre_call",
+        "post_call",
+    }
+    for guardrail in configs[0]["guardrails"]:
+        assert (
+            guardrail["litellm_params"]["guardrail"]
+            == "govops.gateway.guardrail_hook.GovopsGuardrail"
+        )
+        assert guardrail["litellm_params"]["default_on"] is True
