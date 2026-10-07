@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "hook-adapter",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T18:43:37+0900",
+      "summary": "LiteLLM Guardrail 훅의 사전 fail-closed·사후 fail-open, 고정 해시·검증 헤더, 읽기 전용 마운트·동일 설정과 회귀 테스트 구현; make verify 통과(2667 passed·1 skipped, 웹 15 passed), 계층·CRITICAL 준수, phases 수정·커밋 없음.",
+      "completed_at": "2026-10-07T18:53:33+0900",
+      "usage": {
+        "input_tokens": 1743354,
+        "cached_input_tokens": 1662848,
+        "output_tokens": 9899,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
