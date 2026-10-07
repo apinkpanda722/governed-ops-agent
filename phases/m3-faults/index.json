@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "smoke-faults",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-07T12:02:40+0900",
+      "blocked_reason": "작업 1·2가 기존 mock 계약과 충돌합니다(FP-054). src/govops/mocks/faults.py의 FaultState.set()은 규칙 설정 시 counters를 비우고, stats()는 규칙이 아닌 counters만 반환합니다. 따라서 요청 전 faults stats는 규칙이 남아 있어도 {}이며, faults_set 직후 stats에서 설정된 규칙을 확인할 수도 없습니다. 남은 규칙 탐지와 규칙 설정 확인을 구현하려면 수정 허용 목록 밖의 mock 관리 계약 변경 또는 step 설계 수정이 필요합니다. 파일 수정·live 실행·커밋은 하지 않았습니다.",
+      "blocked_at": "2026-10-07T12:10:38+0900",
+      "usage": {
+        "input_tokens": 216212,
+        "cached_input_tokens": 159872,
+        "output_tokens": 1027,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
