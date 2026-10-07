@@ -69,8 +69,9 @@
     },
     {
       "dir": "m3-faults",
-      "status": "blocked",
-      "blocked_at": "2026-10-07T12:47:43+0900"
+      "status": "completed",
+      "blocked_at": "2026-10-07T12:47:43+0900",
+      "completed_at": "2026-10-07T14:15:46+0900"
     }
   ]
 }
