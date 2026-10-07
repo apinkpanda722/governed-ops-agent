@@ -11,9 +11,18 @@
 
 **live 접속 코드의 범위**: 이 step이 만드는 사용자 실행 코드는 실제 서비스에 접속해야 한다. 작성은 허용되고, 테스트는 가짜로만 검증하며, 이 step에서 live로 실행하지 않는다(금지사항의 "접속하는 테스트나 코드 실행"은 이 범위를 뜻한다).
 
-**수정할 파일**(이 목록이 전부다): 신규 `src/govops/evalrun/faults_smoke.py`, 신규 테스트 `tests/test_evalrun_faults_smoke.py`, 수정 `Makefile`(`smoke-faults` 타깃 추가만). 계층: `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 import할 수 없다(`tools`·`gateway`·`replay`는 가능). mock 토큰은 기존 `tools/smoke.py`와 같은 방식(환경 변수·기존 토큰 로더)으로 읽고 값은 출력하지 않는다.
+**수정할 파일**(이 목록이 전부다): 신규 `src/govops/evalrun/faults_smoke.py`, 신규 테스트 `tests/test_evalrun_faults_smoke.py`, 수정 `Makefile`(`smoke-faults` 타깃 추가만), 수정 `tests/test_evalrun_faults.py`(**`test_each_f11_variant_has_transport_failure_evidence`의 타이밍 파라미터만**, 아래 "선행 수정"). 계층: `evalrun`은 `broker`·`mocks`·`audit`·`guardrails`·LLM SDK를 import할 수 없다(`tools`·`gateway`·`replay`는 가능). mock 토큰은 기존 `tools/smoke.py`와 같은 방식(환경 변수·기존 토큰 로더)으로 읽고 값은 출력하지 않는다.
 
 **배경**: 사용자가 실행하는 `make smoke-faults`를 만든다. 154회 live 실행 전에 **실제 mock 컨테이너·LiteLLM에서 장애 부품이 작동하는지**와 `down_alias` 지연을 측정한다. 코드 테스트는 가짜 실행기로만 한다. TDD.
+
+### 선행 수정: step 4 테스트의 타이밍 의존 (`tests/test_evalrun_faults.py`)
+
+이 step을 시작하기 전에 작업 트리에는 이전 시도의 부분 구현(`faults_smoke.py`·`test_evalrun_faults_smoke.py`·`Makefile`, WIP 커밋)이 있다. 먼저 `faults_smoke.py`가 목록 안의 파일이고 이미 만들어져 있음을 확인하고 이어서 완성한다. `make verify`가 통과하지 못하는 원인은 **step 4가 만든 테스트의 경쟁 조건**이다:
+
+- **실측된 결함**: `test_each_f11_variant_has_transport_failure_evidence[delay]`가 `ToolPolicy(hard=0.01)`(10ms)로 읽기 3회 재시도 후 `server.requests == 3`을 단언한다. SDK 시작·연결이 10ms를 넘으면 요청이 서버에 도달하기 전에 취소돼 서버가 2건만 받는다(관측: 타임아웃 3회 중 서버 수신 2회). 단언이 아니라 **타이밍 파라미터가 경쟁 조건**이다(FP-023과 같은 유형).
+- **고치는 법**: `delay` 변형의 테스트 타이밍을 요청이 서버에 반드시 도달한 뒤 타임아웃이 나도록 바꾼다(예: `ToolPolicy(hard=0.5)`와 `ChaosAServer(..., delay=2.0)`처럼 hard가 SDK 시작보다 충분히 크고 delay가 hard보다 큰 값). `http_500`·`refuse` 변형의 기대는 그대로 둔다. **단언(`failures == 3`, `server.requests == 3`, `refuse`의 `== 0`)은 약화하지 않는다**(`<=`·범위 비교·삭제 금지, FP-056). 입력을 고정하거나 sleep으로 맞추지 않는다(FP-011).
+- **재현과 확인**: 고치기 전에 `httpx2.AsyncClient.__aenter__`에 `asyncio.sleep`을 넣어 SDK 시작을 늦춘 조건에서 원래 테스트가 실패함을 확인하고, 고친 뒤 같은 조건(느린 시작 0~4단계)과 지연 없음 두 조건에서 모두 통과함을 확인한다(로컬 확인용이며 테스트 파일에 반복·sleep 주입을 넣지 않는다).
+- 이 파일의 다른 테스트는 수정하지 않는다.
 
 ### `make smoke-faults` (사용자 실행, `govops.evalrun.faults_smoke` 같은 모듈)
 

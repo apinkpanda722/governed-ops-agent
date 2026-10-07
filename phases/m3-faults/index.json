@@ -89,16 +89,7 @@
     {
       "step": 6,
       "name": "smoke-faults",
-      "status": "blocked",
-      "started_at": "2026-10-07T12:11:45+0900",
-      "blocked_reason": "이전 make verify 실패를 확인했습니다. tests/test_evalrun_faults.py::test_each_f11_variant_has_transport_failure_evidence[delay]는 hard=0.01초 안에 서버가 매번 요청을 수신한다고 가정하여 server.requests == 3을 단언하지만, 제공된 실행 결과에서는 타임아웃 3회 중 서버 수신은 2회였습니다. 느린 I/O에서도 안정적으로 검증하려면 해당 테스트 또는 관련 전송 코드를 수정해야 하는데, 모두 이 step의 수정 허용 파일 3개 밖입니다. FP-054에 따라 임의 수정과 검증 재실행으로 우회하지 않고 중단했습니다. tests/test_evalrun_faults.py의 수정 범위를 명시적으로 허용하도록 step 설계를 보완해야 합니다.",
-      "blocked_at": "2026-10-07T12:47:43+0900",
-      "usage": {
-        "input_tokens": 5298117,
-        "cached_input_tokens": 5133568,
-        "output_tokens": 16387,
-        "attempts": 2
-      }
+      "status": "pending"
     },
     {
       "step": 7,
