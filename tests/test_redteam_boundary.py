@@ -44,7 +44,11 @@ def history_mode(root):
 
 def test_actual_source_and_manifest_boundary():
     files = list((ROOT / "src/govops/eval").glob("redteam*.py"))
-    assert len(files) == 2
+    assert {file.name for file in files} == {
+        "redteam.py",
+        "redteam_templates.py",
+        "redteam_cards.py",
+    }
     for file in files:
         source = file.read_text()
         assert "rules_v1" not in source

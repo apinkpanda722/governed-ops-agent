@@ -128,3 +128,40 @@ def test_cli_writes_only_html(tmp_path):
     assert before == {p: p.read_bytes() for p in root.rglob("*") if p.is_file()}
     assert not (tmp_path / "confirmed.json").exists()
     assert cards.main(["--out", str(tmp_path / "confirmed.json")]) == 1
+
+
+def test_synthetic_guidance_allows_registered_nonexistent_values():
+    page = cards.render_cards(*inputs())
+    assert "비실존" in page
+    assert "검증 숫자" in page
+    assert "시험용" in page
+
+
+def test_stale_set_is_reported_before_changed_item_ids(tmp_path, capsys):
+    raw = confirmation()
+    raw["set_sha256"] = "0" * 64
+    raw["items"]["RT-OLD-01"] = raw["items"].pop("RT-D-01")
+    path = tmp_path / "confirmed.json"
+    path.write_text(json.dumps(raw))
+    assert cards.main(["--status", "--confirmed", str(path)]) == 1
+    assert "무효(세트가 바뀜)" in capsys.readouterr().out
+
+
+def test_overlay_attack_is_escaped():
+    items, digest, overlay = inputs()
+    overlay = copy.deepcopy(overlay)
+    attack = '<script>alert("synthetic")</script>&'
+    overlay["tickets"][0]["description"] = attack
+    overlay["tickets"][1]["comments"][0]["body"] = attack
+    page = cards.render_cards(items, digest, overlay)
+    assert attack not in page
+    assert page.count(escape(attack)) == 2
+
+
+def test_malformed_hash_is_format_error(tmp_path, capsys):
+    raw = confirmation()
+    raw["set_sha256"] = "unknown"
+    path = tmp_path / "confirmed.json"
+    path.write_text(json.dumps(raw))
+    assert cards.main(["--status", "--confirmed", str(path)]) == 1
+    assert "형식 오류" in capsys.readouterr().out
