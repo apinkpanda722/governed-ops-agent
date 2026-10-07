@@ -276,6 +276,34 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: `scripts/step_file_checks.py::read_list_violations`(금지 경로 안의 항목, 상위 디렉터리, 파일 이름 언급을 잡고 "열람하지 않는다" 문구로 좁힌 줄은 허용), `scripts/test_step_files.py::test_read_list_parent_dir_listing_the_forbidden_name_fails_unless_negated`(실제로 막힌 줄을 재현).
 - **출처**: m4-guardrail step 10 blocked(`abe5d9a`)
 
+### FP-063 규칙을 기계적으로 적용해 코드 변경 없는 커밋에도 전체 verify와 별도 PR을 반복
+- **증상**: 비용 원장 4줄 때문에 로컬 `make verify` 8분과 CI 10분을 기다렸고, 원장만 올리는 PR이 M3에서 세 번 반복됐다(FP-031 재발).
+- **원인**: "커밋 전 verify"와 "청결한 작업 트리" 규칙을 변경 내용과 무관하게 적용했다.
+- **규칙**: 코드가 아닌 실행 산출물(원장 하나)만 바뀐 경우를 예외로 정하고, 예외 목록은 **한 파일**에 둔다. 원장은 다음 결과 커밋에 함께 넣고 원장만 올리는 PR은 만들지 않는다. 예외는 원장 하나뿐이며 `docs/`·`data/results/`·`data/replay/`는 테스트가 읽으므로 포함하지 않는다.
+- **강제 수단**: `scripts/exempt_paths.json`(단일 출처), `scripts/execute.py`·`scripts/hooks/verify-before-stop.sh`·`evalrun/worktree.py`가 같은 목록을 읽음, `tests/test_evalrun_worktree.py::test_agents_matches_single_source`, FP-064의 호출 지점 전수 점검
+- **출처**: m3-faults(원장 PR #47·#57 등), m4-guardrail step 1
+
+### FP-064 예외 목록을 적용한 청결 검사가 일부 호출 지점에서 빠짐
+- **증상**: live dev가 `grading_rules_not_committed`로 시작 전에 막혔다. `guard_grading_rules`가 `git status --porcelain`(작업 트리 전체)이 비어 있기를 요구해, smoke가 쓴 원장 한 줄(예외 대상)로 실패했다. step 1이 고친 청결 검사 3곳 밖의 **네 번째 지점**이었다(핫픽스 PR #65).
+- **원인**: 같은 의미의 검사(작업 트리 전체 청결)가 여러 곳에 따로 구현돼 있었고, 예외 목록을 도입할 때 호출 지점을 전수 점검하지 않았다.
+- **규칙**: 작업 트리 전체의 청결은 `worktree.dirty_entries`를 거친다. 가드가 보려는 대상이 특정 파일이면 `git status --porcelain -- <파일>`로 범위를 **한정**한다(전체 청결은 한 곳이 맡는다). 같은 의미의 검사를 도입·변경할 때는 `src/` 전체의 호출 지점을 목록으로 만들어 확인한다.
+- **강제 수단**: `tests/test_git_status_sites.py::test_whole_tree_status_checks_apply_the_exemption_list`(`src/`의 `--porcelain` 호출은 경로 한정이거나 `dirty_entries`를 거쳐야 하며, 핫픽스 이전 코드에서 실패함을 확인), `tests/test_eval_run_grade.py`의 원장만 바뀐 경우 통과·등록 파일 변경/미커밋 실패 테스트
+- **출처**: m4-guardrail 후속 live dev(핫픽스 PR #65)
+
+### FP-065 훅의 예기치 않은 예외가 LiteLLM 응답 본문에 그대로 노출됨
+- **증상**: 실측(LiteLLM v1.103.3)에서 사전·사후 훅의 예기치 않은 예외는 HTTP 500이고 `error.message`에 예외 문장 원문이 실렸다. 훅이 감싸지 않으면 사후 훅 오류도 fail-open이 아니다. 사전 훅에는 자체 타임아웃도 없다.
+- **원인**: 훅을 일반 파이썬 함수처럼 쓰고 호출 경계(프록시)가 예외를 어떻게 응답에 옮기는지 확인하지 않았다.
+- **규칙**: 어댑터가 사전 훅은 `wait_for` 타임아웃과 try/except로 감싸 `guardrail_unavailable`(fail-closed)로, 사후 훅은 try/except로 통과 + 경보(fail-open)로 바꾼다. 예외 메시지·스택·입력을 응답이나 로그에 남기지 않는다.
+- **강제 수단**: `tests/test_gateway_guardrail_hook.py`(`raise`·`slow`·`post_raise` 프로브와 응답 본문·헤더·로그에 예외 문장 없음), `tests/test_gateway_hook_imports.py`(훅이 import하는 govops 모듈 허용 목록), `make smoke-guardrail`의 `fail_closed` 단계
+- **출처**: m4-guardrail 설계 실측, step 3
+
+### FP-066 시간 제한 없는 대기로 CI가 멈춤
+- **증상**: PR #63의 CI가 `make verify`의 pytest 95%에서 13분 넘게 멈췄다(직전 CI는 6분). 로그는 `-q` 점 출력뿐이라 멈춘 테스트 이름이 남지 않았고, 취소 시 정리된 고아 프로세스에 워커보다 늦게 생긴 파이썬 하나가 있었다. 같은 PR을 다시 돌리자 멈추지 않았다(간헐적, 원인 미확정). 의심 지점은 `multiprocessing` spawn `Pool.starmap`을 시간 제한 없이 기다리는 `test_processes_never_reserve_beyond_cap`이다(풀 워커가 죽으면 `starmap`은 끝나지 않는다).
+- **원인**: job·테스트·서브프로세스·풀 대기에 상한이 없었다.
+- **규칙**: CI job에 `timeout-minutes`, 테스트에 `pytest-timeout`(thread 방식: 멈춘 테스트가 스택을 남기고 워커를 끝내 xdist가 이름을 보고함), 풀·스레드·서브프로세스 대기에는 항상 유한 대기를 둔다(`starmap_async().get(timeout=)`+`finally terminate/join`, `subprocess.run(timeout=)`, `join(timeout=)`). 정당하게 오래 걸리는 테스트는 전역 값을 올리지 말고 그 테스트에만 `@pytest.mark.timeout(N)`을 붙인다. **원인을 확인하지 못했으면 확정했다고 적지 않는다**(의심으로 표시).
+- **강제 수단**: `.github/workflows/ci.yml`의 `timeout-minutes: 20`, `pyproject.toml`의 `timeout = 120`·`timeout_method = "thread"`, `tests/test_ci_workflow.py::test_ci_verify_job_has_a_timeout`·`test_pytest_per_test_timeout_is_configured`, 서브프로세스 호출 35건과 `Popen.wait` 7곳의 timeout, `tests/test_costs_reservation.py`의 유한 대기
+- **출처**: PR #63 CI 정지(실행 `37638207792` 취소), 같은 PR 후속 커밋 `90b655f`
+
 ---
 
 ## A에서 이식한 항목 (프로젝트 A `failure-patterns`의 번호)
