@@ -113,7 +113,11 @@ def guard_grading_rules(root, rules):
         raise ValueError("grading_rules_not_committed")
     registration = registration[-1]
     git("cat-file", "-e", f"HEAD:{path}")
-    if git("diff", f"{registration}..HEAD", "--", path) or git("status", "--porcelain"):
+    # 작업 트리 전체의 청결은 dev_m3의 dirty_worktree 검사(예외 목록 적용)가 맡는다.
+    # 여기서는 등록 파일 하나만 본다(원장 등 예외 대상 변경으로 막히지 않게).
+    if git("diff", f"{registration}..HEAD", "--", path) or git(
+        "status", "--porcelain", "--", path
+    ):
         raise ValueError("grading_rules_not_committed")
     return {
         "grading_rules_sha256": hashlib.sha256((root / path).read_bytes()).hexdigest(),
