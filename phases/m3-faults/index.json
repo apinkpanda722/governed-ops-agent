@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "fault-harness",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-07T10:34:20+0900",
+      "summary": "faults.py·fault_scenarios.py와 eval-faults 타깃 구현: 154회 계획·분모 132, F6 분배 4/3/3, 장애 증거·보고·재개·재시도 가드. 신규 테스트 79건 추가, 기존 테스트 수정 없음. ps 허용 권한으로 make verify 통과(Python 2430 passed·1 skipped, 웹 검사·vitest 15 passed). 계층·CRITICAL 규칙 확인; live 실행·커밋·금지 경로 수정 없음, phases 기존 diff 보존.",
+      "completed_at": "2026-10-07T11:19:53+0900",
+      "usage": {
+        "input_tokens": 7283929,
+        "cached_input_tokens": 7020800,
+        "output_tokens": 46849,
+        "attempts": 2
+      }
     },
     {
       "step": 5,
