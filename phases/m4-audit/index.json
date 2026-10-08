@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "auth-failed-event",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T11:57:16+0900",
+      "summary": "auth.failed 시스템 감사 기록·fail-open 응답 유지·앱별 스레드 안전 60건/분 상한과 suppressed 집계 구현; 계층 경계 준수, make verify 통과(Python 3166개, 웹 15개).",
+      "completed_at": "2026-10-08T12:04:49+0900",
+      "usage": {
+        "input_tokens": 1505913,
+        "cached_input_tokens": 1436160,
+        "output_tokens": 5408,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
