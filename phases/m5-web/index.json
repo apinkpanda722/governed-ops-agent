@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "e2e-web",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T20:30:12+0900",
+      "summary": "Replay Playwright 설정·e2e 스펙 2개·보안 가드·make e2e-web 및 문서 구현, make verify 통과(Python 3442개·웹 100개); 브라우저 e2e는 사용자 실행으로 남김.",
+      "completed_at": "2026-10-08T20:44:12+0900",
+      "usage": {
+        "input_tokens": 2999259,
+        "cached_input_tokens": 2905728,
+        "output_tokens": 9551,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-08T19:15:33+0900"
