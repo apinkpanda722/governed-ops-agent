@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "e2e-docs",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-09T01:23:07+0900",
+      "summary": "새 UI·writes_team에 맞춘 e2e·소켓·스모크 테스트, 실행 전후 청결 검사와 ADR-024 등 문서 갱신 완료; make verify 통과.",
+      "completed_at": "2026-10-09T01:34:17+0900",
+      "usage": {
+        "input_tokens": 3298916,
+        "cached_input_tokens": 3169920,
+        "output_tokens": 12044,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-08T22:39:23+0900"
