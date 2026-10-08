@@ -44,6 +44,7 @@ class TaskService:
         self.effects, self.audit, self.policy = effects, audit, policy
         self.clock = clock or getattr(graph, "agent_clock", utc_now)
         self._locks: dict[str, asyncio.Lock] = {}
+        self._approval_locks: dict[str, asyncio.Lock] = {}
         self._tasks: set[asyncio.Task] = set()
         self._closed = False
         self.turns = turns if turns is not None else InMemoryTurnIndex()
@@ -316,6 +317,19 @@ class TaskService:
         )
         return state
 
+    async def progress(
+        self, user_id: str, conversation_id: str
+    ) -> tuple[str, str] | None:
+        if not _TASK_ID.fullmatch(conversation_id):
+            return None
+        async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            state = await get_task(self.graph, conversation_id)
+            if not state or state["user_id"] != user_id:
+                return None
+            async with self._lock(state["task_id"]):
+                state = await self._expire(conversation_id, state)
+                return state["task_id"], state["status"]
+
     async def conversation_view(self, user_id, conversation_id):
         if not _TASK_ID.fullmatch(conversation_id):
             raise ConversationError(404, "conversation_not_found")
@@ -388,6 +402,19 @@ class TaskService:
             return self._view(state, task_id, approval=not owner)
 
     async def approve(self, user_id, task_id, *, decision, draft_sha256, edited=None):
+        async with (
+            asyncio.timeout(120),
+            self._approval_locks.setdefault(task_id, asyncio.Lock()),
+        ):
+            return await self._approve(
+                user_id,
+                task_id,
+                decision=decision,
+                draft_sha256=draft_sha256,
+                edited=edited,
+            )
+
+    async def _approve(self, user_id, task_id, *, decision, draft_sha256, edited=None):
         conversation_id = await self._resolve(task_id)
         if conversation_id is None:
             raise ApprovalError(404)
@@ -430,13 +457,26 @@ class TaskService:
             }
             if edited is not None:
                 value["edited"] = edited
-            with trace(task_id, user_id=state["user_id"]):
-                state = await self.graph.ainvoke(
-                    Command(resume=value),
-                    self._config(conversation_id),
-                    context=AgentContext(state["user_id"]),
-                )
-            view = self._view(state, task_id, approval=user_id != state["user_id"])
+            execution = asyncio.create_task(
+                self._resume_approval(conversation_id, task_id, state["user_id"], value)
+            )
+            self._running[conversation_id] = execution
+            self._tasks.add(execution)
+            execution.add_done_callback(self._tasks.discard)
+        return await asyncio.shield(execution)
+
+    async def _resume_approval(self, conversation_id, task_id, user_id, value):
+        with trace(task_id, user_id=user_id):
+            state = await self.graph.ainvoke(
+                Command(resume=value),
+                self._config(conversation_id),
+                context=AgentContext(user_id),
+            )
+        async with self._conv_lock(conversation_id), self._lock(task_id):
+            decision, draft_sha256 = value["decision"], value["draft_sha256"]
+            view = self._view(
+                state, task_id, approval=value["approver"] != state["user_id"]
+            )
             await self._update(
                 conversation_id,
                 {

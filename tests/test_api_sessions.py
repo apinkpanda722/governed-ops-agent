@@ -205,3 +205,17 @@ def test_expired_sessions_are_purged_on_issue_and_resolve():
     now[0] = 22.0
     assert store.resolve("unknown-token") is None
     assert len(store._sessions) == 0 and store.resolve(other) is None
+
+
+def test_default_session_ttl_is_eight_hours():
+    from govops.api.sessions import SESSION_TTL_SECONDS
+
+    assert SESSION_TTL_SECONDS == 28800
+    now = [123.0]
+    store = SessionStore(clock=lambda: now[0])
+    token, expires = store.issue("demo-session-user")
+    assert expires == now[0] + 28800
+    now[0] = expires - 1
+    assert store.resolve(token) == "demo-session-user"
+    now[0] = expires
+    assert store.resolve(token) is None
