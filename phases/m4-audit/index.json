@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "service-start-event",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T11:37:46+0900",
+      "summary": "service.start 해시 기록·시작 실패 코드 변환과 TaskService.anchor 위임 구현, 테스트 보강 및 make verify 통과(Python 3135개, 웹 15개); 계층 경계 준수.",
+      "completed_at": "2026-10-08T11:46:38+0900",
+      "usage": {
+        "input_tokens": 1652482,
+        "cached_input_tokens": 1578880,
+        "output_tokens": 5910,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
