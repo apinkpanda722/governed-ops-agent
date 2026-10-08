@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "turn-state",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T14:05:59+0900",
+      "summary": "대화·턴 상태 분류와 초기화, 이력 이월·근거 누적 및 LangGraph 계약 테스트 구현; make verify와 골든 불변 검사 통과.",
+      "completed_at": "2026-10-08T14:17:59+0900",
+      "usage": {
+        "input_tokens": 3193261,
+        "cached_input_tokens": 3091584,
+        "output_tokens": 11111,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -52,5 +61,6 @@
       "name": "conversation-smoke-pg",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-08T14:05:59+0900"
 }
