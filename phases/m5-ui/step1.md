@@ -42,8 +42,8 @@
 6. **채점·탐색 예산**: 공식 채점은 `hypotheses-m3-grading.md` 규칙 `m3-grading` 그대로, Guardrail v1·MAX_COST·탐색 예산 N=4(`n-registration-m5.md`)는 이전 실행과 같은 설정으로 켠 채 실행한다. 실행 뒤 `regrade --n` 후보를 **참고**로 낸다. 사슬 전체(이번 실행 포함)의 성공 task별 최대 연속 무정보 호출의 최댓값 + 1이 4와 다르면 test 전에 별도 파일로 등록하며 이 등록 문서와 `n-registration-m5.md`는 바꾸지 않는다.
 7. **프로필 이름과 골든**: 러너 레이블과 환경 설정은 `writes_team`(`GOVOPS_AGENT_PROFILE=writes_team`). 골든 14개는 이 실행 직후 러너가 `writes_team`으로 재기록하며 `status.json`의 `profile`이 바뀐다. 그 전까지 골든은 `writes_org`로 재생된다.
 8. **프롬프트 해시 기록**: manifest·골든 헤더의 `prompt_hash`는 템플릿 해시이고 요청자 절은 사용자별 해시(`requester_section_sha256`)로 남는다.
-9. **보고 지표(결과를 보기 전에 정의)**: ① `check.reason == recipient_not_allowed`로 끝난 쓰기 task 수 ② 부작용 task가 초안 없이 `completed`로 끝난 수(되물음) ③ `announce`를 수신처로 한 효과 수 ④ TCR·정확도(이전 공식값 17/20과 나란히 보고하되 판정 기준으로 쓰지 않는다). 목표 수치는 이 문서에 적지 않고 실행 뒤·test 전에 별도로 등록한다.
-10. **이전 공식 실행의 기준값(이번 결과가 아님)**: 위 지표 ①·③을 이전 공식 실행 `d2cd927c…`의 원자료(`data/results/dev/d2cd927c073447728c76c040d7bfb3bc/observations.jsonl`·`grades.json`)에서 센 값을 **근거 경로와 함께** 적는다(②는 원자료에서 구분할 수 없으면 "산출 불가"로 쓰고 그 사유를 적는다). 센 파일·필드·방법을 함께 적는다(FP-022).
+9. **보고 지표(결과를 보기 전에 정의)**: ① 마지막 시도의 `check_reason == recipient_not_allowed`로 끝난 쓰기 task 수(원자료는 `manifest.json`의 `attempts[task][].check_reason`이고 각 task의 마지막 시도 기준) ② 부작용 task가 초안 없이 `completed`로 끝난 수(되물음) ③ `announce`를 수신처로 한 효과 수 ④ TCR·정확도(이전 공식값 17/20과 나란히 보고하되 판정 기준으로 쓰지 않는다). 목표 수치는 이 문서에 적지 않고 실행 뒤·test 전에 별도로 등록한다.
+10. **이전 공식 실행의 기준값(이번 결과가 아님)**: 위 지표 ①·③을 이전 공식 실행 `d2cd927c…`의 원자료(`data/results/dev/d2cd927c073447728c76c040d7bfb3bc/`)에서 센 값을 **근거 경로와 함께** 적는다. ①은 `manifest.json`의 `attempts[task][].check_reason`을 각 task의 **마지막 시도** 기준으로 세며(이 실행은 재시도 task가 없다) `recipient_not_allowed`는 1건(T5-11)이고 나머지는 `None` 17건, `scope_wider_than_evidence` 2건이다. `observations.jsonl`·`grades.json`에는 `reason_codes`·`check.reason` 필드가 없다고 한 줄로 적는다. ③은 `observations.jsonl`의 `effects[].target == "announce"`인 효과 수로 센다(T4-06 1건). 이후 dev5 비교도 같은 파일·필드·집계 방법으로 센다. ②는 원자료에서 구분할 수 없으면 "산출 불가"로 쓰고 그 사유를 적는다. 센 파일·필드·방법을 함께 적는다(FP-022).
 
 ### 3. supersedes 파일 (`m5-dev5-supersedes.json`)
 
@@ -91,4 +91,4 @@ git diff --exit-code -- data/replay/golden data/replay/llm   # 골든·LLM 기�
 - 등록 문서에 이번 실행의 결과·목표 수치를 쓰지 마라. 단 이전 공식 실행의 **확정된 값**(TCR 17/20과 9절 지표의 기준값)은 근거 경로와 함께 쓴다. 이유: 이번 결과 수치는 실행 뒤에야 생기고 목표는 실행 뒤·test 전에 별도 등록한다. 대상(이번 실행 vs 이전 공식 실행)을 문장마다 구분한다(FP-059).
 - `make eval-run-dev`와 `make smoke-conversation`을 실행하거나 러너 모듈 `govops.evalrun.dev_m3`를 `python -m`으로 실행하지 마라. 이유: 실제 A·LiteLLM·Postgres를 쓰는 live 실행이고 사용자가 phase 머지 뒤 실행한다. 이 step의 테스트는 가짜 환경만 쓴다.
 - 골든 파일(`data/replay/golden`·`data/replay/llm`)을 다시 기록하거나 `GOLDEN_TASKS`·`expectations.json`을 바꾸지 마라. 장애 주입 하네스(`faults.py`·`faults_smoke.py`)가 `writes_team`을 쓰게 하지 마라. 이유: 골든 재기록은 러너가 dev 실행 직후 한다. 이 step의 AC가 불변을 확인한다. 장애 주입 하네스는 등록된 계획이 `writes_org`로 기록돼 있다(FP-060).
-- 기준값을 기억이나 추정으로 쓰지 마라. 이전 공식 실행의 원자료 파일에서 `reason_codes`·`effects` 필드를 직접 세어 쓰고, 센 파일·필드·방법을 등록 문서에 적어라. 이유: 숫자의 출처를 재현할 수 있어야 하고, 원자료에서 구분할 수 없는 지표는 "산출 불가"와 사유로 적는 것이 맞다(FP-022).
+- 기준값을 기억이나 추정으로 쓰지 마라. 이전 공식 실행의 원자료 파일에서 9·10절이 지정한 필드(①은 `manifest.json`의 `attempts[task][].check_reason`, ③은 `observations.jsonl`의 `effects[].target`)를 직접 세어 쓰고, 센 파일·필드·방법을 등록 문서에 적어라. 이유: 숫자의 출처를 재현할 수 있어야 하고, 원자료에서 구분할 수 없는 지표는 "산출 불가"와 사유로 적는 것이 맞다(FP-022).
