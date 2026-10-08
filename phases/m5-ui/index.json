@@ -75,16 +75,7 @@
     {
       "step": 5,
       "name": "web-conversation",
-      "status": "blocked",
-      "started_at": "2026-10-09T00:22:22+0900",
-      "blocked_reason": "선점검에서 폴링 요구사항의 충돌을 확인했습니다. “`awaiting_approval`에서는 SSE 이벤트와 `refresh()`로만 갱신한다.”와 “기존 테스트를 그대로 통과해야 한다(특히 SSE 오류 시 2초 폴링과 타이머 수, 언마운트 시 타이머 0, 폴링 중 타이머 수 1).”가 충돌합니다. 기존 `use-conversation.test.tsx`의 `stream error closes and polls every two seconds until terminal`은 awaiting_approval 상태에서 SSE 오류가 나면 2초 후 자동 조회하도록 단언합니다. awaiting_approval의 SSE 오류 폴백 폴링을 예외로 허용할지 명확히 해 주세요. 파일은 수정하지 않았습니다.",
-      "blocked_at": "2026-10-09T00:24:57+0900",
-      "usage": {
-        "input_tokens": 171889,
-        "cached_input_tokens": 114048,
-        "output_tokens": 879,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 6,

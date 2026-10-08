@@ -98,8 +98,7 @@
     },
     {
       "dir": "m5-ui",
-      "status": "blocked",
-      "blocked_at": "2026-10-09T00:24:57+0900"
+      "status": "pending"
     }
   ]
 }
