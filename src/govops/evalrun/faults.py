@@ -37,8 +37,8 @@ from govops.evalrun import worktree
 from govops.evalrun.anchors import AnchorTracker, anchor_label
 from govops.evalrun.dev import ROOT, _Capture, _git, _write, infrastructure_failure
 from govops.evalrun.dev_m3 import (
+    FROZEN_PROFILE,
     PARAMS,
-    PROFILE,
     _invoke,
     _TaskTools,
     check_reason,
@@ -227,11 +227,11 @@ async def run_faults(
     signature = {
         "seed": SEED,
         "plan_hash": digest,
-        "profile": PROFILE.name,
+        "profile": FROZEN_PROFILE.name,
         "grading_rules": M3_GRADING,
         "prompt_hash": prompt_hash(
-            system_prompt=PROFILE.system_prompt,
-            tools=PROFILE.tools,
+            system_prompt=FROZEN_PROFILE.system_prompt,
+            tools=FROZEN_PROFILE.tools,
             model=_MODEL,
             params=PARAMS,
         ),
@@ -667,7 +667,7 @@ async def execute_live(
             tools=tools,
             saver=saver,
             outbox=counted_outbox,
-            profile=PROFILE,
+            profile=FROZEN_PROFILE,
             audit_dir=root / "data/interim/audit",
         )
         tracker.track(service)

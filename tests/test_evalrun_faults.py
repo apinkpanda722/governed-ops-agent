@@ -478,7 +478,7 @@ def test_repeated_resume_and_api_double_click_execute_once(
 
     from govops.api.wiring import build_task_service
     from govops.eval.spec import ApprovalStep, Effect, Expected
-    from govops.evalrun.dev_m3 import PROFILE
+    from govops.evalrun.dev_m3 import FROZEN_PROFILE
     from govops.evalrun.fault_scenarios import PlannedRun
     from govops.evalrun.faults import CountingOutbox, FaultDriver, select_specs
     from govops.tools.a_mcp import ToolResult
@@ -561,7 +561,7 @@ def test_repeated_resume_and_api_double_click_execute_once(
                 tools=runtime,
                 saver=InMemorySaver(),
                 outbox=outbox,
-                profile=PROFILE,
+                profile=FROZEN_PROFILE,
                 audit_dir=tmp_path / "audit",
             )
             driver = FaultDriver(
@@ -1137,3 +1137,25 @@ def fake_team_keys_and_hook_digests(monkeypatch):
         monkeypatch.setenv(team_env_name(team), "synthetic-team-key-" + team)
     digests = compute_digests(Path(__file__).resolve().parents[1])
     monkeypatch.setattr("govops.evalrun.faults.compute_digests", lambda _: digests)
+
+
+def test_fault_profile_and_manifest_remain_frozen(tmp_path):
+    from govops.evalrun import dev_m3, faults, faults_smoke
+
+    assert dev_m3.PROFILE.name == "writes_team"
+    assert faults.FROZEN_PROFILE is faults_smoke.FROZEN_PROFILE is dev_m3.FROZEN_PROFILE
+    assert dev_m3.FROZEN_PROFILE.name == "writes_org"
+
+    async def stop(*args):
+        raise KeyboardInterrupt()
+
+    with pytest.raises(KeyboardInterrupt):
+        asyncio.run(run_faults(root=tmp_path, admin=Admin(), execute=stop, metadata={}))
+    manifest = json.loads(
+        next((tmp_path / "data/results/faults").glob("*/manifest.json")).read_text()
+    )
+    assert manifest["profile"] == "writes_org"
+    assert (
+        manifest["prompt_hash"]
+        == "0a82447c0360f47db5f433d2d9e8b56e70a70c8c95f37479b86d8d6af95cdda7"
+    )

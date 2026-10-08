@@ -23,6 +23,7 @@ from govops.agent.checkpointer import open_checkpointer
 from govops.agent.checks import REASONS
 from govops.agent.exploration import exploration_budget_from_env
 from govops.agent.graph import PROFILES, get_task
+from govops.agent.requester import requester_section
 from govops.agent.scope import SCOPE_REASONS
 from govops.agent.users import load_users
 from govops.api.wiring import build_task_service
@@ -86,7 +87,12 @@ BUDGET_REGISTRATION_FILES = (
     "docs/results/m5-dev4-supersedes.json",
     "docs/results/n-registration-m5.md",
 )
-PROFILE = PROFILES["writes_org"]
+PROMPT_V2_REGISTRATION_FILES = (
+    "docs/results/hypotheses-m5-prompt.md",
+    "docs/results/m5-dev5-supersedes.json",
+)
+PROFILE = PROFILES["writes_team"]
+FROZEN_PROFILE = PROFILES["writes_org"]
 
 
 def new_tool_policy() -> ToolPolicy:
@@ -410,6 +416,10 @@ def guard_live_m3(metadata):
         "hypotheses_m5_budget_unchanged"
     ):
         raise ValueError("hypotheses_m5_budget_not_committed")
+    if not metadata.get("hypotheses_m5_prompt_committed") or not metadata.get(
+        "hypotheses_m5_prompt_unchanged"
+    ):
+        raise ValueError("hypotheses_m5_prompt_not_committed")
     if not metadata.get("worktree_clean"):
         raise ValueError("dirty_worktree")
 
@@ -451,6 +461,11 @@ def git_metadata_m3(root, a_root):
     extra.update(
         _registration_metadata(root, BUDGET_REGISTRATION_FILES, "hypotheses_m5_budget")
     )
+    extra.update(
+        _registration_metadata(
+            root, PROMPT_V2_REGISTRATION_FILES, "hypotheses_m5_prompt"
+        )
+    )
     path = root / GUARDRAIL_REGISTRATION_FILES[0]
     registered = re.findall(
         r"^rules_sha256: ([0-9a-f]{64})$",
@@ -469,15 +484,16 @@ def git_metadata_m3(root, a_root):
         (PROMPT_REGISTRATION_FILES, "hypotheses_m3_prompt"),
         (GUARDRAIL_REGISTRATION_FILES, "hypotheses_m4_guardrail"),
         (BUDGET_REGISTRATION_FILES, "hypotheses_m5_budget"),
+        (PROMPT_V2_REGISTRATION_FILES, "hypotheses_m5_prompt"),
     ):
         metadata[f"{prefix}_sha256"] = hashlib.sha256(
             (root / files[0]).read_bytes()
         ).hexdigest()
     metadata["supersedes"] = json.loads(
-        (root / BUDGET_REGISTRATION_FILES[1]).read_text()
+        (root / PROMPT_V2_REGISTRATION_FILES[1]).read_text()
     )
     metadata["previous_supersedes"] = json.loads(
-        (root / GUARDRAIL_REGISTRATION_FILES[1]).read_text()
+        (root / BUDGET_REGISTRATION_FILES[1]).read_text()
     )
     return metadata
 
@@ -734,8 +750,16 @@ async def run_dev_m3(
     directory = root / "data/results/dev" / uuid4().hex
     tracker = AnchorTracker()
     exploration_budget = exploration_budget_from_env()
+    requester_users = load_users()
+    requester_hashes = {
+        label: hashlib.sha256(
+            requester_section(requester_users[label]).encode("utf-8")
+        ).hexdigest()
+        for label in {spec.user for spec in specs}
+    }
     manifest = dict(
         metadata,
+        requester_section_sha256=requester_hashes,
         ledger_at_start=start_ledger,
         exploration_budget=exploration_budget,
         run_role="official" if exploration_budget is not None else "reference",
@@ -812,6 +836,7 @@ async def run_dev_m3(
                         tools=PROFILE.tools,
                         model=_MODEL,
                         params=PARAMS,
+                        requester_section_sha256=requester_hashes[spec.user],
                     )
                     if record
                     else None
@@ -1259,6 +1284,7 @@ def main(argv=None):
             "guardrail_hook_stale",
             "hypotheses_m4_guardrail_not_committed",
             "hypotheses_m5_budget_not_committed",
+            "hypotheses_m5_prompt_not_committed",
             "guardrail_rules_not_registered",
             "hypotheses_m3_prompt_not_committed",
             "grading_rules_not_committed",

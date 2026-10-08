@@ -62,6 +62,8 @@ def test_guardrail_registration_guard(field):
             "hypotheses_m3_prompt_unchanged",
             "hypotheses_m4_guardrail_committed",
             "hypotheses_m4_guardrail_unchanged",
+            "hypotheses_m5_prompt_committed",
+            "hypotheses_m5_prompt_unchanged",
             "worktree_clean",
             "guardrail_rules_registered",
         )
@@ -83,6 +85,8 @@ def test_unregistered_rules_guard():
             "hypotheses_m3_prompt_unchanged",
             "hypotheses_m4_guardrail_committed",
             "hypotheses_m4_guardrail_unchanged",
+            "hypotheses_m5_prompt_committed",
+            "hypotheses_m5_prompt_unchanged",
             "worktree_clean",
         )
     }
