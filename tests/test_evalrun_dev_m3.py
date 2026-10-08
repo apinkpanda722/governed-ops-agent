@@ -48,6 +48,8 @@ def metadata():
         "hypotheses_m4_guardrail_committed": True,
         "hypotheses_m4_guardrail_unchanged": True,
         "guardrail_rules_registered": True,
+        "hypotheses_m5_budget_committed": True,
+        "hypotheses_m5_budget_unchanged": True,
         "previous_supersedes": {"previous_run_id": "m2"},
         "a_git_head": "d2eec9c",
         "index_name": "synthetic",
@@ -466,6 +468,7 @@ def test_smoke_no_registration_records_or_manifest(tmp_path, monkeypatch):
 )
 def test_git_registration_probe(tmp_path, monkeypatch, change):
     from govops.evalrun.dev_m3 import (
+        BUDGET_REGISTRATION_FILES,
         FIRST_REGISTRATION_FILES,
         GUARDRAIL_REGISTRATION_FILES,
         PROMPT_REGISTRATION_FILES,
@@ -478,6 +481,7 @@ def test_git_registration_probe(tmp_path, monkeypatch, change):
         *FIRST_REGISTRATION_FILES,
         *PROMPT_REGISTRATION_FILES,
         *GUARDRAIL_REGISTRATION_FILES,
+        *BUDGET_REGISTRATION_FILES,
     ):
         file = tmp_path / path
         file.parent.mkdir(parents=True, exist_ok=True)
@@ -912,8 +916,10 @@ def test_manifest_records_explicit_grading_rules(tmp_path, monkeypatch):
     assert stored["grading_rules_registration_commit"] == "a" * 40
 
 
-@pytest.mark.parametrize("bundle", ["first", "prompt"])
-@pytest.mark.parametrize("change", ["missing", "uncommitted", "changed", "dirty", None])
+@pytest.mark.parametrize("bundle", ["first", "prompt", "guardrail", "budget"])
+@pytest.mark.parametrize(
+    "change", ["missing", "missing_file", "uncommitted", "changed", "dirty", None]
+)
 def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
     import hashlib
     import subprocess
@@ -948,10 +954,13 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
         ("first", dev_m3.FIRST_REGISTRATION_FILES),
         ("prompt", dev_m3.PROMPT_REGISTRATION_FILES),
         ("guardrail", dev_m3.GUARDRAIL_REGISTRATION_FILES),
+        ("budget", dev_m3.BUDGET_REGISTRATION_FILES),
     ]:
         if label == bundle and change == "missing":
             continue
         for path in paths:
+            if label == bundle and change == "missing_file" and path == paths[-1]:
+                continue
             file = tmp_path / path
             file.parent.mkdir(parents=True, exist_ok=True)
             file.write_text(
@@ -960,23 +969,28 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
                 else json.dumps({"bundle": label})
             )
         if label != bundle or change != "uncommitted":
-            commits[label] = commit(paths)
-    paths = (
-        dev_m3.FIRST_REGISTRATION_FILES
-        if bundle == "first"
-        else dev_m3.PROMPT_REGISTRATION_FILES
-    )
+            commits[label] = commit(
+                tuple(path for path in paths if (tmp_path / path).exists())
+            )
+    paths = {
+        "first": dev_m3.FIRST_REGISTRATION_FILES,
+        "prompt": dev_m3.PROMPT_REGISTRATION_FILES,
+        "guardrail": dev_m3.GUARDRAIL_REGISTRATION_FILES,
+        "budget": dev_m3.BUDGET_REGISTRATION_FILES,
+    }[bundle]
     if change == "changed":
         (tmp_path / paths[-1]).write_text('{"changed": true}')
         commit()
     if change == "dirty":
-        (tmp_path / paths[0]).write_text("dirty")
+        path = tmp_path / paths[0]
+        path.write_text(path.read_text() + "\ndirty")
     monkeypatch.setattr(dev_m3, "git_metadata", lambda *args: {})
-    code = (
-        "hypotheses_m3_not_committed"
-        if bundle == "first"
-        else "hypotheses_m3_prompt_not_committed"
-    )
+    code = {
+        "first": "hypotheses_m3_not_committed",
+        "prompt": "hypotheses_m3_prompt_not_committed",
+        "guardrail": "hypotheses_m4_guardrail_not_committed",
+        "budget": "hypotheses_m5_budget_not_committed",
+    }[bundle]
     if change:
         with pytest.raises(
             ValueError, match="dirty_worktree" if change == "dirty" else code
@@ -987,6 +1001,12 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
         for label, prefix, files in [
             ("first", "hypotheses_m3", dev_m3.FIRST_REGISTRATION_FILES),
             ("prompt", "hypotheses_m3_prompt", dev_m3.PROMPT_REGISTRATION_FILES),
+            (
+                "guardrail",
+                "hypotheses_m4_guardrail",
+                dev_m3.GUARDRAIL_REGISTRATION_FILES,
+            ),
+            ("budget", "hypotheses_m5_budget", dev_m3.BUDGET_REGISTRATION_FILES),
         ]:
             assert result[prefix + "_committed"] is True
             assert result[prefix + "_unchanged"] is True
@@ -995,8 +1015,8 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
                 result[prefix + "_sha256"]
                 == hashlib.sha256((tmp_path / files[0]).read_bytes()).hexdigest()
             )
-        assert result["supersedes"] == {"bundle": "guardrail"}
-        assert result["previous_supersedes"] == {"bundle": "prompt"}
+        assert result["supersedes"] == {"bundle": "budget"}
+        assert result["previous_supersedes"] == {"bundle": "guardrail"}
 
 
 def test_org_runner_and_record_status_share_m3_grading():
@@ -1130,3 +1150,77 @@ def current_rules_hash(monkeypatch):
     monkeypatch.setattr(
         "govops.evalrun.dev_m3.rules_sha256_full", lambda _: rules_sha256()
     )
+
+
+@pytest.mark.parametrize("field", ["committed", "unchanged"])
+def test_budget_guard_and_order(field):
+    values = metadata() | {
+        "hypotheses_m5_budget_" + field: False,
+        "worktree_clean": False,
+    }
+    with pytest.raises(ValueError, match="^hypotheses_m5_budget_not_committed$"):
+        guard_live_m3(values)
+    for key, code in [
+        ("hypotheses_m4_guardrail_committed", "hypotheses_m4_guardrail_not_committed"),
+        ("guardrail_rules_registered", "guardrail_rules_not_registered"),
+    ]:
+        with pytest.raises(ValueError, match="^" + code + "$"):
+            guard_live_m3(values | {key: False})
+
+
+def test_max_cost_smoke_code():
+    from govops.evalrun.dev_m3 import _SMOKE_CODES, _smoke_code
+
+    assert _smoke_code("max_cost") == "max_cost"
+    for code in _SMOKE_CODES:
+        assert _smoke_code(code) == code
+    assert _smoke_code("arbitrary") == _smoke_code(None) == "unknown"
+
+
+@pytest.mark.parametrize(
+    "flag,budget,role", [(None, 4, "official"), ("0", None, "reference")]
+)
+def test_budget_manifest_and_state_stop_reason(
+    tmp_path, monkeypatch, flag, budget, role
+):
+    from dataclasses import asdict
+
+    from govops.eval.observation import Observation
+    from govops.eval.tcr import grade_tcr
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    if flag is None:
+        monkeypatch.delenv("GOVOPS_EXPLORATION_BUDGET", raising=False)
+    else:
+        monkeypatch.setenv("GOVOPS_EXPLORATION_BUDGET", flag)
+    base = smoke_specs()[0].model_copy(
+        update={"split": "dev", "task_id": "T5-synthetic", "approval_script": []}
+    )
+
+    async def state(*args):
+        return {"stop_reason": "exploration_exhausted"}
+
+    from govops.evalrun.driver import ApprovalDriver
+
+    original = ApprovalDriver.run
+
+    async def finished(self, spec):
+        result = await original(self, spec)
+        return replace(
+            result, view=result.view | {"answer": "요청하신 정보를 찾을 수 없습니다."}
+        )
+
+    monkeypatch.setattr(ApprovalDriver, "run", finished)
+    monkeypatch.setattr("govops.evalrun.dev_m3.get_task", state)
+    result, _, _ = asyncio.run(exercise(tmp_path, monkeypatch, selected=[base]))
+    manifest = result["manifest"]
+    assert manifest["exploration_budget"] == budget
+    assert manifest["run_role"] == role
+    assert manifest["stop_reasons"] == {base.task_id: "exploration_exhausted"}
+    obs = Observation.model_validate(result["observations"][0])
+    assert obs.stop_reason == "exploration_exhausted"
+    assert obs.status == "completed"
+    assert obs.answer == "요청하신 정보를 찾을 수 없습니다."
+    assert result["grades"][base.task_id]["tcr"] == asdict(grade_tcr(base, obs))
+    stored = json.loads((Path(result["directory"]) / "manifest.json").read_text())
+    assert stored["stop_reasons"] == manifest["stop_reasons"]

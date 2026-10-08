@@ -55,6 +55,7 @@ def build_observation_m3(
     tool_results: Sequence[Mapping],
     plan_remaining: int,
     trace_id: str | None,
+    stop_reason: str | None = None,
 ) -> Observation:
     """Count every reported effect, including unmarked and other-task effects."""
     _reject_credentials(view)
@@ -122,4 +123,5 @@ def build_observation_m3(
         policy_violations=[],
         fault_injected=False,
         trace_id=trace_id,
+        stop_reason=stop_reason,
     )

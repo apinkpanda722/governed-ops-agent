@@ -5,7 +5,7 @@ import secrets
 import time
 from collections.abc import Callable
 
-SESSION_TTL_SECONDS = 8 * 3600  # 임시값, M5에서 확정
+SESSION_TTL_SECONDS = 8 * 3600
 
 
 class SessionStore:

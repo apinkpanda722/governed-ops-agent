@@ -20,6 +20,7 @@ from govops.guardrails.pii import find_pii
 EVENTS = frozenset(
     {
         "service.start",
+        "checkpoint.pruned",
         "model.call",
         "auth.failed",
         "chain.genesis",
@@ -41,7 +42,13 @@ EVENTS = frozenset(
     }
 )
 SYSTEM_EVENTS = frozenset(
-    {"service.start", "chain.genesis", "chain.anchor", "auth.failed"}
+    {
+        "service.start",
+        "chain.genesis",
+        "chain.anchor",
+        "auth.failed",
+        "checkpoint.pruned",
+    }
 )
 AUTH_REASONS = frozenset(
     {"missing_credentials", "invalid_token", "unknown_user", "loopback_required"}
@@ -158,6 +165,7 @@ _NEW_REQUIRED = {
     "chain.anchor": frozenset({"label"}),
     "model.call": frozenset({"team", "model", "deployment_id", "fallback", "cost_usd"}),
     "auth.failed": frozenset({"reason"}),
+    "checkpoint.pruned": frozenset({"pruned_count", "cutoff"}),
 }
 _GUARDRAIL_BUNDLE = frozenset(
     {"guardrail_pre", "guardrail_post", "guardrail_q", "guardrail_m"}
@@ -188,6 +196,7 @@ _NEW_FORMATS = {
     "model": re.compile(r"(?:agent-[a-z-]{1,30}|unknown)"),
     "deployment_id": re.compile(r"(?:[a-z0-9][a-z0-9.-]{0,63}|unknown)"),
     "cost_usd": re.compile(r"\d+\.\d{6}"),
+    "cutoff": re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?\+00:00"),
     "team": re.compile(r"(?:[a-z][a-z-]{1,20}|none)"),
 }
 _NEW_ENUMS = {
@@ -215,6 +224,8 @@ def _validate_new(fields: dict[str, Field], *, event: str) -> None:
         else:
             minimum = 1 if key == "suppressed" else 0
             valid = type(value) is int and value >= minimum
+            if key == "pruned_count":
+                valid = valid and value <= 1_000_000
             if key in {"guardrail_q", "guardrail_m"}:
                 valid = valid and value <= 10000
         if not valid:

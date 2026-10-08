@@ -188,17 +188,27 @@ def test_environment_profile_selection(monkeypatch, value):
         yield InMemorySaver()
 
     selected = []
+    calls = []
+
+    async def prune(service, saver, turns):
+        assert isinstance(saver, InMemorySaver)
+        assert turns is service.turns
+        calls.append("prune")
+
+    monkeypatch.setattr(wiring, "startup_prune", prune)
 
     class Service:
         async def startup_cleanup(self):
-            pass
+            calls.append("cleanup")
 
         async def aclose(self):
             pass
 
     def build(**kwargs):
         selected.append(kwargs["profile"])
-        return Service()
+        service = Service()
+        service.turns = kwargs["turn_index"]
+        return service
 
     monkeypatch.setattr(wiring, "verify_contract", verify)
     monkeypatch.setattr(wiring, "open_checkpointer", saver)
@@ -206,6 +216,7 @@ def test_environment_profile_selection(monkeypatch, value):
 
     async def run():
         async with wiring.open_task_service():
+            assert calls == ["cleanup", "prune"]
             assert selected[0] is wiring.PROFILES["writes_org"]
 
     if value in (None, "", "writes_org"):

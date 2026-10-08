@@ -240,3 +240,16 @@ def test_blocked_input_keeps_its_status(remaining):
     result = observe(view={"status": "blocked_input"}, plan_remaining=remaining)
     assert STATUS_MAP["blocked_input"] == result.status == "blocked_input"
     assert not grade_tcr(spec(), result).passed
+
+
+def test_stop_reason_from_explicit_state_argument():
+    from govops.evalrun.dev_m3 import smoke_specs
+
+    s = smoke_specs()[0]
+    assert observe(s).stop_reason is None
+    row = observe(s, stop_reason="exploration_exhausted")
+    assert row.stop_reason == "exploration_exhausted"
+    assert (
+        observe(s, view={"status": "completed", "stop_reason": "ignored"}).stop_reason
+        is None
+    )

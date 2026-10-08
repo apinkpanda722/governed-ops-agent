@@ -11,6 +11,8 @@ from langgraph.types import Command
 from govops.agent.approval import Decision, InvalidEdit, apply_edit, approver_decision
 from govops.agent.draft import Draft
 from govops.agent.graph import AgentContext, get_task, run_task, utc_now
+from govops.agent.turns import MAX_TURNS, build_turn_state
+from govops.api.conversations import ConversationError, InMemoryTurnIndex, TurnIndex
 from govops.obs.trace import set_attributes, trace
 from govops.tools.effects import reconcile_effect
 from govops.tools.outbox import OutboxState
@@ -34,6 +36,7 @@ class TaskService:
         audit=None,
         policy=None,
         clock=None,
+        turns: TurnIndex | None = None,
     ):
         self.graph = graph
         self.max_request_chars = max_request_chars
@@ -41,8 +44,12 @@ class TaskService:
         self.effects, self.audit, self.policy = effects, audit, policy
         self.clock = clock or getattr(graph, "agent_clock", utc_now)
         self._locks: dict[str, asyncio.Lock] = {}
+        self._approval_locks: dict[str, asyncio.Lock] = {}
         self._tasks: set[asyncio.Task] = set()
         self._closed = False
+        self.turns = turns if turns is not None else InMemoryTurnIndex()
+        self._conv_locks: dict[str, asyncio.Lock] = {}
+        self._running: dict[str, asyncio.Task] = {}
 
     def anchor(self, label: str, *, repo_root: Path | None = None) -> dict:
         anchor = getattr(self.audit, "anchor", None)
@@ -56,6 +63,77 @@ class TaskService:
 
     def _lock(self, task_id):
         return self._locks.setdefault(task_id, asyncio.Lock())
+
+    def _conv_lock(self, conversation_id):
+        return self._conv_locks.setdefault(conversation_id, asyncio.Lock())
+
+    async def _resolve(self, task_id):
+        if not _TASK_ID.fullmatch(task_id):
+            return None
+        return await self.turns.conversation_of(task_id) or task_id
+
+    def _launch(self, conversation_id, task_id, user_id, request, previous=None):
+        task = asyncio.create_task(
+            self._run(conversation_id, task_id, user_id, request, previous)
+        )
+        self._running[conversation_id] = task
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def start_conversation(self, user_id, request):
+        try:
+            task_id = await self.start(user_id, request)
+        except ValueError:
+            raise ConversationError(422, "invalid_request") from None
+        return {"conversation_id": task_id, "turn_id": task_id}
+
+    async def add_turn(self, user_id, conversation_id, request):
+        if not _TASK_ID.fullmatch(conversation_id):
+            raise ConversationError(404, "conversation_not_found")
+        async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            state = await get_task(self.graph, conversation_id)
+            if not state or state["user_id"] != user_id:
+                raise ConversationError(404, "conversation_not_found")
+            if not request.strip() or len(request) > self.max_request_chars:
+                raise ConversationError(422, "invalid_request")
+            running = self._running.get(conversation_id)
+            if (running is not None and not running.done()) or state[
+                "status"
+            ] == "running":
+                raise ConversationError(409, "turn_in_progress")
+            async with self._lock(state["task_id"]):
+                state = await self._expire(conversation_id, state)
+                snapshot = await self.graph.aget_state(self._config(conversation_id))
+                if state["status"] == "awaiting_approval" or any(
+                    task.interrupts for task in snapshot.tasks
+                ):
+                    raise ConversationError(409, "approval_pending")
+            if state.get("turn_index", 0) + 1 >= MAX_TURNS:
+                raise ConversationError(409, "turn_limit")
+            if self._closed:
+                raise RuntimeError("Task service closed")
+            turn_id = uuid4().hex
+            new_state = build_turn_state(
+                previous=state,
+                task_id=turn_id,
+                user_id=user_id,
+                request=request,
+                conversation_id=conversation_id,
+                system_prompt=self.graph.agent_profile.system_prompt,
+                created_at=self.clock().isoformat(),
+            )
+            await self.turns.add(
+                turn_id=turn_id,
+                conversation_id=conversation_id,
+                owner_sub=user_id,
+                turn_index=new_state["turn_index"],
+                created_at=self.clock().isoformat(),
+            )
+            await self.graph.aupdate_state(
+                self._config(conversation_id), new_state, as_node="__start__"
+            )
+            self._launch(conversation_id, turn_id, user_id, request, state)
+            return {"conversation_id": conversation_id, "turn_id": turn_id}
 
     async def _update(self, task_id, values):
         state = await get_task(self.graph, task_id)
@@ -82,12 +160,24 @@ class TaskService:
             },
             as_node="__start__",
         )
-        task = asyncio.create_task(self._run(task_id, user_id, request))
-        self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+        await self.turns.add(
+            turn_id=task_id,
+            conversation_id=task_id,
+            owner_sub=user_id,
+            turn_index=0,
+            created_at=self.clock().isoformat(),
+        )
+        self._launch(task_id, task_id, user_id, request)
         return task_id
 
-    async def _run(self, task_id: str, user_id: str, request: str) -> None:
+    async def _run(
+        self,
+        conversation_id: str,
+        task_id: str,
+        user_id: str,
+        request: str,
+        previous=None,
+    ) -> None:
         with trace(task_id, user_id=user_id):
             set_attributes(
                 **{"output.answer": None},
@@ -96,20 +186,28 @@ class TaskService:
             )
             try:
                 state = await run_task(
-                    self.graph, task_id=task_id, user_id=user_id, request=request
+                    self.graph,
+                    task_id=task_id,
+                    user_id=user_id,
+                    request=request,
+                    conversation_id=conversation_id,
+                    previous=previous,
                 )
             except asyncio.CancelledError:
                 await self._update(
-                    task_id, {"status": "failed", "error": "internal_error"}
+                    conversation_id, {"status": "failed", "error": "internal_error"}
                 )
                 set_attributes(final_status="failed", error_code="cancelled")
                 raise
             except Exception:  # noqa: BLE001 — do not expose exception details
                 await self._update(
-                    task_id, {"status": "failed", "error": "internal_error"}
+                    conversation_id, {"status": "failed", "error": "internal_error"}
                 )
                 set_attributes(final_status="failed", error_code="internal_error")
             else:
+                await self.turns.set_awaiting(
+                    task_id, state["status"] == "awaiting_approval"
+                )
                 set_attributes(
                     final_status=state["status"],
                     steps=state["steps"],
@@ -214,14 +312,82 @@ class TaskService:
                 self._config(task_id),
                 context=AgentContext(state["user_id"]),
             )
+        await self.turns.set_awaiting(
+            state["task_id"], state["status"] == "awaiting_approval"
+        )
         return state
 
-    async def get(self, user_id: str, task_id: str) -> dict | None:
-        if not _TASK_ID.fullmatch(task_id):
+    async def progress(
+        self, user_id: str, conversation_id: str
+    ) -> tuple[str, str] | None:
+        if not _TASK_ID.fullmatch(conversation_id):
             return None
-        async with self._lock(task_id):
-            state = await get_task(self.graph, task_id)
-            if not state:
+        async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            state = await get_task(self.graph, conversation_id)
+            if not state or state["user_id"] != user_id:
+                return None
+            async with self._lock(state["task_id"]):
+                state = await self._expire(conversation_id, state)
+                return state["task_id"], state["status"]
+
+    async def conversation_view(self, user_id, conversation_id):
+        if not _TASK_ID.fullmatch(conversation_id):
+            raise ConversationError(404, "conversation_not_found")
+        async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            state = await get_task(self.graph, conversation_id)
+            if not state or state["user_id"] != user_id:
+                raise ConversationError(404, "conversation_not_found")
+            async with self._lock(state["task_id"]):
+                state = await self._expire(conversation_id, state)
+                turn_id = state["task_id"]
+                return {
+                    "conversation_id": conversation_id,
+                    "turn_index": state.get("turn_index", 0),
+                    "history": state.get("history", []),
+                    "turn": {
+                        **self._view(state, turn_id),
+                        "turn_id": turn_id,
+                        "request": None
+                        if state["status"] == "blocked_input"
+                        else state.get("request"),
+                    },
+                }
+
+    async def approvals(self, user_id):
+        views = []
+        for turn_id, conversation_id in await self.turns.awaiting():
+            async with (
+                asyncio.timeout(120),
+                self._conv_lock(conversation_id),
+                self._lock(turn_id),
+            ):
+                state = await get_task(self.graph, conversation_id)
+                if not state or state["task_id"] != turn_id:
+                    await self.turns.set_awaiting(turn_id, False)
+                    continue
+                state = await self._expire(conversation_id, state)
+                if state["status"] != "awaiting_approval":
+                    await self.turns.set_awaiting(turn_id, False)
+                    continue
+                if (
+                    self._checked(state)
+                    and self._decision(state, user_id) == Decision.ALLOW
+                ):
+                    views.append(self._view(state, turn_id, approval=True))
+        views.sort(key=lambda view: (view["expires_at"], view["task_id"]))
+        return {"approvals": views}
+
+    async def get(self, user_id: str, task_id: str) -> dict | None:
+        conversation_id = await self._resolve(task_id)
+        if conversation_id is None:
+            return None
+        async with (
+            asyncio.timeout(120),
+            self._conv_lock(conversation_id),
+            self._lock(task_id),
+        ):
+            state = await get_task(self.graph, conversation_id)
+            if not state or state["task_id"] != task_id:
                 return None
             owner = state["user_id"] == user_id
             if not owner and not (
@@ -230,17 +396,35 @@ class TaskService:
                 and self._decision(state, user_id) == Decision.ALLOW
             ):
                 return None
-            state = await self._expire(task_id, state)
+            state = await self._expire(conversation_id, state)
             if not owner and state["status"] != "awaiting_approval":
                 return None
             return self._view(state, task_id, approval=not owner)
 
     async def approve(self, user_id, task_id, *, decision, draft_sha256, edited=None):
-        if not _TASK_ID.fullmatch(task_id):
+        async with (
+            asyncio.timeout(120),
+            self._approval_locks.setdefault(task_id, asyncio.Lock()),
+        ):
+            return await self._approve(
+                user_id,
+                task_id,
+                decision=decision,
+                draft_sha256=draft_sha256,
+                edited=edited,
+            )
+
+    async def _approve(self, user_id, task_id, *, decision, draft_sha256, edited=None):
+        conversation_id = await self._resolve(task_id)
+        if conversation_id is None:
             raise ApprovalError(404)
-        async with self._lock(task_id):
-            state = await get_task(self.graph, task_id)
-            if not state:
+        async with (
+            asyncio.timeout(120),
+            self._conv_lock(conversation_id),
+            self._lock(task_id),
+        ):
+            state = await get_task(self.graph, conversation_id)
+            if not state or state["task_id"] != task_id:
                 raise ApprovalError(404)
             permission = self._decision(state, user_id)
             if permission != Decision.ALLOW:
@@ -253,7 +437,7 @@ class TaskService:
                 ):
                     return 200, receipt["view"]
                 raise ApprovalError(409)
-            state = await self._expire(task_id, state)
+            state = await self._expire(conversation_id, state)
             if (
                 state["status"] != "awaiting_approval"
                 or state["draft_sha256"] != draft_sha256
@@ -273,15 +457,28 @@ class TaskService:
             }
             if edited is not None:
                 value["edited"] = edited
-            with trace(task_id, user_id=state["user_id"]):
-                state = await self.graph.ainvoke(
-                    Command(resume=value),
-                    self._config(task_id),
-                    context=AgentContext(state["user_id"]),
-                )
-            view = self._view(state, task_id, approval=user_id != state["user_id"])
+            execution = asyncio.create_task(
+                self._resume_approval(conversation_id, task_id, state["user_id"], value)
+            )
+            self._running[conversation_id] = execution
+            self._tasks.add(execution)
+            execution.add_done_callback(self._tasks.discard)
+        return await asyncio.shield(execution)
+
+    async def _resume_approval(self, conversation_id, task_id, user_id, value):
+        with trace(task_id, user_id=user_id):
+            state = await self.graph.ainvoke(
+                Command(resume=value),
+                self._config(conversation_id),
+                context=AgentContext(user_id),
+            )
+        async with self._conv_lock(conversation_id), self._lock(task_id):
+            decision, draft_sha256 = value["decision"], value["draft_sha256"]
+            view = self._view(
+                state, task_id, approval=value["approver"] != state["user_id"]
+            )
             await self._update(
-                task_id,
+                conversation_id,
                 {
                     "approval_receipt": {
                         "draft_sha256": draft_sha256,
@@ -291,6 +488,9 @@ class TaskService:
                     if state["status"] != "awaiting_approval"
                     else None
                 },
+            )
+            await self.turns.set_awaiting(
+                task_id, state["status"] == "awaiting_approval"
             )
             return 202, view
 
@@ -304,10 +504,26 @@ class TaskService:
             state = await get_task(self.graph, task_id)
             if state and state.get("status") == "running":
                 await self._update(task_id, {"status": "interrupted"})
+            if state:
+                current = state["task_id"]
+                if state.get("status") == "awaiting_approval":
+                    await self.turns.add(
+                        turn_id=current,
+                        conversation_id=task_id,
+                        owner_sub=state["user_id"],
+                        turn_index=state.get("turn_index", 0),
+                        created_at=state["created_at"],
+                    )
+                await self.turns.set_awaiting(
+                    current, state.get("status") == "awaiting_approval"
+                )
         if self.effects is None:
             return
         for row in await self.effects.outbox.list_open():
-            state = await get_task(self.graph, row.task_id)
+            conversation_id = await self._resolve(row.task_id)
+            state = (
+                await get_task(self.graph, conversation_id) if conversation_id else None
+            )
             if not state or not state.get("user_id"):
                 continue
             result = await reconcile_effect(
@@ -320,7 +536,7 @@ class TaskService:
                 policy=self.policy,
             )
             await self._update(
-                row.task_id,
+                conversation_id,
                 {
                     "status": "interrupted",
                     "effect": {

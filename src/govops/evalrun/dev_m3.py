@@ -21,6 +21,7 @@ import psycopg
 from govops import golden
 from govops.agent.checkpointer import open_checkpointer
 from govops.agent.checks import REASONS
+from govops.agent.exploration import exploration_budget_from_env
 from govops.agent.graph import PROFILES, get_task
 from govops.agent.scope import SCOPE_REASONS
 from govops.agent.users import load_users
@@ -79,6 +80,11 @@ PROMPT_REGISTRATION_FILES = (
 GUARDRAIL_REGISTRATION_FILES = (
     "docs/results/hypotheses-m4-guardrail.md",
     "docs/results/m4-dev3-supersedes.json",
+)
+BUDGET_REGISTRATION_FILES = (
+    "docs/results/hypotheses-m5-budget.md",
+    "docs/results/m5-dev4-supersedes.json",
+    "docs/results/n-registration-m5.md",
 )
 PROFILE = PROFILES["writes_org"]
 
@@ -147,6 +153,7 @@ _SMOKE_CODES = frozenset(
         "gateway_error",
         "ledger_missing",
         "max_steps",
+        "max_cost",
         "audit_write_failed",
         "invalid_approval",
         "budget_exceeded",
@@ -399,6 +406,10 @@ def guard_live_m3(metadata):
         raise ValueError("hypotheses_m4_guardrail_not_committed")
     if not metadata.get("guardrail_rules_registered"):
         raise ValueError("guardrail_rules_not_registered")
+    if not metadata.get("hypotheses_m5_budget_committed") or not metadata.get(
+        "hypotheses_m5_budget_unchanged"
+    ):
+        raise ValueError("hypotheses_m5_budget_not_committed")
     if not metadata.get("worktree_clean"):
         raise ValueError("dirty_worktree")
 
@@ -437,6 +448,9 @@ def git_metadata_m3(root, a_root):
             root, GUARDRAIL_REGISTRATION_FILES, "hypotheses_m4_guardrail"
         )
     )
+    extra.update(
+        _registration_metadata(root, BUDGET_REGISTRATION_FILES, "hypotheses_m5_budget")
+    )
     path = root / GUARDRAIL_REGISTRATION_FILES[0]
     registered = re.findall(
         r"^rules_sha256: ([0-9a-f]{64})$",
@@ -454,15 +468,16 @@ def git_metadata_m3(root, a_root):
         (FIRST_REGISTRATION_FILES, "hypotheses_m3"),
         (PROMPT_REGISTRATION_FILES, "hypotheses_m3_prompt"),
         (GUARDRAIL_REGISTRATION_FILES, "hypotheses_m4_guardrail"),
+        (BUDGET_REGISTRATION_FILES, "hypotheses_m5_budget"),
     ):
         metadata[f"{prefix}_sha256"] = hashlib.sha256(
             (root / files[0]).read_bytes()
         ).hexdigest()
     metadata["supersedes"] = json.loads(
-        (root / GUARDRAIL_REGISTRATION_FILES[1]).read_text()
+        (root / BUDGET_REGISTRATION_FILES[1]).read_text()
     )
     metadata["previous_supersedes"] = json.loads(
-        (root / PROMPT_REGISTRATION_FILES[1]).read_text()
+        (root / GUARDRAIL_REGISTRATION_FILES[1]).read_text()
     )
     return metadata
 
@@ -718,9 +733,13 @@ async def run_dev_m3(
         raise ValueError(failures[0])
     directory = root / "data/results/dev" / uuid4().hex
     tracker = AnchorTracker()
+    exploration_budget = exploration_budget_from_env()
     manifest = dict(
         metadata,
         ledger_at_start=start_ledger,
+        exploration_budget=exploration_budget,
+        run_role="official" if exploration_budget is not None else "reference",
+        stop_reasons={},
         mode="live",
         grading_rules=DEV_GRADING_RULES,
         **guard_grading_rules(root, DEV_GRADING_RULES),
@@ -909,6 +928,7 @@ async def run_dev_m3(
                     tool_results=tool_results,
                     plan_remaining=result.plan_remaining,
                     trace_id=result.task_id,
+                    stop_reason=(state or {}).get("stop_reason"),
                 )
                 if infra or result.timed_out or result.unexpected_http:
                     obs = obs.model_copy(update={"status": "failed"})
@@ -936,6 +956,8 @@ async def run_dev_m3(
                 if infra and number == 0:
                     continue
                 observations.append(row)
+                if obs.stop_reason is not None:
+                    manifest["stop_reasons"][spec.task_id] = obs.stop_reason
                 grade = grade_run(
                     spec=spec,
                     obs=obs,
@@ -1236,6 +1258,7 @@ def main(argv=None):
             "team_keys_missing",
             "guardrail_hook_stale",
             "hypotheses_m4_guardrail_not_committed",
+            "hypotheses_m5_budget_not_committed",
             "guardrail_rules_not_registered",
             "hypotheses_m3_prompt_not_committed",
             "grading_rules_not_committed",

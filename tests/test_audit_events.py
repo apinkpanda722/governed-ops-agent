@@ -35,6 +35,10 @@ CASES = {
         "cost_usd": format_usd(0),
     },
     "auth.failed": {"reason": "invalid_token"},
+    "checkpoint.pruned": {
+        "pruned_count": 1,
+        "cutoff": "2026-10-01T12:34:56+00:00",
+    },
 }
 BUNDLE = {
     "guardrail_pre": "allow",
@@ -249,6 +253,7 @@ def test_new_fields_are_event_scoped(sink):
         "chain.genesis",
         "chain.anchor",
         "auth.failed",
+        "checkpoint.pruned",
     }
     owners = {}
     for event, fields in CASES.items():
@@ -312,3 +317,105 @@ def test_invalid_task_identifiers(sink, task_id):
 def test_invalid_actor_identifiers(sink, actor_sub):
     with pytest.raises(AuditWriteError):
         emit(sink, "side_effect.attempt", {}, actor_sub=actor_sub)
+
+
+@pytest.mark.parametrize("pruned_count", [0, 1, 1_000_000])
+@pytest.mark.parametrize(
+    "cutoff",
+    [
+        "2026-10-01T12:34:56+00:00",
+        "2026-10-01T12:34:56.1+00:00",
+        "2026-10-01T12:34:56.123456+00:00",
+    ],
+)
+def test_checkpoint_pruned_valid(sink, pruned_count, cutoff):
+    emit(sink, "checkpoint.pruned", {"pruned_count": pruned_count, "cutoff": cutoff})
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("pruned_count", True),
+        ("pruned_count", -1),
+        ("pruned_count", "1"),
+        ("pruned_count", 1_000_001),
+        ("cutoff", "2026-10-01T12:34:56Z"),
+        ("cutoff", "2026-10-01T12:34:56+09:00"),
+        ("cutoff", "2026-10-01T12:34+00:00"),
+        ("cutoff", "2026-10-01 12:34:56+00:00"),
+        ("cutoff", "2026-10-01T12:34:56+00:00 "),
+        ("cutoff", "2026-10-01T12:34:56+00:00\n"),
+        ("cutoff", "2026-10-01T12:34:56.1234567+00:00"),
+        ("cutoff", "arbitrary"),
+    ],
+)
+def test_checkpoint_pruned_invalid(sink, key, value):
+    with pytest.raises(AuditWriteError):
+        emit(sink, "checkpoint.pruned", CASES["checkpoint.pruned"] | {key: value})
+
+
+@pytest.mark.parametrize("key", ["thread_id", "user_id", "count"])
+def test_checkpoint_pruned_extra_fields(sink, key):
+    with pytest.raises(AuditWriteError):
+        emit(sink, "checkpoint.pruned", CASES["checkpoint.pruned"] | {key: 1})
+
+
+def test_checkpoint_pruned_random_counts_skip_pii(monkeypatch):
+    rng = random.Random(20261008)
+    sink = MemoryAuditLog()
+
+    def forbidden(value):
+        pytest.fail("Checkpoint typed field invoked PII regex")
+
+    monkeypatch.setattr("govops.audit.log.find_pii", forbidden)
+    for _ in range(10000):
+        emit(
+            sink,
+            "checkpoint.pruned",
+            CASES["checkpoint.pruned"] | {"pruned_count": rng.randint(0, 1_000_000)},
+        )
+    assert len(sink.records) == 10000
+
+
+def test_checkpoint_pruned_signed_chain_and_guardrail_counts(tmp_path):
+    from govops.audit.verify import verify_chain
+
+    log = AuditLog(tmp_path)
+    events = [
+        ("guardrail.tool_quarantined", {"count": 1}),
+        ("checkpoint.pruned", CASES["checkpoint.pruned"]),
+        ("guardrail.tool_masked", {"count": 2}),
+        ("checkpoint.pruned", CASES["checkpoint.pruned"] | {"pruned_count": 0}),
+    ]
+    for event, fields in events:
+        emit(log, event, fields)
+    rows = [
+        json.loads(line)
+        for path in sorted(tmp_path.glob("chain-*.jsonl"))
+        for line in path.read_text().splitlines()
+    ]
+    assert [row["seq"] for row in rows] == [1, 2, 3, 4, 5]
+    for row, previous in zip(rows[1:], rows):
+        assert row["prev_hash"] == previous["hash"]
+    for row, (event, fields) in zip(rows[1:], events):
+        assert row["event"] == event
+        assert all(row[key] == value for key, value in fields.items())
+        if event == "checkpoint.pruned":
+            assert row["actor"]["sub"] == "system"
+            assert row["task_id"] is None
+            assert set(row) == {
+                "seq",
+                "ts",
+                "actor",
+                "event",
+                "task_id",
+                "prev_hash",
+                "kid",
+                "hash",
+                "sig",
+                "pruned_count",
+                "cutoff",
+            }
+    report = verify_chain(tmp_path, repo_root=tmp_path)
+    assert report.ok
+    assert report.records == 5

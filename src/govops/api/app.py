@@ -1,12 +1,15 @@
 """Session API and ordered fail-closed startup checks."""
 
+import asyncio
+import json
+import time
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -17,6 +20,7 @@ from pydantic import (
 )
 
 from govops.api.auth import AuthFailureLimiter, current_user, record_auth_failure
+from govops.api.conversations import ConversationError
 from govops.api.sessions import SessionStore
 from govops.api.tasks import ApprovalError, TaskService
 
@@ -59,6 +63,9 @@ def create_app(
     demo_login: bool,
     service: TaskService | None = None,
     startup_checks: Sequence[Callable[[], Awaitable[None]]] = (),
+    sse_poll_seconds: float = 0.5,
+    sse_heartbeat_seconds: float = 15.0,
+    sse_max_seconds: float = 1800.0,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -71,6 +78,7 @@ def create_app(
                 await service.aclose()
 
     app = FastAPI(lifespan=lifespan)
+    app.state.sse_active_streams = 0
     app.state.sessions = sessions
     app.state.task_service = service
     app.state.audit = service.audit if service is not None else None
@@ -79,7 +87,14 @@ def create_app(
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError):
         # FastAPI's default errors echo input, which may contain credentials.
-        return JSONResponse({"detail": "Invalid request"}, status_code=422)
+        return JSONResponse(
+            {
+                "detail": "invalid_request"
+                if request.url.path.startswith("/conversations")
+                else "Invalid request"
+            },
+            status_code=422,
+        )
 
     if demo_login:
 
@@ -102,6 +117,108 @@ def create_app(
         return {"user_id": user_id}
 
     if service is not None:
+
+        @app.get("/conversations/{conversation_id}")
+        async def read_conversation(
+            conversation_id: str, user_id: str = Depends(current_user)
+        ):
+            try:
+                return await service.conversation_view(user_id, conversation_id)
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
+
+        @app.get("/conversations/{conversation_id}/events")
+        async def conversation_events(
+            conversation_id: str, request: Request, user_id: str = Depends(current_user)
+        ):
+            task_service = request.app.state.task_service
+            initial = await task_service.progress(user_id, conversation_id)
+            if initial is None:
+                raise HTTPException(404, detail="conversation_not_found")
+
+            async def events():
+                app.state.sse_active_streams += 1
+                started = last_event = time.monotonic()
+                previous = None
+                current = initial
+                seq = 0
+                try:
+                    while current is not None:
+                        if await request.is_disconnected():
+                            return
+                        if current != previous:
+                            turn_id, status = current
+                            data = {
+                                "conversation_id": conversation_id,
+                                "turn_id": turn_id,
+                                "status": status,
+                                "seq": seq,
+                            }
+                            yield "event: status\ndata: " + json.dumps(data) + "\n\n"
+                            previous = current
+                            seq += 1
+                            last_event = time.monotonic()
+                            if status not in {"running", "awaiting_approval"}:
+                                return
+                        now = time.monotonic()
+                        if now - started >= sse_max_seconds:
+                            return
+                        if now - last_event >= sse_heartbeat_seconds:
+                            yield ": ping\n\n"
+                            last_event = now
+                        await asyncio.sleep(
+                            min(
+                                sse_poll_seconds,
+                                max(0, sse_max_seconds - (now - started)),
+                            )
+                        )
+                        if await request.is_disconnected():
+                            return
+                        remaining = sse_max_seconds - (time.monotonic() - started)
+                        if remaining <= 0:
+                            return
+                        try:
+                            async with asyncio.timeout(remaining):
+                                current = await task_service.progress(
+                                    user_id, conversation_id
+                                )
+                        except TimeoutError:
+                            return
+                finally:
+                    app.state.sse_active_streams -= 1
+
+            return StreamingResponse(
+                events(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache, no-transform",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+
+        @app.get("/approvals")
+        async def list_approvals(user_id: str = Depends(current_user)):
+            return await service.approvals(user_id)
+
+        @app.post("/conversations", status_code=202)
+        async def start_conversation(
+            body: TaskRequest, user_id: str = Depends(current_user)
+        ):
+            try:
+                return await service.start_conversation(user_id, body.request)
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
+
+        @app.post("/conversations/{conversation_id}/turns", status_code=202)
+        async def add_turn(
+            conversation_id: str,
+            body: TaskRequest,
+            user_id: str = Depends(current_user),
+        ):
+            try:
+                return await service.add_turn(user_id, conversation_id, body.request)
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
 
         @app.post("/tasks", status_code=202)
         async def start_task(
