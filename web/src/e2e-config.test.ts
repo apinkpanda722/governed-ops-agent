@@ -20,3 +20,12 @@ test("e2e uses isolated loopback servers without sensitive artifacts", () => {
     expect(source).not.toMatch(/getByTestId\(["'`]/);
   }
 });
+
+// 이 파일은 Vite(ESM)가 읽으므로 import.meta를 쓸 수 있지만, Playwright는 web/package.json에 "type":"module"이
+// 없어 설정·스펙을 CommonJS로 변환해 불러온다. 그래서 e2e 파일에는 ESM 전용 구문을 두지 않는다.
+// 실제 Playwright 로더로 설정·스펙의 로드·수집을 확인하는 검사는 `make verify`의 playwright test --list다(FP-068).
+test("playwright config and e2e files avoid ESM-only syntax", () => {
+  const sources = ["../playwright.config.ts", "../e2e/support.ts", ...readdirSync(resolve(root, "../e2e")).filter(name => name.endsWith(".spec.ts")).map(name => `../e2e/${name}`)];
+  expect(sources.length).toBeGreaterThanOrEqual(4);
+  for (const path of sources) expect(read(path), path).not.toMatch(/\bimport\.meta\b/);
+});
