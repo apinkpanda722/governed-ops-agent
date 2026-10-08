@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "dev-budget-record",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T15:35:32+0900",
+      "summary": "m5 등록 번들·가드와 탐색 예산·실행 역할·stop_reason 관측 및 매니페스트 기록 구현; 계층 경계 확인, make verify 통과(Python 3356 passed, 웹 15 passed).",
+      "completed_at": "2026-10-08T15:45:29+0900",
+      "usage": {
+        "input_tokens": 2782860,
+        "cached_input_tokens": 2687488,
+        "output_tokens": 6652,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
