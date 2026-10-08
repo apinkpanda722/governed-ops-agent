@@ -61,16 +61,16 @@
     {
       "step": 4,
       "name": "ui-approvals",
-      "status": "blocked",
+      "status": "completed",
       "started_at": "2026-10-08T20:12:59+0900",
       "usage": {
-        "input_tokens": 166228,
-        "cached_input_tokens": 123776,
-        "output_tokens": 1269,
+        "input_tokens": 1392102,
+        "cached_input_tokens": 1306880,
+        "output_tokens": 12959,
         "attempts": 1
       },
-      "blocked_reason": "기존 코드 확인 결과 승인 후 대화 재조회 연결에 수정 허용 목록 밖 파일의 변경이 필요합니다. 요구사항은 \"turn-view.tsx는 슬롯에 필요한 props를 넘기고 슬롯의 onChanged로 대화를 다시 읽는다.\"인데, 동시에 \"수정할 파일(이 목록이 전부다)\"로 변경 범위를 제한합니다. 현재 use-conversation.ts의 재조회 함수는 훅 내부에만 있고 반환값에 노출되지 않으며, thread.tsx도 TurnView에 재조회 콜백이나 conversation_id를 전달하지 않습니다. 기존 대화 훅의 상태·SSE·폴링과 일관되게 연결하려면 web/src/hooks/use-conversation.ts, web/src/components/thread.tsx 및 대화 페이지를 수정 허용 목록에 포함해야 합니다. 코드는 수정하지 않았으며 검증은 실행하지 않았습니다.",
-      "blocked_at": "2026-10-08T20:18:58+0900"
+      "summary": "승인 카드·승인함·대기 개수 배지와 재조회 연결 구현, 최신 초안 해시·본문 수정·만료·폴링 테스트 추가 및 make verify 통과(Python 3438개, 웹 99개).",
+      "completed_at": "2026-10-08T20:30:12+0900"
     },
     {
       "step": 5,

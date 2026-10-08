@@ -11,10 +11,10 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `web/src/components/approval-card.tsx`(신규), `web/src/components/approval-inbox.tsx`(신규), `web/src/components/approval-slot.tsx`, `web/src/components/turn-view.tsx`, `web/src/components/app-shell.tsx`, `web/src/hooks/use-approvals.ts`(신규), `web/src/lib/messages.ts`, `web/src/app/(app)/approvals/page.tsx`(신규), `web/src/components/approval-card.test.tsx`(신규), `web/src/components/approval-inbox.test.tsx`(신규), `web/src/hooks/use-approvals.test.tsx`(신규), `web/src/components/thread.test.tsx`(`ApprovalSlot` 연결에 따른 갱신에 한함, 단언 약화 금지). 브라우저(클라이언트) 코드와 화면 테스트다. 서버 코드는 읽기만 한다. TDD.
+**수정할 파일**(이 목록이 전부다): `web/src/components/approval-card.tsx`(신규), `web/src/components/approval-inbox.tsx`(신규), `web/src/components/approval-slot.tsx`, `web/src/components/turn-view.tsx`, `web/src/components/thread.tsx`, `web/src/hooks/use-conversation.ts`, `web/src/app/(app)/c/[id]/page.tsx`, `web/src/components/app-shell.tsx`, `web/src/hooks/use-approvals.ts`(신규), `web/src/lib/messages.ts`, `web/src/app/(app)/approvals/page.tsx`(신규), `web/src/components/approval-card.test.tsx`(신규), `web/src/components/approval-inbox.test.tsx`(신규), `web/src/hooks/use-approvals.test.tsx`(신규), `web/src/components/thread.test.tsx`(`ApprovalSlot` 연결에 따른 갱신에 한함, 단언 약화 금지), `web/src/hooks/use-conversation.test.tsx`(`refresh` 노출에 대한 추가에 한함, 단언 약화 금지). 브라우저(클라이언트) 코드와 화면 테스트다. 서버 코드는 읽기만 한다. TDD.
 
 열람 금지 경로: `data/eval/`, `data/interim/`
-수정 허용 경로: `web/src/components/approval-card.tsx`, `web/src/components/approval-inbox.tsx`, `web/src/components/approval-slot.tsx`, `web/src/components/turn-view.tsx`, `web/src/components/app-shell.tsx`, `web/src/hooks/use-approvals.ts`, `web/src/lib/messages.ts`, `web/src/app/(app)/approvals/page.tsx`, `web/src/components/approval-card.test.tsx`, `web/src/components/approval-inbox.test.tsx`, `web/src/hooks/use-approvals.test.tsx`, `web/src/components/thread.test.tsx`
+수정 허용 경로: `web/src/components/approval-card.tsx`, `web/src/components/approval-inbox.tsx`, `web/src/components/approval-slot.tsx`, `web/src/components/turn-view.tsx`, `web/src/components/thread.tsx`, `web/src/hooks/use-conversation.ts`, `web/src/app/(app)/c/[id]/page.tsx`, `web/src/components/app-shell.tsx`, `web/src/hooks/use-approvals.ts`, `web/src/lib/messages.ts`, `web/src/app/(app)/approvals/page.tsx`, `web/src/components/approval-card.test.tsx`, `web/src/components/approval-inbox.test.tsx`, `web/src/hooks/use-approvals.test.tsx`, `web/src/components/thread.test.tsx`, `web/src/hooks/use-conversation.test.tsx`
 
 열람 금지의 범위: 이 금지는 **Codex 세션이 `data/eval/`·`data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드와 테스트는 두 경로를 읽지 않는다.
 
@@ -34,7 +34,7 @@ props: `{view, onChanged}`. `view`는 `{turn_id, status, draft, draft_sha256, ch
 
 ### 2. `approval-slot.tsx`·`turn-view.tsx`
 
-`ApprovalSlot`을 구현한다: 현재 턴이 `awaiting_approval`이고 `draft`와 `draft_sha256`이 있을 때 `ApprovalCard`를 그린다. 턴이 `completed`이고 `effect`가 있으면 결과(`approvalResult`: "처리했습니다"와 `effect.mock_id`)를 낸다. `turn-view.tsx`는 슬롯에 필요한 props를 넘기고 슬롯의 `onChanged`로 대화를 다시 읽는다.
+`ApprovalSlot`을 구현한다: 현재 턴이 `awaiting_approval`이고 `draft`와 `draft_sha256`이 있을 때 `ApprovalCard`를 그린다. 턴이 `completed`이고 `effect`가 있으면 결과(`approvalResult`: "처리했습니다"와 `effect.mock_id`)를 낸다. `turn-view.tsx`는 슬롯에 필요한 props를 넘기고 슬롯의 `onChanged`로 대화를 다시 읽는다. 재조회 연결은 다음처럼 한다(현재 `useConversation`의 재조회 함수는 훅 내부에만 있고 반환값에 없으며, `Thread`는 `TurnView`에 콜백을 넘기지 않는다): ① `use-conversation.ts`가 반환값에 `refresh(): Promise<void>`를 노출한다(기존 SSE·폴링·언마운트 정리·차단 카드 유지 동작과 기존 반환 키는 그대로, `refresh`는 항상 최신 `read`를 부르고 언마운트 뒤에는 아무 일도 하지 않는다). ② `(app)/c/[id]/page.tsx`가 `Thread`에 `onChanged={refresh}`를 넘긴다. ③ `thread.tsx`가 `onChanged`를 선택적 prop으로 받아 `TurnView`에 넘기고 ④ `TurnView`가 `ApprovalSlot`에 `turn`(현재 턴 view)과 `onChanged`를 넘긴다. 이 연결 파일들의 변경은 기존 렌더링 결과(승인 대기가 아닌 상태)를 바꾸지 않는다.
 
 ### 3. 승인함
 
