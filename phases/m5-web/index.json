@@ -19,16 +19,16 @@
     {
       "step": 1,
       "name": "e2e-backend",
-      "status": "blocked",
+      "status": "completed",
       "started_at": "2026-10-08T19:24:23+0900",
-      "blocked_reason": "지시 충돌: \"흐름 1(플랫폼팀): `POST /sessions` → `POST /conversations`(조회 요청)\"은 기존 로그인 계약 사용을 요구하지만, \"응답 안전: 모든 응답 본문에 세션 토큰·`Authorization`·임시 키 내용이 없다(토큰 값을 직접 비교해 확인하되 출력하지 않는다).\"는 로그인 응답까지 토큰을 금지합니다. src/govops/api/app.py:146은 로그인 응답 본문에 session_token을 반환하며 src/ 수정은 금지되어 있습니다. 응답 안전 검사에서 POST /sessions의 session_token 필드를 예외로 허용하는지 명시가 필요합니다. 파일 수정 및 검증 실행 없이 중단했습니다.",
-      "blocked_at": "2026-10-08T19:26:51+0900",
       "usage": {
-        "input_tokens": 222642,
-        "cached_input_tokens": 164480,
-        "output_tokens": 705,
+        "input_tokens": 2061716,
+        "cached_input_tokens": 1963648,
+        "output_tokens": 10460,
         "attempts": 1
-      }
+      },
+      "summary": "루프백 replay e2e 백엔드와 StoryChat, 실제 소켓 테스트 14개 구현; 전체 make verify 통과 및 최종 보강 재검증 완료.",
+      "completed_at": "2026-10-08T19:37:27+0900"
     },
     {
       "step": 2,
