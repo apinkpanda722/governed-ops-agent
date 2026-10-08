@@ -16,7 +16,7 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/audit/log.py`, `src/govops/audit/__init__.py`, `tests/test_audit_chain.py`(신규), `tests/test_audit.py`·`tests/test_audit_events.py`(체인 파일 이름·레코드 필드 단언과, 첫 `append`가 genesis(`seq`=1)를 먼저 쓰므로 반환 seq가 2가 되는 것에 맞춘 갱신에 한함, 기존 단언 약화 금지: 같은 이벤트·필드 값을 같은 강도로 단언한다), `tests/test_api_tasks.py`·`tests/test_agent_graph.py`·`tests/test_effects_matrix.py`·`tests/test_agent_scope.py`·`tests/test_evalrun_driver.py`(감사 디렉터리의 파일 이름·레코드 형식을 읽는 단언의 갱신에 한함, 단언 약화 금지). 계층: `audit/`는 `agent`·`tools`·`broker`·`api`를 import할 수 없다. TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/audit/log.py`, `src/govops/audit/__init__.py`, `tests/test_audit_chain.py`(신규), `tests/test_audit.py`·`tests/test_audit_events.py`(체인 파일 이름·레코드 필드 단언과, 첫 `append`가 genesis(`seq`=1)를 먼저 쓰므로 반환 seq가 2가 되는 것에 맞춘 갱신에 한함, 기존 단언 약화 금지: 같은 이벤트·필드 값을 같은 강도로 단언한다), `tests/test_api_tasks.py`·`tests/test_agent_graph.py`·`tests/test_effects_matrix.py`·`tests/test_agent_scope.py`·`tests/test_evalrun_driver.py`(감사 디렉터리의 파일 이름·레코드 형식을 읽는 단언의 갱신에 한함, 단언 약화 금지. `tests/test_api_tasks.py`에 한해 동시 승인 응답의 **순서 단언**을 순서 무관 불변식으로 바꾸는 갱신도 허용한다: 아래 테스트 절 참조). 계층: `audit/`는 `agent`·`tools`·`broker`·`api`를 import할 수 없다. TDD.
 
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/audit/log.py`, `src/govops/audit/__init__.py`, `tests/test_audit_chain.py`, `tests/test_audit.py`, `tests/test_audit_events.py`, `tests/test_api_tasks.py`, `tests/test_agent_graph.py`, `tests/test_effects_matrix.py`, `tests/test_agent_scope.py`, `tests/test_evalrun_driver.py`
@@ -55,6 +55,7 @@
   - 동시 쓰기: `spawn` 프로세스 2개가 같은 디렉터리에 각각 N건(N=20)을 쓰면 `seq`가 1부터 연속인 하나의 열이고(genesis 포함 총 2N+1건) `prev_hash`가 모두 이어지며 해시가 모두 재계산과 같다. 순서(어느 프로세스가 먼저인지)는 단언하지 않는다.
   - 스레드: 같은 디렉터리에 `AuditLog` 인스턴스 2개를 스레드 8개가 나눠 쓴 결과도 같은 불변식을 만족한다.
 - `append_with_retry`는 `AuditWriteError`(코드와 무관)에서 3회 재시도하고 유지된다. 감사 필드·식별자 검증 오류가 체인 파일을 만들지 않는다(검증은 잠금 전에 한다).
+- `tests/test_api_tasks.py`의 동시 승인 테스트(`responses = await asyncio.gather(…)` 뒤의 `assert responses[0].status_code in (200, 202) and responses[1].status_code == 200`): 이 단언은 `gather` 인덱스로 어느 쪽이 202(수락)인지를 고정한다. 제품 동작은 "잠금을 먼저 얻은 쪽 하나가 202, 다른 하나는 같은 결정의 멱등 응답 200"이고 어느 쪽이 먼저인지는 스케줄링에 달려 있으며, 감사 쓰기 타이밍이 바뀌면 `[200, 202]`가 나온다(제품 결함이 아니다, FP-012). 이 단언을 **순서 무관 불변식**으로 바꾼다: 두 응답 코드가 모두 `{200, 202}`에 속하고, `202`는 최대 1개이며, 두 응답 본문이 같다. 뒤따르는 단언(`responses[0].json() == responses[1].json()`, 이후 멱등 재요청 두 번, 효과 1건 `len(slack.sent) == 1`)은 **그대로 둔다**. 입력 고정(`monkeypatch`)이나 `sleep`으로 순서를 맞추지 않는다.
 - `tests/test_audit_events.py`(step 1 산출물): 신규 이벤트의 허용·거부 표를 실제 `AuditLog`에 돌리는 테스트가 "첫 `append`의 반환값이 1"과 "디렉터리에 `YYYY-MM-DD.jsonl` 한 줄이 이벤트·필드만 담는다"를 가정한다. 첫 `append`는 genesis를 먼저 쓰므로 반환값은 2이고(또는 반환값을 직접 단언하지 않고 마지막 레코드의 `event`·필드로 단언), 저장 파일은 `chain-*.jsonl`이며 마지막 레코드를 읽어 같은 이벤트·필드 값을 단언한다.
 - `tests/test_audit.py`와 소비자 테스트: 파일 이름 `????-??-??.jsonl`·레코드 모양을 직접 읽는 단언을 `chain-*.jsonl`·새 필드에 맞게 갱신한다. **레코드에서 필요한 필드만 단언하는 헬퍼가 있으면 그것을 고치고**, 의미(이벤트·필드 값)를 약화하지 않는다.
 - `src/govops/audit/__init__.py`: `AuditKeyError`·`SYSTEM_EVENTS`를 내보낸다(기존 내보내기 유지).
