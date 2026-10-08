@@ -131,7 +131,16 @@
     {
       "step": 9,
       "name": "smoke-audit",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T12:13:11+0900",
+      "summary": "smoke-audit·Makefile 타깃과 격리 테스트 구현: 키·변조 5종·꼬리 절단·실제 체인 읽기 전용 검증 및 탐지 한계 출력; make verify 통과(Python 3194개, 웹 15개), 계층 경계 준수.",
+      "completed_at": "2026-10-08T12:21:59+0900",
+      "usage": {
+        "input_tokens": 1723933,
+        "cached_input_tokens": 1652096,
+        "output_tokens": 7519,
+        "attempts": 1
+      }
     },
     {
       "step": 10,
