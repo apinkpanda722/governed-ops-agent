@@ -92,7 +92,8 @@
     },
     {
       "dir": "m5-web",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_at": "2026-10-08T19:26:51+0900"
     }
   ]
 }
