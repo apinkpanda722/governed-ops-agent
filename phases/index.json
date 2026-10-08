@@ -98,7 +98,8 @@
     },
     {
       "dir": "m5-ui",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-10-09T01:34:17+0900"
     }
   ]
 }
