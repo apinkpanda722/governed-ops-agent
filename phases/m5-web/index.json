@@ -2,11 +2,45 @@
   "project": "governed-ops-agent",
   "phase": "m5-web",
   "steps": [
-    { "step": 0, "name": "api-web-contract", "status": "pending" },
-    { "step": 1, "name": "e2e-backend", "status": "pending" },
-    { "step": 2, "name": "bff", "status": "pending" },
-    { "step": 3, "name": "ui-conversation", "status": "pending" },
-    { "step": 4, "name": "ui-approvals", "status": "pending" },
-    { "step": 5, "name": "e2e-web", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "api-web-contract",
+      "status": "completed",
+      "started_at": "2026-10-08T19:15:33+0900",
+      "summary": "세션 단일 폐기·데모 사용자 목록 라우트와 요청자 전용 승인함 conversation_id 구현, 진입점 계약 테스트 추가 및 make verify 통과.",
+      "completed_at": "2026-10-08T19:24:23+0900",
+      "usage": {
+        "input_tokens": 1717807,
+        "cached_input_tokens": 1643136,
+        "output_tokens": 5042,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "e2e-backend",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "bff",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "ui-conversation",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "ui-approvals",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "e2e-web",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-08T19:15:33+0900"
 }
