@@ -19,10 +19,8 @@
     {
       "step": 1,
       "name": "prompt-registration",
-      "status": "blocked",
+      "status": "pending",
       "started_at": "2026-10-08T22:52:51+0900",
-      "blocked_reason": "등록 문서 10절은 지표 ①(check.reason == recipient_not_allowed로 끝난 쓰기 task 수)을 observations.jsonl·grades.json의 reason_codes 필드에서 직접 세도록 요구하지만, 이전 공식 실행 d2cd927c073447728c76c040d7bfb3bc의 두 파일에는 reason_codes와 check.reason 필드가 없습니다. 따라서 해당 기준값을 지정 원자료에서 산출할 수 없습니다. manifest.json의 attempts[].check_reason을 근거로 사용하는 것을 허용하거나, 지표 ①도 '산출 불가'로 등록하도록 지시를 수정해야 합니다. 코드·문서는 수정하지 않았고 live 실행·커밋도 하지 않았습니다.",
-      "blocked_at": "2026-10-08T22:55:52+0900",
       "usage": {
         "input_tokens": 429141,
         "cached_input_tokens": 361728,
