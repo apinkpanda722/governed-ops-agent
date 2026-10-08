@@ -117,7 +117,16 @@
     {
       "step": 8,
       "name": "runner-anchors",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T12:04:49+0900",
+      "summary": "dev·faults 러너에 실행 종료 후 디렉터리별 fail-open 고정점과 출력 순서 보존을 구현; 계층 경계 준수, make verify 통과(Python 3179개, 웹 15개).",
+      "completed_at": "2026-10-08T12:13:11+0900",
+      "usage": {
+        "input_tokens": 2169607,
+        "cached_input_tokens": 2083072,
+        "output_tokens": 9684,
+        "attempts": 1
+      }
     },
     {
       "step": 9,
