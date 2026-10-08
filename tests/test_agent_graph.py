@@ -620,7 +620,7 @@ def test_profile_registry_and_recorded_hashes():
         assert header["model"] == "gpt-6-luna"
         assert header["params"] == {}
         assert header["prompt_hash"] == digest(PROFILES["writes_org"])
-    assert set(PROFILES) == {"writes_org"}
+    assert set(PROFILES) == {"writes_org", "writes_team"}
     for label, profile in PROFILES.items():
         assert profile_for(label) is profile
         assert profile.name == label

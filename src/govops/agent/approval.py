@@ -23,6 +23,7 @@ EDITABLE_FIELDS: Mapping[str, frozenset[str]] = MappingProxyType(
         "jira_create_followup_ticket": frozenset({"title", "description"}),
     }
 )
+ANNOUNCE_APPROVER_MIN_GRADE = 4
 _MAX_EDIT_LENGTH = 4000
 
 
@@ -40,7 +41,10 @@ def approver_decision(
     if draft.tool == "slack_send_message" and draft.args["channel"] == "announce":
         if is_requester:
             return Decision.FORBIDDEN
-        if approver.team == requester.team and approver.grade >= 4:
+        if (
+            approver.team == requester.team
+            and approver.grade >= ANNOUNCE_APPROVER_MIN_GRADE
+        ):
             return Decision.ALLOW
         return Decision.NOT_FOUND
     return Decision.ALLOW if is_requester else Decision.NOT_FOUND

@@ -47,3 +47,11 @@ def org_section() -> str:
         )
     )
     return "\n".join(lines) + "\n"
+
+
+def team_name_ko(owner_team: str) -> str:
+    """Resolve a team's Korean name from the organization table."""
+    for team in TEAMS:
+        if team.owner_team == owner_team:
+            return team.name_ko
+    raise ValueError("unknown_team")
