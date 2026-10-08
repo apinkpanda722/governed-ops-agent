@@ -315,6 +315,13 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: `.github/workflows/ci.yml`의 `timeout-minutes: 20`, `pyproject.toml`의 `timeout = 120`·`timeout_method = "thread"`, `tests/test_ci_workflow.py::test_ci_verify_job_has_a_timeout`·`test_pytest_per_test_timeout_is_configured`, 서브프로세스 호출 35건과 `Popen.wait` 7곳의 timeout, `tests/test_costs_reservation.py`의 유한 대기
 - **출처**: PR #63 CI 정지(실행 `37638207792` 취소), 같은 PR 후속 커밋 `90b655f`
 
+### FP-067 같은 커밋에서 두 번 실행하는 등록과 러너 산출물의 충돌
+- **증상**: `hypotheses-m5-budget.md`가 "같은 커밋에서 끔 → 켬 순서로 각 1회"를 등록했다. 러너가 (a) 끔 실행의 결과 디렉터리 `data/results/dev/<id>/`를 untracked로 남겨 켬 실행의 작업 트리 청결 검사(`dirty_worktree`)에 걸렸고, (b) 끔 실행이 커밋된 골든 기록(`data/replay/`)을 덮어써 작업 트리가 modified가 됐다(공식 기록은 켬 실행의 것이어야 한다). 사용자가 끔 디렉터리를 `data/interim/m5-off-hold/`로 옮기고 골든을 `git stash`에 보관해 풀었다.
+- **원인**: 청결 검사의 예외 목록은 비용 원장 하나뿐(FP-063)이고 러너는 실행 종류(공식/참고)를 구분하지 않고 산출물을 같은 규칙으로 남긴다. 설계가 "같은 커밋 두 번 실행"의 **실행 순서**를 러너의 청결 검사·골든 재기록·결과 위치에 대조하지 않았다.
+- **규칙**: 같은 커밋에서 한 러너를 두 번 실행하는 등록은 설계 때 live 실행 순서를 소비자 점검 대상에 넣는다: 첫 실행의 산출물이 두 번째 실행의 청결 검사에 걸리는지, 두 번째 이전에 어떤 커밋된 기록을 덮어쓰는지, 공식이 아닌 실행의 기록을 어디에 남기는지를 실행 전에 정한다. 참고 실행의 결과를 커밋 대상 경로 밖에 두거나, 참고 실행이 공식 기록(골든)을 덮어쓰지 않게 하는 방안을 미리 구현한다.
+- **강제 수단**: 없음(후속 후보, 미구현: `run_role=reference`인 실행은 `data/replay` 재기록을 건너뛰고 결과 디렉터리를 청결 검사 예외 경로에 둔다). 이번 실행은 수동 이동·stash로 풀었고 결과 문서 실행 조건에 이동(내용 무변경)을 적었다.
+- **출처**: m5-agent 켬/끔 dev live(결과 `docs/results/2026-10-08-m5-dev4-live.md`)
+
 ---
 
 ## A에서 이식한 항목 (프로젝트 A `failure-patterns`의 번호)

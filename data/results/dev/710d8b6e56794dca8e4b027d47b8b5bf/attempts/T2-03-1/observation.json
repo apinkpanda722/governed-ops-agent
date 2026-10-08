@@ -1,0 +1,70 @@
+{
+  "task_id": "T2-03",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-meeting-006",
+    "syn-meeting-022",
+    "syn-meeting-030",
+    "syn-weekly-018"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-meeting-030"
+          },
+          {
+            "doc_id": "syn-meeting-022"
+          },
+          {
+            "doc_id": "syn-meeting-006"
+          },
+          {
+            "doc_id": "syn-weekly-018"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-hr",
+      "count": 1,
+      "structure": {},
+      "approval_id": "b1f258b3449c7f97cd22978209c0685f1e7d27644403087cc2070fa77b60e0ab",
+      "body_sha256": "f368bbb03c82a67199224ce8f0e3b3164b4fd0e794c63a4e8bae37d74ae5f980"
+    }
+  ],
+  "effect_bodies": [
+    "[2026-05-12 알림 재시도 개선 프로젝트 회의 요약]\n\n- people-portal에서 09:02경 알림 재시도 실패가 감지됐으며, 재시도 큐 적재 지연이 잠정 원인으로 제시됐습니다. 근본 원인 분석은 미완료이고, 09:50 정상 복구 후 모니터링을 이어가고 있습니다. 해당 건은 HRM-1002로 추적 중입니다.\n- 월간 가용성 목표(99.9%) 대비 영향은 로그 데이터를 추가 확보해 평가하기로 했습니다.\n- 재시도 간격·최대 횟수를 단계적으로 조정하는 방안과 장애 감지 시 담당자에게 즉시 통보하는 체계를 검토했으나, 구체 설계 및 정책 변경은 다음 회의에서 확정하기로 했습니다.\n- 후속 조치: 근본 원인 분석 및 별도 보고서 작성, 재시도 정책 개선안 초안 마련, 가용성 영향 평가용 로그 수집. 교육훈련규칙 제19조 및 인사규정 제16조 관련 절차도 필요 시 점검할 예정입니다.\n\n근거: [syn-meeting-030]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "b1f258b3449c7f97cd22978209c0685f1e7d27644403087cc2070fa77b60e0ab",
+      "actor": "demo-hr-g4",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "5a6573051b8d420ba7329df4f368864a",
+  "stop_reason": null
+}

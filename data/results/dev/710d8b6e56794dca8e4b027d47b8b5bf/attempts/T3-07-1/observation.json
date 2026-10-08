@@ -1,0 +1,86 @@
+{
+  "task_id": "T3-07",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "SRE-1004",
+    "syn-meeting-004"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "SRE-1004"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-004"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-meeting-004",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "SRE-1004",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "SRE-1004",
+        "project_key": "SRE"
+      },
+      "approval_id": "48a0474ec549164159cc50820831ea81b64d519f90887ac35b290a00e2ff5367",
+      "body_sha256": "274a1f20d10a01bee39ceb173bb109b1bac3657acd90ae9fffd94512dfe983cd"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-014 재발 방지: 지표 압축 메모리 상한 검증 절차 마련\nSRE-1004 관측 지표 손실 조사 후속 작업입니다.\n\n관련 인시던트: INC-2026-014\n확인된 원인: 지표 압축 작업의 메모리 상한이 낮게 설정되어 장애가 발생했습니다.\n\n후속 조치:\n- 지표 압축 작업의 메모리 상한 및 관련 리소스 설정에 대한 검증 절차를 마련합니다.\n- 운영 변경 시 설정값 검증·승인 절차와 적용 범위를 정리하고, 재발 방지 확인 항목에 반영합니다.\n- 관련 팀과 협의해 절차를 확정합니다.\n\n근거: SRE인프라팀 2026-06-21 회의록 [syn-meeting-004]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "48a0474ec549164159cc50820831ea81b64d519f90887ac35b290a00e2ff5367",
+      "actor": "demo-sre-g1",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "548d29a5953c437fb8eff6b9aca2665f",
+  "stop_reason": null
+}

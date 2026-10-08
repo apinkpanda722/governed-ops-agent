@@ -1,0 +1,74 @@
+{
+  "task_id": "T6-03",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-incident-014",
+    "syn-meeting-001"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-001"
+          },
+          {
+            "doc_id": "syn-incident-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-014",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-platform",
+      "count": 1,
+      "structure": {},
+      "approval_id": "776355a1d7fbb9209cf16133ef5127eefc06257737f4445cefcd3d93ebc59379",
+      "body_sha256": "b50972b3c1886dba82a8219998b88bd05a39b0cc0657843451b248296ff84522"
+    }
+  ],
+  "effect_bodies": [
+    "[장애보고 공유] INC-2026-004 인증 토큰 검증 지연\n\n• 서비스/심각도: identity-api / 심각도 2 (티켓 PLT-1003)\n• 영향: 로그인 및 세션 갱신 요청의 인증 처리 지연. 내부 서비스 연동과 인증 의존 다운스트림에서도 대기가 누적됨.\n• 발생·복구: 2026-03-28 15:10 최초 감지, 코드 수정·배포 후 16:00 정상 복구. 복구 후 모니터링에서 재발 징후 없음.\n• 근본 원인: 인증 키 목록 갱신 중 잠금 범위가 넓게 유지되어, 토큰 검증 요청이 잠금 해제를 기다림. 갱신과 검증 요청이 겹치며 경합 및 요청 대기가 누적됨.\n• 조치: 경합 구간 로직을 긴급 수정하고, 갱신용·검증용 키 목록을 분리하는 이중 버퍼 방식으로 개선함.\n• 후속 권고: 다른 구성요소의 유사 잠금 경합 점검, 인증 핵심 경로의 부하 집중 검증.\n\n근거: [syn-incident-014]\n[승인자 수정] 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "b160a69f2c43be85ddd0958c6bea6acb3a45bb8df293ce18f193d74ac151be80",
+      "actor": "demo-platform-g6",
+      "decision": "edit_approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "02cacfdd5b7343d989acab1c409fdf84",
+  "stop_reason": null
+}
