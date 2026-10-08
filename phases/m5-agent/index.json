@@ -117,7 +117,16 @@
     {
       "step": 8,
       "name": "prune-command",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T16:15:55+0900",
+      "summary": "감사 선기록·삭제 성공 대화 색인 정리·안전한 prune CLI와 시작 시 실행 구현; 계층 경계 확인 및 make verify 통과(Python 3393 passed, 웹 15 passed).",
+      "completed_at": "2026-10-08T16:26:25+0900",
+      "usage": {
+        "input_tokens": 2324284,
+        "cached_input_tokens": 2251776,
+        "output_tokens": 9064,
+        "attempts": 1
+      }
     },
     {
       "step": 9,
