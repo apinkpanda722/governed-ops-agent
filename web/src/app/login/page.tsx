@@ -1,4 +1,6 @@
 "use client";
+import { AlertTriangle } from "lucide-react";
+import { TEAMS, TEAM_ORDER, parseUserLabel } from "@/lib/teams";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiError, bff } from "@/lib/bff";
@@ -33,14 +35,27 @@ export default function Login() {
     finally {
         setBusy(false);
     } }
-    const groups = new Map<string, {
-        label: string;
-        display: string;
-    }[]>();
+
+    const groups = new Map<string, {label: string; display: string}[]>();
     for (const label of users) {
-        const match = /^demo-(.+)-g(\d+)$/.exec(label);
-        const team = match?.[1] ?? "기타";
-        groups.set(team, [...(groups.get(team) ?? []), { label, display: match ? `${team} ${match[2]}급` : label }]);
+        const parsed = parseUserLabel(label);
+        const team = parsed && Object.hasOwn(TEAMS, parsed.team) ? parsed.team : "기타";
+        groups.set(team, [...(groups.get(team) ?? []), {label, display: parsed ? `${parsed.grade}급` : label}]);
     }
-    return <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-12"><h1 className="text-2xl font-semibold">해온클라우드 운영 에이전트</h1><p>업무를 수행할 데모 사용자를 선택해 주세요.</p>{loading && <p role="status">사용자 목록을 불러오는 중입니다…</p>}{code && <Alert variant="destructive" data-testid={testids.loginError}>{errorMessage(code)}</Alert>}<div className="grid gap-4 sm:grid-cols-2">{[...groups].map(([team, labels]) => <Card key={team}><CardHeader><CardTitle><h2>{team}</h2></CardTitle></CardHeader><CardContent className="flex flex-wrap gap-2">{labels.map(u => <Button key={u.label} variant="outline" data-testid={testids.loginUser(u.label)} disabled={busy} onClick={() => login(u.label)}>{u.display}</Button>)}</CardContent></Card>)}</div></main>;
+    const order = [...TEAM_ORDER, "기타"].filter(team => groups.has(team));
+    return <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-10">
+        <Card className="w-full max-w-3xl shadow-sm">
+            <CardHeader><CardTitle><h1 className="text-2xl font-semibold">해온클라우드 운영 에이전트</h1></CardTitle>
+                <p className="text-sm text-muted-foreground">데모 로그인 — 이 PC에서만 사용할 수 있습니다.</p>
+                <p className="text-sm">업무를 수행할 데모 사용자를 선택해 주세요.</p></CardHeader>
+            <CardContent className="space-y-6">
+                {loading && <p role="status">사용자 목록을 불러오는 중입니다…</p>}
+                {code && <Alert variant="destructive" role="alert" data-testid={testids.loginError}><AlertTriangle aria-hidden="true"/><span>{errorMessage(code)}</span></Alert>}
+                <div className="grid gap-4 sm:grid-cols-2">{order.map(team => <section key={team} className="rounded-lg border p-4">
+                    <h2 className="mb-3 font-medium">{TEAMS[team] ?? "기타"}</h2>
+                    <div className="flex flex-wrap gap-2">{groups.get(team)!.map(u => <Button key={u.label} variant="outline" title={u.label} data-testid={testids.loginUser(u.label)} disabled={busy} onClick={() => login(u.label)}>{u.display}</Button>)}</div>
+                </section>)}</div>
+            </CardContent>
+        </Card>
+    </main>;
 }

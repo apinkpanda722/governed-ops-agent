@@ -1,10 +1,11 @@
 import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { useApprovals } from "./use-approvals";
+import { ConversationListProvider } from "@/components/conversation-list-context";
 import { AppShell } from "@/components/app-shell";
 import { setOnUnauthenticated } from "@/lib/bff";
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); setOnUnauthenticated(); });
+vi.mock("next/navigation", () => ({ usePathname: () => "/c", useRouter: () => ({ replace: vi.fn() }) }));
+afterEach(() => { cleanup(); Reflect.deleteProperty(Element.prototype,"getAnimations"); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); setOnUnauthenticated(); });
 test.each([5000, 10000])("polls every %s, pauses hidden tabs, refreshes and cleans up", async interval => {
     vi.useFakeTimers(); let hidden = false; vi.spyOn(document, "visibilityState", "get").mockImplementation(() => hidden ? "hidden" : "visible");
     const f = vi.fn().mockImplementation(() => Promise.resolve(new Response('{"approvals":[{"turn_id":"t","requester_label":"demo-platform-g3","request":"private-sentinel"}]}'))); vi.stubGlobal("fetch", f);
@@ -31,9 +32,13 @@ test("hidden tab resumes only one poll and aborts in-flight read on unmount", as
     await act(async () => { resolve(new Response('{"approvals":[]}')); await vi.advanceTimersByTimeAsync(15000); }); expect(f).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
 });
 test("menu badge shows pending count and hides zero", async () => {
-    const f = vi.fn().mockResolvedValueOnce(new Response('{"approvals":[{"turn_id":"a"},{"turn_id":"b"}]}')).mockResolvedValueOnce(new Response('{"approvals":[]}')); vi.stubGlobal("fetch", f);
-    const first = render(<AppShell user="demo-platform-g3">본문</AppShell>);
+    Object.defineProperty(Element.prototype,"getAnimations",{configurable:true,value:()=>[]});
+    vi.stubGlobal("matchMedia", () => ({matches:false,addEventListener:vi.fn(),removeEventListener:vi.fn()}));
+    vi.stubGlobal("ResizeObserver", class {observe() {} unobserve() {} disconnect() {}});
+
+    const f = vi.fn().mockResolvedValueOnce(new Response('{"approvals":[{"turn_id":"a"},{"turn_id":"b"}]}')).mockResolvedValueOnce(new Response('{"approvals":[]}')); vi.stubGlobal("fetch", (path: string, options: RequestInit) => path === "/api/conversations" ? Promise.resolve(new Response('{"conversations":[]}')) : f(path,options));
+    const first = render(<ConversationListProvider><AppShell user="demo-platform-g3">본문</AppShell></ConversationListProvider>);
     await waitFor(() => expect(screen.getByTestId("nav-approvals-count").textContent).toBe("2"));
-    first.unmount(); render(<AppShell user="demo-platform-g3">본문</AppShell>);
+    first.unmount(); render(<ConversationListProvider><AppShell user="demo-platform-g3">본문</AppShell></ConversationListProvider>);
     await waitFor(() => expect(f).toHaveBeenCalledTimes(2)); expect(screen.queryByTestId("nav-approvals-count")).toBeNull();
 });

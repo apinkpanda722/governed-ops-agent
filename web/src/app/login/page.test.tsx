@@ -9,7 +9,7 @@ test("groups users, retains other labels and logs in", async () => {
     vi.stubGlobal("fetch", fetcher);
     render(<Login />);
     await waitFor(() => expect(screen.getByTestId("login-user-demo-platform-g3")).toBeDefined(), { timeout: 1000 });
-    expect(screen.getByRole("heading", { name: "platform" })).toBeDefined();
+    expect(screen.getByRole("heading", { name: "플랫폼개발팀" })).toBeDefined();
     expect(screen.getByRole("heading", { name: "기타" })).toBeDefined();
     expect(screen.getByTestId("login-user-odd-label")).toBeDefined();
     fireEvent.click(screen.getByTestId("login-user-demo-platform-g3"));

@@ -1,26 +1,22 @@
 "use client";
-import { useApprovals } from "@/hooks/use-approvals";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { bff, apiError } from "@/lib/bff";
-import { testids } from "@/lib/testids";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { ConflictNotice } from "./conflict-notice";
-export function AppShell({ user, children }: {
-    user: string;
-    children: React.ReactNode;
-}) {
-    const router = useRouter();
-    const { approvals } = useApprovals(10000);
-    const [code, setCode] = useState<string>();
-    async function switchUser() { try {
-        await bff("/api/session", { method: "DELETE" });
-        router.replace("/login");
-    }
-    catch (e) {
-        setCode(apiError(e).code);
-    } }
-    return <div className="mx-auto w-full max-w-4xl px-4"><header className="flex flex-wrap items-center justify-between gap-4 border-b py-4"><Link href="/c" className="font-semibold">해온클라우드 운영 에이전트</Link><nav aria-label="주 메뉴" className="flex items-center gap-4"><Link href="/c" data-testid={testids.navNewConversation}>새 대화</Link><Link href="/approvals" data-testid={testids.navApprovals}>승인함 {approvals.length > 0 && <Badge variant="secondary" data-testid={testids.navApprovalsCount}>{approvals.length}</Badge>}</Link></nav><div className="flex items-center gap-3"><span data-testid={testids.sessionUser}>{user}</span><Button variant="outline" data-testid={testids.switchUser} onClick={switchUser}>사용자 전환</Button></div></header>{code && <ConflictNotice code={code}/>}<main className="space-y-6 py-8">{children}</main></div>;
+import { useEffect, useState } from "react";
+import { Sidebar } from "./sidebar";
+import { Topbar } from "./topbar";
+import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
+export function AppShell({user, children}: {user: string; children: React.ReactNode}) {
+    const [collapsed, setCollapsed] = useState(false);
+    const [mobile, setMobile] = useState(false);
+    const [open, setOpen] = useState(false);
+    useEffect(() => {
+        const media = window.matchMedia("(max-width: 767px)");
+        const change = () => { setMobile(media.matches); if (!media.matches) setOpen(false); };
+        change();
+        media.addEventListener("change", change);
+        return () => media.removeEventListener("change", change);
+    }, []);
+    return <div className="flex h-dvh w-full overflow-hidden">
+        {!mobile && <div className="hidden h-full border-r md:block"><Sidebar user={user} collapsed={collapsed} onToggle={() => setCollapsed(value => !value)}/></div>}
+        <div className="flex min-w-0 flex-1 flex-col"><Topbar onOpen={() => setOpen(true)}/><main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-8"><div className="mx-auto max-w-4xl space-y-6">{children}</div></main></div>
+        {mobile && <Sheet open={open} onOpenChange={setOpen}>{open && <SheetContent side="left" className="w-72! gap-0 p-0" aria-describedby={undefined}><SheetTitle className="sr-only">해온클라우드 사이드바</SheetTitle><Sidebar user={user} collapsed={false} onToggle={() => setOpen(false)}/></SheetContent>}</Sheet>}
+    </div>;
 }
