@@ -145,7 +145,16 @@
     {
       "step": 10,
       "name": "docs",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T12:21:59+0900",
+      "summary": "감사 구현·고정점 흐름·탐지 한계·이월 4건을 문서에 반영하고 명령어·문서 계약 테스트 추가; 계층 경계와 기존 단언 유지, make verify 통과(Python 3195개, 웹 15개).",
+      "completed_at": "2026-10-08T12:31:32+0900",
+      "usage": {
+        "input_tokens": 1599644,
+        "cached_input_tokens": 1533312,
+        "output_tokens": 7040,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-08T10:12:48+0900"
