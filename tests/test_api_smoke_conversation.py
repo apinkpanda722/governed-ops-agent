@@ -128,3 +128,44 @@ def test_contract(fault, name, capsys):
             smoke.SENTINEL,
         ]
     )
+
+
+class Boom(Exception):
+    pass
+
+
+@pytest.mark.parametrize(
+    "handler,exception_name",
+    [
+        (
+            lambda request: (_ for _ in ()).throw(
+                httpx.ConnectError("http://127.0.0.1:8000 secret-token-probe")
+            ),
+            "ConnectError",
+        ),
+        (lambda request: httpx.Response(200, json={}), "KeyError"),
+        (lambda request: (_ for _ in ()).throw(Boom("secret-body-probe")), "Boom"),
+    ],
+)
+def test_no_views_is_a_failure_and_names_only_the_exception_class(
+    handler, exception_name, capsys
+):
+    # 받은 view가 0개이면 `all([])`로 통과하면 안 된다(공허한 PASS).
+    code = asyncio.run(
+        smoke.run(transport=httpx.MockTransport(handler), timeout=1, interval=0.001)
+    )
+    output = capsys.readouterr().out
+    assert code == 1
+    assert f"FAIL rag_turn1 request_failed:{exception_name}" in output
+    assert "FAIL no_leak_in_views no_views" in output
+    assert "PASS no_leak_in_views" not in output
+    assert "RESULT fail" in output
+    # 예외 클래스 이름 외에 본문·URL·토큰·예외 문장이 출력에 없다.
+    for value in ("127.0.0.1", "secret-token-probe", "secret-body-probe", "8000"):
+        assert value not in output
+
+
+def test_leak_check_passes_only_with_views_and_no_forbidden_content():
+    assert smoke.safe({"turn": {"status": "completed"}}) is True
+    assert smoke.safe({"turn": {"stop_reason": "x"}}) is False
+    assert smoke.safe({"history": [smoke.SENTINEL]}) is False

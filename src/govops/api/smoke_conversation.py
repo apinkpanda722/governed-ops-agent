@@ -272,9 +272,14 @@ async def run(
             False,
             "draft_missing" if stage == "share_draft" else "deadline_exceeded",
         )
-    except Exception:  # noqa: BLE001 — never render response bodies or credentials
-        check(stage, False, "request_failed")
-    check("no_leak_in_views", all(safe(view) for view in views))
+    except Exception as error:  # noqa: BLE001 — never render response bodies or credentials
+        # 예외 클래스 이름만 남긴다(문장·URL·토큰·본문은 출력하지 않는다).
+        check(stage, False, f"request_failed:{type(error).__name__}")
+    if views:
+        check("no_leak_in_views", all(safe(view) for view in views))
+    else:
+        # 받은 view가 없으면 `all([])`가 참이 되어 아무것도 확인하지 않고 통과한다.
+        check("no_leak_in_views", False, "no_views")
     print("RESULT fail" if failed else "RESULT pass")
     return int(failed)
 
