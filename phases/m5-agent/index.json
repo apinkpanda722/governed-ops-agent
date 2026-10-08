@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "turn-limits",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T14:17:59+0900",
+      "summary": "턴별 MAX_COST_USD=$0.40과 탐색 예산 N=4 구현 및 정의 통합; make verify(3250 passed)와 골든 불변 검사 통과.",
+      "completed_at": "2026-10-08T14:30:27+0900",
+      "usage": {
+        "input_tokens": 4195105,
+        "cached_input_tokens": 4077312,
+        "output_tokens": 13245,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
