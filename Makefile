@@ -238,3 +238,8 @@ audit-verify:
 audit-anchor:
 	@if [ -z "$(LABEL)" ]; then echo "사용: make audit-anchor LABEL=m4-audit-first" >&2; exit 2; fi
 	uv run python -m govops.audit.anchor --label "$(LABEL)"
+
+.PHONY: smoke-audit
+# 키·네트워크 불필요, 임시 체인에서 변조 5종·꼬리 잘라내기 재현, 실제 키 권한·짝·체인 확인, 사용자 실행
+smoke-audit:
+	uv run python -m govops.audit.smoke
