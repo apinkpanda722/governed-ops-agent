@@ -53,6 +53,7 @@ class Observation(_Model):
     policy_violations: list[str]
     fault_injected: bool
     trace_id: str | None
+    stop_reason: str | None = None
 
 
 def dump_observations(path: Path, obs: Iterable[Observation]) -> None:

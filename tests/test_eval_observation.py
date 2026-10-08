@@ -90,3 +90,22 @@ def test_nested_extra_forbidden(field, record):
 def test_invalid_observation(updates):
     with pytest.raises(ValidationError):
         observation(**updates)
+
+
+def test_stop_reason_roundtrip_and_legacy(tmp_path):
+    assert observation().stop_reason is None
+    row = observation(stop_reason="exploration_exhausted")
+    assert Observation.model_validate_json(row.model_dump_json()) == row
+    path = tmp_path / "legacy.jsonl"
+    legacy = observation().model_dump()
+    legacy.pop("stop_reason")
+    path.write_text(json.dumps(legacy) + "\n")
+    assert load_observations(path)[0].stop_reason is None
+    dump_observations(path, [row])
+    assert load_observations(path) == [row]
+
+
+@pytest.mark.parametrize("value", [1, False, [], {}])
+def test_stop_reason_strict_type(value):
+    with pytest.raises(ValidationError):
+        observation(stop_reason=value)
