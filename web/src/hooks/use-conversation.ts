@@ -112,5 +112,6 @@ export function useConversation(id?: string, deps: ConversationDeps = {}) {
             return { code: apiError(e).code };
         }
     }
-    return { view: snapshot.id === id ? snapshot.view : undefined, blockedCards: snapshot.id === id ? snapshot.blockedCards : [], error: snapshot.id === id ? snapshot.error : undefined, loading: !!id && (snapshot.id !== id || !snapshot.view && !snapshot.error), submitTurn };
+    async function refreshView(): Promise<void> { await refresh.current?.(); }
+    return { refresh: refreshView, view: snapshot.id === id ? snapshot.view : undefined, blockedCards: snapshot.id === id ? snapshot.blockedCards : [], error: snapshot.id === id ? snapshot.error : undefined, loading: !!id && (snapshot.id !== id || !snapshot.view && !snapshot.error), submitTurn };
 }

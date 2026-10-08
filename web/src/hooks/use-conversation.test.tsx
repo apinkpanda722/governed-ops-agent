@@ -91,3 +91,11 @@ test("first turn creates a conversation and subsequent failures return only code
     expect(f).toHaveBeenCalledWith("/api/conversations", expect.objectContaining({ method: "POST", body: '{"request":"normal request"}' }));
     await act(async () => { expect(await result.current.submitTurn("normal request")).toEqual({ code: "turn_limit" }); });
 });
+test("exposed refresh uses latest read after id change and is inert after unmount", async () => {
+    const f = vi.fn().mockImplementation(() => Promise.resolve(view("completed"))); vi.stubGlobal("fetch", f);
+    const { result, rerender, unmount } = renderHook(({ id }) => useConversation(id, deps), { initialProps: { id: "id" } });
+    await waitFor(() => expect(result.current.view).toBeDefined()); const refresh = result.current.refresh;
+    rerender({ id: "next" }); await waitFor(() => expect(f).toHaveBeenCalledTimes(2));
+    await act(async () => refresh()); expect(f.mock.calls[2][0]).toBe("/api/conversations/next");
+    unmount(); await refresh(); expect(f).toHaveBeenCalledTimes(3);
+});

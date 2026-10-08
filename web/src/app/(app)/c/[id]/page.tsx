@@ -9,5 +9,5 @@ export default function Conversation() {
         id: string;
     }>();
     const c = useConversation(id);
-    return <><h1 className="text-xl font-semibold">운영 대화</h1>{c.loading && <p role="status">대화를 불러오는 중입니다…</p>}{c.error && <ConflictNotice code={c.error.code}/>}<Thread view={c.view} blockedCards={c.blockedCards}/><Composer status={c.view?.turn?.status} onSubmit={c.submitTurn}/></>;
+    return <><h1 className="text-xl font-semibold">운영 대화</h1>{c.loading && <p role="status">대화를 불러오는 중입니다…</p>}{c.error && <ConflictNotice code={c.error.code}/>}<Thread onChanged={c.refresh} view={c.view} blockedCards={c.blockedCards}/><Composer status={c.view?.turn?.status} onSubmit={c.submitTurn}/></>;
 }
