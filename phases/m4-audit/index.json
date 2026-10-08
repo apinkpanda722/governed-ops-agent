@@ -33,14 +33,16 @@
     {
       "step": 2,
       "name": "audit-log-chain",
-      "status": "pending",
+      "status": "blocked",
       "started_at": "2026-10-08T10:41:24+0900",
       "usage": {
-        "input_tokens": 3045715,
-        "cached_input_tokens": 2967168,
-        "output_tokens": 10483,
-        "attempts": 1
-      }
+        "input_tokens": 4985264,
+        "cached_input_tokens": 4838400,
+        "output_tokens": 10814,
+        "attempts": 2
+      },
+      "blocked_reason": "make verify: tests/test_api_tasks.py:341에서 동시 승인 응답 [200, 202]를 받아 실패했습니다(나머지 Python 3070개 통과). 수정에는 응답 순서 단언 변경이 필요하지만, 지시는 해당 파일을 “감사 디렉터리의 파일 이름·레코드 형식을 읽는 단언의 갱신에 한함”으로 제한하고 “수정할 파일 목록 밖 파일의 수정이 필요함” 등 충돌 시 즉시 blocked를 요구합니다. API 경합 단언 수정 범위의 승인이 필요합니다.",
+      "blocked_at": "2026-10-08T11:05:11+0900"
     },
     {
       "step": 3,
