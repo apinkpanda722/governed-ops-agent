@@ -6,6 +6,8 @@ step 파일 형식 v2는 `## 작업` 절에 아래 두 줄을 가진다(경로�
     수정 허용 경로: `src/govops/x.py`, `tests/test_x.py`
 
 형식 v2는 `FORMAT_V2_FROM` phase부터 필수다(이전 phase는 소급하지 않는다).
+`열람 금지 경로`가 `(없음)`이 아니면 `## 작업`에 `열람 금지의 범위:` 문단이 있어야 한다.
+`SCOPE_REQUIRED_AFTER` 뒤의 phase(목록에 없는 새 phase 포함)는 위반, 그 이전 완료 phase는 경고다.
 검사 실패는 `*_violations`가 돌려주는 문장이고, 소비자 테스트 목록은 경고일 뿐 실패가 아니다.
 외부 도구(rg) 없이 표준 라이브러리만 쓴다.
 """
@@ -19,6 +21,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FORMAT_V2_FROM = "m4-guardrail"
+SCOPE_REQUIRED_AFTER = "m4-audit"
+SCOPE_LINE = "열람 금지의 범위:"
 FORBIDDEN_LINE = "열람 금지 경로:"
 ALLOWED_LINE = "수정 허용 경로:"
 NEGATION = re.compile(r"열람하지 않|열람 금지|열람은 금지|읽지 않")
@@ -145,6 +149,31 @@ def format_required(phase: str, root: Path = ROOT) -> bool:
     if FORMAT_V2_FROM not in order or phase not in order:
         return False
     return order.index(phase) >= order.index(FORMAT_V2_FROM)
+
+
+def scope_required(phase: str, root: Path = ROOT) -> bool:
+    """범위 문단 누락이 위반인 phase(`SCOPE_REQUIRED_AFTER` 뒤 또는 목록에 없는 새 phase)."""
+    index = json.loads((root / "phases/index.json").read_text())
+    order = [entry["dir"] for entry in index["phases"]]
+    if phase not in order:
+        return True
+    return order.index(phase) > order.index(SCOPE_REQUIRED_AFTER)
+
+
+def scope_paragraph_violations(text: str) -> list[str]:
+    """열람 금지 경로가 있으면 `## 작업`에 본문이 있는 `열람 금지의 범위:` 문단이 있어야 한다."""
+    lines = machine_lines(text)
+    if lines is None or not lines["forbidden"]:
+        return []
+    match = re.search(
+        rf"^{re.escape(SCOPE_LINE)}[ \t]*(\S.*)$", section(text, "작업"), re.M
+    )
+    if match:
+        return []
+    return [
+        f"`{FORBIDDEN_LINE}`가 (없음)이 아닌데 `## 작업`에 본문이 있는 "
+        f"`{SCOPE_LINE}` 문단이 없다(FP-059)"
+    ]
 
 
 def read_list_violations(text: str) -> list[str]:
@@ -383,6 +412,11 @@ def main(argv: list[str]) -> int:
     for arg in argv:
         text = Path(arg).read_text()
         print(f"== {arg}")
+        for problem in scope_paragraph_violations(text):
+            if scope_required(Path(arg).resolve().parent.name):
+                print(f"FAIL [열람 금지의 범위] {problem}")
+            else:
+                print(f"WARN [열람 금지의 범위] {problem}")
         for title, problems in (
             ("형식", format_violations(text)),
             ("읽기 목록 ↔ 열람 금지", read_list_violations(text)),

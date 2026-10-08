@@ -76,6 +76,7 @@ def make_step(
     para="**수정할 파일**(이 목록이 전부다): `src/govops/x.py`(신규).",
     ac="make verify",
     bans="- 아무것도 하지 마라.",
+    scope="",
 ):
     return f"""# Step 0: sample
 
@@ -89,7 +90,7 @@ def make_step(
 
 열람 금지 경로: {forbidden}
 수정 허용 경로: {allowed}
-
+{scope}
 본문.
 
 ## Acceptance Criteria
@@ -124,6 +125,18 @@ def test_every_v2_step_file_has_machine_lines_and_passes_all_checks():
             "declared_path_violations",
         ):
             assert getattr(checks, name)(text) == [], f"{path}: {name}"
+
+
+def test_new_v2_step_files_have_the_scope_paragraph_and_old_ones_only_warn():
+    for path in v2_step_files():
+        problems = checks.scope_paragraph_violations(path.read_text())
+        if checks.scope_required(path.parent.name):
+            assert problems == [], f"{path}: {problems}"
+        else:
+            for problem in problems:
+                warnings.warn(
+                    f"{path.parent.name}/{path.name}: {problem}", stacklevel=1
+                )
 
 
 def test_consumer_test_warnings_are_reported_but_do_not_fail():
@@ -267,3 +280,43 @@ def test_format_required_follows_the_phase_order(tmp_path):
     assert not checks.format_required("old", tmp_path)
     assert checks.format_required(checks.FORMAT_V2_FROM, tmp_path)
     assert checks.format_required("new", tmp_path)
+
+
+SCOPE = "\n열람 금지의 범위: Codex의 직접 열람만 금지한다. 코드의 런타임 접근은 대상이 아니다.\n"
+
+
+def test_scope_paragraph_required_when_a_path_is_forbidden():
+    text = make_step(forbidden="`data/interim/`")
+    assert len(checks.scope_paragraph_violations(text)) == 1
+    assert (
+        checks.scope_paragraph_violations(
+            make_step(forbidden="`data/interim/`", scope=SCOPE)
+        )
+        == []
+    )
+
+
+def test_scope_paragraph_not_required_when_nothing_is_forbidden():
+    assert checks.scope_paragraph_violations(make_step(forbidden="(없음)")) == []
+
+
+def test_scope_paragraph_must_have_a_body_and_sit_in_the_work_section():
+    empty = make_step(forbidden="`data/interim/`", scope="\n열람 금지의 범위:\n")
+    assert checks.scope_paragraph_violations(empty)
+    outside = (
+        make_step(forbidden="`data/interim/`")
+        + "\n열람 금지의 범위: 작업 절 밖에 둔 문단이다.\n"
+    )
+    assert checks.scope_paragraph_violations(outside)
+
+
+def test_scope_required_only_for_phases_after_m4_audit_or_unlisted(tmp_path):
+    (tmp_path / "phases").mkdir()
+    order = ["m4-guardrail", checks.SCOPE_REQUIRED_AFTER, "m5-next"]
+    (tmp_path / "phases/index.json").write_text(
+        json.dumps({"phases": [{"dir": d} for d in order]})
+    )
+    assert not checks.scope_required("m4-guardrail", tmp_path)
+    assert not checks.scope_required(checks.SCOPE_REQUIRED_AFTER, tmp_path)
+    assert checks.scope_required("m5-next", tmp_path)
+    assert checks.scope_required("not-yet-listed", tmp_path)
