@@ -19,6 +19,7 @@ let valid:boolean;
 let calls:number;
 let receivedAuth:string|undefined;
 let receivedBody:unknown;
+let receivedUrl:string|undefined;
 let failure:{status:number;detail:string}|undefined;
 let closed:Promise<unknown>;
 let timer:ReturnType<typeof setInterval>|undefined;
@@ -34,7 +35,7 @@ function req(path:string,method="GET",body?:unknown, options:{cookie?:string;ori
 beforeEach(async()=>{
  token=randomBytes(32).toString("base64url"); valid=true; calls=0; failure=undefined;
  server=createServer(async (request,response)=>{
-  calls++; receivedAuth=request.headers.authorization;
+  calls++; receivedAuth=request.headers.authorization; receivedUrl=request.url;
   const chunks=[]; for await(const chunk of request) chunks.push(chunk);
   receivedBody=chunks.length?JSON.parse(Buffer.concat(chunks).toString()):undefined;
   response.setHeader("content-type","application/json");
@@ -53,6 +54,9 @@ beforeEach(async()=>{
    return;
   }
   const junk={rules:"SENTINEL-rules",messages:token,guardrail:{masked:token},reasoning:"SENTINEL-reason"};
+  if(request.method==="GET"&&request.url?.startsWith("/conversations?")){
+   response.end(JSON.stringify({conversations:[{conversation_id:id,title:"대화",status:"completed",awaiting_approval:false,turn_count:1,updated_at:"2026-10-08T12:00:00Z",request:"SENTINEL",history:"SENTINEL",answer:"SENTINEL",secret:token}],secret:token}));return;
+  }
   if(request.url==="/approvals"){response.end(JSON.stringify({approvals:[{...safe,...junk,requester_label:"demo-platform-g3",history:"SENTINEL-history",conversation_id:id}]}));return;}
   if(request.method==="POST")response.statusCode=202;
   response.end(JSON.stringify(request.method==="GET"?{conversation_id:id,turn_index:1,history:[{role:"assistant",content:"previous"}],turn:{...safe,...junk}}:{conversation_id:id,...safe,...junk}));
@@ -186,4 +190,33 @@ test("connection failure becomes a fixed 502 and logout still clears cookie",asy
  expect(response.status).toBe(502);expect(await response.json()).toEqual({code:"upstream_unavailable"});
  const logout=await session.DELETE(req("session","DELETE",undefined,{cookie:token}));
  expect(logout.status).toBe(502);expect(logout.headers.get("set-cookie")).toContain("Expires=Thu, 01 Jan 1970");
+});
+
+test("conversation list authenticates, projects and fixes the upstream query",async()=>{
+ const missing=await conversations.GET(req("conversations"));
+ expect(missing.status).toBe(401);expect(calls).toBe(0);
+ expect(missing.headers.get("cache-control")).toBe("no-store");
+ const response=await conversations.GET(req("conversations?limit=1000&owner=other","GET",undefined,{cookie:token,origin:"http://evil.test"}));
+ expect(response.status).toBe(200);expect(calls).toBe(1);
+ expect(receivedUrl).toBe("/conversations?limit=50");
+ expect(receivedAuth===`Bearer ${token}`).toBe(true);
+ expect(response.headers.get("cache-control")).toBe("no-store");
+ const body=await response.json();
+ expect(body).toEqual({conversations:[{conversation_id:id,title:"대화",status:"completed",awaiting_approval:false,turn_count:1,updated_at:"2026-10-08T12:00:00Z"}]});
+ expect(JSON.stringify(body)).not.toContain("SENTINEL");expect(JSON.stringify(body).includes(token)).toBe(false);
+});
+test("conversation list clears unauthorized sessions and maps upstream failures",async()=>{
+ for(const status of [401,500,503]){
+ failure={status,detail:"SENTINEL"};
+ const response=await conversations.GET(req("conversations","GET",undefined,{cookie:token,origin:null}));
+ expect(response.status).toBe(status===401?401:502);
+ expect(response.headers.get("cache-control")).toBe("no-store");
+ expect(await response.json()).toEqual({code:status===401?"unauthenticated":"upstream_unavailable"});
+ if(status===401)expect(response.headers.get("set-cookie")).toContain("Expires=Thu, 01 Jan 1970");
+ }
+ server.closeAllConnections();
+ await new Promise<void>((resolve,reject)=>{const limit=setTimeout(()=>reject(new Error("close timeout")),2000);server.close(()=>{clearTimeout(limit);resolve();});});
+ const response=await conversations.GET(req("conversations","GET",undefined,{cookie:token}));
+ expect(response.status).toBe(502);expect(await response.json()).toEqual({code:"upstream_unavailable"});
+ expect(response.headers.get("cache-control")).toBe("no-store");
 });

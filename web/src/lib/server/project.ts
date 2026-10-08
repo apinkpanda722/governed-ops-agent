@@ -43,6 +43,13 @@ export function projectTurn(value: unknown): Obj {
     if (typeof b.code === "string" && ["injection_direct", "pii_input", "other"].includes(b.code)) result.code = b.code;
     out.block = result;
   }
+  if (Array.isArray(t.tool_steps)) out.tool_steps = t.tool_steps.flatMap(item => {
+    const step = object(item);
+    return typeof step.name === "string" && /^[a-z_]{1,40}$/.test(step.name) && typeof step.ok === "boolean"
+      ? [{ name: step.name, ok: step.ok }] : [];
+  }).slice(0, 20);
+  if (typeof t.approval_method === "string" && ["approve", "edit_approve"].includes(t.approval_method)) out.approval_method = t.approval_method;
+  if (typeof t.effect_at === "string" && t.effect_at.length <= 64 && Number.isFinite(Date.parse(t.effect_at))) out.effect_at = t.effect_at;
   return out;
 }
 export function projectConversation(value: unknown): Obj {
@@ -80,4 +87,23 @@ export function projectUser(value: unknown): Obj { return strings(object(value),
 export function projectUsers(value: unknown): Obj {
   const users = object(value).users;
   return Array.isArray(users) ? { users: users.filter(v => typeof v === "string" && /^demo-[a-z-]+-g[0-9]+$/.test(v)) } : {};
+}
+
+export function projectConversationList(value: unknown): Obj {
+  const v = object(value);
+  if (!Array.isArray(v.conversations)) return {};
+  return { conversations: v.conversations.flatMap(item => {
+    const row = object(item);
+    if (typeof row.conversation_id !== "string" || !/^[0-9a-f]{32}$/.test(row.conversation_id) ||
+        typeof row.title !== "string" || row.title.length > 80 ||
+        typeof row.status !== "string" || !statuses.includes(row.status) ||
+        typeof row.awaiting_approval !== "boolean" ||
+        typeof row.turn_count !== "number" || !Number.isInteger(row.turn_count) || row.turn_count < 0 ||
+        typeof row.updated_at !== "string" || row.updated_at.length > 64) return [];
+    return [{
+      conversation_id: row.conversation_id, title: row.title || "새 대화",
+      status: row.status, awaiting_approval: row.awaiting_approval,
+      turn_count: row.turn_count, updated_at: row.updated_at,
+    }];
+  }).slice(0, 50) };
 }
