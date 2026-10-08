@@ -228,7 +228,7 @@ B 전체 기간 총액(월 단위 아님). 모든 유료 호출은 **호출 직�
 
 ## 결과 보고 (`docs/results/`)
 - 결과 문서마다 날짜, 커밋 해시, 모드(live/replay), 모델 ID·설정, 실행 수(분모), 용도별 비용, live면 A git HEAD·계약 스냅샷 해시·인덱스 이름을 적는다.
-- 감사 로그 고정점(마지막 seq·hash 서명)을 실행마다 manifest에 커밋한다.
+- 감사 로그 고정점(`chain.anchor`의 seq·hash 서명)을 실행마다 대기 파일(`anchors-pending.jsonl`)에 남기고 결과 PR이 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다.
 
 ## 변경 기록
 - 2026-10-03: 결정 9로 확정.

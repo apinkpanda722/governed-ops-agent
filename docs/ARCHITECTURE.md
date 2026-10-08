@@ -84,9 +84,9 @@ data/
 ├── manifest/     # costs.jsonl·costs_grading.jsonl (커밋)
 ├── raw/          # 커밋 안 함
 └── interim/      # 커밋 안 함 (감사 서명 개인키 0600 등)
-    ├── audit/      # 비체인 감사 JSONL, 0600(ADR-018)
+    ├── audit/      # 감사 체인 JSONL·legacy·고정점 대기 파일, 0600(ADR-012)
     └── eval/cards/  # 오프라인 검수 카드 HTML 한 장(index.html: 목록·카드 60장·판정 저장), 본문 발췌 포함이라 커밋 안 함
-docs/results/     # 결과표, 가설 사전 등록, 감사 고정점 manifest (날짜·커밋 해시)
+docs/results/     # 결과표, 가설 사전 등록, 감사 고정점 audit-anchors.jsonl (대기 파일에서 결과 PR로 이동)
 └── human-grading-registration.json  # docs/results/human-grading-registration.json, 사람 CSV 해시 등록
 logs/             # 로컬 JSONL trace (커밋 안 함)
 └── traces/<task_id>.jsonl  # task별 마스킹 span
@@ -355,28 +355,31 @@ Langfuse annotation queue는 셀프호스팅 3.225.11에서 API가 HTTP 200으�
 
 ## 감사 로그
 
-trace와 다르게 책임 추적용이다. 현재 `audit/log.py`의 비체인 JSONL(`data/interim/audit/`, 0600)과 AuditPort로 부작용 생애주기·Guardrail 이벤트를 기록한다. M4 phase 2는 같은 인터페이스에 해시체인·서명을 추가해 보안·부작용 사건 전체의 위변조를 탐지한다(ADR-012·ADR-018).
+trace와 다르게 책임 추적용이다. `audit/log.py`의 AuditLog와 AuditPort로 부작용 생애주기·Guardrail·시스템·성공 모델 호출 이벤트를 기록한다. SHA-256 해시체인과 Ed25519 서명은 ADR-012를 따른다.
 
-**M4 phase 2 확장 대상:** 부작용 생애주기 전부(초안, 승인 요청, 승인·수정·거부·만료, 실행 시도, 결과, 표식 조회), Guardrail 차단·격리, 쓰기 권한 거부, 인증 실패, 모델 호출마다 최소 기록(task, 사용자, 팀 키, 모델, fallback 여부, 비용, Guardrail 판정), 서비스 시작 시 정책 파일 해시. 승인·수정 사건에는 승인자와 수정 전후 초안 해시를 넣는다.
-
-**M4 phase 2 형식(JSONL 한 줄 = 사건 하나):**
+**형식(JSONL 한 줄 = 사건 하나, 아래 값은 형식 설명용):**
 
 ```json
-{"seq": 42, "ts": "2026-10-20T10:15:03.120+09:00", "prev_hash": "<직전 줄 hash>",
- "actor": {"sub": "demo-payments-g4", "act": "governed-ops-agent"},
- "event": "side_effect.attempt", "task_id": "...",
- "tool": "...", "idempotency_key": "...", "draft_sha256": "...", "mock_id": null,
- "hash": "<SHA-256>", "sig": "<Ed25519(hash)>"}
+{"seq": "<정수>", "ts": "<UTC ISO 8601>", "prev_hash": "<직전 줄 hash>",
+ "actor": {"sub": "<인증된 사용자 ID>", "act": "governed-ops-agent"},
+ "event": "side_effect.attempt", "task_id": "<task ID>",
+ "tool": "<도구 이름>", "idempotency_key": "<정규화 인자 해시>",
+ "draft_sha256": "<초안 해시>", "mock_id": null,
+ "kid": "<공개키 DER SHA-256 앞 12자>",
+ "hash": "<SHA-256 hex>", "sig": "<Ed25519 서명 hex>"}
 ```
 
-- `hash` = SHA-256(정규화 JSON: 키 정렬·공백 없음·UTF-8, `hash`·`sig` 제외). `sig` = Ed25519(`hash`).
-- 날짜별 파일로 나눠도 체인은 이어진다. 쓰는 곳은 B 서비스의 `audit/` 한 곳이다.
-- **원문 대신 내용 해시와 mock ID만** 남긴다(지울 수 없는 로그에 PII를 넣지 않는다).
-- 실행 전 의도 기록, 실행 후 결과 기록. 실행 전 감사 로그 쓰기에 실패하면 부작용을 실행하지 않는다(fail-closed). 결과 기록 실패는 재시도 후 `audit_gap`으로 표시한다(ADR-018).
-- 고정점: 실행마다 마지막 `seq`·`hash`를 서명해 `docs/results/` manifest에 커밋한다. 체인만으로는 꼬리 잘라내기와 전체 재계산을 막지 못하기 때문이다.
-- 키: 개인키는 gitignore된 `data/interim/`에 0600(사용자 생성), 공개키만 커밋한다.
-- `make audit-verify`: 체인·서명·seq 빈틈·고정점을 검증한다.
-- 부작용 생애주기 이벤트는 ADR-018, Guardrail 이벤트는 ADR-023을 따른다. 해시체인·서명과 나머지 사건별 추가 필드는 M4 phase 2에서 구현한다.
+- `hash` = SHA-256(정규화 JSON: 키 정렬·공백 없음·UTF-8, `hash`·`sig` 제외, `kid` 포함). `sig`는 hash의 ASCII 문자열에 대한 Ed25519 서명이다.
+- 파일은 `data/interim/audit/chain-YYYY-MM-DD.jsonl`(0600), 날짜는 UTC이며 날짜가 바뀌어도 `prev_hash`가 이어진다. 쓰는 곳은 `audit/` 한 곳이다. 기존 `YYYY-MM-DD.jsonl`은 legacy로 남기고 첫 쓰기의 `chain.genesis`가 파일 수·줄 수·마지막 seq·`legacy_sha256`으로 파일 집합을 봉인한다. legacy는 “체인 없음(미검증)”으로 따로 보고하며 PASS로 세지 않는다.
+- 프로세스 내 디렉터리별 잠금과 디렉터리 fd의 `flock(LOCK_EX | LOCK_NB)` 재시도는 전체 10초 마감이다. 초과는 `audit_lock_timeout`(fail-closed), 개행 없는 체인 꼬리는 `audit_chain_corrupt`로 append 거부다.
+- **원문 대신 내용 해시와 mock ID만** 남긴다. 실행 전 의도 기록 실패 시 부작용을 실행하지 않는다(fail-closed). 결과 기록 실패는 재시도 후 `audit_gap`으로 표시한다(ADR-018).
+- 시스템 이벤트 `service.start`·`chain.genesis`·`chain.anchor`·`auth.failed`는 `actor.sub="system"`, `task_id=null`이다. `service.start`는 정책·규칙·접근 인덱스 해시와 훅 규칙·코드 digest를 남긴다.
+- `model.call`은 성공한 호출의 task·사용자·팀 식별자·모델 별칭·배포 ID·fallback·`cost_usd`(고정 6자리 문자열)·가용한 Guardrail 판정만 남긴다. 팀 키 값과 원문은 기록하지 않는다. 스레드 쓰기 실패는 fail-open으로 `model.audit_gap` 경보를 남긴다. 실패·차단된 호출의 `model.call`은 미기록이며 비용 원장·trace와 `guardrail.input_blocked`가 각각 기록한다.
+- `auth.failed` 사유 enum은 `missing_credentials`·`invalid_token`·`unknown_user`·`loopback_required`다. 앱별 스레드 안전 분당 60건 상한과 다음 허용 기록의 `suppressed` 집계를 사용한다. 호출자 sub는 식별하지 않으며 감사 실패는 인증 응답을 바꾸지 않는다.
+- 고정점: `make audit-anchor LABEL=…`와 dev·faults 러너가 `chain.anchor`를 덧붙이고 `data/interim/audit/anchors-pending.jsonl`(`AUDIT_ANCHORS_PENDING_FILE`, gitignore)에 `{dir, seq, hash, sig, kid, label, ts}`를 쓴다. 러너 종료 시 디렉터리별 고정점 실패는 fail-open으로 보고한다. 대기 파일 → 결과 PR이 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다.
+- 키: `AUDIT_KEY_FILE` 기본 `data/interim/audit_ed25519.pem`(0600, 사용자 생성), `AUDIT_PUBLIC_KEY_FILE` 기본 `data/seed/audit_public_key.pem`(공개키만 커밋). 키 누락·권한·짝 오류는 서비스·러너 시작을 거부한다.
+- 읽기 전용 `make audit-verify`는 체인·서명·seq 빈틈·`legacy_sha256`과 두 고정점 파일을 `(dir, seq, hash)`로 중복 제거해 대조한다. `make smoke-audit`는 변조 5종과 실제 체인을 검증한다. 고정점 레코드 뒤만 자르면 다음 고정점 전까지 탐지하지 못하며, 같은 키로 전체 재계산은 고정점으로만 탐지한다.
+- 부작용 생애주기 이벤트는 ADR-018, Guardrail 이벤트는 ADR-023, 체인·서명과 시스템·모델 이벤트 필드는 ADR-012를 따른다. 쓰기 권한 거부는 `side_effect.result`의 `reason`으로 기록하며 웹 기록 화면의 검증 결과 표시는 M7이다.
 
 ## BFF 인증 흐름 (httpOnly 쿠키)
 
