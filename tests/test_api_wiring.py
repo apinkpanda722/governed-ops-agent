@@ -1,4 +1,5 @@
 import asyncio
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -163,6 +164,16 @@ def test_wiring_approval_dependencies(
         async with open_task_service() as service:
             assert isinstance(service.effects.outbox, InMemoryOutboxStore)
             assert service.audit.directory == tmp_path
+            records = [
+                json.loads(line)
+                for path in tmp_path.glob("chain-*.jsonl")
+                for line in path.read_text().splitlines()
+            ]
+            assert [row["event"] for row in records] == [
+                "chain.genesis",
+                "service.start",
+            ]
+            assert records[1]["actor"]["sub"] == "system"
             assert len(service.users) == 38
             assert service.graph.agent_profile.name == profile
             assert service.graph.agent_profile.allow_writes

@@ -3,6 +3,7 @@
 import asyncio
 import re
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 
 from langgraph.types import Command
@@ -42,6 +43,12 @@ class TaskService:
         self._locks: dict[str, asyncio.Lock] = {}
         self._tasks: set[asyncio.Task] = set()
         self._closed = False
+
+    def anchor(self, label: str, *, repo_root: Path | None = None) -> dict:
+        anchor = getattr(self.audit, "anchor", None)
+        if not callable(anchor):
+            raise RuntimeError("audit_anchor_unsupported")  # noqa: TRY004 - service contract
+        return anchor(label, repo_root=repo_root)
 
     @staticmethod
     def _config(task_id):

@@ -1,5 +1,6 @@
 """Production assembly; credentials remain inside their respective clients."""
 
+import hashlib
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,13 +19,14 @@ from govops.agent.scope import ScopeIndex
 from govops.agent.users import load_users
 from govops.api.startup import StartupError, verify_contract
 from govops.api.tasks import TaskService
-from govops.audit.log import AuditLog
+from govops.audit.crypto import AuditKeyError
+from govops.audit.log import AuditLog, AuditWriteError
 from govops.env import env_or
 from govops.gateway.client import LiteLLMChatClient
 from govops.gateway.faults import model_fault_mode
-from govops.gateway.hook_digest import compute_digests
+from govops.gateway.hook_digest import compute_digests, rules_sha256_full
 from govops.gateway.team_keys import TeamKeyResolver
-from govops.guardrails.policy import load_team_policy
+from govops.guardrails.policy import load_team_policy, team_policy_sha256
 from govops.obs.jsonl import JsonlSink
 from govops.obs.langfuse import langfuse_sink_from_env
 from govops.obs.mask import register_secret_values
@@ -48,8 +50,35 @@ def build_task_service(
     clock=None,
 ) -> TaskService:
     """Assemble explicitly injected dependencies without consulting model/profile settings."""
+    root = Path(__file__).resolve().parents[3]
+    try:
+        audit = AuditLog(
+            audit_dir if audit_dir is not None else Path("data/interim/audit")
+        )
+        try:
+            policy_sha256 = team_policy_sha256(root / "data/policy/team_policy.json")
+            access_index_sha256 = hashlib.sha256(
+                (root / "data/seed/access_index.json").read_bytes()
+            ).hexdigest()
+            rules_sha256 = rules_sha256_full(root)
+            digests = compute_digests(root)
+        except OSError:
+            raise StartupError("audit_start_hash_unavailable") from None
+        audit.append(
+            "service.start",
+            task_id=None,
+            actor_sub="system",
+            policy_sha256=policy_sha256,
+            rules_sha256=rules_sha256,
+            access_index_sha256=access_index_sha256,
+            hook_rules_digest=digests.rules,
+            hook_code_digest=digests.code,
+        )
+    except AuditKeyError as error:
+        raise StartupError(error.code) from None
+    except AuditWriteError:
+        raise StartupError("audit_write_failed") from None
     effects = EffectDeps(tools.jira, tools.slack, outbox)
-    audit = AuditLog(audit_dir if audit_dir is not None else Path("data/interim/audit"))
     users = load_users()
     graph = build_graph(
         chat,
