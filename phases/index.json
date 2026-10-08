@@ -80,7 +80,8 @@
     },
     {
       "dir": "m4-audit",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_at": "2026-10-08T10:14:30+0900"
     }
   ]
 }
