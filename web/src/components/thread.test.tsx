@@ -50,7 +50,7 @@ test("approval slot forwards refresh and shows completed effect only after appro
     const { rerender } = render(<Thread onChanged={changed} view={view("awaiting_approval", { draft: { tool: "slack_send_message", args: { channel: "platform", text: "초안" } }, draft_sha256: "a".repeat(64), expires_at: new Date(Date.now() + 60000).toISOString() })}/>);
     fireEvent.click(screen.getByTestId("approval-approve")); await waitFor(() => expect(changed).toHaveBeenCalledOnce());
     rerender(<Thread view={view("completed", { effect: { mock_id: "syn-effect" } })}/>);
-    expect(screen.queryByTestId("approval-card")).toBeNull(); expect(screen.getByTestId("approval-result").textContent).toContain("syn-effect");
+    expect(screen.queryByTestId("approval-card")).toBeNull(); expect(screen.getByTestId("sent-card").textContent).toContain("syn-effect");
     rerender(<Thread view={view("expired")}/>); expect(screen.queryByTestId("approval-card")).toBeNull(); expect(screen.getByTestId("turn-error").textContent).toBe("승인 시간이 지나 종료되었습니다.");
 });
 test("completed answers and assistant history render markdown without completed status", () => {
