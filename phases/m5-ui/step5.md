@@ -53,7 +53,7 @@
 
 ### 4. 훅과 페이지
 
-- `use-conversation.ts`: **`running`인 동안 2초 간격으로 대화를 다시 읽는다**(진행 중 도구 단계를 보이기 위해). 이 폴링은 **기존 단일 타이머를 공유한다**(타이머는 항상 최대 1개: SSE 오류 폴백과 `running` 폴링은 같은 타이머). `awaiting_approval`에서는 SSE 이벤트와 `refresh()`로만 갱신한다. 탭이 숨겨지면(`visibilitychange`, `document.visibilityState === "hidden"`) 타이머를 멈추고 다시 보이면 즉시 한 번 읽어 재개한다. 종료 상태에서는 즉시 모든 타이머와 스트림을 닫는다. 기존 반환 키·차단 카드 유지·StrictMode 정리·401 처리는 그대로다.
+- `use-conversation.ts`: **`running`인 동안 2초 간격으로 대화를 다시 읽는다**(진행 중 도구 단계를 보이기 위해). 이 폴링은 **기존 단일 타이머를 공유한다**(타이머는 항상 최대 1개: SSE 오류 폴백과 `running` 폴링은 같은 타이머). `awaiting_approval`에서 **SSE가 살아 있으면**(연결이 열려 있고 `onerror`가 한 번도 호출되지 않은 상태) SSE 이벤트와 `refresh()`로만 갱신한다. SSE 오류 폴백 폴링은 `running`·`awaiting_approval` 모두에서 기존대로 2초 간격이다(같은 단일 타이머). 탭이 숨겨지면(`visibilitychange`, `document.visibilityState === "hidden"`) 타이머를 멈추고 다시 보이면 즉시 한 번 읽어 재개한다. 종료 상태에서는 즉시 모든 타이머와 스트림을 닫는다. 기존 반환 키·차단 카드 유지·StrictMode 정리·401 처리는 그대로다.
 - `(app)/c/[id]/page.tsx`: 본문 열은 세로 flex. 스크롤 영역(최대 폭 약 3xl, 가운데)에 `Thread`, 아래에 `sticky bottom-0` 입력 영역(`Composer`). 새 내용이 오면 맨 아래로 스크롤하되 사용자가 위로 스크롤해 둔 동안은 끌어내리지 않는다. 대화 상태가 바뀔 때(상태 문자열 변화)와 제출 성공 뒤에 `useConversationList().refresh()`를 부른다. `onChanged`는 기존처럼 대화 `refresh`를 넘긴다.
 - `(app)/c/page.tsx`: 안내 문구("무엇을 도와드릴까요?"와 `AGENT_DESCRIPTION`)와 `Composer`. 제출이 성공하면 목록 `refresh()` 뒤 `/c/{conversation_id}`로 이동한다.
 
@@ -63,7 +63,7 @@
 - `tool-steps.test.tsx`: 접힌 상태 요약(성공·실패 개수), 펼치면 단계 행과 한국어 라벨(모르는 이름은 그대로), `aria-expanded`, `defaultOpen`, **센티널 인자·결과를 담은 객체를 넘겨도 DOM에 없다**(허용 필드만 렌더링).
 - `thread.test.tsx`(갱신): 기존 단언을 유지한다 — 차단 카드 유지(센티널 부재 포함), 격리 문구, 알 수 없는 키·차단 요청 비노출, 상태별 `turnError` 정확한 문구 4종, 인용 칩 텍스트, 카드 위치 순서, 승인 슬롯 전달. 새로 추가한다: `completed`에서 `turnStatus`가 없고 `running`에서 있음, `running`에서 `turnSkeleton`·펼쳐진 도구 단계, `blocked`가 `checkBlockedCard`로 그려지며 문구가 `check.message` → `answer` → 일반 문구 순으로 나오고 "정책 차단"·빈 문구가 아님(분류가 입력 차단 카드와 구분됨), 답변이 마크다운으로 렌더링됨, 이력의 assistant 메시지도 마크다운, 도구 단계의 센티널 비노출.
 - `composer.test.tsx`(갱신 + 추가): 기존 단언 유지(409 세 종류와 `invalid_request` 문구·입력 유지, 길이·공백·성공 시 비움, 진행 중 비활성). 추가: Enter 한 번에 제출 1회, Shift+Enter는 제출 없음, 한글 조합 중 Enter(`isComposing` 참, `keyCode` 229) 제출 없음, 진행 중 Enter 무시, `composerHint` 문구, 전송 버튼 `aria-label`.
-- `use-conversation.test.tsx`(갱신 + 추가): **기존 테스트를 그대로 통과**해야 한다(특히 SSE 오류 시 2초 폴링과 타이머 수, 언마운트 시 타이머 0, 폴링 중 타이머 수 1). 추가: SSE가 살아 있어도 `running`이면 2초마다 읽고 종료 상태에서 멈춤, `awaiting_approval`에서는 폴링하지 않음, 탭이 숨겨지면 타이머 0이고 보이면 즉시 읽기, 폴링과 SSE 이벤트가 겹쳐도 동시에 한 번만 읽기. 가짜 타이머와 유한 timeout만 쓴다(FP-066).
+- `use-conversation.test.tsx`(갱신 + 추가): **기존 테스트를 그대로 통과**해야 한다(특히 SSE 오류 시 2초 폴링과 타이머 수, 언마운트 시 타이머 0, 폴링 중 타이머 수 1). 추가: SSE가 살아 있어도 `running`이면 2초마다 읽고 종료 상태에서 멈춤, `awaiting_approval`에서 SSE가 살아 있으면(연결이 열려 있고 `onerror`가 한 번도 호출되지 않은 상태) 타이머 수가 0이고 시간이 지나도 읽지 않음(SSE 오류 뒤 `awaiting_approval`의 2초 폴백은 기존 `stream error closes and polls every two seconds until terminal`이 이미 덮으므로 중복 추가하지 않는다), 탭이 숨겨지면 타이머 0이고 보이면 즉시 읽기, 폴링과 SSE 이벤트가 겹쳐도 동시에 한 번만 읽기. 가짜 타이머와 유한 timeout만 쓴다(FP-066).
 
 ## Acceptance Criteria
 
