@@ -56,6 +56,19 @@ class ApprovalRequest(BaseModel):
         return self
 
 
+def get_task_service(request: Request) -> TaskService:
+    """라우트가 서비스를 얻는 유일한 경로.
+
+    실제 서버 진입점(`api/__main__.py`)은 자리표시자 서비스로 앱을 만들고 lifespan에서
+    `app.state.task_service`를 실제 서비스로 바꾼다. create_app 클로저의 `service`를 라우트가
+    붙잡으면 생성 시점의 자리표시자를 쓰게 된다(FP-070).
+    """
+    return request.app.state.task_service
+
+
+TASK_SERVICE = Depends(get_task_service)
+
+
 def create_app(
     *,
     users: frozenset[str],
@@ -120,18 +133,22 @@ def create_app(
 
         @app.get("/conversations/{conversation_id}")
         async def read_conversation(
-            conversation_id: str, user_id: str = Depends(current_user)
+            conversation_id: str,
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
         ):
             try:
-                return await service.conversation_view(user_id, conversation_id)
+                return await tasks.conversation_view(user_id, conversation_id)
             except ConversationError as error:
                 raise HTTPException(error.status_code, detail=error.code) from None
 
         @app.get("/conversations/{conversation_id}/events")
         async def conversation_events(
-            conversation_id: str, request: Request, user_id: str = Depends(current_user)
+            conversation_id: str,
+            request: Request,
+            user_id: str = Depends(current_user),
+            task_service: TaskService = TASK_SERVICE,
         ):
-            task_service = request.app.state.task_service
             initial = await task_service.progress(user_id, conversation_id)
             if initial is None:
                 raise HTTPException(404, detail="conversation_not_found")
@@ -197,15 +214,20 @@ def create_app(
             )
 
         @app.get("/approvals")
-        async def list_approvals(user_id: str = Depends(current_user)):
-            return await service.approvals(user_id)
+        async def list_approvals(
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
+        ):
+            return await tasks.approvals(user_id)
 
         @app.post("/conversations", status_code=202)
         async def start_conversation(
-            body: TaskRequest, user_id: str = Depends(current_user)
+            body: TaskRequest,
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
         ):
             try:
-                return await service.start_conversation(user_id, body.request)
+                return await tasks.start_conversation(user_id, body.request)
             except ConversationError as error:
                 raise HTTPException(error.status_code, detail=error.code) from None
 
@@ -214,20 +236,21 @@ def create_app(
             conversation_id: str,
             body: TaskRequest,
             user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
         ):
             try:
-                return await service.add_turn(user_id, conversation_id, body.request)
+                return await tasks.add_turn(user_id, conversation_id, body.request)
             except ConversationError as error:
                 raise HTTPException(error.status_code, detail=error.code) from None
 
         @app.post("/tasks", status_code=202)
         async def start_task(
-            body: TaskRequest, request: Request, user_id: str = Depends(current_user)
+            body: TaskRequest,
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
         ):
             try:
-                task_id = await request.app.state.task_service.start(
-                    user_id, body.request
-                )
+                task_id = await tasks.start(user_id, body.request)
             except ValueError:
                 raise HTTPException(status_code=422, detail="Invalid request") from None
             return {"task_id": task_id}
@@ -236,13 +259,11 @@ def create_app(
         async def approve_task(
             task_id: str,
             body: ApprovalRequest,
-            request: Request,
             user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
         ):
             try:
-                code, view = await request.app.state.task_service.approve(
-                    user_id, task_id, **body.model_dump()
-                )
+                code, view = await tasks.approve(user_id, task_id, **body.model_dump())
             except ApprovalError as error:
                 raise HTTPException(
                     status_code=error.status_code,
@@ -254,9 +275,11 @@ def create_app(
 
         @app.get("/tasks/{task_id}")
         async def read_task(
-            task_id: str, request: Request, user_id: str = Depends(current_user)
+            task_id: str,
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
         ):
-            result = await request.app.state.task_service.get(user_id, task_id)
+            result = await tasks.get(user_id, task_id)
             if result is None:
                 raise HTTPException(status_code=404, detail="Task not found")
             return result
