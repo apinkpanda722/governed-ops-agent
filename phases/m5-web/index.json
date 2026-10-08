@@ -35,14 +35,14 @@
       "name": "bff",
       "status": "blocked",
       "started_at": "2026-10-08T19:37:27+0900",
-      "blocked_reason": "선점검에서 지시 충돌을 발견했습니다. 투영 요구사항은 `turn`에 \"`expires_at`\"을 포함하고 승인함 행에도 \"`expires_at`\"을 포함하도록 명시하지만, 이 step의 금지사항은 \"응답 본문·로그·오류에 토큰, `expires_at`, 업스트림 응답 원문을 넣지 마라.\"라고 명시합니다. 로그인 응답의 expires_at만 금지하는 것인지, 모든 응답에서 금지하는 것인지 확인이 필요합니다. 지시에 따라 코드 작성·수정 및 검증 실행 전에 중단했습니다.",
-      "blocked_at": "2026-10-08T19:39:35+0900",
       "usage": {
-        "input_tokens": 27160,
-        "cached_input_tokens": 0,
-        "output_tokens": 224,
+        "input_tokens": 54900,
+        "cached_input_tokens": 27008,
+        "output_tokens": 683,
         "attempts": 1
-      }
+      },
+      "blocked_reason": "선점검에서 테스트 요구와 공통 금지사항이 충돌합니다. 통합 테스트는 “스텁은 FastAPI의 실제 계약에서 BFF에 중요한 부분을 재현한다: 모르는 Bearer는 401, `POST /sessions`는 토큰과 `expires_at`를 주고, `DELETE /sessions`는 그 토큰을 폐기하며, SSE는 청크로 나눠 흘리고 연결이 끊긴 것을 기록한다.”라고 요구하지만, 공통 금지사항은 “토큰·키·Authorization 헤더를 코드·테스트·문서·로그·trace에 남기지 않는다.”라고 규정합니다. 합성 테스트 토큰과 Authorization 헤더의 예외 허용 여부를 명시해야 합니다. 파일은 수정하지 않았습니다.",
+      "blocked_at": "2026-10-08T19:42:35+0900"
     },
     {
       "step": 3,

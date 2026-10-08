@@ -37,7 +37,7 @@ route handler는 `next/headers`의 `cookies()`를 쓰지 않는다. 읽기는 `N
 |---|---|---|---|
 | `demo-users/route.ts` | GET | `GET /demo/users` | 인증 없음. 응답 `{"users":[라벨…]}` |
 | `session/route.ts` | GET | `GET /sessions/me` | 응답 `{"user_id"}`. 401이면 쿠키 삭제 |
-| `session/route.ts` | POST | `POST /sessions` | 본문 `{"user": "demo-<팀>-g<숫자>"}`만(형식 `^demo-[a-z-]+-g[0-9]+$`, 아니면 422 `invalid_request`). 성공 시 쿠키 설정, 응답 `{"ok":true,"user_id"}` — **토큰·`expires_at`은 응답에 없다** |
+| `session/route.ts` | POST | `POST /sessions` | 본문 `{"user": "demo-<팀>-g<숫자>"}`만(형식 `^demo-[a-z-]+-g[0-9]+$`, 아니면 422 `invalid_request`). 성공 시 쿠키 설정, 응답 `{"ok":true,"user_id"}` — **세션 토큰과 세션 만료(`expires_at`)는 응답에 없다** |
 | `session/route.ts` | DELETE | `DELETE /sessions` | 쿠키가 있으면 업스트림 세션을 폐기하고(업스트림 401은 이미 무효이므로 성공으로 본다) **쿠키는 항상 지운다**. 업스트림이 5xx·연결 실패면 502 `upstream_unavailable`(쿠키는 지운 채) |
 | `conversations/route.ts` | POST | `POST /conversations` | 본문 `{"request": 1~2000자 문자열}`만 |
 | `conversations/[id]/route.ts` | GET | `GET /conversations/{id}` | 투영 |
@@ -102,5 +102,5 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - route handler에서 `next/headers`의 `cookies()`를 쓰지 마라. 이유: 쿠키 읽기는 `NextRequest.cookies`, 쓰기·삭제는 `NextResponse.cookies`로 통일하고 `next start`에서 속성(`HttpOnly`·`SameSite`·`Max-Age`)이 그대로 나감을 실측했다. route 표 가드가 `next/headers` import를 막는다.
 - Origin을 `new URL(request.url).origin`과 비교하지 마라. 이유: 실측에서 `req.url`의 origin은 `Host`와 무관하게 항상 `http://localhost:포트`라서 `127.0.0.1`로 접속한 정상 요청이 모두 403이 된다. `Origin`의 host와 `Host` 헤더를 비교한다.
 - SSE 업스트림 `fetch`에서 `signal: request.signal`을 빼지 마라. 이유: 실측에서 signal이 없으면 클라이언트가 끊어도 업스트림 스트림이 끝까지 흘렀다. 중단 전파는 통합 테스트로 고정한다(FP-068).
-- 응답 본문·로그·오류에 토큰, `expires_at`, 업스트림 응답 원문을 넣지 마라. 투영 코드에 버리는 키 이름을 쓰지도 마라. 이유: 비노출은 "허용한 키만 꺼내는" 허용 목록으로 지키고, 거부 목록은 새 키가 생기면 새로 샌다. 테스트는 허용 필드가 실제로 존재함도 함께 확인한다(FP-069).
+- 응답 본문·로그·오류에 세션 토큰, **세션 만료 필드**(`POST /sessions` 업스트림 응답의 `expires_at`, 쿠키 `Max-Age` 계산에만 쓴다), 업스트림 응답 원문을 넣지 마라. 승인 만료를 뜻하는 투영 필드 `expires_at`(대화 view의 `turn`·승인함 행)은 이 금지의 대상이 아니며 화면 계약에 포함된다. 투영 코드에 버리는 키 이름을 쓰지도 마라. 이유: 비노출은 "허용한 키만 꺼내는" 허용 목록으로 지키고, 거부 목록은 새 키가 생기면 새로 샌다. 테스트는 허용 필드가 실제로 존재함도 함께 확인한다(FP-069).
 - `GOVOPS_API_URL`을 `NEXT_PUBLIC_` 변수나 클라이언트 코드에 노출하지 말고, 빈 값이 기본값을 덮게 두지 마라. 이유: 브라우저는 FastAPI 주소를 몰라야 하고 `.env.example` 방식의 빈 값이 기본 주소를 지우면 안 된다(FP-030).
