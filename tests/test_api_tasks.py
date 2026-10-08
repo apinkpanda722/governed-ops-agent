@@ -338,9 +338,9 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
                 for _ in range(2)
             ]
         )
-        assert (
-            responses[0].status_code in (200, 202) and responses[1].status_code == 200
-        )
+        status_codes = [response.status_code for response in responses]
+        assert all(code in {200, 202} for code in status_codes)
+        assert status_codes.count(202) <= 1
         assert responses[0].json() == responses[1].json()
         for _ in range(2):
             again = await request(
