@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "web-conversation",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-09T00:35:05+0900",
+      "summary": "안전한 마크다운·도구 단계·대화/차단 표시·입력 카드·단일 타이머 폴링과 페이지 연동 구현 및 테스트 추가, make verify 통과.",
+      "completed_at": "2026-10-09T00:49:46+0900",
+      "usage": {
+        "input_tokens": 2764279,
+        "cached_input_tokens": 2670592,
+        "output_tokens": 13602,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
