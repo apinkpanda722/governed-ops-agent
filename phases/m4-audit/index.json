@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "model-call-event",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T11:46:38+0900",
+      "summary": "성공 모델 호출의 model.call 감사 기록·비차단 쓰기·fail-open 경보와 테스트 구현, 소비자 단언 갱신; make verify 통과(Python 3157개, 웹 15개), 계층 경계 준수.",
+      "completed_at": "2026-10-08T11:57:16+0900",
+      "usage": {
+        "input_tokens": 2340076,
+        "cached_input_tokens": 2257664,
+        "output_tokens": 7799,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
