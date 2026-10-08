@@ -61,6 +61,8 @@ route handler는 `next/headers`의 `cookies()`를 쓰지 않는다. 읽기는 `N
 
 ### 4. 테스트
 
+**합성 값의 취급**(공통 금지사항의 "비밀 값"은 실제 토큰·키를 가리킨다): 테스트의 가짜 세션 토큰은 실행할 때 `node:crypto`의 무작위 값(`randomBytes(...).toString("base64url")`)으로 만들고 소스에 토큰 리터럴을 쓰지 않는다. 스텁 업스트림은 수신한 `Authorization` 헤더를 변수로 보관해 기대 값과 **비교만** 하고 출력·로그·스냅샷에 남기지 않는다. 금지 키 센티널(`SENTINEL-…`)은 비밀이 아닌 합성 문자열이다. 이 합성 값은 공통 금지사항의 대상이 아니다.
+
 - `env.test.ts`: 미설정·빈 문자열·공백에서 기본값, 루프백이 아닌 호스트·`localhost`·`https` 거부.
 - `origin.test.ts`: 변경 메서드(POST·PUT·PATCH·DELETE)에서 Origin 없음·형식 오류·host 불일치·Host 헤더 없음은 403, `Origin: http://127.0.0.1:3100`과 `Host: 127.0.0.1:3100`은 통과, `GET`은 검사하지 않음. 요청 객체가 `host` 헤더를 허용하지 않아 라우트 수준 Host 테스트가 불가능하면 Origin 판정 순수 함수(`origin`, `host` 문자열 입력) 테스트로 대신하되, 위 케이스(변경 메서드 4종 × 없음·형식 오류·불일치·Host 없음·통과)를 **모두 유지**하고 route 표 가드의 "변경 메서드마다 `requireSameOrigin` 호출 존재" 검사도 그대로 둔다. 대체한 사실은 테스트 주석에 적는다. 단언 강도는 낮추지 않는다.
 - `session.test.ts`: 쿠키 속성(`HttpOnly`, `SameSite=strict`, `Path=/`, `Max-Age`), `Secure`는 `https` Origin에서만, `maxAge = min(28800, …)`와 0 이하 처리, 삭제 쿠키, 토큰 형식 검사.
