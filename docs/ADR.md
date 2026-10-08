@@ -151,7 +151,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **변경 기록**:
 - 2026-10-03: 결정 11로 확정.
 - 2026-10-08: 체인·Ed25519 서명·고정점·`audit-verify`·`audit-anchor`·`smoke-audit` 구현 범위. 이월 4건: 실패·차단된 모델 호출의 `model.call` 미기록(차단은 `guardrail.input_blocked`, 실패는 비용 원장·trace가 기록), `auth.failed`의 호출자 sub 식별 없음(항상 `system`), 쓰기 권한 거부는 전용 이벤트 없이 `side_effect.result`의 `reason`으로 갈음, 웹 기록 화면의 `audit-verify` 결과 표시는 M7. 고정점은 대기 파일 → 결과 PR이 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다.
-- 2026-10-08: 시스템 이벤트 `checkpoint.pruned`를 더한다. checkpointer 보존 삭제(ADR-015)의 삭제 실행(`APPLY=1`·serve 시작)이 삭제 건수와 cutoff 시각만 기록하며 thread·task ID, 원문, 사용자 식별자는 넣지 않는다(`actor.sub="system"`, `task_id=null`). dry-run은 기록하지 않는다.
+- 2026-10-08: 시스템 이벤트 `checkpoint.pruned`를 더한다. checkpointer 보존 삭제(ADR-015)의 삭제 실행(`APPLY=1`·serve 시작)이 삭제 대상 건수(`pruned_count`; 삭제 전에 기록하는 의도 기록이며, 일부 삭제가 실패하면 실제 삭제 수보다 클 수 있다)와 cutoff 시각(`cutoff`)만 기록하며 thread·task ID, 원문, 사용자 식별자는 넣지 않는다(`actor.sub="system"`, `task_id=null`). dry-run은 기록하지 않는다.
 
 ### ADR-013: 일정은 6주, 3주차 말 M3 점검, 축소 순서와 덜어내지 않는 핵심을 미리 정한다
 **상태**: 유효
@@ -178,7 +178,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **트레이드오프**: 보존 기간 7일 동안 checkpointer에 PII를 포함한 원문이 남는다(THREAT_MODEL TH10 잔여 위험). 삭제 뒤에는 그 task를 재개하거나 원문으로 사후 분석할 수 없다. 삭제 명령은 `make checkpoint-prune`(dry-run, `APPLY=1`일 때 삭제)이고 serve 시작 시에도 1회 실행한다.
 **변경 기록**:
 - 2026-10-03: 결정 10으로 확정.
-- 2026-10-08: 삭제 조건·명령·주기를 확정한다. 대상은 활성 턴(`running`, 만료되지 않은 `awaiting_approval`)이 없고 마지막 checkpoint `ts`가 7일을 넘은 thread다. `awaiting_approval`이어도 `expires_at`이 지났으면 비활성이다(만료 처리는 조회 때만 일어난다). `make checkpoint-prune`은 dry-run이고 `APPLY=1`일 때 삭제한다. serve 시작 시 `startup_cleanup` 다음에 삭제를 적용해 1회 실행하며, 실패해도 serve를 막지 않고 경고 한 줄만 남긴다. 삭제한 thread의 `conversation_turns` 행도 함께 지운다. 삭제 실행은 `checkpoint.pruned`(건수·cutoff만, ADR-012)로 기록한다. 시계를 주입한 실제 Postgres 검증은 사용자 실행 `make test-m5-pg`다.
+- 2026-10-08: 삭제 조건·명령·주기를 확정한다. 대상은 활성 턴(`running`, 만료되지 않은 `awaiting_approval`)이 없고 마지막 checkpoint `ts`가 7일을 넘은 thread다. `awaiting_approval`이어도 `expires_at`이 지났으면 비활성이다(만료 처리는 조회 때만 일어난다). `make checkpoint-prune`은 dry-run이고 `APPLY=1`일 때 삭제한다. serve 시작 시 `startup_cleanup` 다음에 삭제를 적용해 1회 실행하며, 실패해도 serve를 막지 않고 경고 한 줄만 남긴다. 삭제한 thread의 `conversation_turns` 행도 함께 지운다. 삭제 실행은 `checkpoint.pruned`(`pruned_count`·`cutoff`만, 삭제 전 의도 기록, ADR-012)로 기록한다. 시계를 주입한 실제 Postgres 검증은 사용자 실행 `make test-m5-pg`다.
 
 ### ADR-016: M0 골격 결정 — web 호스트 실행, mock 관리 접근 경로, checkpointer DB 보류
 **상태**: 유효
