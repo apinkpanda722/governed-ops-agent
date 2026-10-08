@@ -88,6 +88,11 @@ def test_env_or(monkeypatch, value, expected):
         ("tools/smoke.py", "MOCK_JIRA_URL", "http://127.0.0.1:8081"),
         ("tools/smoke.py", "MOCK_SLACK_URL", "http://127.0.0.1:8082"),
         ("tools/smoke.py", "SMOKE_USER", "demo-platform-g3"),
+        (
+            "audit/anchor.py",
+            "AUDIT_ANCHORS_PENDING_FILE",
+            "data/interim/audit/anchors-pending.jsonl",
+        ),
         ("audit/log.py", "AUDIT_DIR", "data/interim/audit"),
         ("audit/crypto.py", "AUDIT_KEY_FILE", "data/interim/audit_ed25519.pem"),
         ("audit/crypto.py", "AUDIT_PUBLIC_KEY_FILE", "data/seed/audit_public_key.pem"),

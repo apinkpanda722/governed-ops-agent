@@ -449,9 +449,46 @@ class AuditLog:
             os.close(fd)
         return record
 
+    def anchor(
+        self,
+        label: str,
+        *,
+        repo_root: Path | None = None,
+        pending_file: Path | None = None,
+    ) -> dict:
+        from govops.audit.anchor import AuditAnchorError, validate_label, write_pending
+
+        validate_label(label)
+        root = (
+            Path(__file__).resolve().parents[3]
+            if repo_root is None
+            else Path(repo_root)
+        )
+        try:
+            relative = self.directory.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            raise AuditAnchorError("audit_anchor_dir_outside_repo") from None
+        record = self._append_record(
+            "chain.anchor", task_id=None, actor_sub="system", label=label
+        )
+        row = {
+            "dir": relative,
+            **{key: record[key] for key in ("seq", "hash", "sig", "kid", "ts")},
+            "label": label,
+        }
+        write_pending(row, pending_file)
+        return row
+
     def append(
         self, event: str, *, task_id: str | None, actor_sub: str, **fields: Field
     ) -> int:
+        return self._append_record(
+            event, task_id=task_id, actor_sub=actor_sub, **fields
+        )["seq"]
+
+    def _append_record(
+        self, event: str, *, task_id: str | None, actor_sub: str, **fields: Field
+    ) -> dict:
         _validate_event(event, task_id, actor_sub, fields)
         try:
             with self._locked():
@@ -480,7 +517,7 @@ class AuditLog:
                     actor_sub,
                     fields,
                 )
-                return record["seq"]
+                return record
         except AuditWriteError:
             raise
         except (OSError, ValueError, TypeError, KeyError, AttributeError):

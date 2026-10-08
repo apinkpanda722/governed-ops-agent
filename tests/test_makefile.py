@@ -282,3 +282,12 @@ def test_audit_verify_is_read_only_without_env_file():
     recipe = text.split("\naudit-verify:\n", 1)[1].splitlines()[0]
     assert recipe.strip() == "uv run python -m govops.audit.verify --scan data/results"
     assert "--env-file" not in recipe
+
+
+def test_audit_anchor_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: audit-anchor\n" in text
+    recipe = text.split("\naudit-anchor:\n", 1)[1].split("\n\n")[0]
+    assert "$(LABEL)" in recipe and "exit 2" in recipe
+    assert 'uv run python -m govops.audit.anchor --label "$(LABEL)"' in recipe
+    assert ".env" not in recipe
