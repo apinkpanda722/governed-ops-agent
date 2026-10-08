@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "bff",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T23:33:24+0900",
+      "summary": "BFF 요청자 전용 필드·대화 목록 허용 목록 투영과 고정 limit=50 GET 라우트 구현, 인증·누출 방지 테스트 추가 및 make verify 통과.",
+      "completed_at": "2026-10-08T23:42:48+0900",
+      "usage": {
+        "input_tokens": 1667349,
+        "cached_input_tokens": 1592448,
+        "output_tokens": 4899,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
