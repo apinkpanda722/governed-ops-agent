@@ -28,6 +28,7 @@ from govops.agent.draft import Draft, draft_sha256
 from govops.agent.org_info import org_section
 from govops.agent.prompts import SYSTEM_PROMPT
 from govops.agent.scope import ScopeIndex, evidence_ids, run_checks
+from govops.agent.turns import build_turn_state
 from govops.agent.users import UserInfo
 from govops.audit.crypto import format_usd
 from govops.audit.log import AuditPort, AuditWriteError
@@ -122,6 +123,14 @@ class AgentContext:
 
 
 class AgentState(TypedDict):
+    conversation_id: str
+    history: list[dict[str, str]]
+    turn_index: int
+    request: str
+    turn_cost_usd: float
+    explored_ids: list[str]
+    no_new_info_streak: int
+    stop_reason: str | None
     task_id: str
     user_id: str
     messages: list[dict[str, Any]]
@@ -805,46 +814,36 @@ def build_graph(
 
 
 async def run_task(
-    graph: CompiledStateGraph, *, task_id: str, user_id: str, request: str
+    graph: CompiledStateGraph,
+    *,
+    task_id: str,
+    user_id: str,
+    request: str,
+    conversation_id: str | None = None,
+    previous: Mapping | None = None,
 ) -> AgentState:
-    existing = await get_task(graph, task_id)
-    state: AgentState = {
-        "task_id": task_id,
-        "user_id": user_id,
-        "messages": [
-            {
-                "role": "system",
-                "content": getattr(graph, "agent_profile", READ_ONLY).system_prompt,
-            },
-            {"role": "user", "content": request},
-        ],
-        "steps": 0,
-        "status": "running",
-        "quarantined_ids": [],
-        "quarantine_unmatched": 0,
-        "masked_total": 0,
-        "guardrail_truncated": False,
-        "guardrail_block": None,
-        "answer": None,
-        "error": None,
-        "observed_ids": [],
-        "cited_doc_ids": [],
-        "evidence_ids": [],
-        "draft": None,
-        "draft_sha256": None,
-        "check": None,
-        "approvals": [],
-        "awaiting_since": None,
-        "expires_at": None,
-        "effect": None,
-        "created_at": (existing or {}).get("created_at")
+    """Start a turn; callers serialize turns and resume approvals with Command."""
+    thread_id = conversation_id or task_id
+    snapshot = await graph.aget_state({"configurable": {"thread_id": thread_id}})
+    if any(task.interrupts for task in snapshot.tasks):
+        raise ValueError("approval_pending")
+    existing = snapshot.values
+    state = build_turn_state(
+        task_id=task_id,
+        user_id=user_id,
+        request=request,
+        system_prompt=getattr(graph, "agent_profile", READ_ONLY).system_prompt,
+        created_at=(existing or {}).get("created_at")
         or getattr(graph, "agent_clock", utc_now)().isoformat(),
-        "resume_value": None,
-        "edit_approver": None,
-    }
+        previous=previous,
+        conversation_id=conversation_id,
+    )
     return await graph.ainvoke(
         state,
-        {"configurable": {"thread_id": task_id}, "recursion_limit": 8 * MAX_STEPS + 64},
+        {
+            "configurable": {"thread_id": thread_id},
+            "recursion_limit": 8 * MAX_STEPS + 64,
+        },
         context=AgentContext(user_id),
     )
 
