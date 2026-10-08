@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "api-views",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T23:13:34+0900",
+      "summary": "소유자 전용 대화 목록·요청자 tool_steps/approval_method/effect_at·차단 문구·턴별 요청자 프롬프트·writes_team 기본값과 테스트 구현; make verify 통과, 골든·LLM 기록 불변 확인.",
+      "completed_at": "2026-10-08T23:33:24+0900",
+      "usage": {
+        "input_tokens": 6050522,
+        "cached_input_tokens": 5887872,
+        "output_tokens": 13827,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
