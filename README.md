@@ -9,7 +9,7 @@ A의 MCP 도구를 쓰는 사내 운영 에이전트(티켓 조회·요약 → �
 
 Python 3.12와 uv를 사용한다(`pyproject.toml`, `.python-version`). 에이전트 서비스는 호스트에서 `uv run`으로 실행한다(서비스 진입점은 M1에서 구현). web은 호스트에서 `cd web && pnpm dev`로 실행하며 compose에 넣지 않는다. Node 26.4.0과 pnpm 12.8.1을 사용한다(`web/.nvmrc`, `web/package.json`).
 
-`make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest를 실행한다. 설치된 의존성으로 API 키·네트워크 없이 검증한다.
+`make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest → playwright test --list를 실행한다. 설치된 의존성으로 API 키·네트워크 없이 검증한다.
 
 핵심 스택은 `docker compose -f infra/docker-compose.yml up`, Langfuse v3 관측 스택을 포함하려면 `docker compose -f infra/docker-compose.yml --profile obs up`으로 실행한다(ADR-016).
 

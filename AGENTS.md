@@ -15,7 +15,7 @@
 - 저장소: Postgres(compose, 인스턴스 하나에 DB 분리)
 - 감사 로그: JSONL, SHA-256 해시체인 + Ed25519 서명
 - 웹: Next.js(App Router, TypeScript) + BFF route handler, Tailwind, shadcn/ui, pnpm(Node·pnpm 버전 고정, 설치는 사용자)
-- 테스트·린트: pytest, ruff / tsc, eslint, vitest, Playwright(e2e, replay 모드). `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest 순서로 실행한다. Playwright e2e는 `make e2e-web`으로 verify 밖에서 사용자가 실행한다.
+- 테스트·린트: pytest, ruff / tsc, eslint, vitest, Playwright(e2e, replay 모드). `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest → playwright test --list 순서로 실행한다. Playwright e2e는 `make e2e-web`으로 verify 밖에서 사용자가 실행한다.
 
 ## 계층 경계
 
@@ -77,7 +77,7 @@
 
 ## 명령어
 make e2e-web # 포트 3200·8200·8201이 이미 쓰이고 있으면 Playwright가 시작을 거부한다(기존 서버 재사용 금지). e2e는 `next build`로 `web/.next`를 덮어쓰므로 `next start`로 띄운 데모 서버(3100)는 먼저 끈다(`next dev`는 `.next/dev`를 써서 무관).(사용자 실행)
-make verify      # ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest (Stop hook, execute.py, CI가 모두 이 명령을 부른다). API 키·네트워크 없이 통과한다.
+make verify      # ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest → playwright test --list (Stop hook, execute.py, CI가 모두 이 명령을 부른다). API 키·네트워크 없이 통과한다.
 make mock-tokens # 사용자별 mock-jira·mock-slack 토큰과 해시 매니페스트 생성(사용자 실행)
 make seed-extract # A 합성 티켓·사용자 시드 읽기 전용 추출(사용자 실행)
 make record-a # live A의 합성 응답 기록(사용자 실행)

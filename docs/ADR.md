@@ -189,7 +189,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 - LangGraph checkpointer DB는 M0에서 만들지 않는다. `infra/postgres/init/01-create-databases.sh`는 `litellm`·`langfuse` DB만 만든다. checkpointer DB 위치는 ADR-017의 같은 인스턴스 내 `govops` 앱 DB다.
 - 패키지 이름은 `govops`(`src/govops/`)로 확정한다. Python 3.12(`pyproject.toml`의 최소 버전, `.python-version`의 실행 버전), uv 기반이며 계층 패키지 11개와 `costs.py` 골격을 둔다.
 - `.env.example`에는 변수 이름만 두고 값은 `.env`에만 둔다. 비용 상한은 환경 변수가 아니라 코드 설정(ADR-007: OpenAI $9.13, Anthropic $11.47, Gemini $7.29)이며 `src/govops/costs.py`에서 M1에 구현한다.
-- `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest 순서다. 설치된 의존성으로 API 키·네트워크 없이 통과한다.
+- `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest → playwright test --list(설정·스펙 로드 검사, 브라우저·서버 불필요) 순서다. 설치된 의존성으로 API 키·네트워크 없이 통과한다.
 **이유**: 배치도는 BFF를 호스트에 두고 에이전트 서비스도 호스트에서 `uv run`으로 실행한다(ADR-004). web도 같은 배치를 따른다. 관리 포트를 publish하지 않고 컨테이너 안 CLI를 쓰면 compose 내부 네트워크 제한을 유지하면서 호스트 하네스가 관리 기능에 접근할 수 있다. checkpointer DB 위치는 M1 구현에서 정하므로 M0 초기화는 확정된 DB 두 개로 한정한다. 패키지·도구 체인과 단일 검증 진입점을 확정해 이후 계층 구현이 같은 기준을 따른다. 비밀 값은 `.env`에 모으고 비용 상한은 ADR-007의 코드 설정으로 관리한다.
 **트레이드오프**: web·에이전트는 compose와 별도로 호스트에서 실행해야 하고 mock 관리는 `docker compose exec`를 거쳐야 한다. 상태 조회·초기화는 `state`·`reset`으로 수행하고 장애 주입 CLI는 ADR-018을 따른다. checkpointer DB 배치는 ADR-017을 따른다. 비용 상한 구현은 M1까지 보류한다.
 **변경 기록**:

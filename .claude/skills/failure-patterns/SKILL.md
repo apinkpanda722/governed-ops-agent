@@ -329,6 +329,10 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **규칙**: saver의 `alist`를 순회하는 동안 같은 saver를 부르지 않는다. 목록을 끝까지 읽어 ID 집합으로 만든 뒤 다음 루프에서 호출한다. 외부 저장소의 잠금·커넥션 계약이 있는 비동기 생성기를 쓰는 코드는 **그 계약을 재현하는 가짜**(공유 `asyncio.Lock`)로 유한 시간(`wait_for`) 안에 끝남을 단언하고, 가능하면 실제 Postgres(임시 DB)로도 확인한다.
 - **강제 수단**: `tests/test_startup_cleanup_lock.py`(잠금 계약 가짜 saver; 수정 전 코드에서 `TimeoutError`로 실패함을 확인, 가짜가 교착을 실제로 재현하는지 보는 테스트 포함), `tests/test_m5_pg.py::test_startup_with_existing_threads_finishes_in_isolated_database`(사용자 실행 `make test-m5-pg`; 수정 전 20초 뒤 실패, 수정 후 1초 안 통과). `src/` 점검: `async for`는 `agent/retention.py`(본문이 항목 데이터만 쓰고 삭제는 루프 뒤)와 `api/tasks.py`(수정)뿐이다.
 - **출처**: m5-agent 첫 live(`make serve` 시작 교착), 수정 PR
+- **재발(m5-web, Playwright 설정 로더)**: `web/playwright.config.ts`의 `fileURLToPath(new URL("..", import.meta.url))`가 `make e2e-web` 시작 전에 `SyntaxError: Cannot use 'import.meta' outside a module`로 실패했다. `web/package.json`에 `"type":"module"`이 없어 Playwright 1.63.0이 설정을 CommonJS로 변환해 불러오는데, 설정 파일을 읽는 가드 테스트(`e2e-config.test.ts`)는 Vite(ESM)가 실행해서 통과했다. 가짜(in-memory) 의존성과 같은 유형이다: 검사가 실제 소비자(Playwright 로더)가 아니라 다른 로더를 거쳤다.
+- **규칙(추가)**: 어떤 도구가 읽는 설정·스펙 파일은 그 도구의 실제 로더로 로드·수집을 검사한다. 다른 로더(vitest/Vite)로 소스 문자열만 확인하는 테스트는 실제 로드 가능성을 보증하지 않는다. `web/package.json`에 `"type":"module"`을 추가해 맞추지 않는다(next.config 등 web 전체의 모듈 해석이 바뀐다). 설정·스펙에는 `__dirname`처럼 CommonJS 변환에서도 동작하는 구문을 쓴다.
+- **강제 수단(추가)**: `make verify`의 `pnpm -C web exec playwright test --list`(실측: 브라우저·webServer·`next build`를 띄우지 않고 1초 안에 설정과 스펙 2개를 수집한다, 수정 전 코드에서 같은 오류로 실패함을 확인), `tests/test_makefile.py::test_verify_recipe_runs_all_checks_in_order`(verify 레시피 명령 정확 일치), `web/src/e2e-config.test.ts`의 `import.meta` 부재 단언.
+- **출처(추가)**: m5-web 첫 `make e2e-web`(사용자 실행, 시작 전 실패), 수정 PR
 
 ### FP-069 빈 집합에 대한 `all()`로 공허하게 통과하는 smoke 판정
 - **증상**: `smoke_conversation`의 `no_leak_in_views`는 `all(safe(view) for view in views)`였다. 서비스에 접속하지 못해 받은 view가 0개여도 `all([])`이 참이라 `PASS`가 출력됐다. `request_failed`에는 원인 정보가 없어 접속 실패와 계약 위반을 구분할 수 없었다.

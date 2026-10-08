@@ -39,6 +39,7 @@ def test_verify_recipe_runs_all_checks_in_order() -> None:
         "pnpm -C web typecheck",
         "pnpm -C web lint",
         "pnpm -C web test",
+        "pnpm -C web exec playwright test --list",
     ]
 
 

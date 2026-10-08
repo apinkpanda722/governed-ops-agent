@@ -1,7 +1,7 @@
 .PHONY: verify
 
 # 하네스의 단일 검증 진입점. Stop hook, scripts/execute.py, step AC가 모두 이 타깃을 호출한다.
-# Python lint·포맷·pytest 이후 web tsc·eslint·vitest를 순서대로 실행한다.
+# Python lint·포맷·pytest 이후 web tsc·eslint·vitest·playwright 설정/스펙 로드(--list, 브라우저·서버 불필요)를 순서대로 실행한다.
 # API 키·네트워크 없이 설치된 의존성만 사용하며, 실패한 단계에서 즉시 중단한다.
 verify:
 	@echo "==> ruff check"
@@ -17,6 +17,8 @@ verify:
 	pnpm -C web lint
 	@echo "==> web test (vitest)"
 	pnpm -C web test
+	@echo "==> playwright config/spec load (--list)"
+	pnpm -C web exec playwright test --list
 
 A_ROOT ?= $(HOME)/PycharmProjects/ko-docs-agentic-rag
 SMOKE_USER ?= demo-platform-g3
