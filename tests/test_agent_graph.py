@@ -485,7 +485,7 @@ async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeyp
         json.loads(line)
         for line in next(tmp_path.glob("chain-*.jsonl")).read_text().splitlines()
     ]
-    events = [row["event"] for row in rows]
+    events = [row["event"] for row in rows if row["event"] != "model.call"]
     assert events[:4] == [
         "chain.genesis",
         "side_effect.draft",
@@ -570,7 +570,16 @@ async def test_invalid_write_proposals_return_model_error_without_effect(
     assert state["steps"] == 2
     assert state["draft"] is None
     assert not tools.calls
-    assert not list(tmp_path.glob("*.jsonl"))
+    rows = [
+        json.loads(line)
+        for path in tmp_path.glob("*.jsonl")
+        for line in path.read_text().splitlines()
+    ]
+    assert [row["event"] for row in rows] == [
+        "chain.genesis",
+        "model.call",
+        "model.call",
+    ]
     assert all(
         json.loads(m["content"])["error"]["code"] == "invalid_argument"
         for m in chat.calls[1]["messages"]
