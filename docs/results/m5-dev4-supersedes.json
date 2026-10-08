@@ -1,0 +1,15 @@
+{
+  "previous_commit": "d40788a53bf27efc9b6829f0fddf741884e88b24",
+  "previous_files": {
+    "docs/results/2026-10-08-m4-dev3-live.md": "2027efea8cf695b9ac06a7e629ee09d31f413a15dce33451a9f53834d5e99a74",
+    "manifest.json": "25741b72554353dc9ac61cd489379ab347d02e0f3ad7089c268e82c1c7e41e92",
+    "grades.json": "85b6fcd9007251748662d56f1ece7e1d744aa07d37c60f8d19a4b885bfa5f1ac",
+    "observations.jsonl": "884e4ba7c4db89c9f5fd683b09b011b6c488d1ca0043bdccf60bdfd516871a77"
+  },
+  "previous_official": {
+    "grading_rules": "m3-grading",
+    "tcr": "19/20"
+  },
+  "previous_run_id": "e36589778c2243388f09d9b4d3b60f2b",
+  "reason": "탐색 예산(N=4)을 켠 상태로 dev 20을 처음부터 다시 실행한다. 이전 공식 결과와 원자료는 보존한다. 끔 실행은 참고 실행이다."
+}

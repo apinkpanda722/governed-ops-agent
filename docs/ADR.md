@@ -142,7 +142,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 - **체인·형식**: `chain-YYYY-MM-DD.jsonl`은 UTC 날짜별 파일이며 날짜가 바뀌어도 `prev_hash`가 이어진다. 레코드는 `{seq, ts, prev_hash, actor: {sub, act}, event, task_id, …, kid, hash, sig}`다. `kid`는 공개키 DER의 SHA-256 앞 12자이며 해시 대상에 포함한다. `hash`는 `hash`·`sig`를 제외한 정규화 JSON(키 정렬·공백 없음·UTF-8)의 SHA-256이고, `sig`는 hash의 ASCII 문자열에 대한 Ed25519 서명(hex)이다.
 - **legacy 봉인**: 기존 `YYYY-MM-DD.jsonl`은 legacy로 보존한다. 첫 쓰기의 `chain.genesis`는 legacy 파일 집합의 파일 수(`legacy_files`)·줄 수(`legacy_lines`)·마지막 seq(`legacy_last_seq`)·`legacy_sha256`을 봉인한다. `legacy_sha256`은 파일 이름과 각 파일 SHA-256의 정렬 목록을 정규화 JSON으로 해시한 값이다. legacy는 “체인 없음(미검증)”으로 따로 보고하며 PASS로 세지 않는다.
 - **잠금·손상**: 프로세스 내 디렉터리별 잠금과 디렉터리 fd의 `flock(LOCK_EX | LOCK_NB)` 재시도를 사용한다. 전체 잠금 마감은 10초이며 초과하면 `audit_lock_timeout`으로 fail-closed 처리한다. 개행 없는 체인 꼬리는 `audit_chain_corrupt`로 append를 거부한다.
-- **이벤트**: 부작용 생애주기(초안, 승인 요청, 승인·수정·거부·만료, 실행 시도, 결과, 표식 조회)와 Guardrail 차단·격리 등을 기록한다. 시스템 이벤트 `service.start`·`chain.genesis`·`chain.anchor`·`auth.failed`는 `actor.sub="system"`, `task_id=null`이다. `service.start`는 정책·규칙·접근 인덱스 해시와 훅 규칙·코드 digest를 기록한다. `model.call`은 성공한 호출만 기록하고 원문 없이 task·사용자·팀 식별자(팀 키 값 제외)·모델 별칭·배포 ID·fallback 여부·비용·가용한 Guardrail 판정을 남긴다. `cost_usd`는 소수점 이하 고정 6자리 문자열이다. 모델 감사 쓰기는 비동기 실행을 막지 않는 스레드 쓰기이며 실패 시 fail-open으로 trace에 `model.audit_gap` 경보를 남긴다. `auth.failed`의 사유 enum은 `missing_credentials`·`invalid_token`·`unknown_user`·`loopback_required`다. 앱별 스레드 안전 분당 60건 상한을 두며 생략 건수는 다음 허용 기록의 `suppressed`로 집계한다. 감사 실패는 인증 응답을 바꾸지 않는다.
+- **이벤트**: 부작용 생애주기(초안, 승인 요청, 승인·수정·거부·만료, 실행 시도, 결과, 표식 조회)와 Guardrail 차단·격리 등을 기록한다. 시스템 이벤트 `service.start`·`chain.genesis`·`chain.anchor`·`auth.failed`·`checkpoint.pruned`는 `actor.sub="system"`, `task_id=null`이다. `service.start`는 정책·규칙·접근 인덱스 해시와 훅 규칙·코드 digest를 기록한다. `model.call`은 성공한 호출만 기록하고 원문 없이 task·사용자·팀 식별자(팀 키 값 제외)·모델 별칭·배포 ID·fallback 여부·비용·가용한 Guardrail 판정을 남긴다. `cost_usd`는 소수점 이하 고정 6자리 문자열이다. 모델 감사 쓰기는 비동기 실행을 막지 않는 스레드 쓰기이며 실패 시 fail-open으로 trace에 `model.audit_gap` 경보를 남긴다. `auth.failed`의 사유 enum은 `missing_credentials`·`invalid_token`·`unknown_user`·`loopback_required`다. 앱별 스레드 안전 분당 60건 상한을 두며 생략 건수는 다음 허용 기록의 `suppressed`로 집계한다. 감사 실패는 인증 응답을 바꾸지 않는다.
 - **키**: 개인키는 `AUDIT_KEY_FILE`(기본 `data/interim/audit_ed25519.pem`, 0600, gitignore), 공개키는 `AUDIT_PUBLIC_KEY_FILE`(기본 `data/seed/audit_public_key.pem`, 커밋)이다. 키가 없거나 권한·짝이 틀리면 서비스·러너 시작을 거부한다(`audit_key_missing`·`audit_key_permissions`·`audit_key_mismatch`). 키 생성은 사용자 실행이다.
 - **고정점**: `make audit-anchor LABEL=…`와 dev·faults 러너는 체인에 `chain.anchor`를 덧붙이고 `data/interim/audit/anchors-pending.jsonl`(gitignore, `AUDIT_ANCHORS_PENDING_FILE`)에 `{dir, seq, hash, sig, kid, label, ts}` 줄을 쓴다. `dir`는 저장소 루트 기준 상대 경로다. 러너는 실행 종료 후 디렉터리별로 고정점을 남기며 실패는 fail-open으로 보고한다. 결과 문서 PR이 대기 파일 줄을 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다.
 - **검증·한계**: 읽기 전용 `make audit-verify`는 체인·서명·seq 빈틈·`legacy_sha256`과 대기·커밋된 두 고정점 파일을 검증하며 `(dir, seq, hash)`로 중복 제거해 대조한다. `make smoke-audit`는 키와 임시 체인 변조 5종(수정, 중간 삭제, 순서 변경, 고정점 레코드를 제거하는 꼬리 잘라내기, 다른 키 서명), 실제 체인의 읽기 전용 검증을 확인한다. 고정점 레코드 뒤만 자르면 다음 고정점 전까지 탐지하지 못한다. 같은 키로 전체 재계산·재서명한 경우는 고정점으로만 탐지한다.
@@ -151,6 +151,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **변경 기록**:
 - 2026-10-03: 결정 11로 확정.
 - 2026-10-08: 체인·Ed25519 서명·고정점·`audit-verify`·`audit-anchor`·`smoke-audit` 구현 범위. 이월 4건: 실패·차단된 모델 호출의 `model.call` 미기록(차단은 `guardrail.input_blocked`, 실패는 비용 원장·trace가 기록), `auth.failed`의 호출자 sub 식별 없음(항상 `system`), 쓰기 권한 거부는 전용 이벤트 없이 `side_effect.result`의 `reason`으로 갈음, 웹 기록 화면의 `audit-verify` 결과 표시는 M7. 고정점은 대기 파일 → 결과 PR이 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다.
+- 2026-10-08: 시스템 이벤트 `checkpoint.pruned`를 더한다. checkpointer 보존 삭제(ADR-015)의 삭제 실행(`APPLY=1`·serve 시작)이 삭제 건수와 cutoff 시각만 기록하며 thread·task ID, 원문, 사용자 식별자는 넣지 않는다(`actor.sub="system"`, `task_id=null`). dry-run은 기록하지 않는다.
 
 ### ADR-013: 일정은 6주, 3주차 말 M3 점검, 축소 순서와 덜어내지 않는 핵심을 미리 정한다
 **상태**: 유효
@@ -159,6 +160,7 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **트레이드오프**: 축소가 일어나면 test 반복 수·Guardrail v2 비교·기록 화면 등 보조 결과가 줄거나 빠진다.
 **변경 기록**:
 - 2026-10-03: 결정 12로 확정.
+- 2026-10-08: M5 범위와 값을 확정한다. 대화 모델: `conversation_id`(=LangGraph thread)와 `turn_id`(=`state["task_id"]`)를 분리하고 첫 턴은 두 ID가 같다. 턴 범위 상태는 매 턴 초기화하고 `evidence_ids`(V15 근거)만 대화 범위로 `failed`·`interrupted` 턴을 포함한 모든 턴에서 누적한다. 맥락은 서비스가 `history`(system·user·최종 답변)로 매 턴 구성하며 `completed`·`rejected`·`expired`·`blocked` 턴만 이월하고 `blocked_input`·`failed`·`interrupted` 턴은 제외한다. 대화당 10턴이다. 승인 대기 중 새 턴은 409 `approval_pending`, 실행 중이면 409 `turn_in_progress`이며 자동 거부는 없고 승인이 만료(30분)되면 새 턴을 허용한다. SSE는 `{conversation_id, turn_id, status, seq}` 상태 이벤트만 보낸다. dev·test는 단일 턴(턴 1개 대화)이고 멀티턴은 데모 스모크만 하며 평가 범위 밖이다. MAX_STEPS는 8(턴 단위)이다. MAX_COST는 턴 단위 $0.40이다: `ceil_0.05(MAX_STEPS 8 × 실측 fallback 호출당 최대 $0.032014 × 1.5)`. 근거는 `data/manifest/costs.jsonl`의 m3-faults F6 all task `7a5fcf49…` 정산 3행(Sonnet 호출 $0.007328·$0.021818·$0.032014, 합 $0.061160, 마지막 호출 입력 13,077토큰)이며 정산된 `agent_fallback` 642행의 호출당 최대도 $0.032014다. 초과하면 모델 호출 전에 `failed`, `error=max_cost`로 끝난다. 세션 TTL은 8시간이다(ADR-017). 웹 화면은 로그인 전환, 대화 스레드, 대화 안 승인 카드와 승인함, 입력 차단 카드(사유 분류만), 격리 표시("참고 문서 일부 격리")이고 출력 사후 탐지는 화면에 나타내지 않는다. LibreChat은 범위 밖이다.
 
 ### ADR-014: 탐색 예산을 MAX_STEPS와 별도로 두고 N은 dev trace 재생으로 정한다
 **상태**: 유효
@@ -167,14 +169,16 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 **트레이드오프**: dev에 없던 유형의 정상 탐색은 N에 잘릴 수 있다. N 등록값은 dev 20개 실행 후 정하며 ID 추출은 위 구조 필드 판정을 따른다.
 **변경 기록**:
 - 2026-10-03: 결정 10으로 확정.
+- 2026-10-08: N=4로 갱신한다(`docs/results/n-registration-m5.md`). 산출: 등록 시점까지 공식 dev 실행 전체(supersedes 사슬)의 성공 task별 최대 연속 무정보 호출 수의 최댓값 + 1(두 번째 실행 2, 세 번째 실행 3). 세 번째 실행의 T2-02(연속 3)가 N=3이면 잘린다. 탐색 예산은 턴 단위다. 런타임 카운터는 `evalrun/explore.py`의 `identifiers`·`longest_streak` 정의를 그대로 쓰고(두 함수는 agent가 import할 수 있는 공용 모듈에 두며 `regrade --n`과 같은 호출 집합을 센다) 구조 필드(`doc_id`·`key`·`ticket_id`)가 없는 결과는 무정보로 센다. 소진하면 `failed`가 아니라 `status=completed`와 고정 답변 "요청하신 정보를 찾을 수 없습니다.", 관측 필드 `stop_reason=exploration_exhausted`로 끝내고 화면에는 나타내지 않는다(권한 판정 은닉). 켬/끔 비교는 `docs/results/hypotheses-m5-budget.md`에 등록하며 공식 실행은 켬이다.
 
 ### ADR-015: checkpointer는 원문을 두되 task 종료 7일 뒤 삭제한다
 **상태**: 유효
 **결정**: LangGraph checkpointer는 실행에 필요한 원문(도구 결과·초안)을 그대로 둔다. task가 종료(완료·실패·거부·만료)되고 7일이 지나면 해당 checkpoint를 삭제한다. 삭제 명령과 그 테스트는 M5에 둔다. 감사 로그는 지금처럼 해시와 mock ID만 남긴다(ADR-012).
 **이유**: 재개와 실행에 원문이 필요해 checkpointer는 마스킹할 수 없다. 지울 수 없는 감사 로그는 해시만, 지울 수 있는 checkpointer는 원문 + 보존 기간으로 역할을 나눈다.
-**트레이드오프**: 보존 기간 7일 동안 checkpointer에 PII를 포함한 원문이 남는다(THREAT_MODEL TH10 잔여 위험). 삭제 뒤에는 그 task를 재개하거나 원문으로 사후 분석할 수 없다. 삭제 명령 이름과 실행 주기는 미정(M5에서 결정)이다.
+**트레이드오프**: 보존 기간 7일 동안 checkpointer에 PII를 포함한 원문이 남는다(THREAT_MODEL TH10 잔여 위험). 삭제 뒤에는 그 task를 재개하거나 원문으로 사후 분석할 수 없다. 삭제 명령은 `make checkpoint-prune`(dry-run, `APPLY=1`일 때 삭제)이고 serve 시작 시에도 1회 실행한다.
 **변경 기록**:
 - 2026-10-03: 결정 10으로 확정.
+- 2026-10-08: 삭제 조건·명령·주기를 확정한다. 대상은 활성 턴(`running`, 만료되지 않은 `awaiting_approval`)이 없고 마지막 checkpoint `ts`가 7일을 넘은 thread다. `awaiting_approval`이어도 `expires_at`이 지났으면 비활성이다(만료 처리는 조회 때만 일어난다). `make checkpoint-prune`은 dry-run이고 `APPLY=1`일 때 삭제한다. serve 시작 시 `startup_cleanup` 다음에 삭제를 적용해 1회 실행하며, 실패해도 serve를 막지 않고 경고 한 줄만 남긴다. 삭제한 thread의 `conversation_turns` 행도 함께 지운다. 삭제 실행은 `checkpoint.pruned`(건수·cutoff만, ADR-012)로 기록한다. 시계를 주입한 실제 Postgres 검증은 사용자 실행 `make test-m5-pg`다.
 
 ### ADR-016: M0 골격 결정 — web 호스트 실행, mock 관리 접근 경로, checkpointer DB 보류
 **상태**: 유효
@@ -196,12 +200,13 @@ A 원장 사용액(2026-10-03, `data/manifest/costs.jsonl`): Anthropic $3.36, Go
 1. **도구 이름**: A 계약은 `search_docs`, `lookup_id`, `run_sql`, `get_document`를 유지한다. 읽기는 `jira_get_ticket`, `jira_search_tickets`, 부작용은 `jira_add_comment`, `jira_create_followup_ticket`(필수 `parent_ticket_id`), `slack_send_message`다. B 이름 형식은 `{시스템}_{동사}_{대상}` snake_case다. 입력 스키마에 사용자·팀·직급 필드는 없다. 채널 이력·코멘트 목록·후속 티켓 목록 조회는 표식 조회용으로 도구 계층만 쓰고 모델에 노출하지 않는다. mock-slack 이력 조회는 자기 팀 채널·전사 공지만 허용하고 그 밖은 403이다.
 2. **mock 사용자 자격 증명**: 사용자 38명 × audience(`mock-jira`, `mock-slack`)별 토큰을 발급한다. 평문은 `data/interim/mock/tokens.json`(0600, 커밋 안 함), 해시 매니페스트는 `data/seed/mock_jira_token_hashes.json`·`data/seed/mock_slack_token_hashes.json`, 사용자 목록은 `data/seed/users.json`(label·team·grade)이며 해시와 사용자 목록은 커밋한다. mock은 토큰 해시로 인증해 team·grade를 정한다. broker가 평문 파일을 읽는 유일한 곳이다(`MOCK_TOKENS_FILE`, 기본 위 평문 경로).
 3. **mock-jira 쓰기 권한**: 읽을 수 없는 티켓의 코멘트·후속 티켓 요청은 존재하지 않는 티켓과 같은 404다(존재 비밀 우선). jira에는 읽기와 별개인 쓰기 권한 구분을 두지 않는다. 명시적 403 "권한 없음"은 존재가 공개된 대상인 mock-slack 채널의 쓰기·이력 조회에만 쓴다.
-4. **B 세션 토큰**: `POST /sessions`는 `DEMO_LOGIN` 플래그이고 127.0.0.1 클라이언트일 때만 열린다. 토큰은 `secrets.token_urlsafe(32)`이며 서버는 SHA-256 해시만 메모리에 두고 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이고 최종값은 M5에서 정한다. 인증 의존성이 `Authorization: Bearer`에서 `user_id`를 얻으며 승인자 신원도 같은 경로다. 다른 사용자의 task 조회는 검사 통과 승인 대기 초안에 대한 승인자 정책을 만족할 때만 허용하고 나머지는 404다.
+4. **B 세션 토큰**: `POST /sessions`는 `DEMO_LOGIN` 플래그이고 127.0.0.1 클라이언트일 때만 열린다. 토큰은 `secrets.token_urlsafe(32)`이며 서버는 SHA-256 해시만 메모리에 두고 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 8시간이다. 인증 의존성이 `Authorization: Bearer`에서 `user_id`를 얻으며 승인자 신원도 같은 경로다. 다른 사용자의 task 조회는 검사 통과 승인 대기 초안에 대한 승인자 정책을 만족할 때만 허용하고 나머지는 404다.
 5. **checkpointer DB**: 같은 Postgres 인스턴스에 새 DB `govops`(앱 DB)를 둔다. checkpointer와 outbox 테이블을 둔다(ADR-018). `m1-agent`에서 `infra/postgres/init/01-create-databases.sh`에 추가하고 기존 볼륨용 멱등 명령 `make db-init`을 둔다. 연결 환경 변수는 `GOVOPS_DATABASE_URL`이다. `make verify`는 Postgres 없이 통과해야 하므로 테스트는 in-memory saver를 쓰고 실제 Postgres는 사용자 스모크로 확인한다.
 **이유**: 계약 이름과 신원 없는 입력 스키마는 A 연동·사용자 신원 분리를 유지한다. audience별 mock 토큰과 해시 인증은 자격 증명의 대상 혼동을 막는다. 존재 자체가 기밀인 티켓은 쓰기에서도 존재를 알리지 않는다. 세션 해시 보관은 서버의 평문 토큰 보관을 줄이고, 앱 DB 분리는 checkpointer를 LiteLLM·Langfuse와 구분한다.
 **트레이드오프**: 사용자별·audience별 토큰 파일 관리가 필요하다. jira 쓰기 거부는 없는 티켓과 구분할 수 없다. 메모리 세션은 재시작 시 재로그인이 필요하다. 실제 Postgres 연동은 in-memory 테스트와 별도의 스모크로 검증한다.
 **변경 기록**:
 - 2026-10-04: M1 설계에서 확정.
+- 2026-10-08: 세션 TTL을 8시간으로 확정한다(BFF 쿠키 `maxAge`도 같은 값, 401이면 로그인 화면으로 이동). 대화(`conversation_id`)의 소유자는 세션 사용자이며 다른 사용자의 대화 조회·턴 추가는 404다(ADR-013).
 
 ### ADR-018: M3 결정 — 장애 처리 값, outbox·표식, 감사 최소 구현, 승인자 정책, 발송 범위 검사
 **상태**: 유효
