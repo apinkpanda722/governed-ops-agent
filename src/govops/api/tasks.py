@@ -290,6 +290,9 @@ class TaskService:
                     )
                 }
             )
+            if view["status"] == "blocked":
+                view.pop("draft")
+                view.pop("draft_sha256")
         for field in ("check", "rejected_edit"):
             if not view.get(field):
                 continue
