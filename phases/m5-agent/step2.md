@@ -70,4 +70,4 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - 이벤트 필드에 thread ID·task ID·사용자 식별자·원문을 허용하지 마라. 이유: 감사 로그는 지울 수 없다. `pruned_count`와 `cutoff`만 남긴다(ADR-012, ADR-015).
 - `cutoff`·`pruned_count`에 PII 정규식을 돌리지 마라. 이유: 형식이 정해진 값은 형식으로 검증한다. 숫자 연속이 전화번호 규칙에 걸려 무작위로 거부된다(FP-010). 무작위 값 대량 테스트를 하나 둔다(시드 고정 `pruned_count` 10,000개가 거부되지 않음).
 - `_NEW_FIELDS`·소유 이벤트 순회 테스트를 약화하지 마라. 이유: 다른 이벤트가 새 필드를 몰래 받으면 안 된다(FP-060·061).
-- `audit/` 밖의 파일을 고치지 마라. 이유: 호출하는 쪽은 step 8이다. 감사 쓰기는 `audit/` 한 곳에서만 한다.
+- 이 step의 "수정할 파일" 목록(`src/govops/audit/log.py`와 두 테스트 파일) 밖의 파일을 고치지 마라. 이유: 호출하는 쪽(`api/`·`agent/`)은 step 8이다. 감사 쓰기는 `audit/` 한 곳에서만 한다. 두 테스트 파일의 수정은 위 "수정할 파일"이 허용한 범위(이름 집합 갱신과 새 사례 추가)다.
