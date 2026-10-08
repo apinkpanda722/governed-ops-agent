@@ -258,7 +258,7 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: `scripts/step_file_checks.py::command_violations`(실행 금지 문장이 명령을 명시하지 않거나 범주·글롭 표현이면 실패, AC·검증 명령과 겹치면 실패), `read_list_violations`, `scripts/test_step_files.py`(형식 v2 phase 전 step 파일에 적용, 합성 사례 테스트 포함). 의미상의 모순(결과 수치 vs 이전 공식 값)은 기계가 못 잡으므로 설계 검토에서 대상·주체·범위를 확인한다.
 - **재발(m4-audit step 0)**: `열람 금지 경로: data/interim/`와, 같은 step 작업 본문의 "세션 스냅샷 픽스처가 저장소 `data/interim/audit/`의 파일 이름·크기·`mtime_ns`를 기록한다"가 충돌해 선점검에서 `blocked`됐다. 금지 경로를 선언해 놓고 그 경로를 코드·테스트가 런타임에 읽거나 쓰는 지시가 같은 step에 있었는데 주체(Codex의 직접 열람 vs 코드·테스트의 런타임 접근)를 나누지 않았다.
 - **규칙(추가)**: 열람 금지 문장은 **"Codex 세션의 직접 열람·출력·인용"**과 **"코드·테스트의 런타임 접근"**을 구분한다. 금지 경로가 같은 step의 작업 본문에도 나오면(기본 경로 문자열, 환경 변수 기본값, 스냅샷 픽스처 등) `열람 금지 경로:`·`수정 허용 경로:` 줄 아래에 **"열람 금지의 범위" 문단**을 둔다: 금지는 직접 열람에 대한 것이고, 코드의 런타임 접근은 대상이 아니며, 테스트가 실제 파일 **내용**을 읽는 것은 여전히 금지이고 예외(이름·크기·`mtime_ns`)는 그 문단에 열거한다.
-- **강제 수단(추가)**: m4-audit 전 step 파일의 "열람 금지의 범위" 문단. 기계 검사는 후보 상태다(`scripts/step_file_checks.py`에 "열람 금지 경로가 같은 step 작업 본문에 나오는데 범위 문단이 없으면 경고" 추가 여부는 별도 판단).
+- **강제 수단(추가)**: m4-audit 전 step 파일의 "열람 금지의 범위" 문단. 기계 검사: `scripts/step_file_checks.py::scope_paragraph_violations`(열람 금지 경로가 `(없음)`이 아닌데 `## 작업`에 `열람 금지의 범위:` 줄이 없으면 위반). `m4-audit` 뒤 phase와 새 phase는 실패, 이전 완료 phase는 경고(`scope_required`). 테스트: `scripts/test_step_files.py`.
 - **출처**: m4-guardrail step 6 blocked 1차(`2997bf0`)·step 10 blocked(`abe5d9a`, 읽기 목록의 규칙 파일), m4-audit step 0 blocked(`5f9856f`)
 
 ### FP-060 닫힌 수정 파일 목록에서 소비자 테스트 누락
