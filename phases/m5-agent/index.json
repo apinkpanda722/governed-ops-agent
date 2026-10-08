@@ -33,14 +33,16 @@
     {
       "step": 2,
       "name": "audit-pruned-event",
-      "status": "pending",
+      "status": "completed",
       "started_at": "2026-10-08T14:30:27+0900",
       "usage": {
-        "input_tokens": 23470,
-        "cached_input_tokens": 15616,
-        "output_tokens": 256,
+        "input_tokens": 1137244,
+        "cached_input_tokens": 1096064,
+        "output_tokens": 3904,
         "attempts": 1
-      }
+      },
+      "summary": "checkpoint.pruned 시스템 이벤트와 전용 필드 검증·10,000개 무작위 값·서명 체인·기존 count 회귀 테스트 구현; 계층 경계 확인 및 make verify 통과(3304 passed, 웹 15 passed).",
+      "completed_at": "2026-10-08T15:23:59+0900"
     },
     {
       "step": 3,
