@@ -33,10 +33,8 @@
     {
       "step": 2,
       "name": "audit-log-chain",
-      "status": "blocked",
+      "status": "pending",
       "started_at": "2026-10-08T10:41:24+0900",
-      "blocked_reason": "보고된 import 정렬·포맷 오류를 수정했습니다. make verify에서 새 체인 테스트는 통과했으나, 수정 허용 목록 밖인 tests/test_audit_events.py에서 첫 append 반환값 1 단언(5건)과 단일 레코드 형식 단언(1건)이 새 계약과 충돌합니다. \"append가 돌려주는 값은 요청된 레코드의 seq다(genesis의 것이 아니다)\"와 \"수정할 파일(이 목록이 전부다)\" 및 \"기존 테스트를 깨뜨리지 마라\"를 동시에 충족하려면 tests/test_audit_events.py의 수정 허용이 필요합니다. 추가로 발견된 AuditWriteError() 호환성 문제는 허용 파일에서 수정했으며 린트·포맷 검사를 통과했습니다. 커밋과 phases/ 수정은 하지 않았습니다.",
-      "blocked_at": "2026-10-08T10:48:57+0900",
       "usage": {
         "input_tokens": 3045715,
         "cached_input_tokens": 2967168,
