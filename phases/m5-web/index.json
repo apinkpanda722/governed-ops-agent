@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "ui-approvals",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-08T20:12:59+0900",
+      "blocked_reason": "선점검에서 기존 화면 가드와 요구사항의 충돌을 확인했습니다. 요구 문장: \"표시: 수신처(`approvalTarget`: `draft.args`의 `channel`·`ticket_id`·`parent_ticket_id` 중 하나, **읽기 전용 텍스트**), 본문(`approvalBody`: `slack_send_message`는 `text`, `jira_add_comment`는 `body`, `jira_create_followup_ticket`은 `title`·`description`), 결정론 검사 결과(`approvalCheck`: `check.message`, `check.status`가 `masked`면 \"개인정보를 가렸습니다\" 안내), 만료까지 남은 시간(`approvalExpires`, 초 단위로 갱신하는 카운트다운).\" 충돌 문장: \"기존 `ui-boundary.test.ts`(금지 키 이름·import 스캔)와 `guards.test.ts`가 새 파일에도 통과한다.\" 기존 ui-boundary.test.ts는 화면 소스에 `masked` 문자열이 있으면 무조건 실패시키므로 요구된 상태 비교까지 차단합니다. 해당 테스트는 수정 허용 목록에 없고 가드 약화도 금지되어 있습니다. 문자열을 분할하는 방식으로 가드를 우회하지 않았으며 파일 수정·커밋은 하지 않았습니다. `check.status`의 masked 비교를 허용하도록 가드와 수정 허용 범위를 조정해야 합니다.",
+      "blocked_at": "2026-10-08T20:15:35+0900",
+      "usage": {
+        "input_tokens": 154955,
+        "cached_input_tokens": 104064,
+        "output_tokens": 1250,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
