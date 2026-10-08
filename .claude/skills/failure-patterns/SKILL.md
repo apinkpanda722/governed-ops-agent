@@ -336,6 +336,13 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: `tests/test_api_smoke_conversation.py::test_no_views_is_a_failure_and_names_only_the_exception_class`(ConnectError·KeyError·임의 예외에서 `FAIL no_leak_in_views no_views`와 `request_failed:<클래스>`, URL·토큰·예외 문장이 출력에 없음)
 - **출처**: m5-agent 첫 live(`make smoke-conversation` 1회차), 수정 PR
 
+### FP-070 실제 진입점이 lifespan에서 교체하는 의존성을 새 라우트가 생성 시점 값으로 붙잡음
+- **증상**: 재live의 `make smoke-conversation`이 `FAIL rag_turn1 request_failed:HTTPStatusError`로 실패했다(서버 500). `api/__main__.py`의 `build_server_config`는 `create_app(service=TaskService(None))` 자리표시자로 앱을 만들고 lifespan에서 `app.state.task_service`를 실제 서비스로 바꾼다. 기존 `/tasks` 라우트와 SSE는 `request.app.state.task_service`를 쓰지만, m5-agent가 추가한 `POST /conversations`·`POST /conversations/{id}/turns`·`GET /conversations/{id}`·`GET /approvals`는 create_app 클로저의 `service`(자리표시자, `graph=None`)를 써서 `aupdate_state`에서 `AttributeError`였다. 같은 유형으로 `app.state.audit`도 자리표시자에서 복사해 둔 `None`이 남아 실제 서버에서 `auth.failed` 감사가 하나도 기록되지 않았다.
+- **원인**: 테스트가 `create_app(service=실제 서비스)`로만 앱을 만들어 클로저 값과 `app.state` 값이 같았다. 실제 서버 진입점(`build_server_config` + lifespan)을 거치는 테스트가 없었다.
+- **규칙**: 라우트는 의존성을 `request.app.state`에서 얻는 작은 의존성 함수 하나(`get_task_service`)로만 얻고, create_app 클로저의 값은 `app.state` 초기값과 lifespan 정리에만 쓴다. lifespan에서 교체되는 값은 그 값에서 파생한 `app.state` 복사본도 함께 갱신한다. **새 API 라우트는 실제 서버 진입점을 거치는 테스트를 최소 1개** 둔다(진입점의 서비스 조립 함수를 가짜로 바꿔 모든 서비스 라우트가 그 가짜를 부름을 단언).
+- **강제 수단**: `tests/test_api_entrypoint.py`(진입점 경유로 `/tasks`·`/conversations`·`/approvals` 라우트 전부가 lifespan이 넣은 서비스를 부름 — 라우트 집합을 표와 정확히 일치시켜 새 라우트가 표에 없으면 실패, `auth.failed`가 실제 서비스의 감사 로그에 기록됨, create_app 안의 라우트 함수 본문이 클로저 이름 `service`를 읽으면 실패하는 AST 가드; 수정 전 코드에서 실패함을 확인), /harness 설계 원칙 11
+- **출처**: m5-agent 재live(`make smoke-conversation` 500), 수정 PR
+
 ---
 
 ## A에서 이식한 항목 (프로젝트 A `failure-patterns`의 번호)

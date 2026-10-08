@@ -25,6 +25,8 @@ def build_server_config(port: int) -> uvicorn.Config:
     async def lifespan(app):
         async with open_task_service() as service:
             app.state.task_service = service
+            # 인증 실패 감사(record_auth_failure)도 실제 서비스의 감사 로그를 쓴다(FP-070).
+            app.state.audit = getattr(service, "audit", None)
             yield
 
     app.router.lifespan_context = lifespan
