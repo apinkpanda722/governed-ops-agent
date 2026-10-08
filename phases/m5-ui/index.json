@@ -61,16 +61,7 @@
     {
       "step": 4,
       "name": "web-shell",
-      "status": "blocked",
-      "started_at": "2026-10-08T23:42:48+0900",
-      "blocked_reason": "“기존 테스트를 깨뜨리지 마라.”와 “수정할 파일(이 목록이 전부다)”가 충돌합니다. make verify의 유일한 실패는 허용 목록 밖 web/src/hooks/use-approvals.test.tsx의 next/navigation 모킹에 usePathname이 없는 것입니다. 해당 테스트에 Provider와 브라우저 API 모킹을 추가하도록 수정 허용이 필요합니다.",
-      "blocked_at": "2026-10-08T23:55:10+0900",
-      "usage": {
-        "input_tokens": 2569107,
-        "cached_input_tokens": 2463104,
-        "output_tokens": 17724,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 5,
