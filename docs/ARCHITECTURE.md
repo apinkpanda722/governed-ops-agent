@@ -407,7 +407,7 @@ sequenceDiagram
 - 데모 로그인은 IdP 대체 장치다. `DEMO_LOGIN` 플래그일 때만 열고 127.0.0.1에만 바인드한다. 신뢰 경계는 세션 발급 이후다(ADR-005).
 - 화면 4개: 로그인(데모 사용자 선택 = B 세션 발급), 요청·진행(SSE), 승인함(초안·수신처·결정론 검사 결과·수정 차이, 전사 공지는 요청자 팀 4급 이상, 요청자 본인 제외), 기록(task 상태, `audit-verify` 결과).
 - B 세션: `POST /sessions`는 `DEMO_LOGIN` 플래그와 127.0.0.1 클라이언트 조건에서만 열린다. `secrets.token_urlsafe(32)`로 발급하고 서버는 SHA-256 해시만 메모리에 두어 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 8시간이다. 인증 의존성은 `Authorization: Bearer`에서 요청자·승인자 `user_id`를 얻는다. 다른 사용자의 task 조회는 승인자 정책에 맞는 검사 통과 승인 대기 초안만 허용하고 나머지는 404다(ADR-018).
-- 세션 만료 시간은 8시간이고 BFF 쿠키 `maxAge`도 같다. 쿠키 속성(`Secure`·`SameSite`)·CSRF 대책은 미정(m5-web 설계에서 결정)이다.
+- 쿠키 이름은 `govops_session`, 속성은 `HttpOnly`, `SameSite=Strict`, `Path=/`이고 `Secure`는 요청 Origin 스킴이 https일 때만 설정한다. `Max-Age = min(28800, expires_at − now)`다. 변경 메서드 전체에서 `Origin`의 host == `Host` 헤더를 검사하고 없거나 다르면 403이다. route handler는 `NextRequest.cookies`·`NextResponse.cookies`를 쓴다. 로그아웃은 `DELETE /sessions`로 서버 세션을 폐기한다. 로그인 화면 사용자 목록은 `GET /demo/users`이며 `/sessions`와 같은 조건으로 열린다. BFF 응답은 허용 목록 투영을 거친다. 웹 포트는 3100, e2e는 3200이다. `GOVOPS_API_URL`은 서버 전용이며 루프백만 허용한다. e2e는 `tests/e2e_backend.py` replay 백엔드를 사용한다. 인젝션 차단은 `GuardrailBlocked` 직접 던지기로 UI 계약만 검증하며 실제 Guardrail 검증은 M6이다.
 
 M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec만 두며 연결은 M3에 둔다. `MAX_STEPS`는 폭주 방지용 임시 상수이며 최종값은 M5에서 정한다.
 

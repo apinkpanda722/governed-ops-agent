@@ -60,7 +60,7 @@ def record_auth_failure(request: Request, reason: str) -> None:
         return
 
 
-def current_user(request: Request) -> str:
+def authenticated_token(request: Request) -> str:
     values = request.headers.getlist("authorization")
     match = _BEARER.fullmatch(values[0]) if len(values) == 1 else None
     user = request.app.state.sessions.resolve(match.group(1)) if match else None
@@ -73,4 +73,9 @@ def current_user(request: Request) -> str:
             detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return user
+    return match.group(1)
+
+
+def current_user(request: Request) -> str:
+    token = authenticated_token(request)
+    return request.app.state.sessions.resolve(token)

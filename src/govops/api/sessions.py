@@ -37,3 +37,7 @@ class SessionStore:
         self._purge_expired(self._clock())
         session = self._sessions.get(hashlib.sha256(token.encode()).hexdigest())
         return None if session is None else session[0]
+
+    def revoke(self, token: str) -> bool:
+        digest = hashlib.sha256(token.encode()).hexdigest()
+        return self._sessions.pop(digest, None) is not None

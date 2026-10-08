@@ -2,11 +2,91 @@
   "project": "governed-ops-agent",
   "phase": "m5-web",
   "steps": [
-    { "step": 0, "name": "api-web-contract", "status": "pending" },
-    { "step": 1, "name": "e2e-backend", "status": "pending" },
-    { "step": 2, "name": "bff", "status": "pending" },
-    { "step": 3, "name": "ui-conversation", "status": "pending" },
-    { "step": 4, "name": "ui-approvals", "status": "pending" },
-    { "step": 5, "name": "e2e-web", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "api-web-contract",
+      "status": "completed",
+      "started_at": "2026-10-08T19:15:33+0900",
+      "summary": "세션 단일 폐기·데모 사용자 목록 라우트와 요청자 전용 승인함 conversation_id 구현, 진입점 계약 테스트 추가 및 make verify 통과.",
+      "completed_at": "2026-10-08T19:24:23+0900",
+      "usage": {
+        "input_tokens": 1717807,
+        "cached_input_tokens": 1643136,
+        "output_tokens": 5042,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "e2e-backend",
+      "status": "completed",
+      "started_at": "2026-10-08T19:24:23+0900",
+      "usage": {
+        "input_tokens": 2061716,
+        "cached_input_tokens": 1963648,
+        "output_tokens": 10460,
+        "attempts": 1
+      },
+      "summary": "루프백 replay e2e 백엔드와 StoryChat, 실제 소켓 테스트 14개 구현; 전체 make verify 통과 및 최종 보강 재검증 완료.",
+      "completed_at": "2026-10-08T19:37:27+0900"
+    },
+    {
+      "step": 2,
+      "name": "bff",
+      "status": "completed",
+      "started_at": "2026-10-08T19:37:27+0900",
+      "usage": {
+        "input_tokens": 1643146,
+        "cached_input_tokens": 1558400,
+        "output_tokens": 17175,
+        "attempts": 1
+      },
+      "summary": "BFF 서버 라이브러리·라우트 8개와 쿠키 인증·Origin 검사·허용 목록 투영·SSE 취소 전파 테스트 구현; make verify 통과(Python 3438개, 웹 45개).",
+      "completed_at": "2026-10-08T19:55:20+0900"
+    },
+    {
+      "step": 3,
+      "name": "ui-conversation",
+      "status": "completed",
+      "started_at": "2026-10-08T19:55:21+0900",
+      "summary": "로그인·대화 UI, BFF 클라이언트, SSE 종료·폴링·정리, 차단 카드 유지와 화면 경계 테스트 구현; make verify 통과(Python 3438개, 웹 77개).",
+      "completed_at": "2026-10-08T20:12:59+0900",
+      "usage": {
+        "input_tokens": 2813512,
+        "cached_input_tokens": 2716672,
+        "output_tokens": 22303,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "ui-approvals",
+      "status": "completed",
+      "started_at": "2026-10-08T20:12:59+0900",
+      "usage": {
+        "input_tokens": 1392102,
+        "cached_input_tokens": 1306880,
+        "output_tokens": 12959,
+        "attempts": 1
+      },
+      "summary": "승인 카드·승인함·대기 개수 배지와 재조회 연결 구현, 최신 초안 해시·본문 수정·만료·폴링 테스트 추가 및 make verify 통과(Python 3438개, 웹 99개).",
+      "completed_at": "2026-10-08T20:30:12+0900"
+    },
+    {
+      "step": 5,
+      "name": "e2e-web",
+      "status": "completed",
+      "started_at": "2026-10-08T20:30:12+0900",
+      "summary": "Replay Playwright 설정·e2e 스펙 2개·보안 가드·make e2e-web 및 문서 구현, make verify 통과(Python 3442개·웹 100개); 브라우저 e2e는 사용자 실행으로 남김.",
+      "completed_at": "2026-10-08T20:44:12+0900",
+      "usage": {
+        "input_tokens": 2999259,
+        "cached_input_tokens": 2905728,
+        "output_tokens": 9551,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-08T19:15:33+0900",
+  "completed_at": "2026-10-08T20:44:12+0900"
 }

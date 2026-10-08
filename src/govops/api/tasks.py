@@ -373,7 +373,10 @@ class TaskService:
                     self._checked(state)
                     and self._decision(state, user_id) == Decision.ALLOW
                 ):
-                    views.append(self._view(state, turn_id, approval=True))
+                    view = self._view(state, turn_id, approval=True)
+                    if state["user_id"] == user_id:
+                        view["conversation_id"] = conversation_id
+                    views.append(view)
         views.sort(key=lambda view: (view["expires_at"], view["task_id"]))
         return {"approvals": views}
 

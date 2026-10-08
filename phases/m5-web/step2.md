@@ -37,7 +37,7 @@ route handler는 `next/headers`의 `cookies()`를 쓰지 않는다. 읽기는 `N
 |---|---|---|---|
 | `demo-users/route.ts` | GET | `GET /demo/users` | 인증 없음. 응답 `{"users":[라벨…]}` |
 | `session/route.ts` | GET | `GET /sessions/me` | 응답 `{"user_id"}`. 401이면 쿠키 삭제 |
-| `session/route.ts` | POST | `POST /sessions` | 본문 `{"user": "demo-<팀>-g<숫자>"}`만(형식 `^demo-[a-z-]+-g[0-9]+$`, 아니면 422 `invalid_request`). 성공 시 쿠키 설정, 응답 `{"ok":true,"user_id"}` — **토큰·`expires_at`은 응답에 없다** |
+| `session/route.ts` | POST | `POST /sessions` | 본문 `{"user": "demo-<팀>-g<숫자>"}`만(형식 `^demo-[a-z-]+-g[0-9]+$`, 아니면 422 `invalid_request`). 성공 시 쿠키 설정, 응답 `{"ok":true,"user_id"}` — **세션 토큰과 세션 만료(`expires_at`)는 응답에 없다** |
 | `session/route.ts` | DELETE | `DELETE /sessions` | 쿠키가 있으면 업스트림 세션을 폐기하고(업스트림 401은 이미 무효이므로 성공으로 본다) **쿠키는 항상 지운다**. 업스트림이 5xx·연결 실패면 502 `upstream_unavailable`(쿠키는 지운 채) |
 | `conversations/route.ts` | POST | `POST /conversations` | 본문 `{"request": 1~2000자 문자열}`만 |
 | `conversations/[id]/route.ts` | GET | `GET /conversations/{id}` | 투영 |
@@ -60,6 +60,8 @@ route handler는 `next/headers`의 `cookies()`를 쓰지 않는다. 읽기는 `N
 - 버리는 것: 입력 원문(차단 턴), 판정 근거, 출력 사후 탐지 결과, `guardrail.masked`, `observed_doc_ids`, `steps`, `effect_result`, 내부 상태 키 전부.
 
 ### 4. 테스트
+
+**합성 값의 취급**(공통 금지사항의 "비밀 값"은 실제 토큰·키를 가리킨다): 테스트의 가짜 세션 토큰은 실행할 때 `node:crypto`의 무작위 값(`randomBytes(...).toString("base64url")`)으로 만들고 소스에 토큰 리터럴을 쓰지 않는다. 스텁 업스트림은 수신한 `Authorization` 헤더를 변수로 보관해 기대 값과 **비교만** 하고 출력·로그·스냅샷에 남기지 않는다. 금지 키 센티널(`SENTINEL-…`)은 비밀이 아닌 합성 문자열이다. 이 합성 값은 공통 금지사항의 대상이 아니다.
 
 - `env.test.ts`: 미설정·빈 문자열·공백에서 기본값, 루프백이 아닌 호스트·`localhost`·`https` 거부.
 - `origin.test.ts`: 변경 메서드(POST·PUT·PATCH·DELETE)에서 Origin 없음·형식 오류·host 불일치·Host 헤더 없음은 403, `Origin: http://127.0.0.1:3100`과 `Host: 127.0.0.1:3100`은 통과, `GET`은 검사하지 않음. 요청 객체가 `host` 헤더를 허용하지 않아 라우트 수준 Host 테스트가 불가능하면 Origin 판정 순수 함수(`origin`, `host` 문자열 입력) 테스트로 대신하되, 위 케이스(변경 메서드 4종 × 없음·형식 오류·불일치·Host 없음·통과)를 **모두 유지**하고 route 표 가드의 "변경 메서드마다 `requireSameOrigin` 호출 존재" 검사도 그대로 둔다. 대체한 사실은 테스트 주석에 적는다. 단언 강도는 낮추지 않는다.
@@ -102,5 +104,5 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - route handler에서 `next/headers`의 `cookies()`를 쓰지 마라. 이유: 쿠키 읽기는 `NextRequest.cookies`, 쓰기·삭제는 `NextResponse.cookies`로 통일하고 `next start`에서 속성(`HttpOnly`·`SameSite`·`Max-Age`)이 그대로 나감을 실측했다. route 표 가드가 `next/headers` import를 막는다.
 - Origin을 `new URL(request.url).origin`과 비교하지 마라. 이유: 실측에서 `req.url`의 origin은 `Host`와 무관하게 항상 `http://localhost:포트`라서 `127.0.0.1`로 접속한 정상 요청이 모두 403이 된다. `Origin`의 host와 `Host` 헤더를 비교한다.
 - SSE 업스트림 `fetch`에서 `signal: request.signal`을 빼지 마라. 이유: 실측에서 signal이 없으면 클라이언트가 끊어도 업스트림 스트림이 끝까지 흘렀다. 중단 전파는 통합 테스트로 고정한다(FP-068).
-- 응답 본문·로그·오류에 토큰, `expires_at`, 업스트림 응답 원문을 넣지 마라. 투영 코드에 버리는 키 이름을 쓰지도 마라. 이유: 비노출은 "허용한 키만 꺼내는" 허용 목록으로 지키고, 거부 목록은 새 키가 생기면 새로 샌다. 테스트는 허용 필드가 실제로 존재함도 함께 확인한다(FP-069).
+- 응답 본문·로그·오류에 세션 토큰, **세션 만료 필드**(`POST /sessions` 업스트림 응답의 `expires_at`, 쿠키 `Max-Age` 계산에만 쓴다), 업스트림 응답 원문을 넣지 마라. 승인 만료를 뜻하는 투영 필드 `expires_at`(대화 view의 `turn`·승인함 행)은 이 금지의 대상이 아니며 화면 계약에 포함된다. 투영 코드에 버리는 키 이름을 쓰지도 마라. 이유: 비노출은 "허용한 키만 꺼내는" 허용 목록으로 지키고, 거부 목록은 새 키가 생기면 새로 샌다. 테스트는 허용 필드가 실제로 존재함도 함께 확인한다(FP-069).
 - `GOVOPS_API_URL`을 `NEXT_PUBLIC_` 변수나 클라이언트 코드에 노출하지 말고, 빈 값이 기본값을 덮게 두지 마라. 이유: 브라우저는 FastAPI 주소를 몰라야 하고 `.env.example` 방식의 빈 값이 기본 주소를 지우면 안 된다(FP-030).
