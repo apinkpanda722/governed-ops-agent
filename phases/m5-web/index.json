@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "bff",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-08T19:37:27+0900",
+      "blocked_reason": "선점검에서 지시 충돌을 발견했습니다. 투영 요구사항은 `turn`에 \"`expires_at`\"을 포함하고 승인함 행에도 \"`expires_at`\"을 포함하도록 명시하지만, 이 step의 금지사항은 \"응답 본문·로그·오류에 토큰, `expires_at`, 업스트림 응답 원문을 넣지 마라.\"라고 명시합니다. 로그인 응답의 expires_at만 금지하는 것인지, 모든 응답에서 금지하는 것인지 확인이 필요합니다. 지시에 따라 코드 작성·수정 및 검증 실행 전에 중단했습니다.",
+      "blocked_at": "2026-10-08T19:39:35+0900",
+      "usage": {
+        "input_tokens": 27160,
+        "cached_input_tokens": 0,
+        "output_tokens": 224,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
