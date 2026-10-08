@@ -317,3 +317,28 @@ def test_checkpoint_prune_is_explicit_apply_and_user_only():
         if line.startswith("make checkpoint-prune ")
     )
     assert "(사용자 실행)" in line
+
+
+def test_m5_targets_are_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    for name in ("smoke-conversation", "test-m5-pg"):
+        assert name not in verify
+        recipe = text.split("\n" + name + ":\n", 1)[1].splitlines()[0]
+        assert "uv run --env-file .env " in recipe
+        assert name in {
+            word
+            for line in text.splitlines()
+            if line.startswith(".PHONY:")
+            for word in line.split()[1:]
+        }
+        line = next(
+            line
+            for line in (REPO_ROOT / "AGENTS.md")
+            .read_text()
+            .split("## 명령어", 1)[1]
+            .splitlines()
+            if line.startswith("make " + name + " ")
+        )
+        assert "(사용자 실행)" in line
+    assert "tests/test_m5_pg.py" in text.split("\ntest-m5-pg:\n", 1)[1].splitlines()[0]

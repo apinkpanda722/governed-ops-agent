@@ -248,3 +248,12 @@ audit-anchor:
 # 키·네트워크 불필요, 임시 체인에서 변조 5종·꼬리 잘라내기 재현, 실제 키 권한·짝·체인 확인, 사용자 실행
 smoke-audit:
 	uv run python -m govops.audit.smoke
+
+.PHONY: smoke-conversation test-m5-pg
+# make serve(DEMO_LOGIN=true)·live A·LiteLLM·compose mock 기동 후 사용자 실행, 실제 호출 수 센트
+smoke-conversation:
+	uv run --env-file .env python -m govops.api.smoke_conversation
+
+# compose Postgres 기동·make db-init 후 사용자 실행, 테스트 전용 DB URL 필요(임시 DB를 만들고 지운다)
+test-m5-pg:
+	uv run --env-file .env python -c 'import os, subprocess, sys; sys.exit(subprocess.call(["pytest", "tests/test_m5_pg.py", "-q"]) if os.environ.get("GOVOPS_TEST_DATABASE_URL") else (print("GOVOPS_TEST_DATABASE_URL: 테스트 전용 DB URL 필요") or 1))'

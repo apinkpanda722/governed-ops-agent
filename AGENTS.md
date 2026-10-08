@@ -111,6 +111,8 @@ make eval-gemini-grade # 사람 채점 해시 커밋 확인 후 Gemini 채점(�
 make smoke-gemini # Gemini 채점·별도 비용 원장 스모크(사용자 실행)
 make eval-run-dev # dev 20 `writes_org` live 실행·골든 record-through·채점·절대 규칙 판정(사용자 실행)
 
+make smoke-conversation # 대화·턴·승인·신원·응답 안전 HTTP 스모크(사용자 실행)
+make test-m5-pg # 임시 테이블·임시 DB에서 M5 Postgres 검증(사용자 실행)
 make test-outbox-pg # 테스트 전용 Postgres outbox 검증(사용자 실행)
 make scope-index # A 커밋 접근 정책·비합성 문서 합친 접근 인덱스 생성(사용자 실행)
 make smoke-effects # compose mock·토큰·시드 필요, 부작용 표식·멱등성 검증(사용자 실행)
