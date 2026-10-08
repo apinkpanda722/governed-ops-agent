@@ -28,3 +28,10 @@ test.each(["running", "awaiting_approval"])("disables input while %s", status =>
     expect((screen.getByTestId("composer-input") as HTMLTextAreaElement).disabled).toBe(true);
     expect((screen.getByTestId("composer-submit") as HTMLButtonElement).disabled).toBe(true);
 });
+test("Enter submits once and exposes notice and accessible send button", async () => {
+    const submit = vi.fn().mockResolvedValue({}); render(<Composer onSubmit={submit}/>);
+    const input = screen.getByTestId("composer-input"); fireEvent.change(input,{target:{value:"요청"}}); fireEvent.keyDown(input,{key:"Enter"}); fireEvent.keyDown(input,{key:"Enter"});
+    await waitFor(() => expect(submit).toHaveBeenCalledOnce(),{timeout:1000}); expect(screen.getByTestId("composer-submit").getAttribute("aria-label")).toBe("전송"); expect(screen.getByTestId("composer-hint").textContent).toBe("AI 답변은 틀릴 수 있습니다. 발송은 승인 후에만 실행됩니다.");
+});
+test.each([{shiftKey:true},{isComposing:true},{keyCode:229}])("modified or composing Enter does not submit", event => { const submit=vi.fn(); render(<Composer onSubmit={submit}/>); const input=screen.getByTestId("composer-input"); fireEvent.change(input,{target:{value:"요청"}}); fireEvent.keyDown(input,{key:"Enter",...event}); expect(submit).not.toHaveBeenCalled(); });
+test("running ignores Enter",()=>{const submit=vi.fn(); render(<Composer status="running" onSubmit={submit}/>); fireEvent.keyDown(screen.getByTestId("composer-input"),{key:"Enter"}); expect(submit).not.toHaveBeenCalled();});

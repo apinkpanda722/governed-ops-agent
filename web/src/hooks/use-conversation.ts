@@ -25,7 +25,7 @@ export function useConversation(id?: string, deps: ConversationDeps = {}) {
     const refresh = useRef<(() => Promise<void>) | null>(null);
     const eventSource = deps.eventSource ?? createStream, schedule = deps.setTimeout ?? globalThis.setTimeout, cancel = deps.clearTimeout ?? globalThis.clearTimeout;
     useEffect(() => {
-        let alive = true, stream: Stream | undefined, timer: ReturnType<typeof setTimeout> | undefined, polling = false, reading = false, again = false;
+        let alive = true, stream: Stream | undefined, timer: ReturnType<typeof setTimeout> | undefined, polling = false, reading = false;
         let current: ConversationView | undefined;
         const cards: BlockedCardView[] = [];
         const controller = new AbortController();
@@ -34,13 +34,12 @@ export function useConversation(id?: string, deps: ConversationDeps = {}) {
             cancel(timer);
             timer = undefined;
         } };
-        const poll = () => { if (alive && polling && isActive(current) && timer === undefined)
+        const poll = () => { if (alive && document.visibilityState !== "hidden" && (polling || current?.turn?.status === "running") && isActive(current) && timer === undefined)
             timer = schedule(() => { timer = undefined; void read(); }, 2000); };
         async function read() {
             if (!alive || !id)
                 return;
             if (reading) {
-                again = true;
                 return;
             }
             reading = true;
@@ -49,6 +48,7 @@ export function useConversation(id?: string, deps: ConversationDeps = {}) {
                 if (!alive)
                     return;
                 current = value;
+                if (value.turn?.status !== "running" && !polling) stopTimer();
                 const t = value.turn;
                 if (t?.status === "blocked_input" && t.turn_id && !cards.some(c => c.turn_id === t.turn_id))
                     cards.push({ turn_id: t.turn_id, block: { code: t.block?.code, message: t.block?.message }, afterMessages: value.history.length });
@@ -75,6 +75,7 @@ export function useConversation(id?: string, deps: ConversationDeps = {}) {
                     const error = apiError(e);
                     setSnapshot(s => ({ ...s, id, error }));
                     if (error.status === 401) {
+                        current = undefined;
                         close();
                         stopTimer();
                         polling = false;
@@ -84,19 +85,16 @@ export function useConversation(id?: string, deps: ConversationDeps = {}) {
             finally {
                 reading = false;
                 if (alive) {
-                    if (again) {
-                        again = false;
-                        void read();
-                    }
-                    else
-                        poll();
+                    poll();
                 }
             }
         }
+        const visibilityChanged = () => { if (document.visibilityState === "hidden") stopTimer(); else void read(); };
+        document.addEventListener("visibilitychange", visibilityChanged);
         refresh.current = read;
         if (id)
             void read();
-        return () => { alive = false; controller.abort(); close(); stopTimer(); if (refresh.current === read)
+        return () => { document.removeEventListener("visibilitychange", visibilityChanged); alive = false; controller.abort(); close(); stopTimer(); if (refresh.current === read)
             refresh.current = null; };
     }, [id, eventSource, schedule, cancel]);
     async function submitTurn(text: string): Promise<SubmitResult> {

@@ -99,3 +99,26 @@ test("exposed refresh uses latest read after id change and is inert after unmoun
     await act(async () => refresh()); expect(f.mock.calls[2][0]).toBe("/api/conversations/next");
     unmount(); await refresh(); expect(f).toHaveBeenCalledTimes(3);
 });
+test("healthy running stream polls and stops at terminal", async()=>{
+    vi.useFakeTimers(); const f=vi.fn().mockResolvedValueOnce(view("running")).mockResolvedValueOnce(view("completed")); vi.stubGlobal("fetch",f); renderHook(()=>useConversation("id",deps));
+    await act(async()=>{await vi.advanceTimersByTimeAsync(0);}); expect(vi.getTimerCount()).toBe(1);
+    await act(async()=>{await vi.advanceTimersByTimeAsync(2000);}); expect(f).toHaveBeenCalledTimes(2); expect(vi.getTimerCount()).toBe(0); expect(streams[0].closed).toBe(true);
+});
+test("healthy awaiting approval stream needs no timer",async()=>{
+    vi.useFakeTimers(); const f=vi.fn().mockResolvedValue(view("awaiting_approval")); vi.stubGlobal("fetch",f); renderHook(()=>useConversation("id",deps)); await act(async()=>{await vi.advanceTimersByTimeAsync(0);}); expect(streams[0].closed).toBe(false); expect(vi.getTimerCount()).toBe(0); await act(async()=>{await vi.advanceTimersByTimeAsync(6000);}); expect(f).toHaveBeenCalledOnce();
+});
+test("hidden tab stops timer and visible tab reads immediately",async()=>{
+    vi.useFakeTimers(); let visibility="visible"; vi.spyOn(document,"visibilityState","get").mockImplementation(()=>visibility as DocumentVisibilityState);
+    const f=vi.fn().mockImplementation(()=>Promise.resolve(view("running"))); vi.stubGlobal("fetch",f); renderHook(()=>useConversation("id",deps)); await act(async()=>{await vi.advanceTimersByTimeAsync(0);});
+    visibility="hidden"; act(()=>document.dispatchEvent(new Event("visibilitychange"))); expect(vi.getTimerCount()).toBe(0); await act(async()=>{await vi.advanceTimersByTimeAsync(4000);}); expect(f).toHaveBeenCalledOnce();
+    visibility="visible"; await act(async()=>{document.dispatchEvent(new Event("visibilitychange"));await vi.advanceTimersByTimeAsync(0);}); expect(f).toHaveBeenCalledTimes(2); expect(vi.getTimerCount()).toBe(1); vi.restoreAllMocks();
+});
+test("overlapping SSE and poll serialize reads",async()=>{
+    vi.useFakeTimers(); let resolve!: (r:Response)=>void; const f=vi.fn().mockResolvedValueOnce(view("running")).mockImplementation(()=>new Promise<Response>(r=>{resolve=r;})); vi.stubGlobal("fetch",f); renderHook(()=>useConversation("id",deps)); await act(async()=>{await vi.advanceTimersByTimeAsync(0);}); await act(async()=>{await vi.advanceTimersByTimeAsync(2000);}); act(()=>streams[0].listener()); expect(f).toHaveBeenCalledTimes(2); await act(async()=>{resolve(view("completed"));}); expect(f).toHaveBeenCalledTimes(2); expect(vi.getTimerCount()).toBe(0);
+});
+test("401 during running polling stops all timers",async()=>{
+    vi.useFakeTimers(); const f=vi.fn().mockResolvedValueOnce(view("running")).mockResolvedValueOnce(new Response('{"code":"unauthenticated"}',{status:401})); vi.stubGlobal("fetch",f); renderHook(()=>useConversation("id",deps)); await act(async()=>{await vi.advanceTimersByTimeAsync(0);}); await act(async()=>{await vi.advanceTimersByTimeAsync(2000);}); expect(vi.getTimerCount()).toBe(0); expect(streams[0].closed).toBe(true); await act(async()=>{await vi.advanceTimersByTimeAsync(4000);}); expect(f).toHaveBeenCalledTimes(2);
+});
+test("SSE updates do not postpone running two second polling",async()=>{
+    vi.useFakeTimers(); const f=vi.fn().mockImplementation(()=>Promise.resolve(view("running"))); vi.stubGlobal("fetch",f); renderHook(()=>useConversation("id",deps)); await act(async()=>{await vi.advanceTimersByTimeAsync(1000);}); await act(async()=>{streams[0].listener();}); expect(f).toHaveBeenCalledTimes(2); expect(vi.getTimerCount()).toBe(1); await act(async()=>{await vi.advanceTimersByTimeAsync(1000);}); expect(f).toHaveBeenCalledTimes(3); expect(vi.getTimerCount()).toBe(1);
+});
