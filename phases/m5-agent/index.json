@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "events-session-ttl",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T16:05:19+0900",
+      "summary": "소유자 전용 상태 SSE·만료 처리·스트림 종료와 8시간 세션 TTL 구현; 계층 경계 확인, make verify 통과(Python 3381 passed, 웹 15 passed).",
+      "completed_at": "2026-10-08T16:15:55+0900",
+      "usage": {
+        "input_tokens": 2471704,
+        "cached_input_tokens": 2378112,
+        "output_tokens": 11987,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
