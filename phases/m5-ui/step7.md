@@ -11,10 +11,10 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `web/e2e/support.ts`, `web/e2e/approval-flow.spec.ts`, `web/e2e/blocked-and-isolation.spec.ts`, `web/src/lib/testids.ts`, `web/src/e2e-config.test.ts`, `tests/e2e_backend.py`, `tests/test_e2e_backend.py`, `src/govops/api/smoke_conversation.py`, `tests/test_api_smoke_conversation.py`, `Makefile`, `tests/test_makefile.py`, `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/THREAT_MODEL.md`, `docs/EVAL.md`, `tests/test_docs_consistency.py`(새 단언 **추가에 한함**, 기존 단언 약화·삭제 금지). 이 step은 e2e 스펙·e2e 백엔드·스모크·Makefile·문서를 새 UI와 새 프로필에 맞춘다. TDD(가드 테스트와 소비자 테스트를 먼저).
+**수정할 파일**(이 목록이 전부다): `web/e2e/support.ts`, `web/e2e/approval-flow.spec.ts`, `web/e2e/blocked-and-isolation.spec.ts`, `web/src/lib/testids.ts`, `web/src/components/user-card.tsx`(구 "사용자 전환" 버튼(`switchUser`) 제거에 한함. 로그아웃 아이콘 버튼 `logout`·팀 배지·툴팁·`ConflictNotice`는 바꾸지 않는다), `web/src/e2e-config.test.ts`, `tests/e2e_backend.py`, `tests/test_e2e_backend.py`, `src/govops/api/smoke_conversation.py`, `tests/test_api_smoke_conversation.py`, `Makefile`, `tests/test_makefile.py`, `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/THREAT_MODEL.md`, `docs/EVAL.md`, `tests/test_docs_consistency.py`(새 단언 **추가에 한함**, 기존 단언 약화·삭제 금지). 이 step은 e2e 스펙·e2e 백엔드·스모크·Makefile·문서를 새 UI와 새 프로필에 맞춘다. TDD(가드 테스트와 소비자 테스트를 먼저).
 
 열람 금지 경로: `data/eval/`, `data/interim/`
-수정 허용 경로: `web/e2e/support.ts`, `web/e2e/approval-flow.spec.ts`, `web/e2e/blocked-and-isolation.spec.ts`, `web/src/lib/testids.ts`, `web/src/e2e-config.test.ts`, `tests/e2e_backend.py`, `tests/test_e2e_backend.py`, `src/govops/api/smoke_conversation.py`, `tests/test_api_smoke_conversation.py`, `Makefile`, `tests/test_makefile.py`, `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/THREAT_MODEL.md`, `docs/EVAL.md`, `tests/test_docs_consistency.py`
+수정 허용 경로: `web/e2e/support.ts`, `web/e2e/approval-flow.spec.ts`, `web/e2e/blocked-and-isolation.spec.ts`, `web/src/lib/testids.ts`, `web/src/components/user-card.tsx`, `web/src/e2e-config.test.ts`, `tests/e2e_backend.py`, `tests/test_e2e_backend.py`, `src/govops/api/smoke_conversation.py`, `tests/test_api_smoke_conversation.py`, `Makefile`, `tests/test_makefile.py`, `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/THREAT_MODEL.md`, `docs/EVAL.md`, `tests/test_docs_consistency.py`
 
 열람 금지의 범위: 이 금지는 **Codex 세션이 `data/eval/`·`data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드와 테스트는 두 경로를 읽지 않는다.
 
@@ -26,8 +26,8 @@
 
 ### 2. e2e 스펙 (`web/e2e/`, 셀렉터는 `../src/lib/testids`만)
 
-- `testids.ts`: 더 이상 쓰지 않는 `switchUser`를 **제거**한다(사용처가 e2e `support.ts`뿐임을 `rg`로 확인하고 함께 고친다). 다른 이름은 지우지 않는다.
-- `support.ts`: `switchTo(page, label)`는 `logout`을 눌러 `/login`으로 간 뒤 `loginAs`로 다시 로그인한다. 필요하면 대화 목록 항목을 여는 도우미를 더한다.
+- `testids.ts`: 더 이상 쓰지 않는 `switchUser`를 **제거**한다. 사용처는 e2e `support.ts`와 `web/src/components/user-card.tsx`의 구 "사용자 전환" 버튼이며 `rg`로 확인하고 둘을 함께 고친다(`user-card.tsx`에서는 그 버튼만 제거한다. 같은 `logout` 핸들러를 부르는 로그아웃 아이콘 버튼 `logout`이 남는다). 다른 이름은 지우지 않는다.
+- `support.ts`: `switchTo(page, label)`는 `logout`을 눌러 `/login`으로 간 뒤 `loginAs`로 다시 로그인한다. 클릭 대상은 `testids.logout`(기존 `switchUser`와 같은 로그아웃 동작)이고 `/login` URL 대기 단언과 `loginAs`는 그대로 유지한다(단언을 약화하지 않는다). 필요하면 대화 목록 항목을 여는 도우미를 더한다.
 - `approval-flow.spec.ts`(기존 흐름 유지 + 새 UI 검증): 조회 뒤 `turnAnswer`·`turnCitedDoc`과 함께 `toolSteps`가 보이고 단계 행이 1개 이상, 사이드바에 `conversationItem(id)`가 보이며 제목에 `INC-2026-012`가 있음, 공유 요청 뒤 승인 카드와 `composerHint`, 승인 대기 중 입력창 비활성과 409(`approval_pending`), `navApprovals`로 승인함 `inboxTable`에 들어가 **요청자 버튼(`inboxRequester`)으로 행을 펼친 뒤** `approvalOpenConversation`으로 대화로 이동, 승인 후 `sentCard`가 보이고 `sentResultId`가 "Slack 메시지 ID"를 포함하며 `sentTarget`이 `team-platform`·`sentMethod`가 "승인"·`sentAt`이 비어 있지 않음, 발송 1건(관측 포트), 새로 고침 뒤에도 `sentCard`와 1건, 같은 승인 재전송에도 1건, **`/approvals`로 이동한 뒤 사이드바 `conversationItem(id)`를 눌러 같은 대화가 다시 열리고 `sentCard`가 보임**, 재무 사용자로 로그아웃·재로그인한 뒤 같은 조회가 `찾을 수 없습니다`이고 사이드바에 플랫폼 대화 `conversationItem(id)`가 없음(`toHaveCount(0)`)·승인함 비어 있음·발송 1건 그대로·플랫폼 대화 API 404.
 - `blocked-and-isolation.spec.ts`(기존 흐름 유지 + 추가): 입력 차단 카드와 센티널 비노출, 이어서 정상 요청 뒤에도 카드 유지, 쿠키 속성·CSRF·세션 폐기(로그아웃 버튼 `logout` 사용)는 그대로. 추가: `다른 팀 채널` 요청이 `checkBlockedCard`로 그려지고 문구에 `team-platform`이 있으며 `team-finance`가 없고 입력 차단 카드(`blockedCard`)는 아님, 테마 버튼 `themeToggle("dark")` 클릭 뒤 `<html>`에 `dark` 클래스가 있고 새로 고침 뒤에도 유지(불리언으로만 단언).
 - 두 스펙 파일 머리 주석의 "UI 계약 검증이며 실제 Guardrail·모델 동작 검증이 아니다" 문장은 유지한다. 스펙은 쿠키 값·`document.cookie` 값·응답 본문 원문을 출력하지 않고, 고정 `waitForTimeout`을 쓰지 않으며, `data-testid` 문자열 리터럴을 직접 쓰지 않는다(기존 가드). `e2e-config.test.ts`의 가드는 약화하지 않고 필요하면 새 규칙(`switchUser` 미사용)만 **추가**한다.
