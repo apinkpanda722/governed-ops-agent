@@ -103,16 +103,7 @@
     {
       "step": 7,
       "name": "e2e-docs",
-      "status": "blocked",
-      "started_at": "2026-10-09T00:59:32+0900",
-      "blocked_reason": "先점검에서 수정 허용 목록 밖 파일의 수정이 필요한 충돌을 확인했습니다. 지시: \"testids.ts: 더 이상 쓰지 않는 switchUser를 제거한다(사용처가 e2e support.ts뿐임을 rg로 확인하고 함께 고친다).\" 금지: \"수정할 파일(이 목록이 전부다)\" 및 \"수정할 파일 목록 밖 파일의 수정이 필요함 ... 코드를 쓰지 않고 즉시 blocked로 보고한다.\" rg 결과 web/src/components/user-card.tsx:35에도 testids.switchUser 사용이 있습니다. switchUser를 제거하면 해당 컴포넌트의 타입 검사가 실패하지만 user-card.tsx는 수정 허용 목록에 없습니다. user-card.tsx를 허용 목록에 추가하거나 제거 지시를 수정해야 합니다. 파일은 수정하지 않았습니다.",
-      "blocked_at": "2026-10-09T01:01:59+0900",
-      "usage": {
-        "input_tokens": 172957,
-        "cached_input_tokens": 112384,
-        "output_tokens": 821,
-        "attempts": 1
-      }
+      "status": "pending"
     }
   ],
   "created_at": "2026-10-08T22:39:23+0900"
