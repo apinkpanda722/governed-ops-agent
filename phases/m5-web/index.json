@@ -1,0 +1,12 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m5-web",
+  "steps": [
+    { "step": 0, "name": "api-web-contract", "status": "pending" },
+    { "step": 1, "name": "e2e-backend", "status": "pending" },
+    { "step": 2, "name": "bff", "status": "pending" },
+    { "step": 3, "name": "ui-conversation", "status": "pending" },
+    { "step": 4, "name": "ui-approvals", "status": "pending" },
+    { "step": 5, "name": "e2e-web", "status": "pending" }
+  ]
+}

@@ -320,6 +320,7 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **원인**: 청결 검사의 예외 목록은 비용 원장 하나뿐(FP-063)이고 러너는 실행 종류(공식/참고)를 구분하지 않고 산출물을 같은 규칙으로 남긴다. 설계가 "같은 커밋 두 번 실행"의 **실행 순서**를 러너의 청결 검사·골든 재기록·결과 위치에 대조하지 않았다.
 - **규칙**: 같은 커밋에서 한 러너를 두 번 실행하는 등록은 설계 때 live 실행 순서를 소비자 점검 대상에 넣는다: 첫 실행의 산출물이 두 번째 실행의 청결 검사에 걸리는지, 두 번째 이전에 어떤 커밋된 기록을 덮어쓰는지, 공식이 아닌 실행의 기록을 어디에 남기는지를 실행 전에 정한다. 참고 실행의 결과를 커밋 대상 경로 밖에 두거나, 참고 실행이 공식 기록(골든)을 덮어쓰지 않게 하는 방안을 미리 구현한다.
 - **강제 수단**: 없음(후속 후보, 미구현: `run_role=reference`인 실행은 `data/replay` 재기록을 건너뛰고 결과 디렉터리를 청결 검사 예외 경로에 둔다). 이번 실행은 수동 이동·stash로 풀었고 결과 문서 실행 조건에 이동(내용 무변경)을 적었다.
+- **강제 수단(추가, m5-web)**: `make e2e-web` 레시피 끝의 청결 검사(Playwright 실행 뒤 `git status --porcelain`이 비어 있지 않으면 바뀐 경로만 출력하고 실패, Playwright 종료 코드 보존)와 `tests/test_makefile.py`의 레시피 단언. e2e 산출물(`web/test-results`·`web/playwright-report`)은 `.gitignore`, `next.config.ts`에 `distDir`을 두지 않는다(실측: `distDir`을 바꾸면 `next build`가 추적 중인 `tsconfig.json`을 다시 쓴다). `run_role=reference` 방안은 여전히 미구현이다.
 - **출처**: m5-agent 켬/끔 dev live(결과 `docs/results/2026-10-08-m5-dev4-live.md`)
 
 ### FP-068 체크포인터 async 생성기(alist) 안에서 같은 saver를 다시 호출해 교착
