@@ -15,6 +15,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/audit/log.py`, `src/govops/audit/__init__.py`, `tests/test_audit.py`, `tests/test_audit_events.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경**: 다음 step의 체인이 첫 쓰기에서 `chain.genesis`(시스템 이벤트)를 쓰므로 이벤트 스키마가 체인보다 먼저 있어야 한다. `Field` 타입은 `str | int | bool | None`을 유지한다(float 금지). 일반 경로(해시·mock ID·허용 enum 외 문자열은 거부, 형식 밖 문자열에는 PII 검사)는 그대로 둔다.
 
 ### 1. 이벤트와 행위자

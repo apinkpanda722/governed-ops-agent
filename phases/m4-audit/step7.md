@@ -15,6 +15,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/api/auth.py`, `src/govops/api/app.py`, `tests/test_api_auth_audit.py`, `tests/test_api_tasks.py`, `tests/test_api_guardrail_view.py`, `tests/test_golden_trace.py`, `tests/test_api_sessions.py`, `tests/test_e2e_isolation.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경**: 인증 실패는 task가 없고 호출자를 신뢰할 수 있게 식별할 수도 없다(세션 저장소는 만료 digest를 삭제하고 로그인 라벨은 비신뢰 입력이다). 그래서 `auth.failed`는 시스템 이벤트(`actor.sub="system"`, `task_id=null`)이고 `reason`은 고정 enum만 쓴다. 토큰·라벨·헤더 값·IP는 쓰지 않는다. 미인증 요청이 체인과 `fsync`를 채우지 못하도록 프로세스당 분당 60건 상한을 둔다.
 
 ### 1. 기록 지점과 사유 (`api/auth.py`, `api/app.py`)

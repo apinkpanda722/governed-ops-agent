@@ -15,6 +15,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/agent/graph.py`, `tests/test_agent_model_call_event.py`, `tests/test_agent_guardrail.py`, `tests/test_agent_graph.py`, `tests/test_agent_scope.py`, `tests/test_api_tasks.py`, `tests/test_effects_matrix.py`, `tests/test_evalrun_driver.py`, `tests/test_e2e_isolation.py`, `tests/test_golden_m3.py`, `tests/test_evalrun_dev_m3.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경(ADR-012)**: 모델 호출마다 task·사용자·팀 키·모델·fallback 여부·비용·Guardrail 판정을 최소 기록한다. 원문(프롬프트·응답·도구 인자)은 남기지 않는다. 기록 대상은 **`chat.complete`가 결과를 돌려준 호출(성공)** 뿐이다. 차단된 호출은 `guardrail.input_blocked`가, 실패한 호출은 비용 원장·trace가 기록한다(이월 항목이므로 이 step에서 만들지 않는다).
 
 ### 1. `model_body`에 기록 추가

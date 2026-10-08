@@ -21,6 +21,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/audit/log.py`, `src/govops/audit/__init__.py`, `tests/test_audit_chain.py`, `tests/test_audit.py`, `tests/test_api_tasks.py`, `tests/test_agent_graph.py`, `tests/test_effects_matrix.py`, `tests/test_agent_scope.py`, `tests/test_evalrun_driver.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경**: `AuditLog`를 해시체인 + 서명으로 바꾼다. 쓰는 곳은 이 클래스 하나다. `append` 시그니처(`append(event, *, task_id, actor_sub, **fields) -> int`)와 `append_with_retry`·`MemoryAuditLog`는 유지한다. `MemoryAuditLog`는 서명하지 않는다.
 
 ### 1. 저장 형식

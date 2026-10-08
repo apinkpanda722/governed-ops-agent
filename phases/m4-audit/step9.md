@@ -14,6 +14,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/audit/smoke.py`, `Makefile`, `tests/test_audit_smoke.py`, `tests/test_makefile.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경**: `smoke-audit`은 사용자가 실제 키로 실행하는 점검이다. 네트워크·API 키·LiteLLM이 필요 없다. 실제 키의 권한·짝 일치를 확인하고, 임시 체인에서 변조 5종과 꼬리 잘라내기 장면(M7 장면 5)을 재현하며, 실제 감사 디렉터리가 있으면 읽기 전용으로 검증한다. 실제 감사 디렉터리·실제 대기 파일·`docs/results/`에는 아무것도 쓰지 않는다(임시 디렉터리만 쓴다).
 
 ### 1. `python -m govops.audit.smoke`

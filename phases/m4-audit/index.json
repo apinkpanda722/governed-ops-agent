@@ -5,10 +5,8 @@
     {
       "step": 0,
       "name": "audit-crypto",
-      "status": "blocked",
+      "status": "pending",
       "started_at": "2026-10-08T10:12:48+0900",
-      "blocked_reason": "선점검에서 지시 충돌을 발견했습니다. \"열람 금지 경로: `data/interim/`\"와 \"**`autouse` 세션 범위 픽스처**가 시작 시 저장소의 `data/interim/audit/`(파일 이름·크기·`mtime_ns` 목록, 디렉터리가 없으면 \"없음\")와 `docs/results/audit-anchors.jsonl`(없으면 \"없음\", 있으면 sha256)을 기록하고 세션 종료 시 같은지 단언한다(다르면 어떤 경로가 바뀌었는지 이름만 출력).\"는 동시에 준수할 수 없습니다. 스냅샷을 위한 디렉터리 메타데이터 열람이 예외로 허용되는지 명시가 필요합니다. 파일 수정과 검증은 실행하지 않았습니다.",
-      "blocked_at": "2026-10-08T10:14:30+0900",
       "usage": {
         "input_tokens": 24146,
         "cached_input_tokens": 0,

@@ -14,6 +14,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/audit/anchor.py`, `src/govops/audit/log.py`, `Makefile`, `.env.example`, `tests/test_audit_anchor.py`, `tests/test_makefile.py`, `tests/test_env_defaults.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경**: 고정점은 체인에 덧붙인 `chain.anchor` 레코드의 `(seq, hash, sig, kid)`를 저장소 밖에도 남겨 꼬리 잘라내기·전체 재계산을 탐지하게 하는 장치다. 쓰기 경로는 원래 폴더에서 `docs/results/`를 건드리지 않도록 **대기 파일**에 덧붙인다(원래 폴더의 git 상태가 변하면 러너 청결 검사와 pull이 깨진다). 이 대기 파일의 줄은 결과 문서 PR이 dev worktree에서 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다. 이 phase는 `docs/results/audit-anchors.jsonl`을 만들지 않는다.
 
 ### 1. 대기 파일과 줄 형식 (`anchor.py`)

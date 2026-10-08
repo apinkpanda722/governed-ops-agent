@@ -15,6 +15,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/api/wiring.py`, `src/govops/api/tasks.py`, `tests/test_service_start_event.py`, `tests/test_api_wiring_build.py`, `tests/test_api_wiring.py`, `tests/test_evalrun_dev_m3.py`, `tests/test_evalrun_faults.py`, `tests/test_obs_instrument.py`, `tests/test_api_smoke.py`, `tests/test_e2e_isolation.py`, `tests/test_golden_m3.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경**: `build_task_service`는 서비스, dev 러너, faults 러너가 모두 쓰는 조립 지점이다. 여기서 `service.start`를 기록하면 세 경로가 모두 키 없이는 시작하지 않고 시작 시 정책·규칙·접근 인덱스·훅 해시가 체인에 남는다. 러너가 행·시도마다 서비스를 만들면 `service.start`가 그만큼 쌓이는 것은 정상이다(genesis는 디렉터리당 한 번).
 
 ### 1. `service.start` 기록 (`wiring.py`)

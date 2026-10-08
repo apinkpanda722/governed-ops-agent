@@ -14,6 +14,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `docs/ADR.md`, `docs/ARCHITECTURE.md`, `docs/THREAT_MODEL.md`, `docs/PRD.md`, `docs/EVAL.md`, `AGENTS.md`, `tests/test_docs_consistency.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **문서 원칙**: 결정 내용과 현재 사실만 쓴다(결정 주체·경위·"이번에 바꿨다" 같은 서술 없음). 결과 수치(첫 고정점 값·kid·봉인된 legacy 수)는 쓰지 않는다. 결과 문서는 이 phase 뒤에 별도로 쓴다. `docs/results/`는 수정하지 않는다(읽기 전용).
 
 ### 1. `docs/ADR.md`

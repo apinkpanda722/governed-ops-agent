@@ -15,6 +15,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/evalrun/anchors.py`, `src/govops/evalrun/dev_m3.py`, `src/govops/evalrun/faults.py`, `tests/test_evalrun_anchors.py`, `tests/test_evalrun_dev_m3.py`, `tests/test_evalrun_faults.py`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경(ADR-012·TH8 "실행마다 고정점")**: dev·faults 러너는 실행이 끝날 때 사용한 감사 디렉터리마다 고정점을 만든다. 고정점 줄은 대기 파일(`data/interim/audit/anchors-pending.jsonl`)에만 쓰이고(step 4), 결과 문서 PR이 `docs/results/audit-anchors.jsonl`로 옮긴다. 러너는 `docs/results/`를 쓰지 않는다(러너의 git 청결 검사: `worktree.py`는 예외 경로 1개만 허용한다).
 
 ### 1. `evalrun/anchors.py`

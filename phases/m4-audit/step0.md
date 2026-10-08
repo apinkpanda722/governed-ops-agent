@@ -22,6 +22,8 @@
 열람 금지 경로: `data/interim/`
 수정 허용 경로: `src/govops/audit/crypto.py`, `tests/audit_keys.py`, `tests/test_audit_crypto.py`, `tests/test_audit_isolation.py`, `tests/conftest.py`, `tests/test_env_defaults.py`, `.env.example`
 
+열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/`의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step이 작성하는 코드나 테스트가 실행 시 `data/interim/` 아래 경로를 프로그램으로 읽거나 쓰는 것(기본 경로 문자열, 기본 `AUDIT_DIR`, 대기 파일 경로 포함)은 금지 대상이 아니다. 단 테스트는 `data/interim/`의 실제 파일 **내용**을 읽지 않고(저장소 보호 스냅샷 픽스처는 파일 이름·크기·`mtime_ns`만 읽는다), 쓰기는 임시 디렉터리에서만 한다.
+
 **배경**: 이 phase는 감사 로그를 해시체인 + Ed25519 서명으로 바꾼다(ADR-012). 이 step은 그 암호 부품과 테스트 격리 장치만 만든다. 기록 형식 전체는 다음 step들이 쓴다: `{seq, ts, prev_hash, actor:{sub,act}, event, task_id, …필드, kid, hash, sig}`, `hash` = SHA-256 hex(정규화 JSON(`hash`·`sig` 제외, `kid` 포함)의 UTF-8 바이트), `sig` = Ed25519 서명 hex(서명 대상은 `hash` hex 문자열의 ASCII 바이트).
 
 ### 1. `govops/audit/crypto.py` (순수 함수, `govops` 다른 계층 import 금지)
