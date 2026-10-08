@@ -135,9 +135,11 @@ async def test_post_detection_is_fail_open(post, event, code):
         FakeChat(replace(reply("답변"), guardrail=replace(INFO, post=post))), audit
     )
     assert state["status"] == "completed"
-    assert audit.records[0]["event"] == event
+    rows = [r for r in audit.records if r["event"] != "model.call"]
+    assert len(rows) == 1 and rows[0]["event"] == event
+    assert len([r for r in audit.records if r["event"] == "model.call"]) == 1
     if code:
-        assert audit.records[0]["code"] == code
+        assert rows[0]["code"] == code
 
 
 @async_test

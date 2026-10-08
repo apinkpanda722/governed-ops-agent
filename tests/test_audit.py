@@ -27,7 +27,7 @@ def append(log, **fields):
 def rows(path):
     return [
         json.loads(line)
-        for file in sorted(path.glob("*.jsonl"))
+        for file in sorted(path.glob("chain-*.jsonl"))
         for line in file.read_text().splitlines()
     ]
 
@@ -36,31 +36,63 @@ def test_sequence_rotation_reopen_and_permissions(tmp_path):
     now = [datetime(2026, 10, 5, tzinfo=UTC)]
     directory = tmp_path / "audit"
     log = AuditLog(directory, clock=lambda: now[0])
-    assert append(log) == 1
-    now[0] = datetime(2026, 10, 6, tzinfo=UTC)
     assert append(log) == 2
-    assert append(AuditLog(directory, clock=lambda: now[0])) == 3
-    assert [row["seq"] for row in rows(directory)] == [1, 2, 3]
+    now[0] = datetime(2026, 10, 6, tzinfo=UTC)
+    assert append(log) == 3
+    assert append(AuditLog(directory, clock=lambda: now[0])) == 4
+    assert [row["seq"] for row in rows(directory)] == [1, 2, 3, 4]
     assert directory.stat().st_mode & 0o777 == 0o700
-    for file in directory.glob("*.jsonl"):
+    for file in directory.glob("chain-*.jsonl"):
         assert file.stat().st_mode & 0o777 == 0o600
-    row = rows(directory)[0]
+    row = rows(directory)[1]
     assert row["actor"] == {"sub": "demo-platform-g3", "act": "governed-ops-agent"}
-    assert set(row) == {"seq", "ts", "actor", "event", "task_id"}
+    assert set(row) == {
+        "seq",
+        "ts",
+        "actor",
+        "event",
+        "task_id",
+        "prev_hash",
+        "kid",
+        "hash",
+        "sig",
+    }
 
 
 def test_concurrent_instances(tmp_path):
     logs = [AuditLog(tmp_path), AuditLog(tmp_path)]
     with ThreadPoolExecutor(max_workers=8) as pool:
         seqs = list(pool.map(lambda i: append(logs[i % 2]), range(100)))
-    assert sorted(seqs) == list(range(1, 101))
+    assert sorted(seqs) == list(range(2, 102))
 
 
 def test_events(tmp_path):
     log = AuditLog(tmp_path)
-    assert len(EVENTS) == 14
+    assert EVENTS == {
+        "guardrail.input_blocked",
+        "guardrail.tool_quarantined",
+        "guardrail.tool_masked",
+        "guardrail.output_flagged",
+        "guardrail.error",
+        "side_effect.draft",
+        "approval.requested",
+        "approval.approved",
+        "approval.edited",
+        "approval.rejected",
+        "approval.expired",
+        "side_effect.attempt",
+        "side_effect.result",
+        "side_effect.marker_lookup",
+        "service.start",
+        "model.call",
+        "auth.failed",
+        "chain.genesis",
+        "chain.anchor",
+    }
+    from test_audit_events import CASES, emit
+
     for event in EVENTS:
-        log.append(event, task_id=uuid4().hex, actor_sub="demo-platform-g3")
+        emit(log, event, CASES.get(event, {}))
     with pytest.raises(ValueError):
         log.append(
             "unknown",
@@ -129,7 +161,7 @@ def test_hashes_and_safe_file_values(tmp_path):
         result=None,
     )
     records = rows(tmp_path)
-    assert [row["draft_sha256"] for row in records[:-1]] == hashes
+    assert [row["draft_sha256"] for row in records[1:-1]] == hashes
     assert records[-1]["mock_id"] == "message-1"
 
 
@@ -157,7 +189,7 @@ def test_failure_and_retry(tmp_path, monkeypatch):
 def test_environment_directory(tmp_path, monkeypatch):
     monkeypatch.setenv("AUDIT_DIR", str(tmp_path / "audit"))
     append(AuditLog())
-    assert len(rows(tmp_path / "audit")) == 1
+    assert len(rows(tmp_path / "audit")) == 2
 
 
 @pytest.mark.parametrize(
@@ -165,7 +197,7 @@ def test_environment_directory(tmp_path, monkeypatch):
 )
 @pytest.mark.parametrize("decision", ["approve", "edit_approve", "reject", "expired"])
 def test_allowed_codes(tmp_path, tool, decision):
-    assert append(AuditLog(tmp_path), tool=tool, decision=decision) == 1
+    assert append(AuditLog(tmp_path), tool=tool, decision=decision) == 2
 
 
 @pytest.mark.parametrize(
@@ -216,7 +248,7 @@ def test_random_uuid_identifiers(tmp_path):
     log = AuditLog(tmp_path)
     for task_id in identifiers:
         log.append("side_effect.draft", task_id=task_id, actor_sub="demo-platform-g3")
-    assert [row["task_id"] for row in rows(tmp_path)] == identifiers
+    assert [row["task_id"] for row in rows(tmp_path)[1:]] == identifiers
 
 
 @pytest.mark.parametrize(
@@ -259,7 +291,7 @@ def test_invalid_identifiers(tmp_path, task_id, actor):
 def test_guardrail_events_jsonl(tmp_path, event, fields):
     log = AuditLog(tmp_path)
     log.append(event, task_id=uuid4().hex, actor_sub="demo-platform-g3", **fields)
-    row = rows(tmp_path)[0]
+    row = rows(tmp_path)[1]
     assert row["event"] == event
     assert all(row[k] == v for k, v in fields.items())
     if fields.get("code") == "pii_input":

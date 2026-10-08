@@ -34,7 +34,7 @@
 3. **부작용 멱등성:** outbox + 메타데이터 표식(marker) 2단계 조회로 "서버는 처리했는데 응답 유실"에서도 1회만 실행(ADR-006).
 4. **안정성:** Soft/Hard Timeout, 지수 백오프 + Jitter, Circuit Breaker, 호출 단위 모델 Fallback(Anthropic `claude-sonnet-5-5`, ADR-019), MAX_STEPS + MAX_COST, MAX_STEPS와 별도의 탐색 예산(ADR-014)(도구 장애 처리 값은 ADR-018, 모델 호출 타임아웃은 ADR-019, 탐색·비용 한도는 M5에서 정한다).
 5. **게이트웨이·Guardrail:** 팀별 가상 키 + 사용자·task 메타데이터, 입력 차단 / 도구 결과 격리 / 출력 탐지 / 실행 직전 결정론 검사의 비대칭 구조. v2 분류기는 주 모델과 다른 회사(Anthropic 소형 모델)에 둔다(ADR-008).
-6. **감사 로그:** 해시체인 + Ed25519 서명, 실행마다 고정점(마지막 seq·hash 서명)을 `docs/results/` manifest에 커밋, `make audit-verify`(ADR-012).
+6. **감사 로그:** 해시체인 + Ed25519 서명, 실행마다 고정점(`chain.anchor`의 seq·hash 서명)을 대기 파일(`anchors-pending.jsonl`) → 결과 PR로 `docs/results/audit-anchors.jsonl`에 옮겨 커밋, `make audit-verify`(ADR-012).
 7. **관측·평가:** trace 하나 = task 하나(Langfuse 또는 JSONL), 평가셋 60 task, TCR·정확도 분리, golden trace CI(ADR-009·ADR-010).
 8. **웹(Next.js + BFF):** 로그인(데모 사용자 선택), 요청·진행(SSE), 승인함, 기록. 세션 토큰은 httpOnly 쿠키로 BFF만 가진다(ADR-011).
 

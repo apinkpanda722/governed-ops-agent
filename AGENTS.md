@@ -123,3 +123,7 @@ make smoke-guardrail # 훅 해시·차단·격리·장애·fallback 검증(사�
 make redteam-gen # 사전 등록에 따른 결정론 레드팀·오버레이 생성(사용자 실행)
 make redteam-cards # 오프라인 레드팀 사람 검수 카드 생성(사용자 실행)
 make redteam-review-status # 레드팀 사람 확정본·해시 검증(사용자 실행)
+
+make audit-verify # 감사 체인·서명·legacy 봉인·고정점 검증(읽기 전용, 사용자 실행)
+make audit-anchor # 감사 체인 고정점·대기 파일 기록(LABEL=… 필요, 사용자 실행)
+make smoke-audit # 키·변조 5종·꼬리 절단·실제 체인 읽기 전용 검증(사용자 실행)

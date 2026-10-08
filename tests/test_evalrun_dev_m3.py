@@ -762,6 +762,13 @@ def test_approval_smoke_real_graph(tmp_path, monkeypatch, capsys):
     assert "PASS approve effect=1" in output
     assert "PASS reject effect=0" in output
     assert output.splitlines()[-1] == "INFO cost total_cents=0.000000"
+    anchors = [
+        json.loads(line.removeprefix("audit_anchor "))
+        for line in output.splitlines()
+        if line.startswith("audit_anchor ")
+    ]
+    assert len(anchors) == 1
+    assert anchors[0]["dir"] == "data/interim/audit"
     assert not any(
         value in output
         for value in ("Authorization", "합성 요약", "합성 본문", "http://")

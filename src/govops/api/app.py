@@ -16,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from govops.api.auth import current_user
+from govops.api.auth import AuthFailureLimiter, current_user, record_auth_failure
 from govops.api.sessions import SessionStore
 from govops.api.tasks import ApprovalError, TaskService
 
@@ -73,6 +73,8 @@ def create_app(
     app = FastAPI(lifespan=lifespan)
     app.state.sessions = sessions
     app.state.task_service = service
+    app.state.audit = service.audit if service is not None else None
+    app.state.auth_failure_limiter = AuthFailureLimiter()
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError):
@@ -87,8 +89,10 @@ def create_app(
                 "127.0.0.1",
                 "::1",
             }:
+                record_auth_failure(request, "loopback_required")
                 raise HTTPException(status_code=403, detail="Loopback required")
             if body.user not in users:
+                record_auth_failure(request, "unknown_user")
                 raise HTTPException(status_code=404, detail="User not found")
             token, expires = sessions.issue(body.user)
             return {"session_token": token, "expires_at": expires}

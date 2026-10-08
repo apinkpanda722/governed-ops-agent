@@ -34,6 +34,7 @@ from govops.eval.observation import ApprovalRecord
 from govops.eval.run_grade import M3_GRADING, grade_run, guard_grading_rules
 from govops.eval.spec import TaskSpec
 from govops.evalrun import worktree
+from govops.evalrun.anchors import AnchorTracker, anchor_label
 from govops.evalrun.dev import ROOT, _Capture, _git, _write, infrastructure_failure
 from govops.evalrun.dev_m3 import (
     PARAMS,
@@ -201,8 +202,18 @@ async def probe_mock_reads(jira, slack, user_id):
 
 
 async def run_faults(
-    *, root, admin, execute, metadata, probe, resume=None, plan=None, preflight=list
+    *,
+    root,
+    admin,
+    execute,
+    metadata,
+    probe,
+    resume=None,
+    plan=None,
+    preflight=list,
+    anchor_tracker=None,
 ):
+    tracker = anchor_tracker if anchor_tracker is not None else AnchorTracker()
     plan = build_plan() if plan is None else tuple(plan)
     validate_plan(plan)
     digest = plan_hash(plan)
@@ -330,6 +341,10 @@ async def run_faults(
             if not interrupted:
                 raise ValueError("cleanup_failed") from None
         finally:
+            for line in tracker.finish(
+                anchor_label("faults", directory.name), repo_root=root
+            ):
+                print(line)
             manifest["report"] = summarize(plan, records)
             save(directory / "manifest.json", manifest)
     return manifest
@@ -577,7 +592,9 @@ async def execute_live(
     ledger,
     grading,
     rest_transport_factory=None,
+    anchor_tracker=None,
 ):
+    tracker = anchor_tracker if anchor_tracker is not None else AnchorTracker()
     definition = row.definition
     kind = spec.expected.effects[0].kind
     endpoint = {
@@ -653,6 +670,7 @@ async def execute_live(
             profile=PROFILE,
             audit_dir=root / "data/interim/audit",
         )
+        tracker.track(service)
         driver = FaultDriver(
             service, service.users, row=row, max_wait=definition.max_wait
         )
@@ -663,6 +681,11 @@ async def execute_live(
         finally:
             tools.close()
             await service.aclose()
+            if anchor_tracker is None:
+                for line in tracker.finish(
+                    anchor_label("faults", directory.name), repo_root=root
+                ):
+                    print(line)
             configure([])
         reports = await asyncio.to_thread(admin.state, bodies=True)
         stats = await asyncio.to_thread(admin.faults_stats)
@@ -773,6 +796,7 @@ def guard_fault_registration(root, *, git=_git):
 
 async def live(*, resume=None):
     root = ROOT
+    tracker = AnchorTracker()
     specs = select_specs(json.loads((root / "data/eval/tasks.json").read_text()))
     a_root = Path(
         env_or("A_ROOT", "~/PycharmProjects/ko-docs-agentic-rag")
@@ -843,6 +867,7 @@ async def live(*, resume=None):
                 outbox=outbox,
                 ledger=ledger,
                 grading=grading,
+                anchor_tracker=tracker,
             )
 
         async def probe():
@@ -859,6 +884,7 @@ async def live(*, resume=None):
             metadata=metadata,
             resume=resume,
             preflight=initialize,
+            anchor_tracker=tracker,
             probe=probe,
         )
 

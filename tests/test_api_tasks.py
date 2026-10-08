@@ -338,9 +338,8 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
                 for _ in range(2)
             ]
         )
-        assert (
-            responses[0].status_code in (200, 202) and responses[1].status_code == 200
-        )
+        status_codes = [response.status_code for response in responses]
+        assert sorted(status_codes) == [200, 202]
         assert responses[0].json() == responses[1].json()
         for _ in range(2):
             again = await request(
@@ -418,7 +417,7 @@ async def test_approval_api_policy_idempotency_expiry_and_views(tmp_path):
         output = (
             repr(saver.storage)
             + repr(responses[0].json())
-            + "".join(p.read_text() for p in tmp_path.glob("*.jsonl"))
+            + "".join(p.read_text() for p in tmp_path.glob("chain-*.jsonl"))
         )
         assert all(t not in output for t in tokens.values())
     await service.aclose()
@@ -550,7 +549,7 @@ async def test_blocked_edit_restores_draft_and_allows_next_decision(
         assert not slack.sent
         rows = [
             json.loads(line)
-            for p in tmp_path.glob("*.jsonl")
+            for p in tmp_path.glob("chain-*.jsonl")
             for line in p.read_text().splitlines()
         ]
         edited = next(r for r in rows if r["event"] == "approval.edited")

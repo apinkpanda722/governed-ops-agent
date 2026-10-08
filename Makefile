@@ -227,3 +227,19 @@ redteam-cards:
 # 사람 확정본 읽기 전용, 사용자 실행
 redteam-review-status:
 	uv run python -m govops.eval.redteam_cards --status
+
+.PHONY: audit-verify
+# 읽기 전용·키 불필요, 저장소 `data/results/`의 커밋된 체인과 legacy도 함께 보고, `AUDIT_DIR`은 환경 변수로만 바꾼다
+audit-verify:
+	uv run python -m govops.audit.verify --scan data/results
+
+.PHONY: audit-anchor
+# 사용자 실행. 체인에 고정점을 덧붙이고 대기 파일에 같은 줄을 기록한다. 사용: make audit-anchor LABEL=m4-audit-first. 첫 쓰기는 체인 genesis를 만든다
+audit-anchor:
+	@if [ -z "$(LABEL)" ]; then echo "사용: make audit-anchor LABEL=m4-audit-first" >&2; exit 2; fi
+	uv run python -m govops.audit.anchor --label "$(LABEL)"
+
+.PHONY: smoke-audit
+# 키·네트워크 불필요, 임시 체인에서 변조 5종·꼬리 잘라내기 재현, 실제 키 권한·짝·체인 확인, 사용자 실행
+smoke-audit:
+	uv run python -m govops.audit.smoke

@@ -1,7 +1,9 @@
 """조회와 승인된 초안 실행을 분리하는 사용자 context 기반 그래프."""
 
+import asyncio
 import hashlib
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -27,6 +29,7 @@ from govops.agent.org_info import org_section
 from govops.agent.prompts import SYSTEM_PROMPT
 from govops.agent.scope import ScopeIndex, evidence_ids, run_checks
 from govops.agent.users import UserInfo
+from govops.audit.crypto import format_usd
 from govops.audit.log import AuditPort, AuditWriteError
 from govops.costs import BudgetExceededError, LedgerMissingError
 from govops.gateway.client import (
@@ -296,6 +299,48 @@ def build_graph(
             except Exception:  # noqa: BLE001 — safe error codes only
                 set_attributes(error_code="model_error")
                 return {"steps": steps, "status": "failed", "error": "model_error"}
+            if audit is not None:
+                try:
+                    info = result.guardrail
+                    user_id = runtime.context.user_id
+                    team = (
+                        info.team
+                        if info is not None
+                        else users[user_id].team
+                        if users is not None and user_id in users
+                        else "none"
+                    )
+                    model_group = result.model_group
+                    deployment_id = result.deployment_id
+                    fields = {
+                        "team": team,
+                        "model": model_group
+                        if isinstance(model_group, str)
+                        and re.fullmatch(r"agent-[a-z-]{1,30}", model_group)
+                        else "unknown",
+                        "deployment_id": deployment_id
+                        if isinstance(deployment_id, str)
+                        and re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,63}", deployment_id)
+                        else "unknown",
+                        "fallback": bool(result.fallback_used),
+                        "cost_usd": format_usd(result.cost_usd),
+                    }
+                    if info is not None:
+                        fields.update(
+                            guardrail_pre=info.pre,
+                            guardrail_post=info.post,
+                            guardrail_q=info.q,
+                            guardrail_m=info.m,
+                        )
+                    await asyncio.to_thread(
+                        audit.append,
+                        "model.call",
+                        task_id=state["task_id"],
+                        actor_sub=user_id,
+                        **fields,
+                    )
+                except Exception:  # noqa: BLE001 — content-free observability only
+                    set_attributes(**{"model.audit_gap": True})
             guardrail_update = guardrail_success(
                 state, getattr(result, "guardrail", None)
             )

@@ -274,3 +274,29 @@ def test_redteam_review_targets_are_offline():
             f"\n{target}:\n\tuv run python -m govops.eval.redteam_cards{args}\n" in text
         )
         assert target not in text.split("verify:\n")[1].split("\n\n")[0]
+
+
+def test_audit_verify_is_read_only_without_env_file():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: audit-verify\n" in text
+    recipe = text.split("\naudit-verify:\n", 1)[1].splitlines()[0]
+    assert recipe.strip() == "uv run python -m govops.audit.verify --scan data/results"
+    assert "--env-file" not in recipe
+
+
+def test_audit_anchor_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: audit-anchor\n" in text
+    recipe = text.split("\naudit-anchor:\n", 1)[1].split("\n\n")[0]
+    assert "$(LABEL)" in recipe and "exit 2" in recipe
+    assert 'uv run python -m govops.audit.anchor --label "$(LABEL)"' in recipe
+    assert ".env" not in recipe
+
+
+def test_audit_smoke_user_only_without_env_file():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: smoke-audit\n" in text
+    recipe = text.split("\nsmoke-audit:\n", 1)[1].split("\n\n", 1)[0]
+    assert recipe.strip() == "uv run python -m govops.audit.smoke"
+    assert ".env" not in recipe
+    assert "smoke-audit" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]

@@ -1,0 +1,162 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m4-audit",
+  "steps": [
+    {
+      "step": 0,
+      "name": "audit-crypto",
+      "status": "completed",
+      "started_at": "2026-10-08T10:12:48+0900",
+      "usage": {
+        "input_tokens": 2844210,
+        "cached_input_tokens": 2758528,
+        "output_tokens": 14120,
+        "attempts": 1
+      },
+      "summary": "Ed25519 키 로드·서명·검증, 정규화 해시·USD 포맷과 감사 테스트 격리·저장소 보호 구현; make verify 통과(Python 2968개, 웹 15개).",
+      "completed_at": "2026-10-08T10:26:37+0900"
+    },
+    {
+      "step": 1,
+      "name": "audit-events",
+      "status": "completed",
+      "started_at": "2026-10-08T10:26:37+0900",
+      "summary": "신규 감사 이벤트 5개·시스템 신원·이벤트별 필드 검증을 두 로그 구현에 적용하고 무작위 대량 테스트 추가; make verify 통과(Python 3039개, 웹 15개), 계층 경계·기존 저장 방식 유지.",
+      "completed_at": "2026-10-08T10:41:23+0900",
+      "usage": {
+        "input_tokens": 3027919,
+        "cached_input_tokens": 2953472,
+        "output_tokens": 11626,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 2,
+      "name": "audit-log-chain",
+      "status": "completed",
+      "started_at": "2026-10-08T10:41:24+0900",
+      "usage": {
+        "input_tokens": 958573,
+        "cached_input_tokens": 896640,
+        "output_tokens": 2634,
+        "attempts": 1
+      },
+      "summary": "서명 감사 해시체인·genesis·legacy 봉인·유한 잠금과 경합 불변식 확인, 동시 승인 순서 단언 수정; make verify 통과(Python 3071개, 웹 15개).",
+      "completed_at": "2026-10-08T11:12:34+0900"
+    },
+    {
+      "step": 3,
+      "name": "audit-verify",
+      "status": "completed",
+      "started_at": "2026-10-08T11:12:34+0900",
+      "summary": "읽기 전용 감사 체인·서명·고정점·legacy 검증기와 CLI·audit-verify 타깃 구현; 변조·동시 작성 테스트 및 make verify 통과(Python 3105개, 웹 15개).",
+      "completed_at": "2026-10-08T11:21:27+0900",
+      "usage": {
+        "input_tokens": 985066,
+        "cached_input_tokens": 917760,
+        "output_tokens": 10347,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "audit-anchors",
+      "status": "completed",
+      "started_at": "2026-10-08T11:21:27+0900",
+      "summary": "감사 고정점 대기 파일·AuditLog.anchor·CLI·Makefile 및 경로·동시성·꼬리 절단 테스트 구현 확인·보강; make verify 통과(Python 3122개, 웹 15개), 계층 경계 준수.",
+      "completed_at": "2026-10-08T11:37:46+0900",
+      "usage": {
+        "input_tokens": 1973482,
+        "cached_input_tokens": 1869056,
+        "output_tokens": 7933,
+        "attempts": 2
+      }
+    },
+    {
+      "step": 5,
+      "name": "service-start-event",
+      "status": "completed",
+      "started_at": "2026-10-08T11:37:46+0900",
+      "summary": "service.start 해시 기록·시작 실패 코드 변환과 TaskService.anchor 위임 구현, 테스트 보강 및 make verify 통과(Python 3135개, 웹 15개); 계층 경계 준수.",
+      "completed_at": "2026-10-08T11:46:38+0900",
+      "usage": {
+        "input_tokens": 1652482,
+        "cached_input_tokens": 1578880,
+        "output_tokens": 5910,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 6,
+      "name": "model-call-event",
+      "status": "completed",
+      "started_at": "2026-10-08T11:46:38+0900",
+      "summary": "성공 모델 호출의 model.call 감사 기록·비차단 쓰기·fail-open 경보와 테스트 구현, 소비자 단언 갱신; make verify 통과(Python 3157개, 웹 15개), 계층 경계 준수.",
+      "completed_at": "2026-10-08T11:57:16+0900",
+      "usage": {
+        "input_tokens": 2340076,
+        "cached_input_tokens": 2257664,
+        "output_tokens": 7799,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 7,
+      "name": "auth-failed-event",
+      "status": "completed",
+      "started_at": "2026-10-08T11:57:16+0900",
+      "summary": "auth.failed 시스템 감사 기록·fail-open 응답 유지·앱별 스레드 안전 60건/분 상한과 suppressed 집계 구현; 계층 경계 준수, make verify 통과(Python 3166개, 웹 15개).",
+      "completed_at": "2026-10-08T12:04:49+0900",
+      "usage": {
+        "input_tokens": 1505913,
+        "cached_input_tokens": 1436160,
+        "output_tokens": 5408,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 8,
+      "name": "runner-anchors",
+      "status": "completed",
+      "started_at": "2026-10-08T12:04:49+0900",
+      "summary": "dev·faults 러너에 실행 종료 후 디렉터리별 fail-open 고정점과 출력 순서 보존을 구현; 계층 경계 준수, make verify 통과(Python 3179개, 웹 15개).",
+      "completed_at": "2026-10-08T12:13:11+0900",
+      "usage": {
+        "input_tokens": 2169607,
+        "cached_input_tokens": 2083072,
+        "output_tokens": 9684,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 9,
+      "name": "smoke-audit",
+      "status": "completed",
+      "started_at": "2026-10-08T12:13:11+0900",
+      "summary": "smoke-audit·Makefile 타깃과 격리 테스트 구현: 키·변조 5종·꼬리 절단·실제 체인 읽기 전용 검증 및 탐지 한계 출력; make verify 통과(Python 3194개, 웹 15개), 계층 경계 준수.",
+      "completed_at": "2026-10-08T12:21:59+0900",
+      "usage": {
+        "input_tokens": 1723933,
+        "cached_input_tokens": 1652096,
+        "output_tokens": 7519,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 10,
+      "name": "docs",
+      "status": "completed",
+      "started_at": "2026-10-08T12:21:59+0900",
+      "summary": "감사 구현·고정점 흐름·탐지 한계·이월 4건을 문서에 반영하고 명령어·문서 계약 테스트 추가; 계층 경계와 기존 단언 유지, make verify 통과(Python 3195개, 웹 15개).",
+      "completed_at": "2026-10-08T12:31:32+0900",
+      "usage": {
+        "input_tokens": 1599644,
+        "cached_input_tokens": 1533312,
+        "output_tokens": 7040,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-08T10:12:48+0900",
+  "completed_at": "2026-10-08T12:31:32+0900"
+}

@@ -435,3 +435,39 @@ def test_m4_decisions_have_no_result_values():
     for block in blocks:
         assert not result.search(block.replace("2.0초", "사전 훅 제한"))
         assert "채택" not in block and "미달" not in block
+
+
+def test_m4_audit_document_contract():
+    section = read("docs/ADR.md").split("### ADR-012:", 1)[1].split("### ADR-", 1)[0]
+    for marker in (
+        "chain-",
+        "kid",
+        "audit_lock_timeout",
+        "audit_chain_corrupt",
+        "anchors-pending.jsonl",
+        "docs/results/audit-anchors.jsonl",
+        "legacy_sha256",
+        "model.call",
+        "auth.failed",
+    ):
+        assert marker in section, marker
+    history = section.split("**변경 기록**:", 1)[1]
+    for marker in ("model.call", "sub", "side_effect.result", "웹 기록 화면"):
+        assert marker in history, marker
+    commands = read("AGENTS.md").split("## 명령어", 1)[1]
+    for name in ("audit-verify", "audit-anchor", "smoke-audit"):
+        lines = [
+            line for line in commands.splitlines() if line.startswith(f"make {name} ")
+        ]
+        assert len(lines) == 1
+        assert "사용자 실행" in lines[0]
+        assert f"\n{name}:\n" in read("Makefile")
+    architecture = read("docs/ARCHITECTURE.md").split("## 감사 로그", 1)[1]
+    architecture = architecture.split("\n## ", 1)[0]
+    th8 = next(
+        line
+        for line in read("docs/THREAT_MODEL.md").splitlines()
+        if line.startswith("| TH8 /")
+    )
+    for text in (architecture, th8):
+        assert "anchors-pending" in text or "대기 파일" in text

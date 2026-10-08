@@ -32,6 +32,7 @@ from govops.eval.meta import load_meta
 from govops.eval.run_grade import M3_GRADING, grade_run, guard_grading_rules
 from govops.eval.spec import TaskSpec
 from govops.evalrun import worktree
+from govops.evalrun.anchors import AnchorTracker, anchor_label
 from govops.evalrun.dev import (
     ROOT,
     _Capture,
@@ -189,6 +190,8 @@ async def _run_smoke(
     driver_kwargs,
     service_factory,
 ):
+    tracker = AnchorTracker()
+    run_name = uuid4().hex
     results, passed = [], []
     stage = "preflight"
     before = None
@@ -215,6 +218,7 @@ async def _run_smoke(
                     profile=PROFILE,
                     audit_dir=root / "data/interim/audit",
                 )
+                tracker.track(service)
                 if (
                     not service.graph.agent_profile.allow_writes
                     or service.graph.agent_profile.name != PROFILE.name
@@ -326,6 +330,8 @@ async def _run_smoke(
             "approve", stage, error=type(error).__name__, reason=_smoke_code(str(error))
         )
     finally:
+        for line in tracker.finish(anchor_label("dev", run_name), repo_root=root):
+            print(line)
         if before is not None:
             try:
                 after = costs()
@@ -711,6 +717,7 @@ async def run_dev_m3(
             )
         raise ValueError(failures[0])
     directory = root / "data/results/dev" / uuid4().hex
+    tracker = AnchorTracker()
     manifest = dict(
         metadata,
         ledger_at_start=start_ledger,
@@ -813,6 +820,7 @@ async def run_dev_m3(
                     if smoke
                     else attempt_dir / "audit",
                 )
+                tracker.track(service)
                 try:
                     if (
                         service.graph.agent_profile.name != PROFILE.name
@@ -999,6 +1007,8 @@ async def run_dev_m3(
                 )
                 break
     finally:
+        for line in tracker.finish(anchor_label("dev", directory.name), repo_root=root):
+            print(line)
         if not smoke:
             after = costs()
             manifest["costs_by_purpose"] = {

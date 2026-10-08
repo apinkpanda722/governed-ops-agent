@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -31,6 +32,14 @@ def test_injected_assembly_ignores_environment(tmp_path, monkeypatch, profile):
     assert service.effects.jira is tools.jira
     assert service.policy is tools.policy
     assert service.audit.directory == tmp_path / "audit"
+    records = [
+        json.loads(line)
+        for path in service.audit.directory.glob("chain-*.jsonl")
+        for line in path.read_text().splitlines()
+    ]
+    assert [row["event"] for row in records] == ["chain.genesis", "service.start"]
+    assert records[1]["actor"]["sub"] == "system"
+    assert not (tmp_path / "wrong").exists()
     assert len(service.users) == 38
 
 
