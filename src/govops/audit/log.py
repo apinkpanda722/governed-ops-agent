@@ -14,6 +14,11 @@ from govops.guardrails.pii import find_pii
 
 EVENTS = frozenset(
     {
+        "service.start",
+        "model.call",
+        "auth.failed",
+        "chain.genesis",
+        "chain.anchor",
         "guardrail.input_blocked",
         "guardrail.tool_quarantined",
         "guardrail.tool_masked",
@@ -30,6 +35,14 @@ EVENTS = frozenset(
         "side_effect.marker_lookup",
     }
 )
+SYSTEM_EVENTS = frozenset(
+    {"service.start", "chain.genesis", "chain.anchor", "auth.failed"}
+)
+AUTH_REASONS = frozenset(
+    {"missing_credentials", "invalid_token", "unknown_user", "loopback_required"}
+)
+GUARDRAIL_PRE = frozenset({"allow", "block", "unavailable", "team_unknown", "probe"})
+GUARDRAIL_POST = frozenset({"ok", "flag", "error", "none"})
 TOOLS = frozenset(
     {"jira_add_comment", "jira_create_followup_ticket", "slack_send_message"}
 )
@@ -56,6 +69,7 @@ REASONS = frozenset(
         "unsent_confirmed",
     }
 )
+REASONS = REASONS | AUTH_REASONS
 GUARDRAIL_CODES = frozenset(
     {
         "injection_direct",
@@ -93,6 +107,7 @@ _FORBIDDEN = frozenset(
         "hash",
         "prev_hash",
         "sig",
+        "kid",
     }
 )
 _TASK_ID = re.compile(r"[0-9a-f]{32}")
@@ -112,13 +127,112 @@ class _InvalidAuditField(AuditWriteError, ValueError):
 
 class AuditPort(Protocol):
     def append(
-        self, event: str, *, task_id: str, actor_sub: str, **fields: Field
+        self, event: str, *, task_id: str | None, actor_sub: str, **fields: Field
     ) -> int:
         """Persist an event or raise AuditWriteError."""
         ...
 
 
+_NEW_REQUIRED = {
+    "service.start": frozenset(
+        {
+            "policy_sha256",
+            "rules_sha256",
+            "access_index_sha256",
+            "hook_rules_digest",
+            "hook_code_digest",
+        }
+    ),
+    "chain.genesis": frozenset(
+        {"legacy_files", "legacy_lines", "legacy_last_seq", "legacy_sha256"}
+    ),
+    "chain.anchor": frozenset({"label"}),
+    "model.call": frozenset({"team", "model", "deployment_id", "fallback", "cost_usd"}),
+    "auth.failed": frozenset({"reason"}),
+}
+_GUARDRAIL_BUNDLE = frozenset(
+    {"guardrail_pre", "guardrail_post", "guardrail_q", "guardrail_m"}
+)
+_NEW_OPTIONAL = {
+    "model.call": _GUARDRAIL_BUNDLE,
+    "auth.failed": frozenset({"suppressed"}),
+}
+_NEW_FIELDS = frozenset().union(*_NEW_REQUIRED.values(), *_NEW_OPTIONAL.values()) - {
+    "team",
+    "reason",
+}
+_NEW_FORMATS = {
+    **{
+        key: _HASH
+        for key in (
+            "policy_sha256",
+            "rules_sha256",
+            "access_index_sha256",
+            "legacy_sha256",
+        )
+    },
+    **{
+        key: re.compile(r"[0-9a-f]{12}")
+        for key in ("hook_rules_digest", "hook_code_digest")
+    },
+    "label": re.compile(r"[a-z0-9][a-z0-9-]{0,39}"),
+    "model": re.compile(r"(?:agent-[a-z-]{1,30}|unknown)"),
+    "deployment_id": re.compile(r"(?:[a-z0-9][a-z0-9.-]{0,63}|unknown)"),
+    "cost_usd": re.compile(r"\d+\.\d{6}"),
+    "team": re.compile(r"(?:[a-z][a-z-]{1,20}|none)"),
+}
+_NEW_ENUMS = {
+    "reason": AUTH_REASONS,
+    "guardrail_pre": GUARDRAIL_PRE,
+    "guardrail_post": GUARDRAIL_POST,
+}
+
+
+def _validate_new(fields: dict[str, Field], *, event: str) -> None:
+    required = _NEW_REQUIRED[event]
+    allowed = required | _NEW_OPTIONAL.get(event, frozenset())
+    if not required <= fields.keys() or not fields.keys() <= allowed:
+        raise _InvalidAuditField("Audit event fields rejected")
+    bundle = _GUARDRAIL_BUNDLE & fields.keys()
+    if bundle and bundle != _GUARDRAIL_BUNDLE:
+        raise _InvalidAuditField("Audit guardrail bundle rejected")
+    for key, value in fields.items():
+        if key in _NEW_FORMATS:
+            valid = isinstance(value, str) and bool(_NEW_FORMATS[key].fullmatch(value))
+        elif key in _NEW_ENUMS:
+            valid = isinstance(value, str) and value in _NEW_ENUMS[key]
+        elif key == "fallback":
+            valid = type(value) is bool
+        else:
+            minimum = 1 if key == "suppressed" else 0
+            valid = type(value) is int and value >= minimum
+            if key in {"guardrail_q", "guardrail_m"}:
+                valid = valid and value <= 10000
+        if not valid:
+            raise _InvalidAuditField("Audit typed field rejected")
+
+
+def _validate_event(
+    event: str, task_id: str | None, actor_sub: str, fields: dict[str, Field]
+) -> None:
+    if event not in EVENTS:
+        raise _InvalidAuditField("Audit event rejected")
+    if event in SYSTEM_EVENTS:
+        if actor_sub != "system" or task_id is not None:
+            raise _InvalidAuditField("Audit system identifier rejected")
+    else:
+        for identifier, pattern in ((task_id, _TASK_ID), (actor_sub, _ACTOR_SUB)):
+            if not isinstance(identifier, str) or not pattern.fullmatch(identifier):
+                raise _InvalidAuditField("Audit identifier rejected")
+    _validate(fields, event=event)
+
+
 def _validate(fields: dict[str, Field], *, event: str) -> None:
+    if event in _NEW_REQUIRED:
+        _validate_new(fields, event=event)
+        return
+    if _NEW_FIELDS & fields.keys():
+        raise _InvalidAuditField("Audit event field rejected")
     if "input_sha256" in fields and not (
         event == "guardrail.input_blocked" and fields.get("code") == "injection_direct"
     ):
@@ -145,12 +259,11 @@ def _validate(fields: dict[str, Field], *, event: str) -> None:
             elif key == "check_result":
                 valid = value in CHECK_RESULTS
             elif key == "reason":
-                valid = value in REASONS
+                valid = value in REASONS - AUTH_REASONS
             else:
-                valid = (
-                    bool(_HASH.fullmatch(value) or _MOCK_ID.fullmatch(value))
-                    or value in TOOLS | DECISIONS | REASONS
-                )
+                valid = bool(
+                    _HASH.fullmatch(value) or _MOCK_ID.fullmatch(value)
+                ) or value in TOOLS | DECISIONS | (REASONS - AUTH_REASONS)
             if valid:
                 continue
             if find_pii(value):
@@ -190,14 +303,9 @@ class AuditLog:
             raise AuditWriteError("Audit initialization failed") from None
 
     def append(
-        self, event: str, *, task_id: str, actor_sub: str, **fields: Field
+        self, event: str, *, task_id: str | None, actor_sub: str, **fields: Field
     ) -> int:
-        if event not in EVENTS:
-            raise _InvalidAuditField("Audit event rejected")
-        _validate(fields, event=event)
-        for identifier, pattern in ((task_id, _TASK_ID), (actor_sub, _ACTOR_SUB)):
-            if not isinstance(identifier, str) or not pattern.fullmatch(identifier):
-                raise _InvalidAuditField("Audit identifier rejected")
+        _validate_event(event, task_id, actor_sub, fields)
         try:
             with _lock:
                 timestamp = self.clock()
@@ -253,13 +361,9 @@ class MemoryAuditLog:
         self.records: list[dict] = []
 
     def append(
-        self, event: str, *, task_id: str, actor_sub: str, **fields: Field
+        self, event: str, *, task_id: str | None, actor_sub: str, **fields: Field
     ) -> int:
-        if event not in EVENTS:
-            raise _InvalidAuditField("Audit event rejected")
-        _validate(fields, event=event)
-        if not _TASK_ID.fullmatch(task_id) or not _ACTOR_SUB.fullmatch(actor_sub):
-            raise _InvalidAuditField("Audit identifier rejected")
+        _validate_event(event, task_id, actor_sub, fields)
         self.records.append(
             {"event": event, "task_id": task_id, "actor_sub": actor_sub, **fields}
         )

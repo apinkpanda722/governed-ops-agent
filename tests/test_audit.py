@@ -58,9 +58,31 @@ def test_concurrent_instances(tmp_path):
 
 def test_events(tmp_path):
     log = AuditLog(tmp_path)
-    assert len(EVENTS) == 14
+    assert EVENTS == {
+        "guardrail.input_blocked",
+        "guardrail.tool_quarantined",
+        "guardrail.tool_masked",
+        "guardrail.output_flagged",
+        "guardrail.error",
+        "side_effect.draft",
+        "approval.requested",
+        "approval.approved",
+        "approval.edited",
+        "approval.rejected",
+        "approval.expired",
+        "side_effect.attempt",
+        "side_effect.result",
+        "side_effect.marker_lookup",
+        "service.start",
+        "model.call",
+        "auth.failed",
+        "chain.genesis",
+        "chain.anchor",
+    }
+    from test_audit_events import CASES, emit
+
     for event in EVENTS:
-        log.append(event, task_id=uuid4().hex, actor_sub="demo-platform-g3")
+        emit(log, event, CASES.get(event, {}))
     with pytest.raises(ValueError):
         log.append(
             "unknown",
