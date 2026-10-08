@@ -86,7 +86,8 @@
     },
     {
       "dir": "m5-agent",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_at": "2026-10-08T14:32:34+0900"
     }
   ]
 }

@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "audit-pruned-event",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-08T14:30:27+0900",
+      "blocked_reason": "수정 범위 지시가 충돌합니다. “수정할 파일(이 목록이 전부다): src/govops/audit/log.py, tests/test_audit_events.py(신규 이벤트 사례 추가와, SYSTEM_EVENTS·소유 이벤트 순회 단언의 이름 집합 갱신에 한함, 단언 약화 금지), tests/test_audit.py(EVENTS 이름 집합 갱신에 한함, 단언 약화 금지).”는 테스트 파일 수정을 요구하지만, “audit/ 밖의 파일을 고치지 마라. 이유: 호출하는 쪽은 step 8이다. 감사 쓰기는 audit/ 한 곳에서만 한다.”는 이를 금지합니다. 선점검 규칙에 따라 파일 수정 없이 중단했습니다. 지정된 두 테스트 파일을 수정할 수 있다는 예외 확인이 필요합니다.",
+      "blocked_at": "2026-10-08T14:32:34+0900",
+      "usage": {
+        "input_tokens": 23470,
+        "cached_input_tokens": 15616,
+        "output_tokens": 256,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
