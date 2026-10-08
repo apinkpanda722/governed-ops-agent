@@ -45,7 +45,7 @@ def test_milestone_approval_boundary():
 
 
 def test_agent_critical_count_and_data_directories():
-    assert read("AGENTS.md").count("CRITICAL:") == 25
+    assert read("AGENTS.md").count("CRITICAL:") == 26
     structure = read("docs/ARCHITECTURE.md").split("## 디렉토리 구조", 1)[1]
     structure = structure.split("## 배치도", 1)[0]
     assert all(f"{name}/" in structure for name in ("contract", "seed", "replay"))
@@ -72,7 +72,7 @@ def test_agent_phase_commands_and_ledger():
         "smoke-agent",
     ):
         assert f"make {name} " in commands
-    assert read("AGENTS.md").count("CRITICAL:") == 25
+    assert read("AGENTS.md").count("CRITICAL:") == 26
     assert "data/manifest/costs.jsonl" in read("docs/ARCHITECTURE.md")
 
 
@@ -144,7 +144,7 @@ def test_obs_document_contract():
     commands = read("AGENTS.md").split("## 명령어", 1)[1]
     for name in ("obs-up", "obs-down", "smoke-obs", "cost-report"):
         assert f"make {name} " in commands
-    assert read("AGENTS.md").count("CRITICAL:") == 25
+    assert read("AGENTS.md").count("CRITICAL:") == 26
     architecture = read("docs/ARCHITECTURE.md")
     for marker in (
         "existing_trace_id",

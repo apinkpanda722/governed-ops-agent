@@ -218,8 +218,8 @@ stateDiagram-v2
 
 그림의 초안·검사·실행 내부 상태는 처리 단계이며 task 응답의 상태는 `running`·`awaiting_approval`·`completed`·`failed`·`blocked`·`blocked_input`·`rejected`·`expired`·`interrupted`다.
 
-- MAX_STEPS·MAX_COST 초과는 어느 활성 상태에서든 실패로 끝난다(값은 M5에서 정한다).
-- 탐색 예산(ADR-014): MAX_STEPS와 별도로, `running`에서 새 정보 없는 호출(결과에 이전까지 없던 문서·티켓 ID가 없는 도구 호출)이 N회 연속이면 task를 종료한다. N은 dev trace 재생에서 성공한 dev task를 하나도 자르지 않는 값 중 최솟값이며, 규칙은 dev 실행 전에 사전 등록한다. 권한 판정은 계속 에이전트에게 숨긴다. 사람 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다.
+- MAX_STEPS(8)·MAX_COST($0.40) 초과는 턴 단위로 어느 활성 상태에서든 실패(`max_steps`·`max_cost`)로 끝난다(ADR-013).
+- 탐색 예산(ADR-014): MAX_STEPS와 별도로, `running`에서 새 정보 없는 호출(결과에 이전까지 없던 문서·티켓 ID가 없는 도구 호출)이 N=4회 연속이면 그 턴을 `completed`와 고정 답변 "요청하신 정보를 찾을 수 없습니다."로 끝내고 관측 필드 `stop_reason=exploration_exhausted`를 남긴다(화면 비노출). N은 공식 dev 실행 전체의 성공 task별 최대 연속 무정보 호출 수의 최댓값 + 1이며 `docs/results/n-registration-m5.md`에 등록돼 있다. 권한 판정은 계속 에이전트에게 숨긴다. 사람 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다.
 - 승인은 초안 내용 해시에 묶는다. 승인 시점의 해시와 실행할 초안의 해시가 다르면 실행하지 않는다(TOCTOU 방지).
 - 승인자 정책: 기본은 요청자 본인. **전사 공지 채널 발송만 요청자 팀 4급 이상이면서 요청자 본인이 아닌 사용자**가 승인한다(A 등급은 숫자가 클수록 상위). 승인자 신원은 세션에서 정한다.
 - V15 근거는 비어 있지 않은 `text`를 가진 문서(`search_docs`·`get_document`·`lookup_id`)와 레코드가 돌아온 티켓이다. `run_sql`의 `ticket_id` 열 값은 티켓 근거이며 ID 없는 집계·열 값은 범위 검사에서 제외한다. 접근 필드와 사용자 팀·직급만 담은 `data/seed/` 인덱스에 없는 근거는 차단한다. 문서 단위 검사는 평가 정답의 값 기준 판정보다 엄격하고 잘못 막힌 건은 TCR 실패·dev 보고 대상이다. 에이전트는 `data/eval/`을 읽지 않는다(ADR-018).
@@ -373,7 +373,7 @@ trace와 다르게 책임 추적용이다. `audit/log.py`의 AuditLog와 AuditPo
 - 파일은 `data/interim/audit/chain-YYYY-MM-DD.jsonl`(0600), 날짜는 UTC이며 날짜가 바뀌어도 `prev_hash`가 이어진다. 쓰는 곳은 `audit/` 한 곳이다. 기존 `YYYY-MM-DD.jsonl`은 legacy로 남기고 첫 쓰기의 `chain.genesis`가 파일 수·줄 수·마지막 seq·`legacy_sha256`으로 파일 집합을 봉인한다. legacy는 “체인 없음(미검증)”으로 따로 보고하며 PASS로 세지 않는다.
 - 프로세스 내 디렉터리별 잠금과 디렉터리 fd의 `flock(LOCK_EX | LOCK_NB)` 재시도는 전체 10초 마감이다. 초과는 `audit_lock_timeout`(fail-closed), 개행 없는 체인 꼬리는 `audit_chain_corrupt`로 append 거부다.
 - **원문 대신 내용 해시와 mock ID만** 남긴다. 실행 전 의도 기록 실패 시 부작용을 실행하지 않는다(fail-closed). 결과 기록 실패는 재시도 후 `audit_gap`으로 표시한다(ADR-018).
-- 시스템 이벤트 `service.start`·`chain.genesis`·`chain.anchor`·`auth.failed`는 `actor.sub="system"`, `task_id=null`이다. `service.start`는 정책·규칙·접근 인덱스 해시와 훅 규칙·코드 digest를 남긴다.
+- 시스템 이벤트 `service.start`·`chain.genesis`·`chain.anchor`·`auth.failed`·`checkpoint.pruned`는 `actor.sub="system"`, `task_id=null`이다. `service.start`는 정책·규칙·접근 인덱스 해시와 훅 규칙·코드 digest를 남긴다.
 - `model.call`은 성공한 호출의 task·사용자·팀 식별자·모델 별칭·배포 ID·fallback·`cost_usd`(고정 6자리 문자열)·가용한 Guardrail 판정만 남긴다. 팀 키 값과 원문은 기록하지 않는다. 스레드 쓰기 실패는 fail-open으로 `model.audit_gap` 경보를 남긴다. 실패·차단된 호출의 `model.call`은 미기록이며 비용 원장·trace와 `guardrail.input_blocked`가 각각 기록한다.
 - `auth.failed` 사유 enum은 `missing_credentials`·`invalid_token`·`unknown_user`·`loopback_required`다. 앱별 스레드 안전 분당 60건 상한과 다음 허용 기록의 `suppressed` 집계를 사용한다. 호출자 sub는 식별하지 않으며 감사 실패는 인증 응답을 바꾸지 않는다.
 - 고정점: `make audit-anchor LABEL=…`와 dev·faults 러너가 `chain.anchor`를 덧붙이고 `data/interim/audit/anchors-pending.jsonl`(`AUDIT_ANCHORS_PENDING_FILE`, gitignore)에 `{dir, seq, hash, sig, kid, label, ts}`를 쓴다. 러너 종료 시 디렉터리별 고정점 실패는 fail-open으로 보고한다. 대기 파일 → 결과 PR이 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다.
@@ -406,8 +406,8 @@ sequenceDiagram
 - 브라우저 JS는 토큰을 볼 수 없다. "자격 증명은 LLM·trace·브라우저에도 노출되지 않는다"를 웹 계층까지 이어 간다.
 - 데모 로그인은 IdP 대체 장치다. `DEMO_LOGIN` 플래그일 때만 열고 127.0.0.1에만 바인드한다. 신뢰 경계는 세션 발급 이후다(ADR-005).
 - 화면 4개: 로그인(데모 사용자 선택 = B 세션 발급), 요청·진행(SSE), 승인함(초안·수신처·결정론 검사 결과·수정 차이, 전사 공지는 요청자 팀 4급 이상, 요청자 본인 제외), 기록(task 상태, `audit-verify` 결과).
-- B 세션: `POST /sessions`는 `DEMO_LOGIN` 플래그와 127.0.0.1 클라이언트 조건에서만 열린다. `secrets.token_urlsafe(32)`로 발급하고 서버는 SHA-256 해시만 메모리에 두어 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 임시 상수이며 최종값은 M5에서 정한다. 인증 의존성은 `Authorization: Bearer`에서 요청자·승인자 `user_id`를 얻는다. 다른 사용자의 task 조회는 승인자 정책에 맞는 검사 통과 승인 대기 초안만 허용하고 나머지는 404다(ADR-018).
-- 쿠키 속성(`Secure`·`SameSite`)·CSRF 대책·세션 만료 시간은 미정(M5에서 결정)이다.
+- B 세션: `POST /sessions`는 `DEMO_LOGIN` 플래그와 127.0.0.1 클라이언트 조건에서만 열린다. `secrets.token_urlsafe(32)`로 발급하고 서버는 SHA-256 해시만 메모리에 두어 `user_id`·만료 시각에 매핑한다(재시작 시 재로그인). TTL은 8시간이다. 인증 의존성은 `Authorization: Bearer`에서 요청자·승인자 `user_id`를 얻는다. 다른 사용자의 task 조회는 승인자 정책에 맞는 검사 통과 승인 대기 초안만 허용하고 나머지는 404다(ADR-018).
+- 세션 만료 시간은 8시간이고 BFF 쿠키 `maxAge`도 같다. 쿠키 속성(`Secure`·`SameSite`)·CSRF 대책은 미정(m5-web 설계에서 결정)이다.
 
 M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec만 두며 연결은 M3에 둔다. `MAX_STEPS`는 폭주 방지용 임시 상수이며 최종값은 M5에서 정한다.
 
