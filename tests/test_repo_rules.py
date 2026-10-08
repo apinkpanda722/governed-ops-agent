@@ -25,6 +25,17 @@ def test_env_example_has_only_empty_assignments() -> None:
 
 
 def test_env_example_has_no_cost_limit_variables() -> None:
+    exceptions = {"GOVOPS_EXPLORATION_BUDGET"}
+    assignments = {
+        line.partition("=")[0]: line.partition("=")[2]
+        for line in (REPO_ROOT / ".env.example")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    assert {name: assignments[name] for name in exceptions} == {
+        "GOVOPS_EXPLORATION_BUDGET": ""
+    }
     invalid_lines = [
         number
         for number, line in enumerate(
@@ -33,6 +44,7 @@ def test_env_example_has_no_cost_limit_variables() -> None:
         )
         if line.strip()
         and not line.lstrip().startswith("#")
+        and line.partition("=")[0] not in exceptions
         and re.search(r"COST|BUDGET|LIMIT|CAP", line.partition("=")[0])
     ]
     assert invalid_lines == [], (

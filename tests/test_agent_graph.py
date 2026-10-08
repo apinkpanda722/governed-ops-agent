@@ -236,7 +236,10 @@ async def test_model_failure_retains_progress_without_exception(exc, code):
 async def test_max_steps():
     chat = FakeChat(*(reply(calls=[call()]) for _ in range(MAX_STEPS)))
     tools = FakeTools(
-        *(ToolOutcome({}, False, ("syn-seen",)) for _ in range(MAX_STEPS))
+        *(
+            ToolOutcome({"doc_id": f"syn-{i}"}, False, ("syn-seen",))
+            for i in range(MAX_STEPS)
+        )
     )
     _, state = await execute(chat, tools)
     assert state["status"] == "failed"

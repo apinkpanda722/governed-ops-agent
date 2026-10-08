@@ -25,6 +25,12 @@ from govops.agent.approval import (
     approver_decision,
 )
 from govops.agent.draft import Draft, draft_sha256
+from govops.agent.exploration import (
+    EXPLORATION_ANSWER,
+    STOP_REASON,
+    ExplorationCounter,
+    exploration_budget_from_env,
+)
 from govops.agent.org_info import org_section
 from govops.agent.prompts import SYSTEM_PROMPT
 from govops.agent.scope import ScopeIndex, evidence_ids, run_checks
@@ -53,8 +59,10 @@ from govops.tools.registry import (
     agent_tool_definitions,
 )
 
-# 폭주 방지용 임시값. 최종 MAX_STEPS와 별도 탐색 예산(ADR-014)은 M5에서 정한다.
+# 턴 단위 한도(ADR-013); 탐색 예산은 별도(ADR-014).
 MAX_STEPS = 8
+MAX_COST_USD = 0.40
+_DEFAULT_EXPLORATION = object()
 TOOL_RESULT_MAX_CHARS = 20000
 
 
@@ -184,7 +192,10 @@ def build_graph(
     policy: TeamPolicy | None = None,
     users: Users | None = None,
     clock=utc_now,
+    exploration_budget=_DEFAULT_EXPLORATION,
 ) -> CompiledStateGraph:
+    if exploration_budget is _DEFAULT_EXPLORATION:
+        exploration_budget = exploration_budget_from_env()
     if profile.allow_writes and any(
         x is None for x in (effects, audit, scope, policy, users)
     ):
@@ -259,6 +270,8 @@ def build_graph(
     async def model_body(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
         if state["steps"] >= MAX_STEPS:
             return {"status": "failed", "error": "max_steps"}
+        if state.get("turn_cost_usd", 0.0) >= MAX_COST_USD:
+            return {"status": "failed", "error": "max_cost"}
         steps = state["steps"] + 1
         with span(SpanKind.MODEL_CALL, "agent-primary"):
             try:
@@ -386,6 +399,7 @@ def build_graph(
                 for c in calls
             ]
         update = {
+            "turn_cost_usd": state.get("turn_cost_usd", 0.0) + result.cost_usd,
             "steps": steps,
             "messages": [*state["messages"], message],
             **guardrail_update,
@@ -405,11 +419,14 @@ def build_graph(
         messages = list(state["messages"])
         observed = set(state["observed_ids"])
         evidence = set(state.get("evidence_ids", []))
+        counter = ExplorationCounter.from_state(state)
         for call in messages[-1]["tool_calls"]:
             with span(SpanKind.TOOL_CALL, call["function"]["name"]):
                 function = call["function"]
                 result_ids = ()
                 success = False
+                reached_call = False
+                exploration_payload = {}
                 try:
                     # 그래프의 allowlist는 주입된 실행기의 구현과 무관하게 부작용을 막는다.
                     if function["name"] not in allowed_names:
@@ -423,10 +440,12 @@ def build_graph(
                     ):
                         payload = {"error": {"code": "invalid_argument"}}
                     else:
+                        reached_call = True
                         outcome = await tools.call(
                             function["name"], args, user_id=runtime.context.user_id
                         )
                         payload = outcome.payload
+                        exploration_payload = payload
                         if not outcome.is_error:
                             evidence.update(evidence_ids(function["name"], payload))
                         result_ids = outcome.observed_ids
@@ -436,6 +455,8 @@ def build_graph(
                     payload = {"error": {"code": "tool_not_available"}}
                 except Exception:  # noqa: BLE001 — 도구 오류 원문의 자격 증명 노출 방지
                     payload = {"error": {"code": "tool_unavailable"}}
+                if exploration_budget is not None and reached_call:
+                    counter.observe(exploration_payload)
                 content = json.dumps(payload, ensure_ascii=False)
                 if len(content) > TOOL_RESULT_MAX_CHARS:
                     suffix = "…(잘림)"
@@ -452,11 +473,21 @@ def build_graph(
                     if isinstance(payload.get("error"), dict)
                     else None,
                 )
-        return {
+        update = {
             "messages": messages,
             "observed_ids": sorted(observed),
             "evidence_ids": sorted(evidence),
+            **counter.to_state(),
         }
+        if exploration_budget is not None and counter.exhausted(exploration_budget):
+            update.update(
+                status="completed",
+                answer=EXPLORATION_ANSWER,
+                cited_doc_ids=[],
+                stop_reason=STOP_REASON,
+            )
+            set_attributes(stop_reason=STOP_REASON)
+        return update
 
     async def model(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
         with span(SpanKind.GRAPH_NODE, "model", step=state["steps"] + 1):
@@ -770,7 +801,9 @@ def build_graph(
     builder.add_node("read_tools", read_tools)
     builder.add_edge(START, "model")
     builder.add_conditional_edges("model", route_model)
-    builder.add_edge("read_tools", "model")
+    builder.add_conditional_edges(
+        "read_tools", lambda s: "model" if s["status"] == "running" else END
+    )
     if profile.allow_writes:
         for name, node in (
             ("propose", propose),

@@ -161,3 +161,8 @@ def protect_repository_audit_artifacts():
     before = audit_artifact_snapshot(root)
     yield
     assert_audit_artifacts_unchanged(before, audit_artifact_snapshot(root))
+
+
+@pytest.fixture(autouse=True)
+def isolated_exploration_budget(monkeypatch):
+    monkeypatch.delenv("GOVOPS_EXPLORATION_BUDGET", raising=False)

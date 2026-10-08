@@ -88,7 +88,9 @@ def test_failure_trace(sink, mode):
         if mode == "gateway"
         else FakeChat(*(reply(calls=[call()]) for _ in range(MAX_STEPS)))
     )
-    tools = FakeTools(*(ToolOutcome({}, False, ()) for _ in range(MAX_STEPS)))
+    tools = FakeTools(
+        *(ToolOutcome({"doc_id": f"syn-{i}"}, False, ()) for i in range(MAX_STEPS))
+    )
     service = TaskService(build_graph(chat, tools, InMemorySaver()))
     ident, result = asyncio.run(finish(service, "demo-platform-g3", "조회"))
     assert result["error"] == ("gateway_error" if mode == "gateway" else "max_steps")
