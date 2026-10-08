@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "audit-anchors",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T11:21:27+0900",
+      "summary": "감사 고정점 대기 파일·AuditLog.anchor·CLI·Makefile 및 경로·동시성·꼬리 절단 테스트 구현 확인·보강; make verify 통과(Python 3122개, 웹 15개), 계층 경계 준수.",
+      "completed_at": "2026-10-08T11:37:46+0900",
+      "usage": {
+        "input_tokens": 1973482,
+        "cached_input_tokens": 1869056,
+        "output_tokens": 7933,
+        "attempts": 2
+      }
     },
     {
       "step": 5,
