@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "audit-events",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T10:26:37+0900",
+      "summary": "신규 감사 이벤트 5개·시스템 신원·이벤트별 필드 검증을 두 로그 구현에 적용하고 무작위 대량 테스트 추가; make verify 통과(Python 3039개, 웹 15개), 계층 경계·기존 저장 방식 유지.",
+      "completed_at": "2026-10-08T10:41:23+0900",
+      "usage": {
+        "input_tokens": 3027919,
+        "cached_input_tokens": 2953472,
+        "output_tokens": 11626,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
