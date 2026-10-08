@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "conversation-turns",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T15:45:29+0900",
+      "summary": "대화·턴 API, 메모리/Postgres 턴 색인, 대화→task 잠금과 승인·만료·재시작 보호 구현; make verify(Python 3363 passed, 웹 15 passed) 및 골든 불변 검사 통과.",
+      "completed_at": "2026-10-08T15:55:24+0900",
+      "usage": {
+        "input_tokens": 1934862,
+        "cached_input_tokens": 1844096,
+        "output_tokens": 10257,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
