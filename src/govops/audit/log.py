@@ -1,14 +1,19 @@
-"""Minimal append-only audit sink; chaining and signing are added in M4."""
+"""Append-only signed audit chain with bounded directory locking."""
 
+import fcntl
+import hashlib
 import json
 import os
 import re
 import threading
+import time
 from collections.abc import Callable
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
+from govops.audit import crypto
 from govops.env import env_or
 from govops.guardrails.pii import find_pii
 
@@ -113,12 +118,16 @@ _FORBIDDEN = frozenset(
 _TASK_ID = re.compile(r"[0-9a-f]{32}")
 _ACTOR_SUB = re.compile(r"demo-[a-z-]+-g[0-9]+")
 _lock = threading.Lock()
-_sequences: dict[Path, int] = {}
+_directory_locks: dict[Path, threading.Lock] = {}
 Field = str | int | bool | None
 
 
 class AuditWriteError(ValueError):
     """Safe failure that must prevent execution when recording intent."""
+
+    def __init__(self, message: str = "", code: str = "audit_write_failed"):
+        self.code = code
+        super().__init__(message)
 
 
 class _InvalidAuditField(AuditWriteError, ValueError):
@@ -277,7 +286,11 @@ def _utc_now() -> datetime:
 
 class AuditLog:
     def __init__(
-        self, directory: Path | None = None, *, clock: Callable[[], datetime] = _utc_now
+        self,
+        directory: Path | None = None,
+        *,
+        clock: Callable[[], datetime] = _utc_now,
+        lock_timeout: float = 10.0,
     ):
         self.directory = Path(
             directory
@@ -285,56 +298,187 @@ class AuditLog:
             else env_or("AUDIT_DIR", "data/interim/audit")
         ).resolve()
         self.clock = clock
+        self.lock_timeout = lock_timeout
+        self._key = crypto.load_signing_key()
         try:
+            self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+            self.directory.chmod(0o700)
             with _lock:
-                self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-                self.directory.chmod(0o700)
-                last = 0
-                for file in sorted(self.directory.glob("????-??-??.jsonl")):
-                    with file.open(encoding="utf-8") as source:
-                        for line in source:
-                            record = json.loads(line)
-                            seq = record["seq"]
-                            if type(seq) is not int or seq <= last:
-                                raise ValueError("Invalid sequence")
-                            last = seq
-                _sequences[self.directory] = last
-        except (OSError, ValueError, TypeError, KeyError, AttributeError):
+                self._thread_lock = _directory_locks.setdefault(
+                    self.directory, threading.Lock()
+                )
+        except OSError:
             raise AuditWriteError("Audit initialization failed") from None
+
+    @contextmanager
+    def _locked(self):
+        deadline = time.monotonic() + self.lock_timeout
+        if not self._thread_lock.acquire(timeout=max(0.0, self.lock_timeout)):
+            raise AuditWriteError("Audit lock timed out", code="audit_lock_timeout")
+        fd = None
+        acquired = False
+        try:
+            fd = os.open(self.directory, os.O_RDONLY)
+            delay = 0.005
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    acquired = True
+                    break
+                except BlockingIOError:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise AuditWriteError(
+                            "Audit lock timed out", code="audit_lock_timeout"
+                        ) from None
+                    time.sleep(min(delay, remaining))
+                    delay = min(delay * 2, 0.05)
+            yield
+        finally:
+            try:
+                if fd is not None:
+                    try:
+                        if acquired:
+                            fcntl.flock(fd, fcntl.LOCK_UN)
+                    finally:
+                        os.close(fd)
+            finally:
+                self._thread_lock.release()
+
+    def _last_record(self) -> dict | None:
+        for path in sorted(self.directory.glob("chain-*.jsonl"), reverse=True):
+            with path.open("rb") as source:
+                size = source.seek(0, os.SEEK_END)
+                if not size:
+                    continue
+                source.seek(-1, os.SEEK_END)
+                if source.read(1) != b"\n":
+                    raise AuditWriteError(
+                        "Audit chain corrupt", code="audit_chain_corrupt"
+                    )
+                # Scan backwards in bounded blocks, excluding the terminal newline.
+                end = size - 1
+                chunks = []
+                while end:
+                    start = max(0, end - 4096)
+                    source.seek(start)
+                    chunk = source.read(end - start)
+                    index = chunk.rfind(b"\n")
+                    if index >= 0:
+                        chunks.append(chunk[index + 1 :])
+                        break
+                    chunks.append(chunk)
+                    end = start
+                try:
+                    record = json.loads(b"".join(reversed(chunks)))
+                    if type(record["seq"]) is not int or record["seq"] < 1:
+                        raise ValueError
+                    if not isinstance(record["hash"], str) or not _HASH.fullmatch(
+                        record["hash"]
+                    ):
+                        raise ValueError
+                    return record
+                except (ValueError, TypeError, KeyError, UnicodeError):
+                    raise AuditWriteError(
+                        "Audit chain corrupt", code="audit_chain_corrupt"
+                    ) from None
+        return None
+
+    def _legacy_fields(self) -> dict:
+        files = sorted(self.directory.glob("????-??-??.jsonl"))
+        hashes = []
+        lines = last = 0
+        for path in files:
+            digest = hashlib.sha256()
+            try:
+                with path.open("rb") as source:
+                    for line in source:
+                        digest.update(line)
+                        record = json.loads(line)
+                        seq = record["seq"]
+                        if type(seq) is not int:
+                            raise ValueError
+                        last = seq
+                        lines += 1
+            except (ValueError, TypeError, KeyError, UnicodeError):
+                raise AuditWriteError(
+                    "Audit legacy invalid", code="audit_legacy_invalid"
+                ) from None
+            hashes.append([path.name, digest.hexdigest()])
+        return {
+            "legacy_files": len(files),
+            "legacy_lines": lines,
+            "legacy_last_seq": last,
+            "legacy_sha256": hashlib.sha256(
+                crypto.canonical_json(hashes).encode("utf-8")
+            ).hexdigest(),
+        }
+
+    def _write(
+        self,
+        timestamp: datetime,
+        seq: int,
+        previous: str,
+        event: str,
+        task_id: str | None,
+        actor_sub: str,
+        fields: dict,
+    ) -> dict:
+        record = {
+            "seq": seq,
+            "ts": timestamp.isoformat(),
+            "prev_hash": previous,
+            "actor": {"sub": actor_sub, "act": "governed-ops-agent"},
+            "event": event,
+            "task_id": task_id,
+            **fields,
+            "kid": self._key.kid,
+        }
+        record["hash"] = crypto.record_hash(record)
+        record["sig"] = self._key.sign(record["hash"])
+        payload = crypto.canonical_json(record) + "\n"
+        path = self.directory / f"chain-{timestamp.date().isoformat()}.jsonl"
+        with path.open("a", encoding="utf-8") as target:
+            os.fchmod(target.fileno(), 0o600)
+            target.write(payload)
+            target.flush()
+            os.fsync(target.fileno())
+        return record
 
     def append(
         self, event: str, *, task_id: str | None, actor_sub: str, **fields: Field
     ) -> int:
         _validate_event(event, task_id, actor_sub, fields)
         try:
-            with _lock:
+            with self._locked():
                 timestamp = self.clock()
-                seq = _sequences[self.directory] + 1
-                record = {
-                    "seq": seq,
-                    "ts": timestamp.isoformat(),
-                    "actor": {"sub": actor_sub, "act": "governed-ops-agent"},
-                    "event": event,
-                    "task_id": task_id,
-                    **fields,
-                }
-                payload = (
-                    json.dumps(
-                        record,
-                        ensure_ascii=False,
-                        sort_keys=True,
-                        separators=(",", ":"),
+                if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                    raise AuditWriteError("Audit timestamp must be aware")
+                timestamp = timestamp.astimezone(UTC)
+                last = self._last_record()
+                if last is None:
+                    legacy = self._legacy_fields()
+                    last = self._write(
+                        timestamp,
+                        legacy["legacy_last_seq"] + 1,
+                        "0" * 64,
+                        "chain.genesis",
+                        None,
+                        "system",
+                        legacy,
                     )
-                    + "\n"
+                record = self._write(
+                    timestamp,
+                    last["seq"] + 1,
+                    last["hash"],
+                    event,
+                    task_id,
+                    actor_sub,
+                    fields,
                 )
-                file = self.directory / f"{timestamp.date().isoformat()}.jsonl"
-                with file.open("a", encoding="utf-8") as target:
-                    os.fchmod(target.fileno(), 0o600)
-                    target.write(payload)
-                    target.flush()
-                    os.fsync(target.fileno())
-                _sequences[self.directory] = seq
-                return seq
+                return record["seq"]
+        except AuditWriteError:
+            raise
         except (OSError, ValueError, TypeError, KeyError, AttributeError):
             raise AuditWriteError("Audit write failed") from None
 

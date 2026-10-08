@@ -483,10 +483,11 @@ async def test_write_approval_resume_and_repeated_resume(tmp_path, mode, monkeyp
         assert state["draft_sha256"] != old_hash
     rows = [
         json.loads(line)
-        for line in next(tmp_path.glob("*.jsonl")).read_text().splitlines()
+        for line in next(tmp_path.glob("chain-*.jsonl")).read_text().splitlines()
     ]
     events = [row["event"] for row in rows]
-    assert events[:3] == [
+    assert events[:4] == [
+        "chain.genesis",
         "side_effect.draft",
         "side_effect.draft",
         "approval.requested",

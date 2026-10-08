@@ -1,5 +1,6 @@
 """Audit persistence: the sole audit write point."""
 
+from govops.audit.crypto import AuditKeyError
 from govops.audit.log import (
     SYSTEM_EVENTS,
     AuditLog,
@@ -11,6 +12,7 @@ from govops.audit.log import (
 
 __all__ = [
     "SYSTEM_EVENTS",
+    "AuditKeyError",
     "AuditLog",
     "AuditPort",
     "AuditWriteError",
