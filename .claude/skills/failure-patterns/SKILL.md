@@ -79,6 +79,9 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **원인**: `asyncio.gather` 안의 요청들이 어느 쪽이 잠금을 먼저 얻는지는 스케줄링에 달려 있다. 테스트가 처리 순서까지 계약으로 단언했다.
 - **규칙**: 동시 실행의 단언은 **결과의 집합·개수·불변식**(상태 코드 집합, 효과 수, 응답 본문 동일성)으로 한다. 순서에 의존하는 단언을 쓰려면 순서를 보장하는 장치를 코드가 제공하는지 확인한다. 간헐적 실패가 나오면 FP-011에 따라 제품 결함 여부를 먼저 확인하고, 제품이 맞으면 단언을 고친다(입력 고정으로 덮지 않는다).
 - **강제 수단**: `tests/test_api_tasks.py`(`sorted(status_codes) == [200, 202]`), /review 체크리스트 7번
+- **재발(m4-audit step 2)**: 감사 쓰기에 `flock`·`fsync`가 들어가 타이밍이 바뀌자 `tests/test_api_tasks.py`의 `responses[0].status_code in (200, 202) and responses[1].status_code == 200`(gather 인덱스로 202의 위치를 고정)이 `[200, 202]`에서 실패해 step 2가 `blocked`됐다. 이 단언은 FP-012로 한 번 고친 테스트와 **다른 자리**에 남아 있었다.
+- **규칙(추가)**: 잠금·`fsync`·서명처럼 타이밍을 바꾸는 변경 뒤에는 `asyncio.gather` 결과를 **인덱스로** 단언한 테스트(`responses[0]`·`responses[1]`)를 `rg`로 찾아 점검한다. 불변식은 **실제 보증과 같은 강도**로 쓴다: gather 전 요청이 모두 승인 없이 끝나 잠금을 먼저 얻은 쪽이 반드시 202를 받으므로 `sorted(r.status_code for r in responses) == [200, 202]`(202 정확히 1개)이다. "202는 최대 1개"는 `[200, 200]`(승인이 실행되지 않은 경우)도 통과시켜 보증보다 약하다.
+- **출처(추가)**: m4-audit step 2 blocked(`81cc807`), 강화 `8444929`(10회 반복 통과 확인)
 - **출처**: m3-gateway-fix PR CI 실패(`d16c4bf`)
 
 ## C. 외부 서비스 계약·가짜 응답
@@ -253,21 +256,29 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **원인**: 금지 문장이 **대상(무엇을)·주체(누가)·범위(어디까지)**를 적지 않았고 예외를 같은 문장에 두지 않았다. Codex는 선점검에서 두 문장을 그대로 충돌로 읽고 멈춘다(FP-054).
 - **규칙**: 금지 문장에는 대상을 이름으로 적는다(실행 금지는 `make 타깃 이름`·`python -m …`을 하나씩, 범주 표현·글롭 금지), 주체(Codex 직접 열람 vs 테스트 코드의 읽기)와 범위(이번 실행의 결과 vs 확정된 이전 값)를 구별하고 예외는 별도 문장으로 분리한다. 금지 경로는 `열람 금지 경로:` 줄로 선언한다.
 - **강제 수단**: `scripts/step_file_checks.py::command_violations`(실행 금지 문장이 명령을 명시하지 않거나 범주·글롭 표현이면 실패, AC·검증 명령과 겹치면 실패), `read_list_violations`, `scripts/test_step_files.py`(형식 v2 phase 전 step 파일에 적용, 합성 사례 테스트 포함). 의미상의 모순(결과 수치 vs 이전 공식 값)은 기계가 못 잡으므로 설계 검토에서 대상·주체·범위를 확인한다.
-- **출처**: m4-guardrail step 6 blocked 1차(`2997bf0`)·step 10 blocked(`abe5d9a`, 읽기 목록의 규칙 파일)
+- **재발(m4-audit step 0)**: `열람 금지 경로: data/interim/`와, 같은 step 작업 본문의 "세션 스냅샷 픽스처가 저장소 `data/interim/audit/`의 파일 이름·크기·`mtime_ns`를 기록한다"가 충돌해 선점검에서 `blocked`됐다. 금지 경로를 선언해 놓고 그 경로를 코드·테스트가 런타임에 읽거나 쓰는 지시가 같은 step에 있었는데 주체(Codex의 직접 열람 vs 코드·테스트의 런타임 접근)를 나누지 않았다.
+- **규칙(추가)**: 열람 금지 문장은 **"Codex 세션의 직접 열람·출력·인용"**과 **"코드·테스트의 런타임 접근"**을 구분한다. 금지 경로가 같은 step의 작업 본문에도 나오면(기본 경로 문자열, 환경 변수 기본값, 스냅샷 픽스처 등) `열람 금지 경로:`·`수정 허용 경로:` 줄 아래에 **"열람 금지의 범위" 문단**을 둔다: 금지는 직접 열람에 대한 것이고, 코드의 런타임 접근은 대상이 아니며, 테스트가 실제 파일 **내용**을 읽는 것은 여전히 금지이고 예외(이름·크기·`mtime_ns`)는 그 문단에 열거한다.
+- **강제 수단(추가)**: m4-audit 전 step 파일의 "열람 금지의 범위" 문단. 기계 검사는 후보 상태다(`scripts/step_file_checks.py`에 "열람 금지 경로가 같은 step 작업 본문에 나오는데 범위 문단이 없으면 경고" 추가 여부는 별도 판단).
+- **출처**: m4-guardrail step 6 blocked 1차(`2997bf0`)·step 10 blocked(`abe5d9a`, 읽기 목록의 규칙 파일), m4-audit step 0 blocked(`5f9856f`)
 
 ### FP-060 닫힌 수정 파일 목록에서 소비자 테스트 누락
 - **증상**: step이 기존 심볼·파일·상태를 바꾸는데 그것을 단언하는 기존 테스트가 "수정할 파일(이 목록이 전부다)"에 없어 `make verify`가 실패하고 step이 `blocked`됐다. 사례: 새 상태 `blocked_input`을 `STATUS_MAP`에 더하자 `tests/test_prereg_m3.py::test_registration_topics`(모든 항목이 M3 등록 표에 있어야 함)가 실패했다. 다른 소비자(ADR-009 변경 기록 항목 수 단언, `test_env_defaults.py`의 변수 표, `load_tickets` 소비자)는 사후 점검에서 같은 방식으로 찾아야 했다.
 - **원인**: 설계 때 바꿀 모듈의 소비자를 `rg`로 찾지 않았다.
 - **규칙**: step마다 바꾸거나 추가하는 심볼·파일·환경 변수·Makefile 타깃·문서 문구의 소비자 테스트를 `tests/`·`scripts/`에서 찾아 수정 허용 경로에 "~에 한함, 단언 약화 금지" 형식으로 넣는다. 예외가 필요하면 단언을 느슨하게 하지 말고 **예외 집합을 정확히 고정**한다(예: 차이가 정확히 `{"blocked_input"}`).
 - **강제 수단**: `scripts/step_file_checks.py::consumer_warnings`가 수정 허용 경로의 소비자 테스트 중 허용 목록에 없는 것을 **경고**로 출력한다(실패 아님, 설계 검토 때 `python scripts/step_file_checks.py phases/<phase>/step*.md`로 확인). 합성 저장소 테스트: `test_consumer_warning_lists_tests_missing_from_the_allowed_line`.
-- **출처**: m4-guardrail step 6 blocked 2차(`84c9882`, 진행분 보존 `a52c62e`), 설계 검토에서 step 8·9·10 소비자 보강
+- **재발(m4-audit step 2)**: 같은 phase의 step 1이 만든 `tests/test_audit_events.py`가 "첫 `append`의 반환값이 1"과 "저장 파일이 단일 이벤트 레코드"를 단언했는데, step 2가 첫 쓰기에서 genesis를 먼저 쓰도록 바꿔 반환 seq가 2가 되었다. step 2의 수정 허용 목록에는 이 파일이 없어 `blocked`됐다. 소비자 경고(`consumer_warnings`)는 **기존** 저장소의 테스트만 훑고 같은 phase 앞 step이 새로 만들 테스트는 보지 못한다.
+- **규칙(추가)**: phase 설계 때 각 step의 변경이 **(a) 같은 phase 앞 step이 만든 테스트**와 **(b) 기존 테스트의 정확 일치 단언**(`==`, `[-1]`, index 순서, 개수, 반환값)을 깨는지 `rg`로 점검해 수정 허용 목록과 설계에 반영한다. (a)는 앞 step의 지시문에서 만들 테스트가 가정하는 값(첫 반환값, 파일 이름, 레코드 형태)을 읽어 뒤 step의 계약 변경과 대조한다.
+- **강제 수단(추가)**: 설계 검토 때 `rg -n "== \d+|\[-1\]|\[0\]|splitlines\(\)" tests/`로 영향받는 테스트를 모으고 `step_file_checks`의 소비자 경고와 함께 본다(기계 검사 아님).
+- **출처**: m4-guardrail step 6 blocked 2차(`84c9882`, 진행분 보존 `a52c62e`), 설계 검토에서 step 8·9·10 소비자 보강, m4-audit step 2 blocked(`c696e00`)
 
 ### FP-061 앞 step 테스트의 고정 개수 단언과 뒤 step의 충돌
 - **증상**: step 8이 만든 경계 테스트가 `eval/redteam*.py`가 정확히 2개(`len(files) == 2`)라고 단언했는데 step 9가 `redteam_cards.py`를 추가해 3개가 되어 step 9가 `blocked`됐다. 같은 유형: ADR-009 변경 기록 항목 수를 정확히 1로 단언한 테스트와 뒤 step의 문서 추가.
 - **원인**: 앞 step이 "지금 있는 파일·항목 수"를 단언으로 굳혔고, 뒤 step의 신규 파일·문서 항목이 그 단언을 깨는지 설계에서 점검하지 않았다.
 - **규칙**: 개수 대신 **이름 집합**을 단언하고(새 항목은 그 step이 집합을 갱신), 검사 대상 자체(예: 새 파일에도 같은 경계 검사)는 유지한다. 뒤 step의 수정 허용 경로에 그 테스트를 "집합 단언 갱신에 한함"으로 넣는다.
 - **강제 수단**: `consumer_warnings`의 신규 파일 점검 — 새 파일을 `glob`·`rglob`로 훑는 테스트(같은 디렉터리 이름을 언급)를 경고한다(`test_consumer_warning_finds_glob_and_count_tests_for_a_new_file`). 문서 항목 수 단언은 경고되지 않으므로 설계 검토에서 `rg "== \d+"`로 확인한다.
-- **출처**: m4-guardrail step 9 blocked(`9043e3c`, 진행분 보존 `b425b86`), 같은 유형으로 step 10의 ADR-009 항목 수 단언을 설계 보강
+- **재발(m4-audit step 8)**: step 8이 러너 끝에서 고정점 줄을 출력하도록 바꾸는데, 기존 `tests/test_evalrun_dev_m3.py::test_approval_smoke_real_graph`는 `output.splitlines()[-1] == "INFO cost total_cents=0.000000"`(마지막 줄)을 단언한다. 고정점 줄을 최종 요약 뒤에 출력하거나 기본 `repo_root`(실제 저장소)를 쓰면 마지막 줄이 `audit_anchor_failed:AuditAnchorError`로 바뀌어 허용 범위 밖 단언과 충돌한다. 실행 전 검토에서 발견해 `AnchorTracker.finish(label, *, repo_root)`와 "고정점 줄은 최종 요약 앞에 출력" 지시를 step 5·8에 반영했다(`2e545b9`).
+- **규칙(추가)**: 출력의 **위치**(마지막 줄 `[-1]`, 특정 줄 앞뒤 순서)나 개수를 단언하는 기존 테스트가 있으면, 같은 출력에 줄을 더하는 step은 새 줄의 위치를 설계에서 못 박고(요약 앞) 그 테스트의 단언을 수정 없이 통과시키라고 명시한다.
+- **출처**: m4-guardrail step 9 blocked(`9043e3c`, 진행분 보존 `b425b86`), 같은 유형으로 step 10의 ADR-009 항목 수 단언을 설계 보강, m4-audit step 8 설계 검토(`2e545b9`)
 
 ### FP-062 읽어야 할 파일과 금지사항의 충돌
 - **증상**: step 10의 "읽어야 할 파일"이 `/src/govops/guardrails/`(`…·rules_v1.json`)을 지정했는데 같은 파일의 금지사항은 "규칙 파일의 내용·패턴을 Codex가 직접 열람하지 않는다"였다. Codex가 코드 작성 전에 두 문장을 인용하며 멈췄다(step 6에서도 읽기 목록의 `rules_v1.json`을 미리 지웠다).
