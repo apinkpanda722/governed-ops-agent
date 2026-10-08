@@ -1,0 +1,56 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m5-agent",
+  "steps": [
+    {
+      "step": 0,
+      "name": "turn-state",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "turn-limits",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "audit-pruned-event",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "checkpoint-retention",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "dev-budget-record",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "conversation-turns",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "conversation-views",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "events-session-ttl",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "prune-command",
+      "status": "pending"
+    },
+    {
+      "step": 9,
+      "name": "conversation-smoke-pg",
+      "status": "pending"
+    }
+  ]
+}
