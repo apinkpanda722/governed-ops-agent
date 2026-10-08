@@ -19,14 +19,16 @@
     {
       "step": 1,
       "name": "prompt-registration",
-      "status": "pending",
+      "status": "completed",
       "started_at": "2026-10-08T22:52:51+0900",
       "usage": {
-        "input_tokens": 429141,
-        "cached_input_tokens": 361728,
-        "output_tokens": 2008,
+        "input_tokens": 2273256,
+        "cached_input_tokens": 2169216,
+        "output_tokens": 10435,
         "attempts": 1
-      }
+      },
+      "summary": "writes_team 사전 등록·supersedes 사슬·러너 가드·요청자 절 해시 기록 구현; 장애 하네스 writes_org 동결, make verify 통과 및 골든·LLM 기록 불변 확인.",
+      "completed_at": "2026-10-08T23:13:33+0900"
     },
     {
       "step": 2,
