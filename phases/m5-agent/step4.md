@@ -39,6 +39,7 @@
 - 가드: `guard_live_m3`에 `hypotheses_m5_budget_committed`·`_unchanged`가 아니면 `ValueError("hypotheses_m5_budget_not_committed")`를 던진다. **가드 순서는 기존 세 가드와 `guardrail_rules_not_registered` 뒤, `dirty_worktree` 앞**이다(기존 `test_guardrail_registration.py` 단언이 그대로 통과해야 한다). CLI의 `safe` 오류 코드 집합에도 이 코드를 더한다.
 - `supersedes` = `BUDGET_REGISTRATION_FILES[1]` JSON, `previous_supersedes` = `GUARDRAIL_REGISTRATION_FILES[1]` JSON.
 - 매니페스트 최상위에 `exploration_budget`(`exploration_budget_from_env()`의 값: 정수 또는 `null`), `run_role`(`exploration_budget`이 있으면 `"official"`, 없으면 `"reference"`), `stop_reasons`(`stop_reason`이 있는 task만 `{task_id: reason}`)를 기록한다.
+- 오류 코드 허용 목록: `dev_m3.py`의 `_SMOKE_CODES`(스모크 출력에 찍을 수 있는 코드 집합)에 `max_cost`를 더한다. 빠지면 `max_cost`로 끝난 스모크가 `unknown`으로 찍힌다. 테스트는 `_smoke_code("max_cost") == "max_cost"`를 확인하고 기존 코드의 허용·`unknown` 처리는 그대로 둔다.
 - 작업 트리 청결 검사는 기존 `dirty_entries` 경로를 그대로 쓴다(FP-064). 새 `git status` 호출을 만들지 않는다.
 
 ### 3. 테스트

@@ -24,7 +24,7 @@
 - `async def run_prune(saver, turns: TurnIndex, audit: AuditPort | None, *, now: datetime, apply: bool) -> PruneResult`:
   1. `prune_checkpoints(saver, now=now, apply=False)`로 대상을 구한다. `apply=False`면 그 결과를 돌려주고 끝(감사·삭제 없음).
   2. 대상이 비어 있으면 끝(감사 기록 없음).
-  3. `audit.append("checkpoint.pruned", task_id=None, actor_sub="system", count=len(대상), cutoff=result.cutoff)`. **`count`·`cutoff` 외의 필드를 넣지 않는다.** `AuditWriteError`면 삭제하지 않고 그 오류를 올린다(fail-closed). `audit`이 `None`이면 삭제하지 않는다.
+  3. `audit.append("checkpoint.pruned", task_id=None, actor_sub="system", pruned_count=len(대상), cutoff=result.cutoff)`. **`pruned_count`·`cutoff` 외의 필드를 넣지 않는다.** `AuditWriteError`면 삭제하지 않고 그 오류를 올린다(fail-closed). `audit`이 `None`이면 삭제하지 않는다.
   4. `prune_checkpoints(saver, now=now, apply=True)`로 삭제하고, 실제로 지운 thread(`deleted_ids`)에 대해서만 `turns.delete_conversations(...)`로 색인 행을 지운다. 결과를 돌려준다.
 - `async def startup_prune(service, saver, turns) -> None`: `service.startup_cleanup()` **다음에** 호출된다. `run_prune(..., audit=service.audit, now=utc 현재, apply=True)`를 실행하되 **어떤 예외도 serve를 막지 않는다**: 예외를 삼키고 표준 오류에 `WARN checkpoint_prune_failed` 한 줄만 남긴다(예외 문장·thread ID·경로를 넣지 않는다).
 - CLI `python -m govops.api.retention [--apply]`: `GOVOPS_DATABASE_URL`이 없으면 한 줄 안내 후 종료 코드 1. `open_checkpointer`로 saver를, `PostgresTurnIndex()`로 색인을 연다. `--apply`가 없으면 dry-run이라 `AuditLog`를 만들지 않는다(감사 키가 없어도 동작). `--apply`일 때만 `AuditLog(env_or("AUDIT_DIR", "data/interim/audit"))`를 만든다. 출력은 한 줄 요약 `cutoff=… scanned=N candidates=N active=N deleted=N apply=true|false`뿐이다(ID·원문 없음). 오류는 안전한 코드 한 줄과 종료 코드 1.
@@ -48,7 +48,7 @@ checkpoint-prune:
 `InMemorySaver`로 만든 thread들, `InMemoryTurnIndex`, `MemoryAuditLog`로 한다. 나이는 `now` 주입으로 만든다.
 
 - dry-run: 삭제 0건, 감사 기록 0건, 색인 불변, 출력 한 줄 요약에 ID·원문 없음.
-- apply: 대상 thread가 지워지고 그 대화의 색인 행도 지워진다. 활성 thread(`running`, 만료 전 승인 대기)와 7일 이내 thread는 그대로다. 만료가 지난 오래된 승인 대기는 지워진다. 감사 기록은 정확히 1건이고 이벤트 필드가 `{count, cutoff}`뿐이며 thread ID·task ID·원문이 없다. `count`는 삭제 대상 건수다.
+- apply: 대상 thread가 지워지고 그 대화의 색인 행도 지워진다. 활성 thread(`running`, 만료 전 승인 대기)와 7일 이내 thread는 그대로다. 만료가 지난 오래된 승인 대기는 지워진다. 감사 기록은 정확히 1건이고 이벤트 필드가 `{pruned_count, cutoff}`뿐이며 thread ID·task ID·원문이 없다. `pruned_count`는 삭제 대상 건수다(삭제 전에 기록하는 의도 기록이라 일부 삭제가 실패하면 실제 삭제 수보다 클 수 있다).
 - 감사 쓰기 실패(`AuditWriteError`) → 삭제 0건, 오류가 올라온다. `audit=None` → 삭제 0건.
 - 대상 0건 → 감사 기록 없음.
 - 일부 thread 삭제 실패 주입 → 지운 thread의 색인만 정리되고 실패한 thread의 색인은 남는다.
@@ -88,7 +88,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 ## 이 step의 금지사항
 
 - 기본값(`APPLY` 없음, `--apply` 없음)으로 삭제하지 마라. 이유: 삭제는 되돌릴 수 없다. 삭제 호출은 `apply=True` 분기 하나에만 둔다.
-- 감사 기록 없이 삭제하지 마라. 이유: 의도를 먼저 기록하고 기록에 실패하면 부작용을 일으키지 않는다는 규칙이다. `checkpoint.pruned`에는 `count`와 `cutoff`만 넣는다(ID 금지, ADR-012).
+- 감사 기록 없이 삭제하지 마라. 이유: 의도를 먼저 기록하고 기록에 실패하면 부작용을 일으키지 않는다는 규칙이다. `checkpoint.pruned`에는 `pruned_count`와 `cutoff`만 넣는다(ID 금지, ADR-012).
 - 시작 시 prune의 실패를 serve 시작 실패로 만들지 마라. 이유: 보존 정리는 서비스 가용성보다 후순위다. 예외 문장·경로를 로그에 남기지 않는다(자격 증명 노출 방지).
 - `make checkpoint-prune`·`make serve`를 실행하지 마라. 이유: 실제 Postgres와 `.env`가 필요한 사용자 실행 타깃이다. 테스트는 인메모리로만 한다.
 - `agent/retention.py`·`audit/`를 이 step에서 고치지 마라. 이유: 각각 step 3·2의 산출물이다. 필요한 변경이 있으면 `blocked`로 보고한다.

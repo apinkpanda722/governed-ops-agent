@@ -47,7 +47,7 @@
 ### 3. `tests/test_m5_pg.py` (사용자 실행, `GOVOPS_TEST_DATABASE_URL`이 없으면 `pytest.skip`)
 
 - `PostgresTurnIndex`: 무작위 이름의 임시 테이블로 `add`(중복 무시)·`conversation_of`·`set_awaiting`·`awaiting`·`delete_conversations`가 `InMemoryTurnIndex`와 같은 결과이고, 같은 URL의 두 인스턴스가 동시에 처음 쓰기를 해도 DDL 경합이 없다. 끝에서 테이블을 지운다(`test_outbox_pg.py` 방식).
-- 보존 삭제: **임시 데이터베이스**(`govops_m5_test_<무작위 hex>`)를 같은 서버에 만들고(URL의 `dbname`만 바꾼 접속, 만들기·지우기는 기본 DB에 연결해 `CREATE DATABASE`/`DROP DATABASE ... WITH (FORCE)`) 그 안에서 `open_checkpointer`로 checkpointer를 준비한다. 작은 그래프로 thread 4개(완료, 오래된 승인 대기, 만료 전 승인 대기, `running`)를 만들고 **`now`를 8일 뒤로 주입**해 `run_prune`을 적용한다. 완료·만료된 대기 thread만 지워지고 나머지는 남으며 `checkpoint.pruned`(`MemoryAuditLog`)가 `{count, cutoff}`뿐이다. `finally`에서 임시 DB를 지운다. **`GOVOPS_TEST_DATABASE_URL`이 가리키는 DB 자체의 checkpointer 테이블을 만들거나 지우거나 삭제 적용하지 않는다.**
+- 보존 삭제: **임시 데이터베이스**(`govops_m5_test_<무작위 hex>`)를 같은 서버에 만들고(URL의 `dbname`만 바꾼 접속, 만들기·지우기는 기본 DB에 연결해 `CREATE DATABASE`/`DROP DATABASE ... WITH (FORCE)`) 그 안에서 `open_checkpointer`로 checkpointer를 준비한다. 작은 그래프로 thread 4개(완료, 오래된 승인 대기, 만료 전 승인 대기, `running`)를 만들고 **`now`를 8일 뒤로 주입**해 `run_prune`을 적용한다. 완료·만료된 대기 thread만 지워지고 나머지는 남으며 `checkpoint.pruned`(`MemoryAuditLog`)가 `{pruned_count, cutoff}`뿐이다. `finally`에서 임시 DB를 지운다. **`GOVOPS_TEST_DATABASE_URL`이 가리키는 DB 자체의 checkpointer 테이블을 만들거나 지우거나 삭제 적용하지 않는다.**
 - 모든 DB 대기에 유한한 마감을 둔다(FP-066).
 
 ### 4. `Makefile`·`AGENTS.md`
