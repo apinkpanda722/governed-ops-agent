@@ -18,6 +18,7 @@ from govops.agent.graph import (
 from govops.agent.scope import ScopeIndex
 from govops.agent.users import load_users
 from govops.api.conversations import InMemoryTurnIndex, PostgresTurnIndex
+from govops.api.retention import startup_prune
 from govops.api.startup import StartupError, verify_contract
 from govops.api.tasks import TaskService
 from govops.audit.crypto import AuditKeyError
@@ -163,6 +164,11 @@ async def open_task_service():
                 if os.getenv("GOVOPS_DATABASE_URL")
                 else InMemoryOutboxStore()
             )
+            turn_index = (
+                PostgresTurnIndex()
+                if os.getenv("GOVOPS_DATABASE_URL")
+                else InMemoryTurnIndex()
+            )
             service = build_task_service(
                 chat=LiteLLMChatClient(
                     key_resolver=resolver.key_for,
@@ -176,8 +182,10 @@ async def open_task_service():
                 outbox=outbox,
                 profile=profile_for(name),
                 audit_dir=Path(env_or("AUDIT_DIR", "data/interim/audit")),
+                turn_index=turn_index,
             )
             await service.startup_cleanup()
+            await startup_prune(service, saver, turn_index)
             try:
                 yield service
             finally:

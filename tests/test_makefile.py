@@ -300,3 +300,20 @@ def test_audit_smoke_user_only_without_env_file():
     assert recipe.strip() == "uv run python -m govops.audit.smoke"
     assert ".env" not in recipe
     assert "smoke-audit" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+
+
+def test_checkpoint_prune_is_explicit_apply_and_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: checkpoint-prune\n" in text
+    recipe = text.split("\ncheckpoint-prune:\n", 1)[1].split("\n\n", 1)[0]
+    assert recipe.strip() == (
+        "uv run --env-file .env python -m govops.api.retention $(if $(APPLY),--apply,)"
+    )
+    assert "checkpoint-prune" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    commands = (REPO_ROOT / "AGENTS.md").read_text().split("## 명령어", 1)[1]
+    line = next(
+        line
+        for line in commands.splitlines()
+        if line.startswith("make checkpoint-prune ")
+    )
+    assert "(사용자 실행)" in line
