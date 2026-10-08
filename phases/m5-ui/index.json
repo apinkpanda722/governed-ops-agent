@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "web-approvals",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-09T00:49:46+0900",
+      "summary": "시간 유틸·구조화 승인 카드·발송 완료 카드·접이식 승인함 표와 테스트 구현, 최신 해시·본문 전용 수정 정책 유지 및 make verify 통과.",
+      "completed_at": "2026-10-09T00:59:32+0900",
+      "usage": {
+        "input_tokens": 1511750,
+        "cached_input_tokens": 1432704,
+        "output_tokens": 8373,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
