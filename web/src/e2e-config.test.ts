@@ -17,6 +17,7 @@ test("e2e uses isolated loopback servers without sensitive artifacts", () => {
     expect(source.replace(/document\.cookie\.length/g, "")).not.toContain("document.cookie");
     if (/cookies\(/.test(source)) expect(source).not.toContain(".value");
     expect(source).toContain('from "../src/lib/testids"');
+    expect(source).not.toContain("switchUser");
     expect(source).not.toMatch(/getByTestId\(["'`]/);
   }
 });
@@ -28,4 +29,10 @@ test("playwright config and e2e files avoid ESM-only syntax", () => {
   const sources = ["../playwright.config.ts", "../e2e/support.ts", ...readdirSync(resolve(root, "../e2e")).filter(name => name.endsWith(".spec.ts")).map(name => `../e2e/${name}`)];
   expect(sources.length).toBeGreaterThanOrEqual(4);
   for (const path of sources) expect(read(path), path).not.toMatch(/\bimport\.meta\b/);
+});
+
+test("obsolete user switch is removed while logout remains", () => {
+  expect(read("lib/testids.ts")).not.toContain("switchUser");
+  expect(read("components/user-card.tsx")).not.toContain("switchUser");
+  expect(read("components/user-card.tsx")).toContain("testids.logout");
 });

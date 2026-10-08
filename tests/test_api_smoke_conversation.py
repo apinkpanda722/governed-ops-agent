@@ -65,7 +65,14 @@ def stub(fault=None):
             if cid == "p" and n > 1:
                 state.update(
                     status="completed" if n in approved else "awaiting_approval",
-                    draft={"body": "synthetic-draft"},
+                    draft={
+                        "body": "synthetic-draft",
+                        "args": {
+                            "channel": "team-finance"
+                            if fault == "target"
+                            else "team-platform"
+                        },
+                    },
                     draft_sha256=("a" if n == 2 or fault == "inherited" else "b") * 64,
                 )
                 if n in approved:
@@ -95,6 +102,7 @@ def stub(fault=None):
     "fault,name",
     [
         (None, None),
+        ("target", "share_targets_own_team_channel"),
         ("pending", "approval_pending_409"),
         ("effect", "approve_sends_once"),
         ("owner", "other_user_404"),
@@ -116,6 +124,8 @@ def test_contract(fault, name, capsys):
     output = capsys.readouterr().out
     assert code == (0 if fault is None else 1)
     assert ("RESULT pass" if fault is None else "RESULT fail") in output
+    if fault is None:
+        assert "PASS share_targets_own_team_channel" in output
     if name:
         assert f"FAIL {name} " in output
     assert all(

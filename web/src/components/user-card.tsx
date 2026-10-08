@@ -32,7 +32,6 @@ export function UserCard({user, collapsed = false}: {user: string; collapsed?: b
             </div>
             <Button variant="ghost" size="icon" aria-label="로그아웃" title="로그아웃" data-testid={testids.logout} disabled={busy} onClick={logout}><LogOut aria-hidden="true"/></Button>
         </div>
-        <Button variant="ghost" size="sm" className={collapsed ? "sr-only" : "w-full"} data-testid={testids.switchUser} disabled={busy} onClick={logout}>사용자 전환</Button>
         {code && <ConflictNotice code={code}/>}
     </div>;
 }

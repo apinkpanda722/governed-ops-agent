@@ -261,10 +261,15 @@ test-m5-pg:
 	uv run --env-file .env python -c 'import os, subprocess, sys; sys.exit(subprocess.call(["pytest", "tests/test_m5_pg.py", "-q"]) if os.environ.get("GOVOPS_TEST_DATABASE_URL") else (print("GOVOPS_TEST_DATABASE_URL: 테스트 전용 DB URL 필요") or 1))'
 
 .PHONY: e2e-web
-# 사용자 실행 포트 3200·8200·8201이 이미 쓰이고 있으면 Playwright가 시작을 거부한다(기존 서버 재사용 금지). e2e는 `next build`로 `web/.next`를 덮어쓰므로 `next start`로 띄운 데모 서버(3100)는 먼저 끈다(`next dev`는 `.next/dev`를 써서 무관).
+# e2e는 추적 파일을 쓰지 않는다. 이미 변경된 파일의 내용 변경은 같은 status 줄이면 감지하지 못한다.
+# 사용자 실행 포트 3200·8200·8201이 이미 쓰이고 있으면 Playwright가 시작을 거부한다(기존 서버 재사용 금지). e2e는 `next build`로 `web/.next`를 덮어쓰므로 `next start`로 띄운 데모 서버(3100)는 먼저 끈다(`next dev`는 `.next/dev`를 써서 무관). e2e가 새로 만든 변경만 실패.
 e2e-web:
+	@before_status=$$(mktemp); after_status=$$(mktemp); \
+	git status --porcelain | sort > "$$before_status"; \
 	pnpm -C web exec playwright test; e2e_status=$$?; \
-	changed_paths=$$(git status --porcelain); clean_status=0; \
+	git status --porcelain | sort > "$$after_status"; clean_status=0; \
+	changed_paths=$$(comm -13 "$$before_status" "$$after_status"); \
 	if [ -n "$$changed_paths" ]; then printf '%s\n' "$$changed_paths" | cut -c4-; clean_status=1; fi; \
+	rm -f "$$before_status" "$$after_status"; \
 	if [ "$$e2e_status" -ne 0 ]; then exit "$$e2e_status"; fi; \
 	exit "$$clean_status"

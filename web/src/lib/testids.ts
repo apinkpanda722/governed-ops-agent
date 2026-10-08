@@ -1,7 +1,6 @@
 export const testids = {
     loginError: "login-error",
     sessionUser: "session-user",
-    switchUser: "switch-user",
     navNewConversation: "nav-new-conversation",
     navApprovals: "nav-approvals",
     navApprovalsCount: "nav-approvals-count",

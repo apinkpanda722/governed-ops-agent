@@ -76,7 +76,7 @@
 - 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
 
 ## 명령어
-make e2e-web # 포트 3200·8200·8201이 이미 쓰이고 있으면 Playwright가 시작을 거부한다(기존 서버 재사용 금지). e2e는 `next build`로 `web/.next`를 덮어쓰므로 `next start`로 띄운 데모 서버(3100)는 먼저 끈다(`next dev`는 `.next/dev`를 써서 무관).(사용자 실행)
+make e2e-web # 포트 3200·8200·8201이 이미 쓰이고 있으면 Playwright가 시작을 거부한다(기존 서버 재사용 금지). e2e는 `next build`로 `web/.next`를 덮어쓰므로 `next start`로 띄운 데모 서버(3100)는 먼저 끈다(`next dev`는 `.next/dev`를 써서 무관). e2e가 새로 만든 변경만 실패.(사용자 실행)
 make verify      # ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest → playwright test --list (Stop hook, execute.py, CI가 모두 이 명령을 부른다). API 키·네트워크 없이 통과한다.
 make mock-tokens # 사용자별 mock-jira·mock-slack 토큰과 해시 매니페스트 생성(사용자 실행)
 make seed-extract # A 합성 티켓·사용자 시드 읽기 전용 추출(사용자 실행)
