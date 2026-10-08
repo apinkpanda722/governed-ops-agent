@@ -438,11 +438,15 @@ class AuditLog:
         record["sig"] = self._key.sign(record["hash"])
         payload = crypto.canonical_json(record) + "\n"
         path = self.directory / f"chain-{timestamp.date().isoformat()}.jsonl"
-        with path.open("a", encoding="utf-8") as target:
-            os.fchmod(target.fileno(), 0o600)
-            target.write(payload)
-            target.flush()
-            os.fsync(target.fileno())
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+            with path.open("a", encoding="utf-8") as target:
+                target.write(payload)
+                target.flush()
+                os.fsync(target.fileno())
+        finally:
+            os.close(fd)
         return record
 
     def append(

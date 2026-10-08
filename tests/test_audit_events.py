@@ -59,7 +59,7 @@ def emit(sink, event, fields, **identity):
 @pytest.mark.parametrize("event", CASES)
 def test_required_and_undefined_fields(sink, event):
     fields = CASES[event]
-    assert emit(sink, event, fields) == 1
+    assert emit(sink, event, fields) == (2 if isinstance(sink, AuditLog) else 1)
     for key in fields:
         with pytest.raises(AuditWriteError):
             emit(sink, event, {k: v for k, v in fields.items() if k != key})
@@ -222,10 +222,23 @@ def test_storage_shape(tmp_path):
             "label": "test-1",
         }
     ]
-    row = json.loads(next(tmp_path.glob("*.jsonl")).read_text())
+    row = json.loads(next(tmp_path.glob("chain-*.jsonl")).read_text().splitlines()[-1])
     assert row["task_id"] is None
     assert row["actor"]["sub"] == "system"
-    assert set(row) == {"seq", "ts", "actor", "event", "task_id", "label"}
+    assert row["event"] == "chain.anchor"
+    assert row["label"] == "test-1"
+    assert set(row) == {
+        "seq",
+        "ts",
+        "actor",
+        "event",
+        "task_id",
+        "label",
+        "prev_hash",
+        "kid",
+        "hash",
+        "sig",
+    }
 
 
 def test_new_fields_are_event_scoped(sink):

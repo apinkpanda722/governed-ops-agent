@@ -84,6 +84,21 @@ def test_missing_key(tmp_path, monkeypatch):
         AuditLog(tmp_path)
 
 
+def test_chain_file_is_private_at_creation(tmp_path, monkeypatch):
+    original_open = os.open
+    created = []
+
+    def capture_open(path, flags, mode=0o777, **kwargs):
+        fd = original_open(path, flags, mode, **kwargs)
+        if flags & os.O_CREAT and Path(path).name.startswith("chain-"):
+            created.append(os.fstat(fd).st_mode & 0o777)
+        return fd
+
+    monkeypatch.setattr(os, "open", capture_open)
+    emit(AuditLog(tmp_path))
+    assert created == [0o600, 0o600]
+
+
 def test_legacy_seal(tmp_path):
     legacy = tmp_path / "2026-10-06.jsonl"
     data = b"".join(json.dumps({"seq": i}).encode() + b"\n" for i in range(1, 4))
@@ -147,6 +162,10 @@ def test_naive_clock(tmp_path):
         b"invalid\n",
         b'{"seq":true,"hash":"' + b"a" * 64 + b'"}\n',
         b'{"seq":2,"hash":"bad"}\n',
+        b"[]\n",
+        b"null\n",
+        b'{"hash":"' + b"a" * 64 + b'"}\n',
+        b'{"seq":2}\n',
     ],
 )
 def test_corrupt_tail_unchanged(tmp_path, tail):
@@ -302,3 +321,17 @@ def test_validation_before_lock(tmp_path, fields, monkeypatch):
     with pytest.raises(AuditWriteError):
         log.append("side_effect.attempt", **kwargs)
     assert not list(tmp_path.iterdir())
+
+
+def test_fsync_failure_releases_locks(tmp_path, monkeypatch):
+    log = AuditLog(tmp_path)
+    emit(log)
+    with monkeypatch.context() as patch:
+        patch.setattr(os, "fsync", Mock(side_effect=OSError("synthetic failure")))
+        with pytest.raises(AuditWriteError) as error:
+            emit(log)
+        assert error.value.code == "audit_write_failed"
+        assert "synthetic failure" not in str(error.value)
+    # The flushed record remains append-only even when durability fails.
+    assert emit(AuditLog(tmp_path, lock_timeout=0.3)) == 4
+    check_chain(tmp_path, 4)
