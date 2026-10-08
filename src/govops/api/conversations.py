@@ -20,6 +20,7 @@ class TurnIndex(Protocol):
     async def add(
         self, *, turn_id, conversation_id, owner_sub, turn_index, created_at
     ) -> None: ...
+    async def list_for_owner(self, owner_sub: str, limit: int) -> list[dict]: ...
     async def conversation_of(self, turn_id) -> str | None: ...
     async def set_awaiting(self, turn_id, awaiting: bool) -> None: ...
     async def awaiting(self) -> list[tuple[str, str]]: ...
@@ -41,6 +42,26 @@ class InMemoryTurnIndex:
                 "awaiting": False,
             },
         )
+
+    async def list_for_owner(self, owner_sub: str, limit: int) -> list[dict]:
+        groups = {}
+        for row in self.rows.values():
+            if row["owner_sub"] != owner_sub:
+                continue
+            ident = row["conversation_id"]
+            group = groups.setdefault(
+                ident,
+                {
+                    "conversation_id": ident,
+                    "last_created_at": row["created_at"],
+                    "turn_count": 0,
+                },
+            )
+            group["last_created_at"] = max(group["last_created_at"], row["created_at"])
+            group["turn_count"] += 1
+        rows = sorted(groups.values(), key=lambda row: row["conversation_id"])
+        rows.sort(key=lambda row: row["last_created_at"], reverse=True)
+        return rows[:limit]
 
     async def conversation_of(self, turn_id):
         return self.rows.get(turn_id, {}).get("conversation_id")
@@ -119,6 +140,18 @@ class PostgresTurnIndex:
             )
 
         await self._run(operation)
+
+    async def list_for_owner(self, owner_sub: str, limit: int) -> list[dict]:
+        async def operation(conn):
+            cursor = await conn.execute(
+                sql.SQL(
+                    "SELECT conversation_id, max(created_at) AS last_created_at, count(*) AS turn_count FROM {} WHERE owner_sub = %s GROUP BY conversation_id ORDER BY last_created_at DESC, conversation_id ASC LIMIT %s"
+                ).format(self.table),
+                (owner_sub, limit),
+            )
+            return await cursor.fetchall()
+
+        return await self._run(operation)
 
     async def conversation_of(self, turn_id):
         async def operation(conn):

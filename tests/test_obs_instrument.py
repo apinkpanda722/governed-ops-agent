@@ -131,6 +131,7 @@ def test_concurrent_tasks_and_cancellation(sink):
                 "steps",
                 "error",
                 "guardrail",
+                "tool_steps",
             }
         cancelled = await service.start("demo-platform-g3", "wait")
         await entered.wait()

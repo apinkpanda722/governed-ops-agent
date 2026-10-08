@@ -140,7 +140,9 @@ def test_server_lifespan_assembles_and_closes(monkeypatch):
     assert events == ["open", ("demo-platform-g3", "조회"), "close"]
 
 
-@pytest.mark.parametrize("profile", ["read_only", "writes", "writes_org", "invalid"])
+@pytest.mark.parametrize(
+    "profile", ["read_only", "writes", "writes_team", "writes_org", "invalid"]
+)
 def test_wiring_approval_dependencies(
     serve_asgi, a_tokens, monkeypatch, tmp_path, profile
 ):
@@ -179,7 +181,7 @@ def test_wiring_approval_dependencies(
             assert service.graph.agent_profile.allow_writes
             assert service.policy is not None
 
-    if profile != "writes_org":
+    if profile not in {"writes_team", "writes_org"}:
         with pytest.raises(StartupError, match="GOVOPS_AGENT_PROFILE"):
             asyncio.run(run())
     else:

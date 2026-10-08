@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import (
@@ -239,6 +239,14 @@ def create_app(
             tasks: TaskService = TASK_SERVICE,
         ):
             return await tasks.approvals(user_id)
+
+        @app.get("/conversations")
+        async def list_conversations(
+            limit: int = Query(default=50, ge=1, le=50),
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
+        ):
+            return await tasks.conversations(user_id, limit)
 
         @app.post("/conversations", status_code=202)
         async def start_conversation(

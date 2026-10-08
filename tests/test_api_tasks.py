@@ -93,6 +93,7 @@ async def test_tasks_identity_fields_and_secrecy(caplog):
             "cited_doc_ids": ["syn-one"],
             "observed_doc_ids": ["syn-one", "syn-unused"],
             "steps": 2,
+            "tool_steps": [{"name": "jira_get_ticket", "ok": True}],
             "error": None,
             "guardrail": {"quarantined": 0, "quarantined_at_least": False, "masked": 0},
         }

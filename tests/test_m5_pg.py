@@ -76,6 +76,16 @@ def test_turn_index_postgres():
                         store.conversation_of(row["turn_id"])
                     ) == await memory.conversation_of(row["turn_id"])
                 assert await bounded(store.conversation_of("missing")) is None
+            for store in stores:
+                for limit in (1, 50):
+                    actual = await bounded(
+                        store.list_for_owner("synthetic-user", limit)
+                    )
+                    assert actual == await memory.list_for_owner(
+                        "synthetic-user", limit
+                    )
+                    assert len(actual) == min(limit, 2)
+                assert await bounded(store.list_for_owner("other-user", 50)) == []
             for value in (True, False, True):
                 await memory.set_awaiting("t0", value)
                 await bounded(stores[0].set_awaiting("t0", value))
