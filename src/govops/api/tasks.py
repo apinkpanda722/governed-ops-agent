@@ -495,12 +495,16 @@ class TaskService:
             return 202, view
 
     async def startup_cleanup(self):
+        # AsyncPostgresSaver.alist는 잠금을 쥔 채 yield한다. 순회 안에서 같은 saver를 부르면
+        # (aget_state → aget_tuple) 같은 asyncio.Lock을 기다려 교착하므로, 목록을 끝까지 읽은 뒤에만 쓴다.
+        thread_ids: list[str] = []
         seen = set()
         async for checkpoint in self.graph.checkpointer.alist(None):
             task_id = checkpoint.config["configurable"]["thread_id"]
-            if task_id in seen:
-                continue
-            seen.add(task_id)
+            if task_id not in seen:
+                seen.add(task_id)
+                thread_ids.append(task_id)
+        for task_id in thread_ids:
             state = await get_task(self.graph, task_id)
             if state and state.get("status") == "running":
                 await self._update(task_id, {"status": "interrupted"})

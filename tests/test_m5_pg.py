@@ -12,10 +12,13 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
+from test_agent_graph import FakeTools, reply
 
 from govops.agent.checkpointer import open_checkpointer
+from govops.agent.graph import build_graph
 from govops.api.conversations import InMemoryTurnIndex, PostgresTurnIndex
-from govops.api.retention import run_prune
+from govops.api.retention import run_prune, startup_prune
+from govops.api.tasks import TaskService
 from govops.audit.log import MemoryAuditLog
 
 
@@ -185,3 +188,65 @@ def test_retention_isolated_database():
         asyncio.run(exercise())
     except Exception:  # noqa: BLE001 — conceal transport details
         raise RuntimeError("M5 isolated retention verification failed") from None
+
+
+STARTUP_BOUND = 20  # 초. 교착하면 끝나지 않는다. 정상 경로는 1초 안이다.
+
+
+def test_startup_with_existing_threads_finishes_in_isolated_database():
+    """thread가 있는 실제 Postgres에서 serve 시작 경로(startup_cleanup → startup_prune)가 끝난다.
+
+    AsyncPostgresSaver.alist는 잠금을 쥔 채 yield한다. 순회 안에서 같은 saver를 부르면 교착한다
+    (InMemorySaver에는 이 잠금이 없어 단위 테스트가 잡지 못했다). open_task_service 전체는 live A·LiteLLM·팀 키가
+    필요해 여기서 부르지 못하므로, 같은 saver 위에서 시작 때 실제로 실행되는 두 함수를 검증한다.
+    """
+    url = database_url()
+
+    class Chat:
+        async def complete(self, **kwargs):
+            return reply("합성 답변")
+
+    async def exercise():
+        name = "govops_m5_test_" + uuid4().hex
+        isolated = make_conninfo(url, dbname=name)
+        created = False
+        try:
+            await ddl(url, sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+            created = True
+            async with asyncio.timeout(90):
+                async with open_checkpointer(isolated) as saver:
+                    graph = build_graph(Chat(), FakeTools(), saver)
+                    first = TaskService(
+                        graph, turns=InMemoryTurnIndex(), audit=MemoryAuditLog()
+                    )
+                    ids = [await first.start(user, "합성 요청") for user in "abc"]
+                    await asyncio.gather(*first._tasks)
+                    await graph.aupdate_state(
+                        {"configurable": {"thread_id": ids[-1]}},
+                        {"status": "running"},
+                        as_node="model",
+                    )
+                    await first.aclose()
+                    # 새 서비스 = 재시작. 시작 때 부르는 두 함수가 thread가 있는 DB에서 끝나야 한다.
+                    audit = MemoryAuditLog()
+                    service = TaskService(graph, turns=InMemoryTurnIndex(), audit=audit)
+                    await asyncio.wait_for(service.startup_cleanup(), STARTUP_BOUND)
+                    await asyncio.wait_for(
+                        startup_prune(service, saver, service.turns), STARTUP_BOUND
+                    )
+                    assert (await service.get("a", ids[0]))["status"] == "completed"
+                    assert (await service.get("c", ids[-1]))["status"] == "interrupted"
+                    assert not audit.records  # 7일 이내라 삭제 대상 없음
+        finally:
+            if created:
+                await ddl(
+                    url,
+                    sql.SQL("DROP DATABASE {} WITH (FORCE)").format(
+                        sql.Identifier(name)
+                    ),
+                )
+
+    try:
+        asyncio.run(exercise())
+    except Exception:  # noqa: BLE001 — conceal transport details
+        raise RuntimeError("M5 startup verification failed") from None

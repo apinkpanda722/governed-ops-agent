@@ -322,6 +322,20 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: 없음(후속 후보, 미구현: `run_role=reference`인 실행은 `data/replay` 재기록을 건너뛰고 결과 디렉터리를 청결 검사 예외 경로에 둔다). 이번 실행은 수동 이동·stash로 풀었고 결과 문서 실행 조건에 이동(내용 무변경)을 적었다.
 - **출처**: m5-agent 켬/끔 dev live(결과 `docs/results/2026-10-08-m5-dev4-live.md`)
 
+### FP-068 체크포인터 async 생성기(alist) 안에서 같은 saver를 다시 호출해 교착
+- **증상**: `make serve`가 "Waiting for application startup."에서 멈췄다(CPU 0%, 포트 미개방, Postgres 연결은 checkpoint 목록 조회 뒤 idle). 원인은 `TaskService.startup_cleanup`이 `async for … in checkpointer.alist(None)` 루프 안에서 `get_task`(→ `aget_state` → `aget_tuple`)를 불렀기 때문이다. DB에 thread가 있을 때 serve를 시작하면 재현된다. M3 코드(`65cd334`)부터 있던 잠복 결함이다.
+- **원인**: `AsyncPostgresSaver.alist`는 `_cursor()`가 쥔 `self.lock`(asyncio.Lock) 안에서 항목을 yield하고, `aget_tuple`·`aput`·`aput_writes`·`adelete_thread`는 같은 잠금을 기다린다(설치된 `aio.py`로 확인). 테스트는 `InMemorySaver`(잠금 없음)만 써서 잡지 못했다.
+- **규칙**: saver의 `alist`를 순회하는 동안 같은 saver를 부르지 않는다. 목록을 끝까지 읽어 ID 집합으로 만든 뒤 다음 루프에서 호출한다. 외부 저장소의 잠금·커넥션 계약이 있는 비동기 생성기를 쓰는 코드는 **그 계약을 재현하는 가짜**(공유 `asyncio.Lock`)로 유한 시간(`wait_for`) 안에 끝남을 단언하고, 가능하면 실제 Postgres(임시 DB)로도 확인한다.
+- **강제 수단**: `tests/test_startup_cleanup_lock.py`(잠금 계약 가짜 saver; 수정 전 코드에서 `TimeoutError`로 실패함을 확인, 가짜가 교착을 실제로 재현하는지 보는 테스트 포함), `tests/test_m5_pg.py::test_startup_with_existing_threads_finishes_in_isolated_database`(사용자 실행 `make test-m5-pg`; 수정 전 20초 뒤 실패, 수정 후 1초 안 통과). `src/` 점검: `async for`는 `agent/retention.py`(본문이 항목 데이터만 쓰고 삭제는 루프 뒤)와 `api/tasks.py`(수정)뿐이다.
+- **출처**: m5-agent 첫 live(`make serve` 시작 교착), 수정 PR
+
+### FP-069 빈 집합에 대한 `all()`로 공허하게 통과하는 smoke 판정
+- **증상**: `smoke_conversation`의 `no_leak_in_views`는 `all(safe(view) for view in views)`였다. 서비스에 접속하지 못해 받은 view가 0개여도 `all([])`이 참이라 `PASS`가 출력됐다. `request_failed`에는 원인 정보가 없어 접속 실패와 계약 위반을 구분할 수 없었다.
+- **원인**: "위반 없음"을 단언하면서 검사 대상이 있었는지를 함께 보지 않았다(FP-040의 0건 지표, FP-021의 우연한 만족과 같은 계열).
+- **규칙**: `all(...)`·`not any(...)`·`== 0`으로 "없음"을 판정할 때는 **검사 대상이 1개 이상**임을 먼저 확인하고, 0개이면 실패 코드(`no_views`)로 낸다. 실패 사유에는 비밀이 아닌 최소 정보(예외 **클래스 이름**)만 덧붙인다.
+- **강제 수단**: `tests/test_api_smoke_conversation.py::test_no_views_is_a_failure_and_names_only_the_exception_class`(ConnectError·KeyError·임의 예외에서 `FAIL no_leak_in_views no_views`와 `request_failed:<클래스>`, URL·토큰·예외 문장이 출력에 없음)
+- **출처**: m5-agent 첫 live(`make smoke-conversation` 1회차), 수정 PR
+
 ---
 
 ## A에서 이식한 항목 (프로젝트 A `failure-patterns`의 번호)
