@@ -33,14 +33,16 @@
     {
       "step": 2,
       "name": "audit-log-chain",
-      "status": "pending",
+      "status": "completed",
       "started_at": "2026-10-08T10:41:24+0900",
       "usage": {
-        "input_tokens": 4985264,
-        "cached_input_tokens": 4838400,
-        "output_tokens": 10814,
-        "attempts": 2
-      }
+        "input_tokens": 958573,
+        "cached_input_tokens": 896640,
+        "output_tokens": 2634,
+        "attempts": 1
+      },
+      "summary": "서명 감사 해시체인·genesis·legacy 봉인·유한 잠금과 경합 불변식 확인, 동시 승인 순서 단언 수정; make verify 통과(Python 3071개, 웹 15개).",
+      "completed_at": "2026-10-08T11:12:34+0900"
     },
     {
       "step": 3,
