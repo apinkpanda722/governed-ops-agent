@@ -9,7 +9,7 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -19,7 +19,12 @@ from pydantic import (
     model_validator,
 )
 
-from govops.api.auth import AuthFailureLimiter, current_user, record_auth_failure
+from govops.api.auth import (
+    AuthFailureLimiter,
+    authenticated_token,
+    current_user,
+    record_auth_failure,
+)
 from govops.api.conversations import ConversationError
 from govops.api.sessions import SessionStore
 from govops.api.tasks import ApprovalError, TaskService
@@ -110,6 +115,21 @@ def create_app(
         )
 
     if demo_login:
+
+        @app.delete("/sessions", status_code=204)
+        def revoke_session(request: Request, token: str = Depends(authenticated_token)):
+            request.app.state.sessions.revoke(token)
+            return Response(status_code=204)
+
+        @app.get("/demo/users")
+        def demo_users(request: Request):
+            if request.client is None or request.client.host not in {
+                "127.0.0.1",
+                "::1",
+            }:
+                record_auth_failure(request, "loopback_required")
+                raise HTTPException(status_code=403, detail="Loopback required")
+            return {"users": sorted(users)}
 
         @app.post("/sessions", status_code=201)
         def issue_session(body: Login, request: Request):
