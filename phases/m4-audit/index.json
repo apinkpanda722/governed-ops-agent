@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "audit-verify",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T11:12:34+0900",
+      "summary": "읽기 전용 감사 체인·서명·고정점·legacy 검증기와 CLI·audit-verify 타깃 구현; 변조·동시 작성 테스트 및 make verify 통과(Python 3105개, 웹 15개).",
+      "completed_at": "2026-10-08T11:21:27+0900",
+      "usage": {
+        "input_tokens": 985066,
+        "cached_input_tokens": 917760,
+        "output_tokens": 10347,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
