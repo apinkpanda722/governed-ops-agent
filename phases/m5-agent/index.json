@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "conversation-views",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T15:55:24+0900",
+      "summary": "소유자 전용 대화 view와 정책 기반 승인함 구현, 재귀 응답 안전·만료·힌트 정리·승인 연동 테스트 및 계층 경계 확인; make verify 통과(Python 3371 passed, 웹 15 passed).",
+      "completed_at": "2026-10-08T16:05:19+0900",
+      "usage": {
+        "input_tokens": 2243979,
+        "cached_input_tokens": 2159360,
+        "output_tokens": 8108,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
