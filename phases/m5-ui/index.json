@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "web-shell",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-09T00:04:25+0900",
+      "summary": "반응형 웹 셸·사이드바·테마·로그인과 공용 타입·문구·목록 라이브러리 구현, 경계·동기화·화면 테스트 추가 및 make verify 통과.",
+      "completed_at": "2026-10-09T00:22:22+0900",
+      "usage": {
+        "input_tokens": 2535626,
+        "cached_input_tokens": 2441472,
+        "output_tokens": 24201,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
