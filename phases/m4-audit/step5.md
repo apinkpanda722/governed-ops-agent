@@ -28,7 +28,7 @@
 
 ### 2. `TaskService.anchor` (`tasks.py`)
 
-- `TaskService.anchor(label: str) -> dict`: `self.audit.anchor(label)`을 그대로 호출해 돌려준다(러너가 `audit`을 import하지 않고 고정점을 만들 수 있게 한다). `audit`이 없거나 `anchor`를 지원하지 않으면(`MemoryAuditLog`) `AttributeError`가 아니라 `RuntimeError("audit_anchor_unsupported")`.
+- `TaskService.anchor(label: str, *, repo_root: Path | None = None) -> dict`: `self.audit.anchor(label, repo_root=repo_root)`로 `repo_root`를 **그대로 넘겨**(생략하면 `None`) 돌려준다(러너가 임시 저장소 루트 같은 자기 루트를 넘길 수 있어야 하고, 기본값(실제 저장소 루트)에 기대면 임시 디렉터리를 쓰는 테스트가 `audit_anchor_dir_outside_repo`로 실패한다. 러너가 `audit`을 import하지 않고 고정점을 만들 수 있게 한다). `audit`이 없거나 `anchor`를 지원하지 않으면(`MemoryAuditLog`) `AttributeError`가 아니라 `RuntimeError("audit_anchor_unsupported")`.
 
 ### 3. 테스트 (`tests/test_service_start_event.py`)
 
@@ -36,6 +36,7 @@
 - 같은 디렉터리에 서비스를 두 번 만들면 `service.start`가 두 건이고 genesis는 하나다(체인이 `verify_chain`으로 `ok`).
 - 시작 거부: `AUDIT_KEY_FILE`을 없는 경로로 바꾸면 `StartupError("audit_key_missing")`이고 서비스가 만들어지지 않으며 체인 파일이 생기지 않는다. 권한이 `0644`인 키 → `audit_key_permissions`. 체인 디렉터리를 쓸 수 없게 만들면(부모가 파일) `audit_write_failed`.
 - `TaskService.anchor`: 실제 `AuditLog`이면 고정점 dict를 돌려주고(`repo_root` 밖이라 `AuditAnchorError(audit_anchor_dir_outside_repo)`가 올라오는 것은 허용: 임시 디렉터리가 저장소 밖이므로 이 테스트는 `AuditLog.anchor`를 가짜로 바꿔 위임만 검증), `MemoryAuditLog`면 `RuntimeError("audit_anchor_unsupported")`.
+- `TaskService.anchor` 인자 전달: `audit.anchor`를 받은 인자를 기록하는 가짜로 바꾼 서비스에서 `anchor("x", repo_root=<임시 루트>)`는 가짜가 `label="x"`, `repo_root=<임시 루트>`를 받게 하고, `repo_root`를 생략하면 `repo_root=None`을 받게 한다. 실제 `AuditLog`(체인 디렉터리가 임시 루트 아래)에 `repo_root=<임시 루트>`를 넘기면 고정점 dict를 돌려주고 `dir`이 임시 루트 기준 상대 경로다.
 - `tests/test_api_wiring_build.py`·`tests/test_api_wiring.py`: `AUDIT_DIR`·감사 레코드를 읽는 기존 단언을 새 형식(체인 파일·`service.start` 존재)에 맞게 갱신하되 의미를 약화하지 않는다.
 
 ## Acceptance Criteria
