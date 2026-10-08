@@ -227,3 +227,8 @@ redteam-cards:
 # 사람 확정본 읽기 전용, 사용자 실행
 redteam-review-status:
 	uv run python -m govops.eval.redteam_cards --status
+
+.PHONY: audit-verify
+# 읽기 전용·키 불필요, 저장소 `data/results/`의 커밋된 체인과 legacy도 함께 보고, `AUDIT_DIR`은 환경 변수로만 바꾼다
+audit-verify:
+	uv run python -m govops.audit.verify --scan data/results
