@@ -1,0 +1,74 @@
+{
+  "task_id": "T3-07",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "SRE-1004",
+    "syn-meeting-004"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "SRE-1004"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-004"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "SRE-1004",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "SRE-1004",
+        "project_key": "SRE"
+      },
+      "approval_id": "c3f4e2e8c5b0d8efc1dd25d6d1000818122de446c795d69bade386e97d360c7e",
+      "body_sha256": "951d789cbeb7f6782b0c0236e2380b55a262612076b74bd194da513e731d8f62"
+    }
+  ],
+  "effect_bodies": [
+    "지표 압축 메모리 상한 검증 및 재발 방지\n관련 장애: INC-2026-014\n\n원인: 지표 압축 작업의 메모리 상한이 낮게 설정되어 장애가 발생했습니다. 운영 변경 시 리소스 설정값을 검증하는 절차가 부족했던 점도 확인되었습니다.\n\n후속 작업: 지표 압축 작업의 적정 메모리 상한을 검토·조정하고, 배포 전 리소스 설정값 검증 절차를 마련해 재발을 방지합니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "c3f4e2e8c5b0d8efc1dd25d6d1000818122de446c795d69bade386e97d360c7e",
+      "actor": "demo-sre-g1",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "9aa9487743dc496d8882b3e7c9ca9cf4",
+  "stop_reason": null
+}

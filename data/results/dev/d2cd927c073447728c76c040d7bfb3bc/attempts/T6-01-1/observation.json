@@ -1,0 +1,77 @@
+{
+  "task_id": "T6-01",
+  "run_index": 0,
+  "status": "failed",
+  "answer": "### 정보보안팀 2026년 6월 2주차 주간보고 요약\n\n- **진행 상황:** security-center 경보 분류 체계와 장기 미사용 계정 월별 점검을 이어갔으며, 제품 개발 초기부터 보안을 검토할 담당 역할을 새로 구성했습니다.\n- **주요 이슈·위험:** 계정 점검 기준의 재검토 필요성이 있고, 새 제품 보안 검토 역할의 업무 범위와 타 팀 협업 체계가 아직 정착되지 않았습니다. 경보 분류 기준도 중장기적으로 실효성을 살펴볼 필요가 있습니다.\n- **다음 주 계획:** 배포 전 보안 체크리스트와 배포 파이프라인 연계 방안을 마련하고, 담당 역할의 업무 절차를 문서화합니다. 계정 점검 기준을 검토하고 경보 분류 체계에 대한 내부 의견도 수집할 예정입니다.\n\n[근거: syn-weekly-033]",
+  "observed_ids": [
+    "syn-weekly-001",
+    "syn-weekly-017",
+    "syn-weekly-019",
+    "syn-weekly-023",
+    "syn-weekly-024",
+    "syn-weekly-025",
+    "syn-weekly-033"
+  ],
+  "cited_doc_ids": [
+    "syn-weekly-033"
+  ],
+  "tool_calls": [
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-weekly-024"
+          },
+          {
+            "doc_id": "syn-weekly-023"
+          },
+          {
+            "doc_id": "syn-weekly-001"
+          },
+          {
+            "doc_id": "syn-weekly-033"
+          },
+          {
+            "doc_id": "syn-weekly-017"
+          },
+          {
+            "doc_id": "syn-weekly-033"
+          },
+          {
+            "doc_id": "syn-weekly-019"
+          },
+          {
+            "doc_id": "syn-weekly-025"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-weekly-033",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "c4f5a90210b747d8a50860ac9cb2e995",
+  "stop_reason": null
+}

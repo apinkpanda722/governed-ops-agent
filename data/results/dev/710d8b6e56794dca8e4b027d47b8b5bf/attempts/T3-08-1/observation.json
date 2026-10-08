@@ -1,0 +1,109 @@
+{
+  "task_id": "T3-08",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "LGL-1002",
+    "syn-guide-010",
+    "syn-incident-021",
+    "syn-meeting-040",
+    "syn-runbook-018"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "get_document",
+      "ok": false
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "get_document",
+      "ok": false,
+      "result": {
+        "error": {}
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-guide-010"
+          },
+          {
+            "doc_id": "syn-meeting-040"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-incident-021"
+          }
+        ]
+      }
+    },
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "LGL-1002"
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-021",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "LGL-1002",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "LGL-1002",
+        "project_key": "LGL"
+      },
+      "approval_id": "5e89e24985a798811940cfbe9db97b5c19a4216b71b95dd6fe740b2dbe48a57e",
+      "body_sha256": "e266df099bb3078a9859dfcfa7ed02416b59b492d9a4e8e3b9eb83fb65e41371"
+    }
+  ],
+  "effect_bodies": [
+    "contract-vault 보관 상태 변경-검색 색인 동기화 재발 방지\n관련 장애: INC-2026-011\n\n원인: 계약 문서의 보관 상태 변경 시 검색 색인 갱신 이벤트가 정상 처리되지 않아, 원본 데이터에는 존재하는 계약이 검색 인덱스에 반영되지 않는 동기화 불일치가 발생했습니다. 색인 갱신 파이프라인이 이벤트를 누락하거나 처리 중 실패한 것으로 파악되었습니다. [syn-incident-021]\n\n후속 조치:\n- 보관 상태 변경 이벤트에서 색인 갱신까지의 연계 로직을 검토하고, 이벤트 누락·실패 시 자동 감지 및 알림이 발생하도록 보완합니다.\n- 이벤트 처리 상태와 보관 상태-검색 색인 간 정합성을 주기적으로 검증하는 절차를 정례화합니다.\n- 불일치 발견 시 색인 재처리 및 복구 검증 절차를 문서화하고 관련 담당자에게 공유합니다.\n\n완료 기준: 이벤트 실패 감지·알림 동작을 확인하고, 정합성 점검 및 복구 절차를 실행 가능한 형태로 문서화합니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "5e89e24985a798811940cfbe9db97b5c19a4216b71b95dd6fe740b2dbe48a57e",
+      "actor": "demo-legal-g5",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "337e7023032e4241accaf38c5938bd24",
+  "stop_reason": null
+}

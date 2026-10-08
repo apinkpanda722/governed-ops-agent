@@ -1,0 +1,83 @@
+{
+  "task_id": "T3-01",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "PAY-1234",
+    "syn-meeting-002"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_add_comment",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-002"
+          }
+        ]
+      }
+    },
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "PAY-1234"
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-meeting-002",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_comment",
+      "target": "PAY-1234",
+      "count": 1,
+      "structure": {},
+      "approval_id": "c55fd52a7bba479bf4199b650549cc48ecca9719a83145bac25170e2b68c263e",
+      "body_sha256": "e5a534b39b38911504b5514b1ddc779fa4a5bb15cd1123a0baf6792dadb96abb"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-031 원인 및 조치 요약:\n- 원인: 배포 설정이 서로 일치하지 않아 요청 처리가 지연되었습니다.\n- 조치: 설정 검증을 추가하고 대기 중인 요청을 다시 처리했습니다.\n- 후속 관찰: 변경 사항 반영 전 검증이 충분하지 않았다는 공통 문제가 확인되었습니다. 배포 설정 및 캐시 갱신의 사전 검증 절차를 표준화하는 방안은 추가 검토가 필요합니다.\n\n근거: [syn-meeting-002]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "c55fd52a7bba479bf4199b650549cc48ecca9719a83145bac25170e2b68c263e",
+      "actor": "demo-payments-g1",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "e7566fcea6b74ffe98116a12c9456983",
+  "stop_reason": null
+}

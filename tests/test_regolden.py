@@ -11,8 +11,10 @@ from govops.golden import GOLDEN_TASKS, load_golden_specs, tcr_status
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN2 = ROOT / "data/results/dev/26c8553905bb4396b20ef2b2ff6399f1"
-# Guardrail v1 재실행(m4-guardrail): 현재 골든 기록(status.json·llm·a_run)을 만든 실행.
+# Guardrail v1 재실행(m4-guardrail): 이전 공식 실행(세 번째 실행).
 RUN3 = ROOT / "data/results/dev/e36589778c2243388f09d9b4d3b60f2b"
+# 탐색 예산 켬 재실행(m5-agent): 현재 골든 기록(status.json·llm·a_run)을 만든 공식 실행(네 번째 실행).
+RUN4 = ROOT / "data/results/dev/d2cd927c073447728c76c040d7bfb3bc"
 RUN = ROOT / "data/results/dev/da337bb7471c4bceae14a2e9b3ce5884"
 
 
@@ -51,13 +53,17 @@ def test_saved_t2_01_uses_automatic_forbidden():
 
 
 def test_saved_golden_status_matches_all_fourteen_dev_grades():
-    grades = json.loads((RUN3 / "grades.json").read_text())
+    grades = json.loads((RUN4 / "grades.json").read_text())
     status = json.loads((ROOT / "data/replay/golden/status.json").read_text())
     assert len(GOLDEN_TASKS) == 14
     assert set(status) == set(GOLDEN_TASKS)
-    # Guardrail v1 재실행에서는 T3-01도 통과해 14개 모두 pass다(이전 실행은 13 pass·T3-01 recorded_fail).
-    assert sum(row["status"] == "pass" for row in status.values()) == 14
-    assert sum(row["status"] == "recorded_fail" for row in status.values()) == 0
+    # 탐색 예산 켬 재실행에서는 T3-01(V15 오차단)·T6-01(초안 미제출)이 실패해 12 pass·2 recorded_fail이다
+    # (이전 공식 실행은 14 pass). 기록이 기대에 실패하면 기대를 고치지 않고 recorded_fail로 둔다.
+    assert sum(row["status"] == "pass" for row in status.values()) == 12
+    assert {k for k, row in status.items() if row["status"] == "recorded_fail"} == {
+        "T3-01",
+        "T6-01",
+    }
     for key in GOLDEN_TASKS:
         assert status[key]["eligible"]
         assert status[key]["profile"] == "writes_org"
@@ -119,24 +125,32 @@ def test_regolden_original_run_is_unchanged(capsys):
     from govops.evalrun import regolden
 
     before = regolden.STATUS_PATH.read_bytes()
-    regolden.main(["--run", str(RUN3)])
+    regolden.main(["--run", str(RUN4)])
     output = capsys.readouterr().out
-    manifest = json.loads((RUN3 / "manifest.json").read_text())
+    manifest = json.loads((RUN4 / "manifest.json").read_text())
     assert f"대상 실행의 공식 규칙으로 재계산: {manifest['grading_rules']}" in output
     assert "grading_rules 없음" not in output
     assert json.loads(output[output.index("{") :]) == {}
     assert regolden.STATUS_PATH.read_bytes() == before
 
 
-def test_previous_official_run_differs_from_current_status_only_at_t3_01(capsys):
+def test_previous_official_runs_differ_from_current_status_only_where_expected(capsys):
     from govops.evalrun import regolden
 
     before = regolden.STATUS_PATH.read_bytes()
+    # 이전 공식 실행(세 번째 실행)은 보존한다. 현재 기록과 다른 것은 T3-01·T6-01 둘뿐이다.
+    regolden.main(["--run", str(RUN3)])
+    output = capsys.readouterr().out
+    changes = json.loads(output[output.index("{") :])
+    assert set(changes) == {"T3-01", "T6-01"}
+    for key in changes:
+        assert changes[key]["before"]["status"] == "recorded_fail"
+        assert changes[key]["after"]["status"] == "pass"
+    # 두 번째 실행은 T6-01만 다르다(T3-01은 같은 V15 오차단으로 현재 기록과 같다).
     regolden.main(["--run", str(RUN2)])
     output = capsys.readouterr().out
     changes = json.loads(output[output.index("{") :])
-    # 이전 공식 실행(두 번째 실행)은 보존한다. 현재 기록과 다른 것은 T3-01 하나뿐이다.
-    assert set(changes) == {"T3-01"}
-    assert changes["T3-01"]["before"]["status"] == "pass"
-    assert changes["T3-01"]["after"]["status"] == "recorded_fail"
+    assert set(changes) == {"T6-01"}
+    assert changes["T6-01"]["before"]["status"] == "recorded_fail"
+    assert changes["T6-01"]["after"]["status"] == "pass"
     assert regolden.STATUS_PATH.read_bytes() == before
