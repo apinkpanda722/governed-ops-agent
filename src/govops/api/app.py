@@ -17,6 +17,7 @@ from pydantic import (
 )
 
 from govops.api.auth import AuthFailureLimiter, current_user, record_auth_failure
+from govops.api.conversations import ConversationError
 from govops.api.sessions import SessionStore
 from govops.api.tasks import ApprovalError, TaskService
 
@@ -79,7 +80,14 @@ def create_app(
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError):
         # FastAPI's default errors echo input, which may contain credentials.
-        return JSONResponse({"detail": "Invalid request"}, status_code=422)
+        return JSONResponse(
+            {
+                "detail": "invalid_request"
+                if request.url.path.startswith("/conversations")
+                else "Invalid request"
+            },
+            status_code=422,
+        )
 
     if demo_login:
 
@@ -102,6 +110,26 @@ def create_app(
         return {"user_id": user_id}
 
     if service is not None:
+
+        @app.post("/conversations", status_code=202)
+        async def start_conversation(
+            body: TaskRequest, user_id: str = Depends(current_user)
+        ):
+            try:
+                return await service.start_conversation(user_id, body.request)
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
+
+        @app.post("/conversations/{conversation_id}/turns", status_code=202)
+        async def add_turn(
+            conversation_id: str,
+            body: TaskRequest,
+            user_id: str = Depends(current_user),
+        ):
+            try:
+                return await service.add_turn(user_id, conversation_id, body.request)
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
 
         @app.post("/tasks", status_code=202)
         async def start_task(
