@@ -5,14 +5,16 @@
     {
       "step": 0,
       "name": "audit-crypto",
-      "status": "pending",
+      "status": "completed",
       "started_at": "2026-10-08T10:12:48+0900",
       "usage": {
-        "input_tokens": 24146,
-        "cached_input_tokens": 0,
-        "output_tokens": 274,
+        "input_tokens": 2844210,
+        "cached_input_tokens": 2758528,
+        "output_tokens": 14120,
         "attempts": 1
-      }
+      },
+      "summary": "Ed25519 키 로드·서명·검증, 정규화 해시·USD 포맷과 감사 테스트 격리·저장소 보호 구현; make verify 통과(Python 2968개, 웹 15개).",
+      "completed_at": "2026-10-08T10:26:37+0900"
     },
     {
       "step": 1,
