@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "checkpoint-retention",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T15:23:59+0900",
+      "summary": "checkpoint 7일 보존·dry-run·활성/승인 대기 보호·삭제 실패 격리 구현 및 테스트 추가; make verify 통과(Python 3331 passed, 웹 15 passed), 계층 경계 확인.",
+      "completed_at": "2026-10-08T15:35:32+0900",
+      "usage": {
+        "input_tokens": 2138600,
+        "cached_input_tokens": 2063872,
+        "output_tokens": 8241,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
