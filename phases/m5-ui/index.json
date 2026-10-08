@@ -1,0 +1,14 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m5-ui",
+  "steps": [
+    { "step": 0, "name": "agent-prompt", "status": "pending" },
+    { "step": 1, "name": "prompt-registration", "status": "pending" },
+    { "step": 2, "name": "api-views", "status": "pending" },
+    { "step": 3, "name": "bff", "status": "pending" },
+    { "step": 4, "name": "web-shell", "status": "pending" },
+    { "step": 5, "name": "web-conversation", "status": "pending" },
+    { "step": 6, "name": "web-approvals", "status": "pending" },
+    { "step": 7, "name": "e2e-docs", "status": "pending" }
+  ]
+}
