@@ -316,6 +316,53 @@ class TaskService:
         )
         return state
 
+    async def conversation_view(self, user_id, conversation_id):
+        if not _TASK_ID.fullmatch(conversation_id):
+            raise ConversationError(404, "conversation_not_found")
+        async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            state = await get_task(self.graph, conversation_id)
+            if not state or state["user_id"] != user_id:
+                raise ConversationError(404, "conversation_not_found")
+            async with self._lock(state["task_id"]):
+                state = await self._expire(conversation_id, state)
+                turn_id = state["task_id"]
+                return {
+                    "conversation_id": conversation_id,
+                    "turn_index": state.get("turn_index", 0),
+                    "history": state.get("history", []),
+                    "turn": {
+                        **self._view(state, turn_id),
+                        "turn_id": turn_id,
+                        "request": None
+                        if state["status"] == "blocked_input"
+                        else state.get("request"),
+                    },
+                }
+
+    async def approvals(self, user_id):
+        views = []
+        for turn_id, conversation_id in await self.turns.awaiting():
+            async with (
+                asyncio.timeout(120),
+                self._conv_lock(conversation_id),
+                self._lock(turn_id),
+            ):
+                state = await get_task(self.graph, conversation_id)
+                if not state or state["task_id"] != turn_id:
+                    await self.turns.set_awaiting(turn_id, False)
+                    continue
+                state = await self._expire(conversation_id, state)
+                if state["status"] != "awaiting_approval":
+                    await self.turns.set_awaiting(turn_id, False)
+                    continue
+                if (
+                    self._checked(state)
+                    and self._decision(state, user_id) == Decision.ALLOW
+                ):
+                    views.append(self._view(state, turn_id, approval=True))
+        views.sort(key=lambda view: (view["expires_at"], view["task_id"]))
+        return {"approvals": views}
+
     async def get(self, user_id: str, task_id: str) -> dict | None:
         conversation_id = await self._resolve(task_id)
         if conversation_id is None:

@@ -111,6 +111,19 @@ def create_app(
 
     if service is not None:
 
+        @app.get("/conversations/{conversation_id}")
+        async def read_conversation(
+            conversation_id: str, user_id: str = Depends(current_user)
+        ):
+            try:
+                return await service.conversation_view(user_id, conversation_id)
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
+
+        @app.get("/approvals")
+        async def list_approvals(user_id: str = Depends(current_user)):
+            return await service.approvals(user_id)
+
         @app.post("/conversations", status_code=202)
         async def start_conversation(
             body: TaskRequest, user_id: str = Depends(current_user)
