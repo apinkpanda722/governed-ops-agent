@@ -342,3 +342,16 @@ def test_m5_targets_are_user_only():
         )
         assert "(사용자 실행)" in line
     assert "tests/test_m5_pg.py" in text.split("\ntest-m5-pg:\n", 1)[1].splitlines()[0]
+
+
+def test_e2e_web_is_user_only_and_preserves_exit_code():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: e2e-web\n" in text
+    before, recipe = text.split("\ne2e-web:\n", 1)
+    assert before.splitlines()[-1].startswith("# 사용자 실행")
+    assert "e2e-web" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    assert recipe.startswith("\tpnpm -C web exec playwright test")
+    assert "git status --porcelain" in recipe
+    assert "e2e_status=$$?" in recipe
+    assert 'exit "$$e2e_status"' in recipe
+    assert 'exit "$$clean_status"' in recipe

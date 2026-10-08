@@ -33,3 +33,6 @@ data/interim/
 # Next.js가 dev/build 때 만드는 에이전트 규칙 파일(저장소 규칙은 루트 AGENTS.md가 단일 원본)
 web/AGENTS.md
 web/CLAUDE.md
+
+web/test-results/
+web/playwright-report/

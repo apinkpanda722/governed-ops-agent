@@ -471,3 +471,11 @@ def test_m4_audit_document_contract():
     )
     for text in (architecture, th8):
         assert "anchors-pending" in text or "대기 파일" in text
+
+
+def test_e2e_web_command_is_documented_once():
+    commands = read("AGENTS.md").split("## 명령어", 1)[1]
+    lines = [line for line in commands.splitlines() if line.startswith("make e2e-web ")]
+    assert len(lines) == 1
+    assert "사용자 실행" in lines[0]
+    assert "\ne2e-web:\n" in read("Makefile")

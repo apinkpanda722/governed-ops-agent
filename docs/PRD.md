@@ -64,7 +64,7 @@
 | M6 | 레드팀 120건 + 정상 대조 60(평가셋 재사용) + Guardrail v2(Anthropic 소형 분류 모델) 비교 | v1·v2 차단율, 정상 task 오탐률, 켬 대 끔 추가 지연·비용 | 레드팀 live 실행 |
 | M7 | 문서화, 기록 화면, 데모 영상, 방어 노트, 블로그<br/>데모 장면(약 3분 30초): 0 소개·배치도 / 1 플랫폼팀 3급 INC-2026-012 요약 발송, 처리 후 응답 유실 주입에도 1건 / 2 재무팀 3급 같은 요청 → 찾을 수 없음·발송 0 / 3 간접 인젝션 격리·승인 화면 수신처 / 4 전사 공지 같은 팀 4급 승인 / 5 `audit-verify` 꼬리 잘라내기 탐지 + trace + 수치<br/>블로그: "실제 API에 멱등 키가 없을 때 에이전트 부작용을 정확히 한 번 실행하기" | 체크리스트 전 항목 | 정확도 사람 채점 30개, 운영 대기열 검수, test 실행, 데모 촬영 |
 
-`make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest 순서로 실행하고 API 키·네트워크 없이 통과한다. Playwright e2e(승인 흐름 1~2개, replay 모드)는 승인 화면이 생긴 뒤(M5 이후) 추가한다.
+`make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest 순서로 실행하고 API 키·네트워크 없이 통과한다. Playwright e2e는 `make e2e-web`으로 replay 모드에서 사용자가 실행하며, 사용자 e2e 통과가 M5 완료 조건이다.
 
 ### 축소 순서
 늦어지거나 비용이 넘치면 아래 순서로 덜어낸다.

@@ -257,3 +257,12 @@ smoke-conversation:
 # compose Postgres 기동·make db-init 후 사용자 실행, 테스트 전용 DB URL 필요(임시 DB를 만들고 지운다)
 test-m5-pg:
 	uv run --env-file .env python -c 'import os, subprocess, sys; sys.exit(subprocess.call(["pytest", "tests/test_m5_pg.py", "-q"]) if os.environ.get("GOVOPS_TEST_DATABASE_URL") else (print("GOVOPS_TEST_DATABASE_URL: 테스트 전용 DB URL 필요") or 1))'
+
+.PHONY: e2e-web
+# 사용자 실행 포트 3200·8200·8201이 이미 쓰이고 있으면 Playwright가 시작을 거부한다(기존 서버 재사용 금지). e2e는 `next build`로 `web/.next`를 덮어쓰므로 `next start`로 띄운 데모 서버(3100)는 먼저 끈다(`next dev`는 `.next/dev`를 써서 무관).
+e2e-web:
+	pnpm -C web exec playwright test; e2e_status=$$?; \
+	changed_paths=$$(git status --porcelain); clean_status=0; \
+	if [ -n "$$changed_paths" ]; then printf '%s\n' "$$changed_paths" | cut -c4-; clean_status=1; fi; \
+	if [ "$$e2e_status" -ne 0 ]; then exit "$$e2e_status"; fi; \
+	exit "$$clean_status"
