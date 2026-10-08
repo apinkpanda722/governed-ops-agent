@@ -131,7 +131,16 @@
     {
       "step": 9,
       "name": "conversation-smoke-pg",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-08T16:26:25+0900",
+      "summary": "HTTP 대화·승인 스모크와 스텁 계약 테스트, 임시 DB 기반 M5 Postgres 검증 및 사용자 전용 타깃 구현; 계층 경계 확인과 make verify 통과(Python 3403 passed, 웹 15 passed).",
+      "completed_at": "2026-10-08T16:38:34+0900",
+      "usage": {
+        "input_tokens": 2254182,
+        "cached_input_tokens": 2162816,
+        "output_tokens": 11944,
+        "attempts": 1
+      }
     }
   ],
   "created_at": "2026-10-08T14:05:59+0900"
