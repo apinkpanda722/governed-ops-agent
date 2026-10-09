@@ -411,6 +411,14 @@ sequenceDiagram
 
 M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec만 두며 연결은 M3에 둔다. `MAX_STEPS`는 폭주 방지용 임시 상수이며 최종값은 M5에서 정한다.
 
+### UI 계약
+
+`GET /conversations`는 소유자 본인의 대화만 상한 50개로 읽기 전용 조회한다. 색인은 후보를 찾는 힌트이고 체크포인트가 소유자·상태·제목의 권위다. 제목은 첫 사용자 요청의 공백을 정규화해 40자로 자르고 넘으면 말줄임표를 붙이며, 입력 차단 원문은 쓰지 않고 요청이 없으면 “새 대화”다. 요청자 본인 턴 뷰에는 읽기 도구의 이름·성공만 담은 `tool_steps`, `approval_method`, 턴별 UTC `effect_at`을 제공한다. 승인자 뷰에는 이 세 필드가 없다. BFF는 목록과 턴 뷰 모두 허용 목록으로 투영하고 목록 요청은 `limit=50`으로 고정한다.
+
+마크다운은 정확 고정한 `react-markdown` 10.1.0·`remark-gfm` 4.0.1로 렌더링한다. `skipHtml`로 원시 HTML을 렌더링하지 않고 이미지·위험 스킴 링크를 금지하며 http/https만 허용한다. 외부 링크는 `rel="noopener noreferrer nofollow"`를 쓴다. 테마의 `localStorage` 예외는 `lib/theme.ts` 한 파일, 키 `govops-theme`, 값 `light`/`dark`/`system`뿐이며 접근은 `try/catch`로 감싼다. 글꼴 스택은 Pretendard, Apple SD Gothic Neo, Noto Sans KR, system-ui, sans-serif이며 외부 다운로드 없이 설치된 글꼴을 사용한다.
+
+기본 프로필 `writes_team`은 발송 규칙 템플릿에 세션 사용자의 요청자 절(소속 팀·보낼 채널·전사 공지 승인 조건)을 붙인다. 채널과 승인 급수는 `allowed_channels`·`ANNOUNCE_APPROVER_MIN_GRADE`가 단일 출처다. `prompt_hash`는 도구·모델·파라미터를 포함한 템플릿 해시이고 사용자별 요청자 절은 원문 대신 manifest·골든 헤더의 `requester_section_sha256`으로 기록한다. 호출별 `request_key`는 전체 messages를 덮는다. `writes_org`는 동결하며 골든은 사용자 dev 재실행 때 러너가 `writes_team`으로 재기록한다(ADR-024).
+
 ## 상태 관리
 - **에이전트 상태:** LangGraph state + 같은 Postgres 인스턴스의 `govops` 앱 DB checkpointer(`GOVOPS_DATABASE_URL`, ADR-017). `make verify` 테스트는 in-memory saver를 쓰며 실제 Postgres는 사용자 스모크로 확인한다. state에는 사용자 ID·초안·초안 해시·도구 결과가 들어가고 토큰은 들어가지 않는다. checkpointer는 실행에 필요한 원문을 두며, task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다. 삭제 명령과 테스트는 M5에 둔다(ADR-015).
 - **outbox:** 멱등 키별 상태(기록됨·시도됨·불확실·성공·실패), 해시·mock ID·`audit_gap`을 같은 Postgres 인스턴스의 `govops` DB 테이블에 둔다(ADR-018).

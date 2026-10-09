@@ -9,10 +9,18 @@ from uuid import uuid4
 from langgraph.types import Command
 
 from govops.agent.approval import Decision, InvalidEdit, apply_edit, approver_decision
+from govops.agent.checks import recipient_not_allowed_message
 from govops.agent.draft import Draft
-from govops.agent.graph import AgentContext, get_task, run_task, utc_now
+from govops.agent.graph import (
+    AgentContext,
+    get_task,
+    run_task,
+    system_prompt_for,
+    utc_now,
+)
 from govops.agent.turns import MAX_TURNS, build_turn_state
 from govops.api.conversations import ConversationError, InMemoryTurnIndex, TurnIndex
+from govops.api.steps import tool_steps
 from govops.obs.trace import set_attributes, trace
 from govops.tools.effects import reconcile_effect
 from govops.tools.outbox import OutboxState
@@ -119,7 +127,7 @@ class TaskService:
                 user_id=user_id,
                 request=request,
                 conversation_id=conversation_id,
-                system_prompt=self.graph.agent_profile.system_prompt,
+                system_prompt=system_prompt_for(self.graph, user_id),
                 created_at=self.clock().isoformat(),
             )
             await self.turns.add(
@@ -239,7 +247,14 @@ class TaskService:
                 observed_doc_ids=state.get("observed_ids", []),
                 steps=state.get("steps", 0),
                 error=state.get("error"),
+                tool_steps=tool_steps(state.get("messages", [])),
             )
+            if state.get("effect") and state.get("approvals"):
+                decision = state["approvals"][-1].get("decision")
+                if decision in {"approve", "edit_approve"}:
+                    view["approval_method"] = decision
+            if isinstance(state.get("effect_at"), str):
+                view["effect_at"] = state["effect_at"]
             view["guardrail"] = {
                 "quarantined": len(state.get("quarantined_ids", []))
                 + state.get("quarantine_unmatched", 0),
@@ -282,14 +297,7 @@ class TaskService:
             if not view.get(field):
                 continue
             check = dict(view[field])
-            check["message"] = {
-                "recipient_not_allowed": "허용되지 않은 수신처입니다",
-                "pii_blocked_by_team_policy": "개인정보를 제거해 주세요",
-                "pii_masked": "개인정보를 가렸습니다",
-                "scope_wider_than_evidence": "수신처의 열람 범위가 근거보다 넓습니다",
-                "evidence_scope_unknown": "근거의 열람 범위를 확인할 수 없습니다",
-                "ticket_not_found": "티켓을 찾을 수 없습니다",
-            }.get(check.get("reason"), "결정론 검사를 통과했습니다")
+            check["message"] = self._check_message(state, check)
             view[field] = check
         if approval:
             view["requester_label"] = state["user_id"]
@@ -299,6 +307,65 @@ class TaskService:
                 effect_result=state.get("effect_result") or "unknown",
             )
         return view
+
+    def _check_message(self, state, check):
+        if check.get("reason") == "recipient_not_allowed":
+            requester = self.users.get(state.get("user_id"))
+            return recipient_not_allowed_message(requester.team if requester else "")
+        messages = {
+            "pii_blocked_by_team_policy": "개인정보를 제거해 주세요",
+            "pii_masked": "개인정보를 가렸습니다",
+            "scope_wider_than_evidence": "수신처의 열람 범위가 근거보다 넓습니다",
+            "evidence_scope_unknown": "근거의 열람 범위를 확인할 수 없습니다",
+            "ticket_not_found": "티켓을 찾을 수 없습니다",
+        }
+        if check.get("reason") in messages:
+            return messages[check["reason"]]
+        if check.get("status") == "passed":
+            return "결정론 검사를 통과했습니다"
+        return "정책 검사로 보낼 수 없습니다. 내용을 확인하고 다시 요청해 주세요."
+
+    async def conversations(self, user_id, limit):
+        views = []
+        for candidate in await self.turns.list_for_owner(user_id, limit):
+            ident = candidate["conversation_id"]
+            async with asyncio.timeout(120), self._conv_lock(ident):
+                state = await get_task(self.graph, ident)
+                if not state:
+                    continue
+                async with self._lock(state["task_id"]):
+                    state = await get_task(self.graph, ident)
+                    if not state or state.get("user_id") != user_id:
+                        continue
+                    status = state["status"]
+                    if (
+                        status == "awaiting_approval"
+                        and state.get("expires_at")
+                        and self.clock() >= datetime.fromisoformat(state["expires_at"])
+                    ):
+                        status = "expired"
+                    title = next(
+                        (
+                            m.get("content")
+                            for m in state.get("history", [])
+                            if m.get("role") == "user"
+                        ),
+                        None,
+                    )
+                    if not title and state["status"] != "blocked_input":
+                        title = state.get("request")
+                    title = " ".join((title or "새 대화").split())
+                    views.append(
+                        {
+                            "conversation_id": ident,
+                            "title": title[:40] + ("…" if len(title) > 40 else ""),
+                            "status": status,
+                            "awaiting_approval": status == "awaiting_approval",
+                            "turn_count": state.get("turn_index", 0) + 1,
+                            "updated_at": candidate["last_created_at"],
+                        }
+                    )
+        return {"conversations": views}
 
     async def _expire(self, task_id, state):
         if state["status"] == "awaiting_approval" and state.get("approval_receipt"):

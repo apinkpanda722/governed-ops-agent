@@ -27,18 +27,34 @@ class CheckResult:
     message: str | None
 
 
+def allowed_channels(team: str) -> tuple[str, ...]:
+    """Return the public destinations permitted for the requester's team."""
+    return (f"team-{team}", "announce") if team in _CHANNEL_TEAMS else ("announce",)
+
+
+def recipient_not_allowed_message(team: str) -> str:
+    channels = allowed_channels(team)
+    destinations = (
+        f"자기 팀 채널({channels[0]})과 전사 공지(announce)"
+        if len(channels) == 2
+        else "전사 공지(announce)"
+    )
+    return (
+        f"허용되지 않은 수신처라 보낼 수 없습니다. {destinations}로만 보낼 수 있습니다."
+    )
+
+
 def check_recipient_and_pii(
     draft: Draft, *, requester: UserInfo, policy: TeamPolicy
 ) -> CheckResult:
     if draft.tool == "slack_send_message" and (
-        target_of(draft) not in {"announce", f"team-{requester.team}"}
-        or (target_of(draft) != "announce" and requester.team not in _CHANNEL_TEAMS)
+        target_of(draft) not in allowed_channels(requester.team)
     ):
         return CheckResult(
             "blocked",
             RECIPIENT_NOT_ALLOWED,
             draft,
-            "허용되지 않은 수신처라 보낼 수 없습니다. 자기 팀 채널과 전사 공지로만 보낼 수 있습니다.",
+            recipient_not_allowed_message(requester.team),
         )
     if not find_pii(body_text(draft)):
         return CheckResult("passed", None, draft, None)

@@ -26,6 +26,7 @@ from test_agent_graph import call, reply
 from test_e2e_isolation import visible_ids
 
 from govops.agent.graph import profile_for
+from govops.agent.requester import requester_section
 from govops.agent.users import load_users as load_identities
 from govops.api.app import create_app
 from govops.api.conversations import InMemoryTurnIndex
@@ -80,6 +81,12 @@ class StoryChat:
     ) -> ChatResult:
         import json
 
+        # A socket scenario succeeds only when the trusted requester section arrives.
+        assert any(
+            message["role"] == "system"
+            and message["content"].endswith(requester_section(self.users[user_id]))
+            for message in messages
+        ), "requester_section_missing"
         latest = max(
             i for i, message in enumerate(messages) if message["role"] == "user"
         )
@@ -92,14 +99,20 @@ class StoryChat:
         if len(messages) == latest + 1:
             # A bounded synthetic latency lets real-socket SSE observe running.
             await asyncio.sleep(0.2)
-            if "팀 채널에 공유" in request:
+            if "팀 채널에 공유" in request or "다른 팀 채널" in request:
                 result = reply(
                     calls=[
                         call(
                             "slack_send_message",
                             json.dumps(
                                 {
-                                    "channel": f"team-{self.users[user_id].team}",
+                                    "channel": (
+                                        "team-finance"
+                                        if self.users[user_id].team != "finance"
+                                        else "team-platform"
+                                    )
+                                    if "다른 팀 채널" in request
+                                    else f"team-{self.users[user_id].team}",
                                     "text": "합성 장애 요약을 공유합니다. [syn-incident-022]",
                                 }
                             ),
@@ -278,7 +291,7 @@ async def run(port, probe_port, directory):
                 ),
                 saver=InMemorySaver(),
                 outbox=InMemoryOutboxStore(),
-                profile=profile_for("writes_org"),
+                profile=profile_for("writes_team"),
                 audit_dir=directory / "audit",
                 turn_index=InMemoryTurnIndex(),
             )

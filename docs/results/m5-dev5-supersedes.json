@@ -1,0 +1,15 @@
+{
+  "previous_commit": "cb6dea847f5880e3eda421c68224fb426bee1a4a",
+  "previous_files": {
+    "docs/results/2026-10-08-m5-dev4-live.md": "7ecee601243f734480e3ec80c78c5ac3c1bf51aadd19862bb760e0e87b37191b",
+    "manifest.json": "021bc5e64e50d32d9dd03b0c733022d5b74886cc3e309aee4baec33fcc9946d5",
+    "grades.json": "f0c13476ccbb21a2f9ae8fa3791505929ca7981e9017edd5435f8676847516ee",
+    "observations.jsonl": "42a1b1c7d8ce976cfa1ebf44f0f43b2263ce5a04b464b7bfaa49d23e6324dc2f"
+  },
+  "previous_official": {
+    "grading_rules": "m3-grading",
+    "tcr": "17/20"
+  },
+  "previous_run_id": "d2cd927c073447728c76c040d7bfb3bc",
+  "reason": "프롬프트에 요청자 절을 더해 dev 20을 처음부터 다시 실행한다."
+}

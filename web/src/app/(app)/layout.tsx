@@ -1,5 +1,6 @@
 "use client";
 import { useSession } from "@/hooks/use-session";
+import { ConversationListProvider } from "@/components/conversation-list-context";
 import { AppShell } from "@/components/app-shell";
 import { errorMessage } from "@/lib/messages";
 export default function AppLayout({ children }: {
@@ -12,5 +13,5 @@ export default function AppLayout({ children }: {
         return <p role="alert" className="p-8">{errorMessage(session.error.code)}</p>;
     if (!session.user_id)
         return null;
-    return <AppShell user={session.user_id}>{children}</AppShell>;
+    return <ConversationListProvider><AppShell user={session.user_id}>{children}</AppShell></ConversationListProvider>;
 }

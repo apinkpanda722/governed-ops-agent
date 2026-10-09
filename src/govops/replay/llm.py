@@ -121,6 +121,7 @@ class RecordingChatClient:
         tools: Sequence[Mapping],
         model: str,
         params: Mapping,
+        requester_section_sha256: str | None = None,
     ):
         if not re.fullmatch(r"[\w-]+", task_id):
             raise RecordingRejected("invalid task id")
@@ -135,6 +136,12 @@ class RecordingChatClient:
             "task_id": task_id,
             "recorded_at": datetime.now(UTC).isoformat(),
         }
+        if requester_section_sha256 is not None:
+            if not isinstance(requester_section_sha256, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", requester_section_sha256
+            ):
+                raise RecordingRejected("invalid requester section hash")
+            self._header["requester_section_sha256"] = requester_section_sha256
         _safe(self._header)
         self._header = json.loads(_canonical(self._header))
         self._calls: list[dict] = []

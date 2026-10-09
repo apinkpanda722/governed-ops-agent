@@ -351,8 +351,14 @@ def test_e2e_web_is_user_only_and_preserves_exit_code():
     before, recipe = text.split("\ne2e-web:\n", 1)
     assert before.splitlines()[-1].startswith("# 사용자 실행")
     assert "e2e-web" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
-    assert recipe.startswith("\tpnpm -C web exec playwright test")
-    assert "git status --porcelain" in recipe
+    assert recipe.startswith("\t@before_status=$$(mktemp)")
+    assert "pnpm -C web exec playwright test" in recipe
+    assert recipe.count("git status --porcelain") == 2
+    assert "comm -13" in recipe
+    assert "mktemp" in recipe
+    assert "<(" not in recipe
+    assert "cut -c4-" in recipe
+    assert "rm -f" in recipe
     assert "e2e_status=$$?" in recipe
     assert 'exit "$$e2e_status"' in recipe
     assert 'exit "$$clean_status"' in recipe

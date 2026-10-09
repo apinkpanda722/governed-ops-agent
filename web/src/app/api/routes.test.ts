@@ -23,3 +23,9 @@ test("route file names and server boundaries", () => {
  if(/^\s*["']use client["']/m.test(source)) expect(source).not.toContain("@/lib/server");
  }
 });
+
+test("conversation collection exports GET and origin-checked POST", () => {
+ const source=readFileSync(join(root,"conversations/route.ts"),"utf8");
+ for(const method of ["GET","POST"]) expect(source).toMatch(new RegExp("export async function "+method+"\\("));
+ expect(source.slice(source.indexOf("export async function POST"))).toMatch(/requireSameOrigin\(request\)/);
+});

@@ -50,6 +50,8 @@ def metadata():
         "guardrail_rules_registered": True,
         "hypotheses_m5_budget_committed": True,
         "hypotheses_m5_budget_unchanged": True,
+        "hypotheses_m5_prompt_committed": True,
+        "hypotheses_m5_prompt_unchanged": True,
         "previous_supersedes": {"previous_run_id": "m2"},
         "a_git_head": "d2eec9c",
         "index_name": "synthetic",
@@ -311,7 +313,23 @@ def test_all_twenty_actual_graph_tool_trace_and_manifest(tmp_path, monkeypatch):
     manifest = result["manifest"]
     assert admin.resets == 20
     assert len(result["grades"]) == len(result["observations"]) == 20
-    assert manifest["profile"] == "writes_org"
+    assert manifest["profile"] == "writes_team"
+    import hashlib
+
+    from govops.agent.requester import requester_section
+    from govops.agent.users import load_users
+    from govops.evalrun.dev_m3 import PROFILE
+
+    assert PROFILE.name == "writes_team"
+    users = load_users()
+    expected_hashes = {
+        spec.user: hashlib.sha256(
+            requester_section(users[spec.user]).encode("utf-8")
+        ).hexdigest()
+        for spec in specs()
+    }
+    assert expected_hashes
+    assert manifest["requester_section_sha256"] == expected_hashes
     assert manifest["supersedes"] == metadata()["supersedes"]
     assert manifest["previous_supersedes"] == metadata()["previous_supersedes"]
     assert manifest["models_seen"] == ["claude-sonnet-5-5", "gpt-6-luna"]
@@ -352,10 +370,16 @@ def test_all_twenty_actual_graph_tool_trace_and_manifest(tmp_path, monkeypatch):
 
     status = json.loads((tmp_path / "data/replay/golden/status.json").read_text())
     assert set(status) == set(GOLDEN_TASKS)
-    assert all(s["profile"] == "writes_org" for s in status.values())
+    assert all(s["profile"] == "writes_team" for s in status.values())
     assert all(
         (tmp_path / "data/replay/llm" / f"{key}.jsonl").exists() for key in GOLDEN_TASKS
     )
+    for key in GOLDEN_TASKS:
+        header = json.loads(
+            (tmp_path / "data/replay/llm" / f"{key}.jsonl").read_text().splitlines()[0]
+        )
+        user = next(spec.user for spec in specs() if spec.task_id == key)
+        assert header["requester_section_sha256"] == expected_hashes[user]
     assert not (tmp_path / "data/replay/llm/T2-02.jsonl").exists()
 
 
@@ -472,6 +496,7 @@ def test_git_registration_probe(tmp_path, monkeypatch, change):
         FIRST_REGISTRATION_FILES,
         GUARDRAIL_REGISTRATION_FILES,
         PROMPT_REGISTRATION_FILES,
+        PROMPT_V2_REGISTRATION_FILES,
         git_metadata_m3,
     )
     from govops.guardrails.registry import rules_sha256
@@ -482,6 +507,7 @@ def test_git_registration_probe(tmp_path, monkeypatch, change):
         *PROMPT_REGISTRATION_FILES,
         *GUARDRAIL_REGISTRATION_FILES,
         *BUDGET_REGISTRATION_FILES,
+        *PROMPT_V2_REGISTRATION_FILES,
     ):
         file = tmp_path / path
         file.parent.mkdir(parents=True, exist_ok=True)
@@ -916,7 +942,9 @@ def test_manifest_records_explicit_grading_rules(tmp_path, monkeypatch):
     assert stored["grading_rules_registration_commit"] == "a" * 40
 
 
-@pytest.mark.parametrize("bundle", ["first", "prompt", "guardrail", "budget"])
+@pytest.mark.parametrize(
+    "bundle", ["first", "prompt", "guardrail", "budget", "prompt_v2"]
+)
 @pytest.mark.parametrize(
     "change", ["missing", "missing_file", "uncommitted", "changed", "dirty", None]
 )
@@ -955,6 +983,7 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
         ("prompt", dev_m3.PROMPT_REGISTRATION_FILES),
         ("guardrail", dev_m3.GUARDRAIL_REGISTRATION_FILES),
         ("budget", dev_m3.BUDGET_REGISTRATION_FILES),
+        ("prompt_v2", dev_m3.PROMPT_V2_REGISTRATION_FILES),
     ]:
         if label == bundle and change == "missing":
             continue
@@ -977,6 +1006,7 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
         "prompt": dev_m3.PROMPT_REGISTRATION_FILES,
         "guardrail": dev_m3.GUARDRAIL_REGISTRATION_FILES,
         "budget": dev_m3.BUDGET_REGISTRATION_FILES,
+        "prompt_v2": dev_m3.PROMPT_V2_REGISTRATION_FILES,
     }[bundle]
     if change == "changed":
         (tmp_path / paths[-1]).write_text('{"changed": true}')
@@ -990,6 +1020,7 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
         "prompt": "hypotheses_m3_prompt_not_committed",
         "guardrail": "hypotheses_m4_guardrail_not_committed",
         "budget": "hypotheses_m5_budget_not_committed",
+        "prompt_v2": "hypotheses_m5_prompt_not_committed",
     }[bundle]
     if change:
         with pytest.raises(
@@ -1007,6 +1038,7 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
                 dev_m3.GUARDRAIL_REGISTRATION_FILES,
             ),
             ("budget", "hypotheses_m5_budget", dev_m3.BUDGET_REGISTRATION_FILES),
+            ("prompt_v2", "hypotheses_m5_prompt", dev_m3.PROMPT_V2_REGISTRATION_FILES),
         ]:
             assert result[prefix + "_committed"] is True
             assert result[prefix + "_unchanged"] is True
@@ -1015,8 +1047,8 @@ def test_registration_bundles_real_git(tmp_path, monkeypatch, bundle, change):
                 result[prefix + "_sha256"]
                 == hashlib.sha256((tmp_path / files[0]).read_bytes()).hexdigest()
             )
-        assert result["supersedes"] == {"bundle": "budget"}
-        assert result["previous_supersedes"] == {"bundle": "guardrail"}
+        assert result["supersedes"] == {"bundle": "prompt_v2"}
+        assert result["previous_supersedes"] == {"bundle": "budget"}
 
 
 def test_org_runner_and_record_status_share_m3_grading():
@@ -1048,7 +1080,7 @@ def test_org_runner_and_record_status_share_m3_grading():
     )
     assert grade.tcr.passed
     assert status["status"] == "pass"
-    assert status["profile"] == "writes_org"
+    assert status["profile"] == "writes_team"
 
 
 @pytest.fixture(autouse=True)
@@ -1224,3 +1256,13 @@ def test_budget_manifest_and_state_stop_reason(
     assert result["grades"][base.task_id]["tcr"] == asdict(grade_tcr(base, obs))
     stored = json.loads((Path(result["directory"]) / "manifest.json").read_text())
     assert stored["stop_reasons"] == manifest["stop_reasons"]
+
+
+@pytest.mark.parametrize("field", ["committed", "unchanged"])
+def test_prompt_v2_guard_and_order(field):
+    values = metadata() | {
+        "hypotheses_m5_prompt_" + field: False,
+        "worktree_clean": False,
+    }
+    with pytest.raises(ValueError, match="^hypotheses_m5_prompt_not_committed$"):
+        guard_live_m3(values)

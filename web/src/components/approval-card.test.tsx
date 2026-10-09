@@ -84,3 +84,17 @@ test("empty content field is omitted when another body field changes", async () 
     fireEvent.click(screen.getByTestId("approval-edit-toggle")); fireEvent.change(screen.getByTestId("approval-edit-input-title"), { target: { value: "새 제목" } }); fireEvent.change(screen.getByTestId("approval-edit-input-description"), { target: { value: "" } }); fireEvent.click(screen.getByTestId("approval-edit-submit"));
     await waitFor(() => expect(f).toHaveBeenCalledOnce()); expect(JSON.parse(f.mock.calls[0][1].body).edited).toEqual({ title: "새 제목" });
 });
+
+test.each([["passed", "검사 통과"], ["other", "확인 필요"]])("badge %s and button hierarchy", (status, label) => {
+ render(<ApprovalCard view={view({check:{status,message:"안내"},requester_label:"demo-platform-g3"})} onChanged={vi.fn()}/>);
+ expect(screen.getByText(label)).toBeDefined();
+ expect(screen.getByTestId("approval-requester").textContent).toBe("플랫폼개발팀 · 3급");
+ expect(screen.getByTestId("approval-requester").title).toBe("demo-platform-g3");
+ expect(screen.getByTestId("approval-expires").textContent).toMatch(/^남은 시간 \d+분 \d+초$/);
+ expect(screen.getAllByRole("button").map(b=>b.textContent)).toEqual(["거부","수정 후 승인","승인"]);
+ expect(screen.getAllByRole("button").map(b=>b.getAttribute("data-hierarchy"))).toEqual(["danger","secondary","primary"]);
+});
+test("unparsed requester is unchanged", () => {
+ render(<ApprovalCard view={view({requester_label:"syn-requester"})} onChanged={vi.fn()}/>);
+ expect(screen.getByTestId("approval-requester").textContent).toBe("syn-requester");
+});

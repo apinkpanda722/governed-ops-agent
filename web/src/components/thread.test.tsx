@@ -50,6 +50,17 @@ test("approval slot forwards refresh and shows completed effect only after appro
     const { rerender } = render(<Thread onChanged={changed} view={view("awaiting_approval", { draft: { tool: "slack_send_message", args: { channel: "platform", text: "초안" } }, draft_sha256: "a".repeat(64), expires_at: new Date(Date.now() + 60000).toISOString() })}/>);
     fireEvent.click(screen.getByTestId("approval-approve")); await waitFor(() => expect(changed).toHaveBeenCalledOnce());
     rerender(<Thread view={view("completed", { effect: { mock_id: "syn-effect" } })}/>);
-    expect(screen.queryByTestId("approval-card")).toBeNull(); expect(screen.getByTestId("approval-result").textContent).toContain("syn-effect");
+    expect(screen.queryByTestId("approval-card")).toBeNull(); expect(screen.getByTestId("sent-card").textContent).toContain("syn-effect");
     rerender(<Thread view={view("expired")}/>); expect(screen.queryByTestId("approval-card")).toBeNull(); expect(screen.getByTestId("turn-error").textContent).toBe("승인 시간이 지나 종료되었습니다.");
+});
+test("completed answers and assistant history render markdown without completed status", () => {
+    render(<Thread view={{...view("completed", {answer:"**답변**"}),history:[{role:"assistant",content:"**이력**"}]}}/>);
+    expect(screen.queryByTestId("turn-status")).toBeNull(); expect(screen.getByTestId("turn-answer").querySelector("strong")?.textContent).toBe("답변"); expect(screen.getByTestId("history-assistant").querySelector("strong")?.textContent).toBe("이력");
+});
+test("running shows status, skeleton and open safe steps", () => {
+    render(<Thread view={view("running", {tool_steps:[{name:"search_docs",ok:true,args:"private-sentinel",result:"private-sentinel"}]})}/>);
+    expect(screen.getByTestId("turn-status").textContent).toBe("답변을 만드는 중입니다…"); expect(screen.getByTestId("turn-skeleton").getAttribute("aria-busy")).toBe("true"); expect(screen.getByTestId("turn-skeleton").children).toHaveLength(3); expect(screen.getByTestId("tool-step-row").textContent).toBe("문서 검색"); expect(document.body.innerHTML).not.toContain("private-sentinel");
+});
+test.each([{check:{message:"검사 안내"},answer:"대체",expected:"검사 안내"},{answer:"대체",expected:"대체"},{answer:undefined,expected:"정책 검사로 보낼 수 없습니다. 내용을 확인하고 다시 요청해 주세요."}])("check block uses ordered fallback", extra => {
+    render(<Thread view={view("blocked",extra)}/>); expect(screen.queryByTestId("blocked-card")).toBeNull(); expect(screen.getByTestId("check-blocked-card").textContent).toBe(`발송 차단${extra.expected}`);
 });

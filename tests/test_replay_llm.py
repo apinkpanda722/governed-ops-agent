@@ -250,3 +250,41 @@ def test_deployment_record_and_legacy_replay(tmp_path):
     rows[1].pop("deployment_id")
     path.write_text("".join(json.dumps(row) + "\n" for row in rows))
     assert call(ReplayChatClient.load(path, **CONFIG)).deployment_id is None
+
+
+def test_requester_hash_header_and_replay(tmp_path):
+    client = RecordingChatClient(
+        Fake(),
+        task_id="task-1",
+        directory=tmp_path,
+        requester_section_sha256="a" * 64,
+        **CONFIG,
+    )
+    assert call(client) == RESULT
+    path = client.finish()
+    header = json.loads(path.read_text().splitlines()[0])
+    assert header["requester_section_sha256"] == "a" * 64
+    assert header["prompt_hash"] == prompt_hash(**CONFIG)
+    assert call(ReplayChatClient.load(path, **CONFIG)) == RESULT
+    with pytest.raises(RerecordRequired, match="재기록 필요"):
+        ReplayChatClient.load(path, **(CONFIG | {"system_prompt": "변경"}))
+    with pytest.raises(RerecordRequired, match="재기록 필요"):
+        call(
+            ReplayChatClient.load(path, **CONFIG),
+            messages=[{"role": "system", "content": "변경된 요청자 절"}, *MESSAGES],
+        )
+
+
+@pytest.mark.parametrize(
+    "digest", ["", "A" * 64, "a" * 63, "a" * 65, "g" * 64, "a" * 64 + "\n", 123]
+)
+def test_invalid_requester_hash_rejected(tmp_path, digest):
+    with pytest.raises(RecordingRejected, match="invalid requester section hash"):
+        RecordingChatClient(
+            Fake(),
+            task_id="task-1",
+            directory=tmp_path,
+            requester_section_sha256=digest,
+            **CONFIG,
+        )
+    assert not list(tmp_path.iterdir())

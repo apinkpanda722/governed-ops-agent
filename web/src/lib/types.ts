@@ -23,7 +23,11 @@ export type Draft = {
         priority?: string;
     };
 };
+export type ToolStep = { name: string; ok: boolean };
 export type TurnView = {
+    tool_steps?: ToolStep[];
+    approval_method?: "approve" | "edit_approve";
+    effect_at?: string;
     turn_id?: string;
     status?: string;
     request?: string | null;
@@ -79,6 +83,12 @@ export function conversationView(value: ConversationView): ConversationView {
     const t = value.turn;
     const turn: TurnView | undefined = t ? {
         turn_id: t.turn_id, status: t.status,
+        ...(Array.isArray(t.tool_steps) ? {tool_steps: t.tool_steps.flatMap(item => {
+            const step = asObject(item);
+            return typeof step.name === "string" && /^[a-z_]{1,40}$/.test(step.name) && typeof step.ok === "boolean" ? [{name: step.name, ok: step.ok}] : [];
+        }).slice(0,20)} : {}),
+        ...(t.approval_method === "approve" || t.approval_method === "edit_approve" ? {approval_method: t.approval_method} : {}),
+        ...(typeof t.effect_at === "string" && t.effect_at.length <= 64 && Number.isFinite(Date.parse(t.effect_at)) ? {effect_at: t.effect_at} : {}),
         ...(!["blocked_input", "blocked"].includes(t.status ?? "") ? { request: t.request } : {}),
         answer: t.answer, retry_hint: t.retry_hint, expires_at: t.expires_at, cited_doc_ids: t.cited_doc_ids,
         error: t.error, draft_sha256: t.draft_sha256, draft: t.draft, check: t.check, rejected_edit: t.rejected_edit,
@@ -86,4 +96,32 @@ export function conversationView(value: ConversationView): ConversationView {
         block: t.block ? { code: t.block.code, message: t.block.message } : undefined
     } : undefined;
     return { conversation_id: value.conversation_id, turn_index: value.turn_index, history: (value.history ?? []).map(h => ({ role: h.role, content: h.content })), turn };
+}
+
+
+export type ConversationListItem = {
+    conversation_id: string;
+    title: string;
+    status: string;
+    awaiting_approval: boolean;
+    turn_count: number;
+    updated_at: string;
+};
+function asObject(value: unknown): Record<string, unknown> {
+    return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+export function conversationListView(value: unknown): ConversationListItem[] {
+    if (!Array.isArray(value)) return [];
+    const statuses = ["running", "awaiting_approval", "completed", "failed", "rejected", "expired", "blocked_input", "interrupted", "blocked"];
+    return value.flatMap(item => {
+        const row = asObject(item);
+        if (typeof row.conversation_id !== "string" || !/^[0-9a-f]{32}$/.test(row.conversation_id) ||
+            typeof row.title !== "string" || row.title.length > 80 ||
+            typeof row.status !== "string" || !statuses.includes(row.status) ||
+            typeof row.awaiting_approval !== "boolean" ||
+            typeof row.turn_count !== "number" || !Number.isInteger(row.turn_count) || row.turn_count < 0 ||
+            typeof row.updated_at !== "string" || row.updated_at.length > 64) return [];
+        return [{conversation_id: row.conversation_id, title: row.title || "새 대화", status: row.status,
+            awaiting_approval: row.awaiting_approval, turn_count: row.turn_count, updated_at: row.updated_at}];
+    }).slice(0,50);
 }

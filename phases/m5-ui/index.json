@@ -2,13 +2,119 @@
   "project": "governed-ops-agent",
   "phase": "m5-ui",
   "steps": [
-    { "step": 0, "name": "agent-prompt", "status": "pending" },
-    { "step": 1, "name": "prompt-registration", "status": "pending" },
-    { "step": 2, "name": "api-views", "status": "pending" },
-    { "step": 3, "name": "bff", "status": "pending" },
-    { "step": 4, "name": "web-shell", "status": "pending" },
-    { "step": 5, "name": "web-conversation", "status": "pending" },
-    { "step": 6, "name": "web-approvals", "status": "pending" },
-    { "step": 7, "name": "e2e-docs", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "agent-prompt",
+      "status": "completed",
+      "started_at": "2026-10-08T22:39:23+0900",
+      "summary": "요청자 절·writes_team 프로필·채널/승인 정책 단일 출처·턴별 effect_at 구현 및 테스트 추가; make verify 통과, writes_org 해시와 골든 14개 불변 확인.",
+      "completed_at": "2026-10-08T22:52:51+0900",
+      "usage": {
+        "input_tokens": 3798156,
+        "cached_input_tokens": 3711872,
+        "output_tokens": 9587,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 1,
+      "name": "prompt-registration",
+      "status": "completed",
+      "started_at": "2026-10-08T22:52:51+0900",
+      "usage": {
+        "input_tokens": 2273256,
+        "cached_input_tokens": 2169216,
+        "output_tokens": 10435,
+        "attempts": 1
+      },
+      "summary": "writes_team 사전 등록·supersedes 사슬·러너 가드·요청자 절 해시 기록 구현; 장애 하네스 writes_org 동결, make verify 통과 및 골든·LLM 기록 불변 확인.",
+      "completed_at": "2026-10-08T23:13:33+0900"
+    },
+    {
+      "step": 2,
+      "name": "api-views",
+      "status": "completed",
+      "started_at": "2026-10-08T23:13:34+0900",
+      "summary": "소유자 전용 대화 목록·요청자 tool_steps/approval_method/effect_at·차단 문구·턴별 요청자 프롬프트·writes_team 기본값과 테스트 구현; make verify 통과, 골든·LLM 기록 불변 확인.",
+      "completed_at": "2026-10-08T23:33:24+0900",
+      "usage": {
+        "input_tokens": 6050522,
+        "cached_input_tokens": 5887872,
+        "output_tokens": 13827,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 3,
+      "name": "bff",
+      "status": "completed",
+      "started_at": "2026-10-08T23:33:24+0900",
+      "summary": "BFF 요청자 전용 필드·대화 목록 허용 목록 투영과 고정 limit=50 GET 라우트 구현, 인증·누출 방지 테스트 추가 및 make verify 통과.",
+      "completed_at": "2026-10-08T23:42:48+0900",
+      "usage": {
+        "input_tokens": 1667349,
+        "cached_input_tokens": 1592448,
+        "output_tokens": 4899,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 4,
+      "name": "web-shell",
+      "status": "completed",
+      "started_at": "2026-10-09T00:04:25+0900",
+      "summary": "반응형 웹 셸·사이드바·테마·로그인과 공용 타입·문구·목록 라이브러리 구현, 경계·동기화·화면 테스트 추가 및 make verify 통과.",
+      "completed_at": "2026-10-09T00:22:22+0900",
+      "usage": {
+        "input_tokens": 2535626,
+        "cached_input_tokens": 2441472,
+        "output_tokens": 24201,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 5,
+      "name": "web-conversation",
+      "status": "completed",
+      "started_at": "2026-10-09T00:35:05+0900",
+      "summary": "안전한 마크다운·도구 단계·대화/차단 표시·입력 카드·단일 타이머 폴링과 페이지 연동 구현 및 테스트 추가, make verify 통과.",
+      "completed_at": "2026-10-09T00:49:46+0900",
+      "usage": {
+        "input_tokens": 2764279,
+        "cached_input_tokens": 2670592,
+        "output_tokens": 13602,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 6,
+      "name": "web-approvals",
+      "status": "completed",
+      "started_at": "2026-10-09T00:49:46+0900",
+      "summary": "시간 유틸·구조화 승인 카드·발송 완료 카드·접이식 승인함 표와 테스트 구현, 최신 해시·본문 전용 수정 정책 유지 및 make verify 통과.",
+      "completed_at": "2026-10-09T00:59:32+0900",
+      "usage": {
+        "input_tokens": 1511750,
+        "cached_input_tokens": 1432704,
+        "output_tokens": 8373,
+        "attempts": 1
+      }
+    },
+    {
+      "step": 7,
+      "name": "e2e-docs",
+      "status": "completed",
+      "started_at": "2026-10-09T01:23:07+0900",
+      "summary": "새 UI·writes_team에 맞춘 e2e·소켓·스모크 테스트, 실행 전후 청결 검사와 ADR-024 등 문서 갱신 완료; make verify 통과.",
+      "completed_at": "2026-10-09T01:34:17+0900",
+      "usage": {
+        "input_tokens": 3298916,
+        "cached_input_tokens": 3169920,
+        "output_tokens": 12044,
+        "attempts": 1
+      }
+    }
+  ],
+  "created_at": "2026-10-08T22:39:23+0900",
+  "completed_at": "2026-10-09T01:34:17+0900"
 }

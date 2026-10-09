@@ -7,7 +7,7 @@ export async function loginAs(page: Page, label: string) {
   await expect(page).toHaveURL(/\/c$/, { timeout: 15_000 });
 }
 export async function switchTo(page: Page, label: string) {
-  await page.getByTestId(testids.switchUser).click();
+  await page.getByTestId(testids.logout).click();
   await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
   await loginAs(page, label);
 }

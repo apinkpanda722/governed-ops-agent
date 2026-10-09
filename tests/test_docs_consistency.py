@@ -479,3 +479,22 @@ def test_e2e_web_command_is_documented_once():
     assert len(lines) == 1
     assert "사용자 실행" in lines[0]
     assert "\ne2e-web:\n" in read("Makefile")
+
+
+def test_m5_ui_decision_contract():
+    section = read("docs/ADR.md").split("### ADR-024:", 1)[1].split("### ADR-", 1)[0]
+    for marker in (
+        "writes_team",
+        "requester_section_sha256",
+        "govops-theme",
+        "react-markdown",
+    ):
+        assert marker in section
+    lines = [
+        line
+        for line in read("AGENTS.md").split("## 명령어", 1)[1].splitlines()
+        if line.startswith("make e2e-web ")
+    ]
+    assert len(lines) == 1
+    assert "사용자 실행" in lines[0]
+    assert "e2e가 새로 만든 변경만 실패" in lines[0]

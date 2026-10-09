@@ -142,7 +142,7 @@ def test_org_golden_synthetic_replay(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "value", [None, "", "writes_org", "read_only", "writes", "invalid"]
+    "value", [None, "", "writes_team", "writes_org", "read_only", "writes", "invalid"]
 )
 def test_environment_profile_selection(monkeypatch, value):
     import asyncio
@@ -217,9 +217,9 @@ def test_environment_profile_selection(monkeypatch, value):
     async def run():
         async with wiring.open_task_service():
             assert calls == ["cleanup", "prune"]
-            assert selected[0] is wiring.PROFILES["writes_org"]
+            assert selected[0] is wiring.PROFILES[value or "writes_team"]
 
-    if value in (None, "", "writes_org"):
+    if value in (None, "", "writes_team", "writes_org"):
         asyncio.run(run())
         assert len(selected) == 1
     else:

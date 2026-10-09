@@ -9,7 +9,7 @@ import httpx
 # Same synthetic question and expected platform document as api.smoke.
 REQUEST = "INC-2026-012 장애를 요약해 주세요. 근거로 쓴 문서 ID를 본문에 표기해 주세요."
 EXPECTED_DOC = "syn-incident-022"
-SHARE = "INC-2026-012 장애보고 요약해서 team-platform에 올려줘"
+SHARE = "INC-2026-012 장애보고 요약해서 팀 채널에 공유해줘"
 SENTINEL = "conversation-smoke-private-probe"
 FORBIDDEN = {
     "stop_reason",
@@ -133,6 +133,10 @@ async def run(
                 check(stage, False, "draft_missing")
                 raise ValueError
             check(stage, True)
+            check(
+                "share_targets_own_team_channel",
+                state["draft"].get("args", {}).get("channel") == "team-platform",
+            )
             tid, digest = second["turn_id"], state["draft_sha256"]
             response = await send(
                 "POST", f"/conversations/{cid}/turns", platform, json={"request": SHARE}

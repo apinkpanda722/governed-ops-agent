@@ -32,7 +32,8 @@ from govops.agent.exploration import (
     exploration_budget_from_env,
 )
 from govops.agent.org_info import org_section
-from govops.agent.prompts import SYSTEM_PROMPT
+from govops.agent.prompts import SEND_RULES, SYSTEM_PROMPT
+from govops.agent.requester import requester_section
 from govops.agent.scope import ScopeIndex, evidence_ids, run_checks
 from govops.agent.turns import build_turn_state
 from govops.agent.users import UserInfo
@@ -72,6 +73,7 @@ class AgentProfile:
     system_prompt: str
     tools: list[dict]
     allow_writes: bool
+    requester_section: bool = False
 
 
 READ_ONLY = AgentProfile("read_only", SYSTEM_PROMPT, agent_tool_definitions(), False)
@@ -91,9 +93,18 @@ WITH_WRITES_ORG = AgentProfile(
     WITH_WRITES.tools,
     True,
 )
+# writes_org는 새 기본값으로 쓰지 않는 동결 프로필이다.
 PROFILES: Mapping[str, AgentProfile] = MappingProxyType(
     {
         "writes_org": replace(WITH_WRITES_ORG, name="writes_org"),
+        "writes_team": replace(
+            WITH_WRITES_ORG,
+            name="writes_team",
+            system_prompt=WITH_WRITES_ORG.system_prompt.replace(
+                "수신처는 사용자가 요청한 곳만 사용합니다.", SEND_RULES
+            ),
+            requester_section=True,
+        ),
     }
 )
 
@@ -171,6 +182,7 @@ class AgentState(TypedDict):
     awaiting_since: str | None
     expires_at: str | None
     effect: dict | None
+    effect_at: str | None
     created_at: str
     resume_value: Any
     edit_approver: str | None
@@ -742,6 +754,7 @@ def build_graph(
                 "answer": checked.message,
                 "check": {"status": "blocked", "reason": checked.reason},
             }
+        effect_at = clock().astimezone(UTC).isoformat()
         result = await execute_effect(
             EffectRequest(
                 state["task_id"],
@@ -761,6 +774,7 @@ def build_graph(
         )
         return {
             "status": status,
+            "effect_at": effect_at,
             "effect": {
                 "state": result.state.value,
                 "mock_id": result.mock_id,
@@ -843,7 +857,19 @@ def build_graph(
     graph = builder.compile(checkpointer=checkpointer)
     graph.agent_profile = profile
     graph.agent_clock = clock
+    graph.agent_users = users
     return graph
+
+
+def system_prompt_for(graph: CompiledStateGraph, user_id: str) -> str:
+    """Resolve requester facts only from the trusted user table."""
+    profile = getattr(graph, "agent_profile", READ_ONLY)
+    if not profile.requester_section:
+        return profile.system_prompt
+    users = getattr(graph, "agent_users", None)
+    if users is None or user_id not in users:
+        raise ValueError("unknown_user")
+    return profile.system_prompt + "\n" + requester_section(users[user_id])
 
 
 async def run_task(
@@ -865,7 +891,7 @@ async def run_task(
         task_id=task_id,
         user_id=user_id,
         request=request,
-        system_prompt=getattr(graph, "agent_profile", READ_ONLY).system_prompt,
+        system_prompt=system_prompt_for(graph, user_id),
         created_at=(existing or {}).get("created_at")
         or getattr(graph, "agent_clock", utc_now)().isoformat(),
         previous=previous,

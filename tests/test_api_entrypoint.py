@@ -44,6 +44,10 @@ class FakeService:
         self.calls.append("conversation_view")
         return {"conversation_id": conversation_id}
 
+    async def conversations(self, user_id, limit):
+        self.calls.append("conversations")
+        return {"conversations": []}
+
     async def approvals(self, user_id):
         self.calls.append("approvals")
         return {"approvals": []}
@@ -62,6 +66,7 @@ class FakeService:
 
 # (메서드, 경로 형태) -> (요청 본문, 기대하는 서비스 메서드)
 EXPECTED = {
+    ("GET", "/conversations"): (None, "conversations"),
     ("POST", "/tasks"): ({"request": "q"}, "start"),
     ("POST", "/tasks/{task_id}/approval"): (
         {"decision": "approve", "draft_sha256": "a" * 64},

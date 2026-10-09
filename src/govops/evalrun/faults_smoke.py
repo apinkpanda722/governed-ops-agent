@@ -21,7 +21,7 @@ from govops.costs import (
     resolve_model,
 )
 from govops.env import env_or
-from govops.evalrun.dev_m3 import PROFILE, new_tool_policy
+from govops.evalrun.dev_m3 import FROZEN_PROFILE, new_tool_policy
 from govops.evalrun.faults import AsyncAdmin, Evidence
 from govops.evalrun.mock_admin import MockAdmin, subprocess_runner
 from govops.evalrun.preflight import run_preflight
@@ -234,7 +234,7 @@ async def effect_probe(admin, slack):
             ),
             saver=InMemorySaver(),
             outbox=outbox,
-            profile=PROFILE,
+            profile=FROZEN_PROFILE,
             audit_dir=Path(directory),
         )
         configure([evidence])
