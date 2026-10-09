@@ -47,7 +47,6 @@ export const testids = {
     topbarTitle: "topbar-title",
     agentDescription: "agent-description",
     userCard: "user-card",
-    userTeamBadge: "user-team-badge",
     toolSteps: "tool-steps",
     toolStepRow: "tool-step-row",
     turnSkeleton: "turn-skeleton",

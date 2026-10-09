@@ -64,3 +64,17 @@ test("running shows status, skeleton and open safe steps", () => {
 test.each([{check:{message:"검사 안내"},answer:"대체",expected:"검사 안내"},{answer:"대체",expected:"대체"},{answer:undefined,expected:"정책 검사로 보낼 수 없습니다. 내용을 확인하고 다시 요청해 주세요."}])("check block uses ordered fallback", extra => {
     render(<Thread view={view("blocked",extra)}/>); expect(screen.queryByTestId("blocked-card")).toBeNull(); expect(screen.getByTestId("check-blocked-card").textContent).toBe(`발송 차단${extra.expected}`);
 });
+test.each([["max_steps","조사 단계 한도(8단계)에 도달했습니다. 질문을 더 구체적으로 나누어 다시 요청해 주세요."],["internal_error","처리 중 오류가 발생했습니다. 다시 요청해 주세요."],[undefined,"처리 중 오류가 발생했습니다. 다시 요청해 주세요."]])("failed text depends on error code %s with fallback", (error, message) => {
+    render(<Thread view={view("failed", { error })}/>);
+    expect(screen.getByTestId("turn-error").textContent).toBe(message);
+});
+test("fixed approval notice is hidden only while the sent card shows, other answers stay", () => {
+    const effect = { mock_id: "syn-effect" };
+    const { rerender } = render(<Thread view={view("completed", { answer: "승인된 내용대로 실행했습니다", effect })}/>);
+    expect(screen.getByTestId("sent-card").textContent).toContain("syn-effect");
+    expect(screen.queryByTestId("turn-answer")).toBeNull();
+    rerender(<Thread view={view("completed", { answer: "별도 안내입니다", effect })}/>);
+    expect(screen.getByTestId("sent-card")).toBeDefined(); expect(screen.getByTestId("turn-answer").textContent).toContain("별도 안내입니다");
+    rerender(<Thread view={view("completed", { answer: "승인된 내용대로 실행했습니다" })}/>);
+    expect(screen.queryByTestId("sent-card")).toBeNull(); expect(screen.getByTestId("turn-answer").textContent).toContain("승인된 내용대로 실행했습니다");
+});

@@ -19,7 +19,7 @@ export function Sidebar({user, collapsed, onToggle}: {user: string; collapsed: b
             <Link href="/c" aria-label="해온클라우드 운영 에이전트" className={`truncate font-semibold focus-visible:ring-2 focus-visible:ring-ring ${collapsed ? "sr-only" : ""}`}>해온클라우드</Link>
             <Button size="icon" variant="ghost" data-testid={testids.sidebarToggle} aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"} aria-expanded={!collapsed} onClick={onToggle}>{collapsed ? <PanelLeftOpen aria-hidden="true"/> : <PanelLeftClose aria-hidden="true"/>}</Button>
         </div>
-        <div className="px-3 pb-3"><Button className="w-full" render={<Link href="/c"/>} data-testid={testids.sidebarNewChat} aria-label="새 대화"><Plus aria-hidden="true"/>{!collapsed && "새 대화"}</Button></div>
+        <div className="px-3 pb-3"><Button className="w-full" nativeButton={false} render={<Link href="/c"/>} data-testid={testids.sidebarNewChat} aria-label="새 대화"><Plus aria-hidden="true"/>{!collapsed && "새 대화"}</Button></div>
         <Separator/>
         <ScrollArea className="min-h-0 flex-1">{!collapsed && <ConversationList/>}</ScrollArea>
         <nav aria-label="주 메뉴" className="space-y-1 border-t border-sidebar-border p-3">

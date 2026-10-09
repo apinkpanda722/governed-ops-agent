@@ -23,7 +23,7 @@ test("groups, limits, links, current item, pending count and user card",async()=
  fireEvent.click(screen.getByTestId("conversation-more"));expect(screen.getAllByTestId(/^conversation-item-/)).toHaveLength(23);
  await waitFor(()=>expect(screen.getByTestId("nav-approvals-count").textContent).toBe("2"));
  expect(screen.getByTestId("session-user").textContent).toBe("재무팀 · 2급");expect(screen.getByTestId("session-user").getAttribute("title")).toBe("demo-finance-g2");
- expect(screen.getByTestId("user-team-badge").textContent).toBe("재무팀");
+ expect(screen.queryByTestId("user-team-badge")).toBeNull();expect(screen.getByTestId("user-card").textContent?.split("재무팀")).toHaveLength(2);
 });
 test("logout deletes then redirects, failure displays notice",async()=>{
  const fetcher=vi.fn().mockImplementation((path:string)=>Promise.resolve(new Response(path==="/api/approvals"?'{"approvals":[]}':'{}')));

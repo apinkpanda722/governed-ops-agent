@@ -2,6 +2,8 @@ import {act,cleanup,renderHook} from "@testing-library/react";
 import {afterEach,expect,test,vi} from "vitest";
 import {readTheme,writeTheme,applyTheme} from "./theme";
 import {useTheme} from "@/hooks/use-theme";
+import {readFileSync} from "node:fs";
+import path from "node:path";
 afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();localStorage.clear();document.documentElement.classList.remove("dark");});
 test("validates stored values and contains read/write failures",()=>{
  expect(writeTheme("other" as import("./theme").ThemeMode)).toBe(false);
@@ -29,4 +31,9 @@ test("mounted hook reads explicit choice and never subscribes to system changes"
  const {result,unmount}=renderHook(()=>useTheme());
  expect(result.current.mode).toBe("light");expect(document.documentElement.classList.contains("dark")).toBe(false);expect(add).not.toHaveBeenCalled();
  unmount();expect(remove).not.toHaveBeenCalled();
+});
+test("css declares color-scheme so native scrollbars follow the theme",()=>{
+ const css=readFileSync(path.resolve(process.cwd(),"src/app/globals.css"),"utf8");
+ expect(css).toMatch(/:root\s*\{[^}]*color-scheme:\s*light/);
+ expect(css).toMatch(/\.dark\s*\{[^}]*color-scheme:\s*dark/);
 });
