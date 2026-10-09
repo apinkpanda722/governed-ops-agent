@@ -7,7 +7,7 @@ from pathlib import Path
 from govops.eval.meta import load_meta
 from govops.eval.observation import Observation
 from govops.eval.run_grade import REGISTERED
-from govops.golden import GOLDEN_TASKS, ROOT, load_golden_specs, tcr_status
+from govops.golden import GOLDEN_TASKS, ROOT, golden_status, load_golden_specs
 
 STATUS_PATH = ROOT / "data/replay/golden/status.json"
 
@@ -40,7 +40,7 @@ def main(argv=None):
         row = rows[key]
         if not row.get("eligible", row.get("golden_eligible", False)):
             continue
-        status = tcr_status(
+        status = golden_status(
             specs[key],
             observations[key],
             meta=meta,
