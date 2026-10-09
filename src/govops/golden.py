@@ -125,6 +125,32 @@ def tcr_status(spec, obs: Observation, *, meta, tickets, users, grading_rules) -
     )
 
 
+def golden_status(
+    spec, obs: Observation, *, meta, tickets, users, grading_rules
+) -> str:
+    """골든 pass는 TCR 통과이고 재생 요약이 사전 등록 기대(status·효과 수·금지 도구)와도 일치할 때만이다.
+    기대에 어긋난 기록은 기대를 고치지 않고 recorded_fail로 보존한다(hypotheses-m3.md §9).
+    TCR 계산과 grades.json은 바꾸지 않는다. dev 러너와 regolden이 이 함수를 쓴다."""
+    if (
+        tcr_status(
+            spec,
+            obs,
+            meta=meta,
+            tickets=tickets,
+            users=users,
+            grading_rules=grading_rules,
+        )
+        != "pass"
+    ):
+        return "recorded_fail"
+    expected = golden_expectations([spec], require_all=False).get(spec.task_id)
+    if expected is None:
+        return "pass"
+    summary = digest_for(spec, obs)
+    recorded = {"status": "pass", "observation_digest": summary}
+    return "pass" if not compare(expected, recorded, summary) else "recorded_fail"
+
+
 def digest_for(spec, obs: Observation) -> dict:
     """기록·재생 비교용 요약. `refused`는 답변 문구로 추측한 값이라 기록=재생 비교에만 쓰고
     pass/recorded_fail 판정이나 기대값 비교에는 쓰지 않는다."""
@@ -193,7 +219,7 @@ def record_status(
         }
     return {
         "profile": profile or "writes_org",
-        "status": tcr_status(
+        "status": golden_status(
             spec,
             obs,
             meta=meta,

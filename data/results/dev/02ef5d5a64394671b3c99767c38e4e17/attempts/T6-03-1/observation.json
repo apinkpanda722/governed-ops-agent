@@ -1,0 +1,74 @@
+{
+  "task_id": "T6-03",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-incident-014",
+    "syn-meeting-001"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-001"
+          },
+          {
+            "doc_id": "syn-incident-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-014",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-platform",
+      "count": 1,
+      "structure": {},
+      "approval_id": "70bd3c274c7ff97e122b804d548978d71ba0e6d28733da946d7da08df3f9bceb",
+      "body_sha256": "fcea09c8c8cf502bc8a293c01f5b95271c8ac90a0abe977590aea07692072903"
+    }
+  ],
+  "effect_bodies": [
+    "[장애보고 요약] INC-2026-004 인증 토큰 검증 지연\n\n- 서비스/심각도: identity-api / 심각도 2\n- 발생 및 복구: 2026-03-28 15:10 감지, 16:00 정상 복구(약 50분)\n- 영향: 로그인·세션 갱신 및 내부 서비스 간 인증 요청이 지연됐고, 인증 의존 다운스트림에 대기 누적이 발생했습니다.\n- 원인: 인증 키 목록 갱신 중 잠금 범위가 넓게 유지되어 토큰 검증 요청이 대기했고, 갱신 작업과 검증 요청이 집중되며 잠금 경합이 확대됐습니다.\n- 조치: 경합 구간을 긴급 수정해 복구했고, 재발 방지로 키 갱신·검증 목록을 분리하는 이중 버퍼 방식을 적용했습니다. 복구 후 모니터링에서 재발 징후는 확인되지 않았습니다.\n- 후속 점검: 다른 구성요소의 유사 잠금 경합 여부를 확인하고, 인증 핵심 경로에 부하 집중 상황을 가정한 검증이 필요합니다.\n\n근거: [syn-incident-014]\n[승인자 수정] 자세한 내용은 담당 팀 확인 후 별도로 공유드리겠습니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "f73536c28521cbcbd92642e0ea5e7cdf9dedd671d59e42de1214413d30f59310",
+      "actor": "demo-platform-g6",
+      "decision": "edit_approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "41b0a4448eb8498cb57e24af4edca30d",
+  "stop_reason": null
+}

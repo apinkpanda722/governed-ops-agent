@@ -1,0 +1,55 @@
+{
+  "task_id": "T4-01",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "run_sql",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "run_sql",
+      "ok": true,
+      "result": {
+        "columns": [],
+        "rows": [
+          []
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-finance",
+      "count": 1,
+      "structure": {},
+      "approval_id": "731819a5e3db368b8aa353c1b0ea7e5a269cb20e65652094094f3fe551e2d6b5",
+      "body_sha256": "a1908875db2af0d8403680258e21b40fcebbec011e15d7e2eceb571130be81b7"
+    }
+  ],
+  "effect_bodies": [
+    "데이터AI팀(DAI) 진행 중인 티켓은 22건입니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "731819a5e3db368b8aa353c1b0ea7e5a269cb20e65652094094f3fe551e2d6b5",
+      "actor": "demo-finance-g6",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "37a55cf670134bb2ba61073996e0a1ba",
+  "stop_reason": null
+}

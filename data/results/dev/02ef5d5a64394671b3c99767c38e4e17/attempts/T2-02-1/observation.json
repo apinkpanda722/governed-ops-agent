@@ -1,0 +1,90 @@
+{
+  "task_id": "T2-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-meeting-031",
+    "syn-meeting-039",
+    "syn-weekly-027"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-031"
+          },
+          {
+            "doc_id": "syn-meeting-039"
+          },
+          {
+            "doc_id": "syn-weekly-027"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-meeting-039",
+        "sections": []
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-weekly-027",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-finance",
+      "count": 1,
+      "structure": {},
+      "approval_id": "9dcff89de12e4b202900326d93bb9845b48daf3bdd33397eb59c00ca6b9050d8",
+      "body_sha256": "928b4430552e3b93b3b528453cf82b4b5d8d4bae7ea45d25cd28b69d90aab609"
+    }
+  ],
+  "effect_bodies": [
+    "*INC-2026-006 비용 결재 조회 오류 장애보고 요약*\n\n- *서비스/증상:* finance-ledger 월말 집계 중 월 경계 처리에서 데이터 정합성 문제가 발생했습니다.\n- *원인:* 원장 색인 로직이 월 경계를 명확히 구분하지 못한 것으로 분석됐습니다.\n- *영향/위험:* 서비스가 월말 집계의 핵심 축인 만큼 결산 일정에 영향이 생길 수 있으며, 색인 구조 변경은 기존 배치 및 조회 성능에도 영향을 줄 수 있어 검증이 필요합니다. 구체적인 사용자 영향이나 장애 시간은 확인된 자료에 없습니다.\n- *대응/결정:* 임시 재실행보다 재발 방지를 위한 구조적 개선을 우선해 원장 색인에 월 경계 검사를 추가하기로 했습니다.\n- *후속 조치:* 현재 설계 검토 후 구현 방안을 마련 중이며, 기존 데이터 영향 분석·단위/회귀 테스트·배포 전 검증과 모니터링 지표 정의를 진행할 계획입니다.\n\n근거: [syn-meeting-039] [syn-weekly-027]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "9dcff89de12e4b202900326d93bb9845b48daf3bdd33397eb59c00ca6b9050d8",
+      "actor": "demo-finance-g6",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "0443bc04f24943cfbc90312c557d3258",
+  "stop_reason": null
+}

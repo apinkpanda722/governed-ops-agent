@@ -619,8 +619,15 @@ def test_profile_registry_and_recorded_hashes():
         header = json.loads(path.read_text().splitlines()[0])
         assert header["model"] == "gpt-6-luna"
         assert header["params"] == {}
-        assert header["prompt_hash"] == digest(PROFILES["writes_org"])
+        # 골든 기록은 요청자 절 재실행(dev5)의 writes_team 템플릿 해시다.
+        assert header["prompt_hash"] == digest(PROFILES["writes_team"])
+    # writes_org는 동결 프로필로 레지스트리에 그대로 남고 해시가 변하지 않는다.
     assert set(PROFILES) == {"writes_org", "writes_team"}
+    assert (
+        digest(PROFILES["writes_org"])
+        == "0a82447c0360f47db5f433d2d9e8b56e70a70c8c95f37479b86d8d6af95cdda7"
+    )
+    assert digest(PROFILES["writes_team"]) != digest(PROFILES["writes_org"])
     for label, profile in PROFILES.items():
         assert profile_for(label) is profile
         assert profile.name == label
