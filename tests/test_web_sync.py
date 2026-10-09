@@ -28,3 +28,18 @@ def test_web_tool_labels_match():
         assert set(names) == {
             name for name, spec in specs.items() if spec.side_effect == side_effect
         }
+
+
+def test_web_max_steps_text_matches_python():
+    from govops.agent.graph import MAX_STEPS
+
+    source = (ROOT / "web/src/lib/messages.ts").read_text()
+    assert f"조사 단계 한도({MAX_STEPS}단계)에 도달했습니다." in source
+
+
+def test_web_approved_run_notice_matches_graph():
+    notice = "승인된 내용대로 실행했습니다"
+    graph = (ROOT / "src/govops/agent/graph.py").read_text()
+    web = (ROOT / "web/src/lib/messages.ts").read_text()
+    assert f'"completed": "{notice}"' in graph
+    assert f'APPROVED_RUN_NOTICE = "{notice}"' in web

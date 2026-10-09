@@ -15,6 +15,6 @@ export function Topbar({onOpen}: {onOpen: () => void}) {
         <Button size="icon" variant="ghost" className="md:hidden" aria-label="사이드바 열기" data-testid={testids.sidebarOpen} onClick={onOpen}><Menu aria-hidden="true"/></Button>
         <div className="min-w-0 flex-1"><h1 className="truncate font-semibold" data-testid={testids.topbarTitle}>{title}</h1>
             <p className="hidden truncate text-xs text-muted-foreground md:block" data-testid={testids.agentDescription}>{AGENT_DESCRIPTION}</p></div>
-        <Button variant="outline" render={<Link href="/c"/>} data-testid={testids.navNewConversation}><Plus aria-hidden="true"/>새 대화</Button>
+        <Button variant="outline" nativeButton={false} render={<Link href="/c"/>} data-testid={testids.navNewConversation}><Plus aria-hidden="true"/>새 대화</Button>
     </header>;
 }
