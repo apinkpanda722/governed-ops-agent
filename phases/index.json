@@ -103,7 +103,8 @@
     },
     {
       "dir": "m6-limits-delete",
-      "status": "pending"
+      "status": "error",
+      "failed_at": "2026-10-13T16:10:33+0900"
     }
   ]
 }

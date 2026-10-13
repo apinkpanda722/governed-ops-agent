@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "delete-route-entrypoint",
-      "status": "pending"
+      "status": "error",
+      "started_at": "2026-10-13T16:08:47+0900",
+      "error_message": "[3회 시도 후 실패] 결과 JSON을 받지 못함 (exit 1): 2026-10-13T07:09:57.310141Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 426 Upgrade Required, url: ws://127.0.0.1:11434/api/codex/v1/responses\n2026-10-13T07:09:57.359789Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 426 Upgrade Required, url: ws://127.0.0.1:11434/api/codex/v1/responses\n",
+      "failed_at": "2026-10-13T16:10:33+0900",
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "attempts": 3
+      }
     },
     {
       "step": 5,
