@@ -16,6 +16,6 @@ test("대화 삭제 확인, 목록 갱신과 삭제 후 접근 차단", async ({
   await expect(page).toHaveURL(`${ORIGIN}/c`);
   await expect(page.getByTestId(testids.conversationItem(id))).toHaveCount(0);
   await page.goto(`/c/${id}`);
-  await expect(page.getByRole("alert")).toHaveText("대화를 찾을 수 없습니다.");
+  await expect(page.getByRole("alert").filter({ hasText: "대화를 찾을 수 없습니다." })).toHaveText("대화를 찾을 수 없습니다.");
   await expect(page.getByTestId(testids.conversationItem(id))).toHaveCount(0);
 });
