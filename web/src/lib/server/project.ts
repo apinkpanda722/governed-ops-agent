@@ -68,6 +68,9 @@ export function projectCreated(value: unknown): Obj {
   if (typeof v.status === "string" && statuses.includes(v.status)) out.status = v.status;
   return out;
 }
+export function projectDeleted(value: unknown): { deleted: boolean } {
+  return { deleted: object(value).deleted === true };
+}
 export function projectApprovals(value: unknown): Obj {
   const v = object(value);
   if (!Array.isArray(v.approvals)) return {};

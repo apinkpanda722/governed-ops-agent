@@ -2,7 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { projectConversation, projectApprovals, projectTurn, projectConversationList } from "./project";
+import { projectConversation, projectApprovals, projectTurn, projectConversationList, projectDeleted } from "./project";
 test("allowlist preserves useful fields without internal data", () => {
  const token=randomBytes(32).toString("base64url");
  const junk={messages:token,rules:"SENTINEL-rules", reasoning:"SENTINEL-reason", stop_reason:token};
@@ -40,6 +40,12 @@ test("nested types and all visible contracts", () => {
 test("missing top-level fields are not filled in", () => {
  expect(projectConversation({})).toEqual({});
  expect(projectApprovals({})).toEqual({});
+});
+
+test("deleted projection accepts only true and discards every other key", () => {
+ expect(projectDeleted({deleted:true,conversation_id:"a".repeat(32),secret:"SENTINEL"})).toEqual({deleted:true});
+ for(const value of [null,[],{},true,{deleted:false},{deleted:1},{deleted:"true"},{deleted:null}])
+ expect(projectDeleted(value)).toEqual({deleted:false});
 });
 
 test("requester tool steps retain only valid summaries and cap at twenty", () => {

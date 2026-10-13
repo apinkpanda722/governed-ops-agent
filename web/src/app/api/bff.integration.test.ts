@@ -20,6 +20,7 @@ let calls:number;
 let receivedAuth:string|undefined;
 let receivedBody:unknown;
 let receivedUrl:string|undefined;
+let receivedMethod:string|undefined;
 let failure:{status:number;detail:string}|undefined;
 let closed:Promise<unknown>;
 let timer:ReturnType<typeof setInterval>|undefined;
@@ -35,7 +36,7 @@ function req(path:string,method="GET",body?:unknown, options:{cookie?:string;ori
 beforeEach(async()=>{
  token=randomBytes(32).toString("base64url"); valid=true; calls=0; failure=undefined;
  server=createServer(async (request,response)=>{
-  calls++; receivedAuth=request.headers.authorization; receivedUrl=request.url;
+  calls++; receivedAuth=request.headers.authorization; receivedUrl=request.url; receivedMethod=request.method;
   const chunks=[]; for await(const chunk of request) chunks.push(chunk);
   receivedBody=chunks.length?JSON.parse(Buffer.concat(chunks).toString()):undefined;
   response.setHeader("content-type","application/json");
@@ -54,6 +55,9 @@ beforeEach(async()=>{
    return;
   }
   const junk={rules:"SENTINEL-rules",messages:token,guardrail:{masked:token},reasoning:"SENTINEL-reason"};
+  if(request.method==="DELETE"&&request.url===`/conversations/${id}`){
+   response.end(JSON.stringify({conversation_id:id,deleted:true,secret:token,...junk}));return;
+  }
   if(request.method==="GET"&&request.url?.startsWith("/conversations?")){
    response.end(JSON.stringify({conversations:[{conversation_id:id,title:"대화",status:"completed",awaiting_approval:false,turn_count:1,updated_at:"2026-10-08T12:00:00Z",request:"SENTINEL",history:"SENTINEL",answer:"SENTINEL",secret:token}],secret:token}));return;
   }
@@ -219,4 +223,33 @@ test("conversation list clears unauthorized sessions and maps upstream failures"
  const response=await conversations.GET(req("conversations","GET",undefined,{cookie:token}));
  expect(response.status).toBe(502);expect(await response.json()).toEqual({code:"upstream_unavailable"});
  expect(response.headers.get("cache-control")).toBe("no-store");
+});
+
+test("conversation DELETE rejects missing cookies, origin and malformed IDs before upstream",async()=>{
+ const missing=await conversation.DELETE(req(`conversations/${id}`,"DELETE"),context);
+ expect(missing.status).toBe(401);expect(await missing.json()).toEqual({code:"unauthenticated"});
+ expect(calls).toBe(0);
+ for(const origin of [null,"http://evil.test"]){
+ const response=await conversation.DELETE(req(`conversations/${id}`,"DELETE",undefined,{cookie:token,origin}),context);
+ expect(response.status).toBe(403);expect(await response.json()).toEqual({code:"origin_mismatch"});
+ expect(calls).toBe(0);
+ }
+ for(const bad of ["bad","A".repeat(32),"a".repeat(31),"z".repeat(32)]){
+ const response=await conversation.DELETE(req(`conversations/${bad}`,"DELETE",undefined,{cookie:token}),{params:Promise.resolve({id:bad})});
+ expect(response.status).toBe(404);expect(await response.json()).toEqual({code:"not_found"});
+ expect(calls).toBe(0);
+ }
+});
+test("conversation DELETE forwards its method and projects only deleted",async()=>{
+ const response=await conversation.DELETE(req(`conversations/${id}`,"DELETE",undefined,{cookie:token}),context);
+ expect(response.status).toBe(200);expect(response.headers.get("cache-control")).toBe("no-store");
+ expect(await response.json()).toEqual({deleted:true});
+ expect(calls).toBe(1);expect(receivedUrl).toBe(`/conversations/${id}`);expect(receivedMethod).toBe("DELETE");
+ expect(receivedAuth===`Bearer ${token}`).toBe(true);expect(receivedBody).toBeUndefined();
+});
+test.each([[404,"conversation_not_found"],[409,"approval_pending"],[409,"turn_in_progress"],[500,"upstream_unavailable"],[503,"upstream_unavailable"]] as const)("conversation DELETE maps %s %s safely",async(status,code)=>{
+ failure={status,detail:status>=500?"SENTINEL-error":code};
+ const response=await conversation.DELETE(req(`conversations/${id}`,"DELETE",undefined,{cookie:token}),context);
+ expect(response.status).toBe(status>=500?502:status);expect(await response.json()).toEqual({code});
+ expect(calls).toBe(1);
 });

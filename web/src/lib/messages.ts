@@ -14,6 +14,7 @@ const errors: Record<string, string> = {
 export function errorMessage(code: string) { return errors[code] ?? "요청을 처리하지 못했습니다."; }
 export function blockCategory(code?: string) { return code === "injection_direct" ? "지시 변경 시도" : code === "pii_input" ? "개인정보 포함" : "정책 차단"; }
 export const APPROVED_RUN_NOTICE = "승인된 내용대로 실행했습니다";
+export const DELETE_CONFIRM_NOTICE = "대화를 삭제할까요? 원문은 다음 정리 때 제거되고, 감사 기록과 이미 발송된 효과는 남는다.";
 export function statusMessage(status?: string, retryHint?: string, error?: string) {
     if (status === "failed" && error === "max_steps") return "조사 단계 한도(8단계)에 도달했습니다. 질문을 더 구체적으로 나누어 다시 요청해 주세요.";
     return ({ running: "답변을 만드는 중입니다…", failed: "처리 중 오류가 발생했습니다. 다시 요청해 주세요.", interrupted: retryHint ?? "다시 요청해 주세요.", rejected: "승인이 거부되었습니다.", expired: "승인 시간이 지나 종료되었습니다.", awaiting_approval: "승인을 기다리는 중입니다.", completed: "답변이 완료되었습니다." } as Record<string, string>)[status ?? ""] ?? "";

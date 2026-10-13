@@ -1,0 +1,21 @@
+import { expect, test } from "@playwright/test";
+import { testids } from "../src/lib/testids";
+import { loginAs, ORIGIN } from "./support";
+test("대화 삭제 확인, 목록 갱신과 삭제 후 접근 차단", async ({ page }) => {
+  await loginAs(page, "demo-platform-g3");
+  await page.getByTestId(testids.composerInput).fill("INC-2026-012 장애와 관련 티켓을 조회해 주세요");
+  await page.getByTestId(testids.composerSubmit).click();
+  await expect(page.getByTestId(testids.turnAnswer)).toBeVisible({ timeout: 15_000 });
+  const id = new URL(page.url()).pathname.split("/").at(-1)!;
+  await expect(page.getByTestId(testids.conversationItem(id))).toBeVisible();
+  await page.getByTestId(testids.conversationDelete(id)).click();
+  await expect(page.getByText("대화를 삭제할까요? 원문은 다음 정리 때 제거되고, 감사 기록과 이미 발송된 효과는 남는다.", { exact: true })).toBeVisible();
+  await expect(page.getByTestId(testids.conversationDeleteConfirm(id))).toBeVisible();
+  await expect(page.getByTestId(testids.conversationDeleteCancel(id))).toBeVisible();
+  await page.getByTestId(testids.conversationDeleteConfirm(id)).click();
+  await expect(page).toHaveURL(`${ORIGIN}/c`);
+  await expect(page.getByTestId(testids.conversationItem(id))).toHaveCount(0);
+  await page.goto(`/c/${id}`);
+  await expect(page.getByRole("alert")).toHaveText("대화를 찾을 수 없습니다.");
+  await expect(page.getByTestId(testids.conversationItem(id))).toHaveCount(0);
+});
