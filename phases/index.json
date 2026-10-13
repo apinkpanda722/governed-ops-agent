@@ -100,6 +100,10 @@
       "dir": "m5-ui",
       "status": "completed",
       "completed_at": "2026-10-09T01:34:17+0900"
+    },
+    {
+      "dir": "m6-limits-delete",
+      "status": "pending"
     }
   ]
 }

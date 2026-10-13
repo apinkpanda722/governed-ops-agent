@@ -1,0 +1,51 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m6-limits-delete",
+  "steps": [
+    {
+      "step": 0,
+      "name": "audit-conversation-deleted",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "turn-index-soft-delete",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "retention-deleted-ids",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "delete-service",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "delete-route-entrypoint",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "web-delete-ui",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "finalize-on-step-limit",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "limited-notice",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "docs-sync",
+      "status": "pending"
+    }
+  ]
+}
