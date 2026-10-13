@@ -86,7 +86,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 ## 이 step의 금지사항
 
 - 기존 ADR(ADR-001~024)·`docs/results/` 파일을 수정하지 마라. 이유: 결정 이력과 사전 등록은 보존한다. 변경은 새 ADR-025로만 한다.
-- 문서에 TCR·정확도·지연 수치나 live 결과를 쓰지 마라. 이유: 결정 문서에는 결과 수치가 없고(`test_m4_decisions_have_no_result_values`) 이번 phase는 live를 하지 않았다.
+- 문서에 TCR·정확도·지연 **결과 수치**나 live 결과를 쓰지 마라. 설계 상수와 사전 등록된 건수(10초 지연, 7일 보존, 단계 상한 8, 정상 대조 test 40건)는 위 작업 지시대로 쓸 수 있다. 이유: 결정 문서에는 결과 수치가 없고(`test_m4_decisions_have_no_result_values`) 이번 phase는 live를 하지 않았다. `<!-- m4-current:start -->`·`<!-- m4-current:end -->` 블록을 새로 만들거나 옮기지 않는다(그 테스트가 블록 4개를 단언한다).
 - `AGENTS.md`를 수정하거나 `docs/PRD.md`의 기존 마일스톤 표 행을 고치지 마라. 이유: CRITICAL 항목 수와 PRD 표를 단언하는 테스트가 있고 이 phase는 규칙을 바꾸지 않는다. PRD는 표 아래 한 줄 덧붙임뿐이다.
 - `tests/test_docs_consistency.py`의 기존 단언을 고치거나 완화하지 마라. 이유: 새 테스트를 더하기만 한다(FP-061).
-- 코드·테스트(`src/`·`web/src/`·`tests/test_docs_consistency.py` 밖)를 수정하지 마라. 이유: 이 step은 문서만 맡는다.
+- "수정할 파일"에 없는 파일(`src/`·`web/`·`tests/test_docs_consistency.py` 밖의 다른 `tests/`·`docs/results/`·`AGENTS.md` 등)을 수정하지 마라. 이유: 이 step은 문서 네 개와 문서 계약 테스트만 맡는다.

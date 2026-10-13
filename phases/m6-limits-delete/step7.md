@@ -81,7 +81,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 이 step의 금지사항
 
-- `stop_reason`을 뷰·BFF·UI에 노출하거나 소스에 쓰지 마라. 이유: `tests/test_api_conversation_views.py`·`web/src/ui-boundary.test.ts`·`web/src/lib/server/project.test.ts`가 비노출을 단언한다. 새 불리언 `limited` 하나만 쓴다.
+- `stop_reason`의 값을 응답 본문·BFF·UI(`web/`)에 노출하거나 `web/` 소스에 쓰지 마라. `src/govops/api/tasks.py`가 내부 상태를 읽어 `limited`를 계산하는 것은 허용한다. 단 `tasks.py`에서도 `stop_reason` 값이나 `max_steps_finalized` 문자열을 뷰 딕셔너리의 키·값으로 넣지 않는다. 뷰에는 불리언 `limited`만 둔다. 이유: `tests/test_api_conversation_views.py`·`web/src/ui-boundary.test.ts`·`web/src/lib/server/project.test.ts`가 비노출을 단언한다.
 - `limited`를 승인함 행에 통과시키지 마라. 이유: 요청자 본인 턴 뷰 전용 필드이고 다른 승인자의 화면에 나가면 안 된다.
 - 안내 문구를 임의로 바꾸지 마라. 이유: `LIMITED_NOTICE`는 설계 초안의 승인된 문장이다.
 - 기존 단언(`stop_reason` 비노출, 승인함 행의 키 집합)을 약화하지 마라. 이유: 키 집합에 `limited`를 더해 더 강하게만 바꾼다.
