@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "turn-index-soft-delete",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T15:25:34+0900",
+      "summary": "두 TurnIndex 구현에 전체 턴 소프트 삭제·조회 필터를 추가하고 인메모리 계약 및 Postgres 구 스키마·동시 초기화·동등성 테스트를 작성했습니다. make verify 재실행 전체 통과; Postgres 케이스는 skip되어 사용자 실행으로 남습니다.",
+      "completed_at": "2026-10-13T15:38:45+0900",
+      "usage": {
+        "input_tokens": 4022538,
+        "cached_input_tokens": 3840256,
+        "output_tokens": 11702,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
