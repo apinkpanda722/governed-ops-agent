@@ -12,6 +12,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
+from psycopg.rows import dict_row
 from test_agent_graph import FakeTools, reply
 
 from govops.agent.checkpointer import open_checkpointer
@@ -110,6 +111,197 @@ def test_turn_index_postgres():
         asyncio.run(exercise())
     except Exception:  # noqa: BLE001 — conceal transport details
         raise RuntimeError("M5 turn index verification failed") from None
+
+
+@pytest.mark.parametrize("concurrent", [False, True])
+def test_turn_index_upgrades_old_schema_postgres(concurrent):
+    """Existing rows survive ALTER, including simultaneous first opens."""
+    url = database_url()
+
+    async def exercise():
+        table = "govops_m5_old_turns_" + uuid4().hex
+        identifier = sql.Identifier(table)
+        stores = [PostgresTurnIndex(url, table=table) for _ in range(2)]
+        try:
+            await ddl(
+                url,
+                sql.SQL(
+                    "CREATE TABLE {} (turn_id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, owner_sub TEXT NOT NULL, turn_index INTEGER NOT NULL, created_at TEXT NOT NULL, awaiting BOOLEAN NOT NULL DEFAULT FALSE)"
+                ).format(identifier),
+            )
+            async with await psycopg.AsyncConnection.connect(url) as conn:
+                await conn.execute(
+                    sql.SQL("INSERT INTO {} VALUES (%s, %s, %s, %s, %s, %s)").format(
+                        identifier
+                    ),
+                    ("old-turn", "old", "synthetic-user", 0, "old-time", True),
+                )
+                cursor = await conn.execute(
+                    sql.SQL("SELECT * FROM {} LIMIT 0").format(identifier)
+                )
+                assert "deleted_at" not in {
+                    column.name for column in cursor.description
+                }
+            expected = [
+                {
+                    "conversation_id": "old",
+                    "last_created_at": "old-time",
+                    "turn_count": 1,
+                }
+            ]
+            if concurrent:
+                results = await bounded(
+                    asyncio.gather(
+                        *(
+                            store.list_for_owner("synthetic-user", 50)
+                            for store in stores
+                        )
+                    )
+                )
+                assert results == [expected, expected]
+            else:
+                for store in stores:
+                    assert (
+                        await bounded(store.list_for_owner("synthetic-user", 50))
+                        == expected
+                    )
+            async with await psycopg.AsyncConnection.connect(
+                url, row_factory=dict_row
+            ) as conn:
+                cursor = await conn.execute(
+                    sql.SQL("SELECT * FROM {} WHERE turn_id = %s").format(identifier),
+                    ("old-turn",),
+                )
+                assert await cursor.fetchone() == {
+                    "turn_id": "old-turn",
+                    "conversation_id": "old",
+                    "owner_sub": "synthetic-user",
+                    "turn_index": 0,
+                    "created_at": "old-time",
+                    "awaiting": True,
+                    "deleted_at": None,
+                }
+            for store in stores:
+                assert await bounded(store.conversation_of("old-turn")) == "old"
+                assert await bounded(store.awaiting()) == [("old-turn", "old")]
+                assert await bounded(store.is_deleted("old")) is False
+                assert await bounded(store.deleted_conversation_ids()) == []
+            await bounded(stores[0].set_awaiting("old-turn", False))
+            assert await bounded(stores[1].awaiting()) == []
+            await bounded(
+                stores[0].add(
+                    turn_id="new-turn",
+                    conversation_id="old",
+                    owner_sub="synthetic-user",
+                    turn_index=1,
+                    created_at="new-time",
+                )
+            )
+            assert await bounded(stores[1].conversation_of("new-turn")) == "old"
+            assert await bounded(stores[1].delete_conversations(["old"])) == 2
+            assert await bounded(stores[0].conversation_of("old-turn")) is None
+        finally:
+            await ddl(url, sql.SQL("DROP TABLE IF EXISTS {}").format(identifier))
+
+    try:
+        asyncio.run(exercise())
+    except Exception:  # noqa: BLE001 — conceal transport details
+        raise RuntimeError("M5 old-schema turn index verification failed") from None
+
+
+def test_turn_index_soft_delete_postgres():
+    url = database_url()
+
+    async def exercise():
+        table = "govops_m5_deleted_turns_" + uuid4().hex
+        stores = [PostgresTurnIndex(url, table=table) for _ in range(2)]
+        memory = InMemoryTurnIndex()
+        rows = [
+            {
+                "turn_id": f"t{i}",
+                "conversation_id": conversation,
+                "owner_sub": owner,
+                "turn_index": i,
+                "created_at": f"2026-10-13T00:00:0{i}+00:00",
+            }
+            for i, (conversation, owner) in enumerate(
+                [("z", "a"), ("z", "a"), ("z", "a"), ("a", "a"), ("b", "b")]
+            )
+        ]
+
+        async def equivalent():
+            for store in stores:
+                for owner in ("a", "b", "missing"):
+                    for limit in (1, 50):
+                        assert await bounded(
+                            store.list_for_owner(owner, limit)
+                        ) == await memory.list_for_owner(owner, limit)
+                assert set(await bounded(store.awaiting())) == set(
+                    await memory.awaiting()
+                )
+                assert (
+                    await bounded(store.deleted_conversation_ids())
+                    == await memory.deleted_conversation_ids()
+                )
+                for conversation in ("z", "a", "b", "missing"):
+                    assert await bounded(
+                        store.is_deleted(conversation)
+                    ) == await memory.is_deleted(conversation)
+                for row in rows:
+                    assert await bounded(
+                        store.conversation_of(row["turn_id"])
+                    ) == await memory.conversation_of(row["turn_id"])
+            async with await psycopg.AsyncConnection.connect(
+                url, row_factory=dict_row
+            ) as conn:
+                cursor = await conn.execute(
+                    sql.SQL("SELECT turn_id, deleted_at FROM {}").format(
+                        sql.Identifier(table)
+                    )
+                )
+                assert {
+                    row["turn_id"]: row["deleted_at"] for row in await cursor.fetchall()
+                } == {turn: row["deleted_at"] for turn, row in memory.rows.items()}
+
+        try:
+            for row in rows:
+                for store in (memory, stores[0]):
+                    await bounded(store.add(**row))
+                    await bounded(store.set_awaiting(row["turn_id"], True))
+            await equivalent()
+            for conversation, owner, timestamp, count in (
+                ("z", "b", "2026-10-13T00:00:00+00:00", 0),
+                ("missing", "a", "2026-10-13T00:00:00+00:00", 0),
+                ("z", "a", "2026-10-13T00:00:00+00:00", 3),
+                ("z", "a", "2026-10-14T00:00:00+00:00", 3),
+                ("b", "b", "2026-10-13T00:00:00+00:00", 1),
+                ("a", "a", "2026-10-13T00:00:00+00:00", 1),
+            ):
+                assert (
+                    await memory.mark_deleted(conversation, owner, timestamp) == count
+                )
+                assert (
+                    await bounded(
+                        stores[0].mark_deleted(conversation, owner, timestamp)
+                    )
+                    == count
+                )
+                await equivalent()
+            assert await memory.deleted_conversation_ids() == ["a", "b", "z"]
+            for ids, count in (([], 0), (["z"], 3), (["z"], 0), (["a", "b"], 2)):
+                assert await memory.delete_conversations(ids) == count
+                assert await bounded(stores[0].delete_conversations(ids)) == count
+                await equivalent()
+            assert await bounded(stores[1].is_deleted("z")) is False
+        finally:
+            await ddl(
+                url, sql.SQL("DROP TABLE IF EXISTS {}").format(sql.Identifier(table))
+            )
+
+    try:
+        asyncio.run(exercise())
+    except Exception:  # noqa: BLE001 — conceal transport details
+        raise RuntimeError("M5 soft-delete turn index verification failed") from None
 
 
 class State(TypedDict):

@@ -24,6 +24,11 @@ class TurnIndex(Protocol):
     async def conversation_of(self, turn_id) -> str | None: ...
     async def set_awaiting(self, turn_id, awaiting: bool) -> None: ...
     async def awaiting(self) -> list[tuple[str, str]]: ...
+    async def mark_deleted(
+        self, conversation_id: str, owner_sub: str, deleted_at: str
+    ) -> int: ...
+    async def is_deleted(self, conversation_id: str) -> bool: ...
+    async def deleted_conversation_ids(self) -> list[str]: ...
     async def delete_conversations(self, conversation_ids) -> int: ...
 
 
@@ -40,13 +45,14 @@ class InMemoryTurnIndex:
                 "turn_index": turn_index,
                 "created_at": created_at,
                 "awaiting": False,
+                "deleted_at": None,
             },
         )
 
     async def list_for_owner(self, owner_sub: str, limit: int) -> list[dict]:
         groups = {}
         for row in self.rows.values():
-            if row["owner_sub"] != owner_sub:
+            if row["owner_sub"] != owner_sub or row["deleted_at"] is not None:
                 continue
             ident = row["conversation_id"]
             group = groups.setdefault(
@@ -74,8 +80,37 @@ class InMemoryTurnIndex:
         return [
             (key, row["conversation_id"])
             for key, row in self.rows.items()
-            if row["awaiting"]
+            if row["awaiting"] and row["deleted_at"] is None
         ]
+
+    async def mark_deleted(
+        self, conversation_id: str, owner_sub: str, deleted_at: str
+    ) -> int:
+        count = 0
+        for row in self.rows.values():
+            if (
+                row["conversation_id"] == conversation_id
+                and row["owner_sub"] == owner_sub
+            ):
+                if row["deleted_at"] is None:
+                    row["deleted_at"] = deleted_at
+                count += 1
+        return count
+
+    async def is_deleted(self, conversation_id: str) -> bool:
+        return any(
+            row["conversation_id"] == conversation_id and row["deleted_at"] is not None
+            for row in self.rows.values()
+        )
+
+    async def deleted_conversation_ids(self) -> list[str]:
+        return sorted(
+            {
+                row["conversation_id"]
+                for row in self.rows.values()
+                if row["deleted_at"] is not None
+            }
+        )
 
     async def delete_conversations(self, conversation_ids):
         keys = {
@@ -116,6 +151,11 @@ class PostgresTurnIndex:
                         )
                         await conn.execute(
                             sql.SQL(
+                                "ALTER TABLE {} ADD COLUMN IF NOT EXISTS deleted_at TEXT"
+                            ).format(self.table)
+                        )
+                        await conn.execute(
+                            sql.SQL(
                                 "CREATE INDEX IF NOT EXISTS {} ON {} (conversation_id)"
                             ).format(
                                 sql.Identifier(
@@ -145,7 +185,7 @@ class PostgresTurnIndex:
         async def operation(conn):
             cursor = await conn.execute(
                 sql.SQL(
-                    "SELECT conversation_id, max(created_at) AS last_created_at, count(*) AS turn_count FROM {} WHERE owner_sub = %s GROUP BY conversation_id ORDER BY last_created_at DESC, conversation_id ASC LIMIT %s"
+                    "SELECT conversation_id, max(created_at) AS last_created_at, count(*) AS turn_count FROM {} WHERE owner_sub = %s AND deleted_at IS NULL GROUP BY conversation_id ORDER BY last_created_at DESC, conversation_id ASC LIMIT %s"
                 ).format(self.table),
                 (owner_sub, limit),
             )
@@ -181,13 +221,51 @@ class PostgresTurnIndex:
         async def operation(conn):
             cursor = await conn.execute(
                 sql.SQL(
-                    "SELECT turn_id, conversation_id FROM {} WHERE awaiting = TRUE"
+                    "SELECT turn_id, conversation_id FROM {} WHERE awaiting = TRUE AND deleted_at IS NULL"
                 ).format(self.table)
             )
             return [
                 (row["turn_id"], row["conversation_id"])
                 for row in await cursor.fetchall()
             ]
+
+        return await self._run(operation)
+
+    async def mark_deleted(
+        self, conversation_id: str, owner_sub: str, deleted_at: str
+    ) -> int:
+        async def operation(conn):
+            cursor = await conn.execute(
+                sql.SQL(
+                    "UPDATE {} SET deleted_at = COALESCE(deleted_at, %s) WHERE conversation_id = %s AND owner_sub = %s"
+                ).format(self.table),
+                (deleted_at, conversation_id, owner_sub),
+            )
+            return cursor.rowcount
+
+        return await self._run(operation)
+
+    async def is_deleted(self, conversation_id: str) -> bool:
+        async def operation(conn):
+            cursor = await conn.execute(
+                sql.SQL(
+                    "SELECT EXISTS (SELECT 1 FROM {} WHERE conversation_id = %s AND deleted_at IS NOT NULL) AS deleted"
+                ).format(self.table),
+                (conversation_id,),
+            )
+            row = await cursor.fetchone()
+            return row["deleted"]
+
+        return await self._run(operation)
+
+    async def deleted_conversation_ids(self) -> list[str]:
+        async def operation(conn):
+            cursor = await conn.execute(
+                sql.SQL(
+                    "SELECT DISTINCT conversation_id FROM {} WHERE deleted_at IS NOT NULL ORDER BY conversation_id ASC"
+                ).format(self.table)
+            )
+            return [row["conversation_id"] for row in await cursor.fetchall()]
 
         return await self._run(operation)
 
