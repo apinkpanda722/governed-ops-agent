@@ -11,16 +11,16 @@
 - `/web/AGENTS.md`(웹 규칙), `/src/govops/api/tasks.py`(`_view`: 요청자 본인 뷰와 승인함 행의 키)
 - `/src/govops/agent/graph.py`(step 6 산출물: `stop_reason == "max_steps_finalized"`)
 - `/web/src/lib/server/project.ts`·`project.test.ts`, `/web/src/lib/types.ts`(`TurnView`, 턴을 만드는 `conversationView` 함수), `/web/src/lib/messages.ts`, `/web/src/lib/testids.ts`, `/web/src/components/turn-view.tsx`, `/web/src/components/thread.test.tsx`, `/web/src/ui-boundary.test.ts`
-- `/tests/test_api_ui_contract.py`(`safe(..., keys={"tool_steps", "approval_method", "effect_at"})`), `/tests/test_api_conversation_views.py`(`stop_reason` 비노출 단언 3곳)
+- `/tests/test_api_ui_contract.py`(`safe(..., keys={"tool_steps", "approval_method", "effect_at"})`), `/tests/test_api_conversation_views.py`(`stop_reason` 비노출 단언 3곳), `/tests/test_api_tasks.py`(`test_tasks_identity_fields_and_secrecy`의 기대 dict), `/tests/test_obs_instrument.py`(`test_concurrent_tasks_and_cancellation`의 키 집합)
 
 이전 step에서 만들어진 코드를 꼼꼼히 읽고, 설계 의도를 이해한 뒤 작업하라.
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/api/tasks.py`, `tests/test_api_ui_contract.py`, `tests/test_api_conversation_views.py`, `web/src/lib/server/project.ts`, `web/src/lib/server/project.test.ts`, `web/src/lib/types.ts`, `web/src/lib/messages.ts`, `web/src/lib/testids.ts`, `web/src/components/turn-view.tsx`, `web/src/components/thread.test.tsx`, `web/src/ui-boundary.test.ts`, `tests/test_web_sync.py`. TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/api/tasks.py`, `tests/test_api_ui_contract.py`, `tests/test_api_conversation_views.py`, `web/src/lib/server/project.ts`, `web/src/lib/server/project.test.ts`, `web/src/lib/types.ts`, `web/src/lib/messages.ts`, `web/src/lib/testids.ts`, `web/src/components/turn-view.tsx`, `web/src/components/thread.test.tsx`, `web/src/ui-boundary.test.ts`, `tests/test_web_sync.py`, `tests/test_api_tasks.py`, `tests/test_obs_instrument.py`. TDD.
 
 열람 금지 경로: `data/interim/`
-수정 허용 경로: `src/govops/api/tasks.py`, `tests/test_api_ui_contract.py`, `tests/test_api_conversation_views.py`, `web/src/lib/server/project.ts`, `web/src/lib/server/project.test.ts`, `web/src/lib/types.ts`, `web/src/lib/messages.ts`, `web/src/lib/testids.ts`, `web/src/components/turn-view.tsx`, `web/src/components/thread.test.tsx`, `web/src/ui-boundary.test.ts`, `tests/test_web_sync.py`
+수정 허용 경로: `src/govops/api/tasks.py`, `tests/test_api_ui_contract.py`, `tests/test_api_conversation_views.py`, `web/src/lib/server/project.ts`, `web/src/lib/server/project.test.ts`, `web/src/lib/types.ts`, `web/src/lib/messages.ts`, `web/src/lib/testids.ts`, `web/src/components/turn-view.tsx`, `web/src/components/thread.test.tsx`, `web/src/ui-boundary.test.ts`, `tests/test_web_sync.py`, `tests/test_api_tasks.py`, `tests/test_obs_instrument.py`
 
 열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/` 아래 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드와 테스트는 `data/interim/`을 읽지 않는다.
 
@@ -48,6 +48,7 @@
 - BFF: `limited`가 불리언이 아니면 버려지고 승인함 행에서는 업스트림이 보내도 버려진다. 센티널 키가 투영 결과에 없다. 투영 소스에 금지 키 이름이 없다는 기존 소스 스캔(`project.test.ts`, `ui-boundary.test.ts`)이 통과한다.
 - UI(`thread.test.tsx`): `limited` 턴에서 안내 문구가 보이고, 같은 답변이 `limited` 없이는 보이지 않으며(대조), `failed/max_steps`는 기존 문구만 보인다. 안내 요소가 **실제로 존재함**을 단언한다(FP-069).
 - 동기화: `tests/test_web_sync.py`에 `LIMITED_NOTICE`가 `MAX_STEPS`와 같은 단계 수를 말한다는 테스트를 **더하기만** 한다(기존 `test_web_max_steps_text_matches_python`과 같은 형태: `f"조사 단계 한도({MAX_STEPS}단계)에서 멈추고" in source`). `web/src/ui-boundary.test.ts`는 새 이름이 금지 패턴에 걸릴 때만 고친다(~에 한함, 단언 약화 금지).
+- 기존 소비자(**~에 한함, 단언 약화 금지**): `tests/test_api_tasks.py::test_tasks_identity_fields_and_secrecy`의 기대 dict와 `tests/test_obs_instrument.py::test_concurrent_tasks_and_cancellation`의 키 집합에 `limited`(완료 뷰는 `False`)를 정확히 더하는 것에 한한다. 정확 일치 비교를 부분 집합·포함 비교로 바꾸지 않는다. 두 파일의 다른 테스트는 수정하지 않는다.
 
 **사용자 실행(이 step에서 실행하지 않는다)**: 없음. 화면 확인은 phase 머지 뒤 사용자가 한다.
 
