@@ -24,6 +24,7 @@ export function projectTurn(value: unknown): Obj {
   const out: Obj = strings(t, ["turn_id"], id);
   if (!out.turn_id && id(t.task_id)) out.turn_id = t.task_id;
   if (typeof t.status === "string" && statuses.includes(t.status)) out.status = t.status;
+  if (typeof t.limited === "boolean") out.limited = t.limited;
   Object.assign(out, strings(t, ["answer", "retry_hint", "expires_at"]));
   if (!["blocked_input", "blocked"].includes(String(t.status)) && text(t.request)) out.request = t.request;
   if (Array.isArray(t.cited_doc_ids)) out.cited_doc_ids = t.cited_doc_ids.filter(id);

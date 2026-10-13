@@ -2,6 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
+import { conversationView, type ConversationView } from "../types";
 import { projectConversation, projectApprovals, projectTurn, projectConversationList, projectDeleted } from "./project";
 test("allowlist preserves useful fields without internal data", () => {
  const token=randomBytes(32).toString("base64url");
@@ -86,4 +87,25 @@ test("conversation list validates complete rows and limits allowed fields", () =
  expect(Object.keys((view.conversations as object[])[0]).sort()).toEqual(Object.keys(row).sort());
  expect(projectConversationList({conversations:Array.from({length:51},()=>row)}).conversations).toHaveLength(50);
  for(const value of [{},null,{conversations:{}}]) expect(projectConversationList(value)).toEqual({});
+});
+
+
+test("limited passes through requester projection and presentation copy only as boolean", () => {
+ for(const limited of [true,false]) {
+ const view=projectConversation({turn:{status:"completed",answer:"답변",limited,private:"SENTINEL"}});
+ expect(view).toEqual({turn:{status:"completed",answer:"답변",limited}});
+ expect(conversationView(view as ConversationView).turn?.limited).toBe(limited);
+ expect(JSON.stringify(view)).not.toContain("SENTINEL");
+ }
+ for(const limited of [undefined,null,0,1,"true","false",[],{},"SENTINEL"]) {
+ const view=projectConversation({turn:{status:"completed",answer:"답변",limited}});
+ expect(view).toEqual({turn:{status:"completed",answer:"답변"}});
+ expect(conversationView({history:[],turn:{limited}} as ConversationView).turn).not.toHaveProperty("limited");
+ }
+});
+test.each([true,false,"SENTINEL"])("approval projection always discards limited %s", limited => {
+ const view=projectApprovals({approvals:[{task_id:"a".repeat(32),limited,private:"SENTINEL"}]});
+ expect(view).toEqual({approvals:[{turn_id:"a".repeat(32)}]});
+ expect(JSON.stringify(view)).not.toContain("limited");
+ expect(JSON.stringify(view)).not.toContain("SENTINEL");
 });

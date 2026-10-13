@@ -4,14 +4,15 @@ from datetime import timedelta
 import httpx
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
-from test_agent_graph import FakeChat, FakeTools, async_test, reply
+from test_agent_graph import FakeChat, FakeTools, async_test, call, reply
 from test_api_conversations import write_service
 
-from govops.agent.graph import build_graph
+from govops.agent.graph import MAX_STEPS, build_graph, get_task
 from govops.api.app import create_app
 from govops.api.sessions import SessionStore
 from govops.api.tasks import TaskService
 from govops.gateway.client import GuardrailBlocked
+from govops.tools.registry import ToolOutcome
 
 
 def safe(value, *, keys=(), strings=()):
@@ -157,7 +158,7 @@ async def test_approvals_policy_ownership_and_execution(tmp_path):
         assert {item["task_id"] for item in items} == {ident}
         safe(
             items,
-            keys={"history", "request", "answer", "messages"},
+            keys={"history", "request", "answer", "messages", "limited"},
             strings={"원문 비공개"},
         )
         result = await client.post(
@@ -237,7 +238,7 @@ async def test_approval_hints_checks_expiry_sort_and_self(tmp_path):
             "approvals"
         ]
         assert {i["task_id"] for i in items} == {ids[3]}
-        safe(items, keys={"history", "request", "answer", "messages"})
+        safe(items, keys={"history", "request", "answer", "messages", "limited"})
     await service.aclose()
 
 
@@ -279,3 +280,67 @@ async def test_post_detection_is_not_in_conversation_response():
             "masked",
         }
     await service.aclose()
+
+
+@pytest.mark.parametrize("mode", ["finalized", "normal", "failed"])
+@async_test
+async def test_limited_conversation_view_without_internal_reason(mode):
+    final_answer = "모은 근거로 답변 [syn-one]"
+    if mode == "normal":
+        chat, tools = FakeChat(reply(final_answer)), FakeTools()
+    else:
+        chat = FakeChat(
+            *(reply(calls=[call(id=str(i))]) for i in range(MAX_STEPS)),
+            *([reply(final_answer)] if mode == "finalized" else []),
+        )
+        tools = FakeTools(
+            *(ToolOutcome({}, mode == "failed", ("syn-one",)) for _ in range(MAX_STEPS))
+        )
+    service = TaskService(
+        build_graph(chat, tools, InMemorySaver(), exploration_budget=None)
+    )
+    client, auth = client_for(service)
+    async with client:
+        ident = (
+            await client.post(
+                "/conversations", json={"request": "합성 조회"}, headers=auth("a")
+            )
+        ).json()["conversation_id"]
+        await settled(service)
+        state = await get_task(service.graph, ident)
+        assert state["status"] == ("failed" if mode == "failed" else "completed")
+        if mode == "finalized":
+            assert state["stop_reason"] == "max_steps_finalized"
+            assert len(chat.calls) == MAX_STEPS + 1
+        response = await client.get("/conversations/" + ident, headers=auth("a"))
+        assert response.status_code == 200
+        view = response.json()
+        assert view["turn"]["limited"] is (mode == "finalized")
+        if mode == "failed":
+            assert view["turn"]["error"] == "max_steps"
+        else:
+            assert view["turn"]["answer"] == final_answer
+        for result in (
+            response,
+            await client.get("/tasks/" + ident, headers=auth("a")),
+        ):
+            assert result.status_code == 200
+            assert "stop_reason" not in result.text
+            assert "max_steps_finalized" not in result.text
+        assert (await client.get("/tasks/" + ident, headers=auth("a"))).json()[
+            "limited"
+        ] is (mode == "finalized")
+    await service.aclose()
+
+
+@pytest.mark.parametrize(
+    "status", ["running", "awaiting_approval", "completed", "failed"]
+)
+def test_limited_requires_completed_and_is_requester_only(status):
+    service = TaskService(None)
+    state = {"status": status, "user_id": "a", "stop_reason": "max_steps_finalized"}
+    view = service._view(state, "a" * 32)
+    assert view["limited"] is (status == "completed")
+    approval = service._view(state, "a" * 32, approval=True)
+    assert "limited" not in approval
+    safe([view, approval], keys={"stop_reason"}, strings={"max_steps_finalized"})

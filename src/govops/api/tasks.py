@@ -288,6 +288,8 @@ class TaskService:
         if not approval:
             view.update(
                 answer=state.get("answer"),
+                limited=state["status"] == "completed"
+                and state.get("stop_reason") == "max_steps_finalized",
                 cited_doc_ids=state.get("cited_doc_ids", []),
                 observed_doc_ids=state.get("observed_ids", []),
                 steps=state.get("steps", 0),

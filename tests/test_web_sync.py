@@ -54,3 +54,10 @@ def test_web_delete_confirm_notice_matches_approved_design():
     assert f'DELETE_CONFIRM_NOTICE = "{notice}"' in web
     design = (ROOT / "docs/M6_DESIGN_DRAFT.md").read_text()
     assert notice.split("? ", 1)[1] in design
+
+
+def test_web_limited_notice_steps_match_python():
+    from govops.agent.graph import MAX_STEPS
+
+    source = (ROOT / "web/src/lib/messages.ts").read_text()
+    assert f"조사 단계 한도({MAX_STEPS}단계)에서 멈추고" in source

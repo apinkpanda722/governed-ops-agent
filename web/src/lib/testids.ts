@@ -13,6 +13,7 @@ export const testids = {
     turnRequest: "turn-request",
     turnStatus: "turn-status",
     turnAnswer: "turn-answer",
+    turnLimited: "turn-limited",
     turnCitedDoc: "turn-cited-doc",
     turnError: "turn-error",
     blockedCard: "blocked-card",
