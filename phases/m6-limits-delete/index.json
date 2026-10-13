@@ -61,16 +61,17 @@
     {
       "step": 4,
       "name": "delete-route-entrypoint",
-      "status": "error",
+      "status": "completed",
       "started_at": "2026-10-13T16:08:47+0900",
-      "error_message": "[3회 시도 후 실패] 결과 JSON을 받지 못함 (exit 1): 2026-10-13T07:09:57.310141Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 426 Upgrade Required, url: ws://127.0.0.1:11434/api/codex/v1/responses\n2026-10-13T07:09:57.359789Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 426 Upgrade Required, url: ws://127.0.0.1:11434/api/codex/v1/responses\n",
       "failed_at": "2026-10-13T16:10:33+0900",
       "usage": {
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "attempts": 3
-      }
+        "input_tokens": 4603547,
+        "cached_input_tokens": 4427392,
+        "output_tokens": 11474,
+        "attempts": 1
+      },
+      "summary": "DELETE 대화 라우트(200 JSON)와 실제 진입점·lifespan 경유 권한 프로브 R1~R6/S1~S4·E1~E8을 추가했으며 make verify 전체 통과(3613 passed, 7 skipped).",
+      "completed_at": "2026-10-13T16:48:00+0900"
     },
     {
       "step": 5,
