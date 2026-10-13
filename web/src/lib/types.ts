@@ -25,6 +25,7 @@ export type Draft = {
 };
 export type ToolStep = { name: string; ok: boolean };
 export type TurnView = {
+    limited?: boolean;
     tool_steps?: ToolStep[];
     approval_method?: "approve" | "edit_approve";
     effect_at?: string;
@@ -83,6 +84,7 @@ export function conversationView(value: ConversationView): ConversationView {
     const t = value.turn;
     const turn: TurnView | undefined = t ? {
         turn_id: t.turn_id, status: t.status,
+        ...(typeof t.limited === "boolean" ? {limited: t.limited} : {}),
         ...(Array.isArray(t.tool_steps) ? {tool_steps: t.tool_steps.flatMap(item => {
             const step = asObject(item);
             return typeof step.name === "string" && /^[a-z_]{1,40}$/.test(step.name) && typeof step.ok === "boolean" ? [{name: step.name, ok: step.ok}] : [];

@@ -43,3 +43,21 @@ def test_web_approved_run_notice_matches_graph():
     web = (ROOT / "web/src/lib/messages.ts").read_text()
     assert f'"completed": "{notice}"' in graph
     assert f'APPROVED_RUN_NOTICE = "{notice}"' in web
+
+
+def test_web_delete_confirm_notice_matches_approved_design():
+    notice = (
+        "대화를 삭제할까요? 원문은 다음 정리 때 제거되고, "
+        "감사 기록과 이미 발송된 효과는 남는다."
+    )
+    web = (ROOT / "web/src/lib/messages.ts").read_text()
+    assert f'DELETE_CONFIRM_NOTICE = "{notice}"' in web
+    design = (ROOT / "docs/M6_DESIGN_DRAFT.md").read_text()
+    assert notice.split("? ", 1)[1] in design
+
+
+def test_web_limited_notice_steps_match_python():
+    from govops.agent.graph import MAX_STEPS
+
+    source = (ROOT / "web/src/lib/messages.ts").read_text()
+    assert f"조사 단계 한도({MAX_STEPS}단계)에서 멈추고" in source

@@ -22,7 +22,10 @@ async def run_prune(
     apply: bool,
 ) -> PruneResult:
     """Record intent before deleting; remove only successfully deleted indexes."""
-    result = await prune_checkpoints(saver, now=now, apply=False)
+    deleted_conversation_ids = await turns.deleted_conversation_ids()
+    result = await prune_checkpoints(
+        saver, now=now, apply=False, deleted_conversation_ids=deleted_conversation_ids
+    )
     if not apply or not result.candidates or audit is None:
         return result
     # Append errors propagate before the only deletion branch (fail-closed).
@@ -33,7 +36,9 @@ async def run_prune(
         pruned_count=len(result.candidates),
         cutoff=result.cutoff,
     )
-    result = await prune_checkpoints(saver, now=now, apply=True)
+    result = await prune_checkpoints(
+        saver, now=now, apply=True, deleted_conversation_ids=deleted_conversation_ids
+    )
     if result.deleted_ids:
         await turns.delete_conversations(result.deleted_ids)
     return result

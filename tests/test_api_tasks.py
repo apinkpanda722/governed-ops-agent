@@ -90,6 +90,7 @@ async def test_tasks_identity_fields_and_secrecy(caplog):
             "task_id": task_id,
             "status": "completed",
             "answer": "[syn-one] 답변",
+            "limited": False,
             "cited_doc_ids": ["syn-one"],
             "observed_doc_ids": ["syn-one", "syn-unused"],
             "steps": 2,

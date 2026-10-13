@@ -99,7 +99,7 @@ def test_tool_steps_private_and_bounded():
     safe(view, strings={"ARG-SENTINEL", "RESULT-SENTINEL", "DOC-SENTINEL"})
     safe(
         service._view(state, "a" * 32, approval=True),
-        keys={"tool_steps", "approval_method", "effect_at"},
+        keys={"tool_steps", "approval_method", "effect_at", "limited"},
     )
 
 
@@ -196,10 +196,10 @@ async def test_effect_fields_and_approver_privacy(tmp_path, decision):
     await settled(service)
     rows = (await service.approvals(approver))["approvals"]
     assert len(rows) == 1
-    safe(rows, keys={"tool_steps", "approval_method", "effect_at"})
+    safe(rows, keys={"tool_steps", "approval_method", "effect_at", "limited"})
     other = await service.get(approver, ident)
     assert other is not None
-    safe(other, keys={"tool_steps", "approval_method", "effect_at"})
+    safe(other, keys={"tool_steps", "approval_method", "effect_at", "limited"})
     await service.approve(
         approver,
         ident,

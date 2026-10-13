@@ -24,6 +24,7 @@ export function projectTurn(value: unknown): Obj {
   const out: Obj = strings(t, ["turn_id"], id);
   if (!out.turn_id && id(t.task_id)) out.turn_id = t.task_id;
   if (typeof t.status === "string" && statuses.includes(t.status)) out.status = t.status;
+  if (typeof t.limited === "boolean") out.limited = t.limited;
   Object.assign(out, strings(t, ["answer", "retry_hint", "expires_at"]));
   if (!["blocked_input", "blocked"].includes(String(t.status)) && text(t.request)) out.request = t.request;
   if (Array.isArray(t.cited_doc_ids)) out.cited_doc_ids = t.cited_doc_ids.filter(id);
@@ -67,6 +68,9 @@ export function projectCreated(value: unknown): Obj {
   if (typeof v.turn_index === "number" && Number.isInteger(v.turn_index) && v.turn_index >= 0) out.turn_index = v.turn_index;
   if (typeof v.status === "string" && statuses.includes(v.status)) out.status = v.status;
   return out;
+}
+export function projectDeleted(value: unknown): { deleted: boolean } {
+  return { deleted: object(value).deleted === true };
 }
 export function projectApprovals(value: unknown): Obj {
   const v = object(value);

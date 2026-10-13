@@ -3,7 +3,9 @@ import { afterEach, expect, test, vi } from "vitest";
 import { Thread } from "./thread";
 import { Composer } from "./composer";
 import { useConversation } from "@/hooks/use-conversation";
-import type { ConversationView } from "@/lib/types";
+import { conversationView, type ConversationView } from "@/lib/types";
+import { LIMITED_NOTICE } from "@/lib/messages";
+import { testids } from "@/lib/testids";
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 function view(status = "completed", extra = {}): ConversationView { return { conversation_id: "id", history: [], turn: { turn_id: "t", status, answer: "답변", cited_doc_ids: ["syn-doc"], ...extra } }; }
 function Harness() { const c = useConversation("id"); return <><Thread view={c.view} blockedCards={c.blockedCards}/><Composer onSubmit={c.submitTurn}/></>; }
@@ -77,4 +79,35 @@ test("fixed approval notice is hidden only while the sent card shows, other answ
     expect(screen.getByTestId("sent-card")).toBeDefined(); expect(screen.getByTestId("turn-answer").textContent).toContain("별도 안내입니다");
     rerender(<Thread view={view("completed", { answer: "승인된 내용대로 실행했습니다" })}/>);
     expect(screen.queryByTestId("sent-card")).toBeNull(); expect(screen.getByTestId("turn-answer").textContent).toContain("승인된 내용대로 실행했습니다");
+});
+
+
+test("completed limited answer has the fixed notice below it, same answer without limited does not", () => {
+ const notice="조사 단계 한도(8단계)에서 멈추고 모은 근거로 답했습니다. 일부 내용이 빠졌을 수 있습니다.";
+ expect(LIMITED_NOTICE).toBe(notice);
+ const {rerender}=render(<Thread view={conversationView(view("completed",{limited:true}))}/>);
+ const answer=screen.getByTestId(testids.turnAnswer);
+ const element=screen.getByTestId(testids.turnLimited);
+ expect(element).toBeDefined();
+ expect(element.textContent).toBe(notice);
+ expect(answer.textContent).toBe("답변");
+ expect(answer.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ for(const extra of [{},{limited:false}]) {
+ rerender(<Thread view={conversationView(view("completed",extra))}/>);
+ expect(screen.getByTestId(testids.turnAnswer).textContent).toBe("답변");
+ expect(screen.queryByTestId(testids.turnLimited)).toBeNull();
+ expect(screen.queryByText(notice)).toBeNull();
+ }
+});
+test.each([undefined,false,true])("failed max steps shows only the established text even with limited %s", limited => {
+ render(<Thread view={conversationView(view("failed",{error:"max_steps",limited}))}/>);
+ expect(screen.getByTestId(testids.turnError).textContent).toBe("조사 단계 한도(8단계)에 도달했습니다. 질문을 더 구체적으로 나누어 다시 요청해 주세요.");
+ expect(screen.queryByTestId(testids.turnAnswer)).toBeNull();
+ expect(screen.queryByTestId(testids.turnLimited)).toBeNull();
+ expect(screen.queryByText(LIMITED_NOTICE)).toBeNull();
+});
+test.each(["running","awaiting_approval","rejected","expired","blocked_input","blocked","interrupted"])("limited notice is absent for status %s", status => {
+ render(<Thread view={view(status,{limited:true})}/>);
+ expect(screen.queryByTestId(testids.turnLimited)).toBeNull();
+ expect(screen.queryByText(LIMITED_NOTICE)).toBeNull();
 });

@@ -10,7 +10,7 @@ test("e2e uses isolated loopback servers without sensitive artifacts", () => {
   expect(config.match(/reuseExistingServer: false/g)).toHaveLength(2);
   expect(read("../next.config.ts")).not.toMatch(/distDir/);
   const specs = readdirSync(resolve(root, "../e2e")).filter(name => name.endsWith(".spec.ts"));
-  expect(specs).toHaveLength(2);
+  expect(specs.sort()).toEqual(["approval-flow.spec.ts", "blocked-and-isolation.spec.ts", "delete-conversation.spec.ts"]);
   for (const name of [...specs, "support.ts"]) {
     const source = read(`../e2e/${name}`);
     expect(source).not.toMatch(/console\.|storageState|waitForTimeout|data-testid|\b(?:trace|screenshot|video)\s*:/);

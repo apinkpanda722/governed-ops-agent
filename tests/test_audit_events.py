@@ -39,6 +39,7 @@ CASES = {
         "pruned_count": 1,
         "cutoff": "2026-10-01T12:34:56+00:00",
     },
+    "conversation.deleted": {},
 }
 BUNDLE = {
     "guardrail_pre": "allow",
@@ -55,7 +56,7 @@ def sink(request, tmp_path):
 
 def emit(sink, event, fields, **identity):
     defaults = {"task_id": uuid4().hex, "actor_sub": "demo-platform-g3"}
-    if event in CASES and event != "model.call":
+    if event in CASES and event not in {"model.call", "conversation.deleted"}:
         defaults = {"task_id": None, "actor_sub": "system"}
     return sink.append(event, **(defaults | identity), **fields)
 
@@ -78,7 +79,7 @@ def test_required_and_undefined_fields(sink, event):
 @pytest.mark.parametrize("event", [*CASES, "side_effect.attempt"])
 def test_identity(sink, event):
     fields = CASES.get(event, {})
-    system = event in CASES and event != "model.call"
+    system = event in CASES and event not in {"model.call", "conversation.deleted"}
     for task, actor in [
         (None, "system"),
         (None, "demo-platform-g3"),
@@ -317,6 +318,141 @@ def test_invalid_task_identifiers(sink, task_id):
 def test_invalid_actor_identifiers(sink, actor_sub):
     with pytest.raises(AuditWriteError):
         emit(sink, "side_effect.attempt", {}, actor_sub=actor_sub)
+
+
+def test_conversation_deleted_storage_and_signed_chain(tmp_path):
+    from govops.audit.verify import verify_chain
+
+    conversation_id = uuid4().hex
+    actor_sub = "demo-platform-g3"
+    memory = MemoryAuditLog()
+    assert (
+        emit(
+            memory,
+            "conversation.deleted",
+            {},
+            task_id=conversation_id,
+            actor_sub=actor_sub,
+        )
+        == 1
+    )
+    assert memory.records == [
+        {
+            "event": "conversation.deleted",
+            "task_id": conversation_id,
+            "actor_sub": actor_sub,
+        }
+    ]
+    log = AuditLog(tmp_path)
+    emit(log, "side_effect.attempt", {})
+    assert (
+        emit(
+            log,
+            "conversation.deleted",
+            {},
+            task_id=conversation_id,
+            actor_sub=actor_sub,
+        )
+        == 3
+    )
+    emit(log, "chain.anchor", CASES["chain.anchor"])
+    rows = [
+        json.loads(line)
+        for path in sorted(tmp_path.glob("chain-*.jsonl"))
+        for line in path.read_text().splitlines()
+    ]
+    row = rows[2]
+    assert row["event"] == "conversation.deleted"
+    assert row["task_id"] == conversation_id
+    assert row["actor"] == {"sub": actor_sub, "act": "governed-ops-agent"}
+    assert set(row) == {
+        "seq",
+        "ts",
+        "actor",
+        "event",
+        "task_id",
+        "prev_hash",
+        "kid",
+        "hash",
+        "sig",
+    }
+    report = verify_chain(tmp_path, repo_root=tmp_path)
+    assert report.ok
+    assert report.records == 4
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("count", 1),
+        ("conversation_id", "a" * 32),
+        ("deleted_at", None),
+        ("arbitrary", True),
+        ("pruned_count", 0),
+        ("team", "platform"),
+        ("reason", "connect"),
+    ],
+)
+def test_conversation_deleted_rejects_fields(sink, key, value):
+    with pytest.raises(AuditWriteError):
+        emit(sink, "conversation.deleted", {key: value})
+    if isinstance(sink, MemoryAuditLog):
+        assert sink.records == []
+    else:
+        assert not list(sink.directory.glob("chain-*.jsonl"))
+
+
+@pytest.mark.parametrize(
+    "identity",
+    [
+        {"task_id": None},
+        {"actor_sub": "system"},
+        {"task_id": None, "actor_sub": "system"},
+        *[
+            {"task_id": value}
+            for value in [
+                "a" * 31,
+                "a" * 33,
+                "A" * 32,
+                "g" * 32,
+                "a" * 32 + "\n",
+                1,
+                True,
+            ]
+        ],
+        *[
+            {"actor_sub": value}
+            for value in [
+                "requester",
+                "demo-platform",
+                "demo-Platform-g3",
+                "demo-platform-g3\n",
+                None,
+                1,
+                True,
+            ]
+        ],
+    ],
+)
+def test_conversation_deleted_rejects_identifiers(sink, identity):
+    with pytest.raises(AuditWriteError):
+        emit(sink, "conversation.deleted", {}, **identity)
+    if isinstance(sink, MemoryAuditLog):
+        assert sink.records == []
+    else:
+        assert not list(sink.directory.glob("chain-*.jsonl"))
+
+
+def test_conversation_deleted_identifiers_skip_pii(sink, monkeypatch):
+    def forbidden(value):
+        pytest.fail("Conversation identifier invoked PII regex")
+
+    monkeypatch.setattr("govops.audit.log.find_pii", forbidden)
+    rng = random.Random(20261013)
+    identifiers = [rng.randbytes(16).hex() for _ in range(100)]
+    identifiers.append("a" * 21 + "01012345678")
+    for task_id in identifiers:
+        emit(sink, "conversation.deleted", {}, task_id=task_id)
 
 
 @pytest.mark.parametrize("pruned_count", [0, 1, 1_000_000])

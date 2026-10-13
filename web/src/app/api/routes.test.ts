@@ -29,3 +29,9 @@ test("conversation collection exports GET and origin-checked POST", () => {
  for(const method of ["GET","POST"]) expect(source).toMatch(new RegExp("export async function "+method+"\\("));
  expect(source.slice(source.indexOf("export async function POST"))).toMatch(/requireSameOrigin\(request\)/);
 });
+
+test("conversation item exports GET and directly origin-checked DELETE", () => {
+ const source=readFileSync(join(root,"conversations/[id]/route.ts"),"utf8");
+ for(const method of ["GET","DELETE"]) expect(source).toMatch(new RegExp("export async function "+method+"\\("));
+ expect(source.slice(source.indexOf("export async function DELETE"))).toMatch(/requireSameOrigin\(request\)/);
+});

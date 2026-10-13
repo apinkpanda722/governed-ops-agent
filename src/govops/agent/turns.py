@@ -46,6 +46,7 @@ TURN_KEYS: frozenset[str] = frozenset(
         "rejected_edit",
         "effect_result",
         "turn_cost_usd",
+        "turn_read_ok",
         "explored_ids",
         "no_new_info_streak",
     }
@@ -87,6 +88,7 @@ def turn_defaults() -> dict:
         "rejected_edit": None,
         "effect_result": None,
         "turn_cost_usd": 0.0,
+        "turn_read_ok": 0,
         "explored_ids": [],
         "no_new_info_streak": 0,
         "stop_reason": None,

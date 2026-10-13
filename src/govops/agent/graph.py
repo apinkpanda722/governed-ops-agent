@@ -32,7 +32,7 @@ from govops.agent.exploration import (
     exploration_budget_from_env,
 )
 from govops.agent.org_info import org_section
-from govops.agent.prompts import SEND_RULES, SYSTEM_PROMPT
+from govops.agent.prompts import FINALIZE_NOTICE, SEND_RULES, SYSTEM_PROMPT
 from govops.agent.requester import requester_section
 from govops.agent.scope import ScopeIndex, evidence_ids, run_checks
 from govops.agent.turns import build_turn_state
@@ -147,6 +147,7 @@ class AgentState(TypedDict):
     turn_index: int
     request: str
     turn_cost_usd: float
+    turn_read_ok: int
     explored_ids: list[str]
     no_new_info_streak: int
     stop_reason: str | None
@@ -280,15 +281,25 @@ def build_graph(
         }
 
     async def model_body(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
-        if state["steps"] >= MAX_STEPS:
-            return {"status": "failed", "error": "max_steps"}
-        if state.get("turn_cost_usd", 0.0) >= MAX_COST_USD:
-            return {"status": "failed", "error": "max_cost"}
-        steps = state["steps"] + 1
+        finalizing = state["steps"] >= MAX_STEPS
+        if finalizing:
+            if state.get("turn_read_ok", 0) < 1:
+                return {"status": "failed", "error": "max_steps"}
+            if state.get("turn_cost_usd", 0.0) >= MAX_COST_USD:
+                return {"status": "failed", "error": "max_steps"}
+        else:
+            if state.get("turn_cost_usd", 0.0) >= MAX_COST_USD:
+                return {"status": "failed", "error": "max_cost"}
+        steps = state["steps"] if finalizing else state["steps"] + 1
         with span(SpanKind.MODEL_CALL, "agent-primary"):
             try:
                 result = await chat.complete(
-                    messages=state["messages"],
+                    messages=[
+                        *state["messages"],
+                        {"role": "user", "content": FINALIZE_NOTICE},
+                    ]
+                    if finalizing
+                    else state["messages"],
                     tools=definitions,
                     task_id=state["task_id"],
                     user_id=runtime.context.user_id,
@@ -416,6 +427,11 @@ def build_graph(
             "messages": [*state["messages"], message],
             **guardrail_update,
         }
+        if finalizing:
+            if calls or not (content and content.strip()):
+                update.update(status="failed", error="max_steps")
+                return update
+            update["stop_reason"] = "max_steps_finalized"
         if not calls:
             answer = content or ""
             update.update(
@@ -431,6 +447,7 @@ def build_graph(
         messages = list(state["messages"])
         observed = set(state["observed_ids"])
         evidence = set(state.get("evidence_ids", []))
+        turn_read_ok = state.get("turn_read_ok", 0)
         counter = ExplorationCounter.from_state(state)
         for call in messages[-1]["tool_calls"]:
             with span(SpanKind.TOOL_CALL, call["function"]["name"]):
@@ -467,6 +484,8 @@ def build_graph(
                     payload = {"error": {"code": "tool_not_available"}}
                 except Exception:  # noqa: BLE001 — 도구 오류 원문의 자격 증명 노출 방지
                     payload = {"error": {"code": "tool_unavailable"}}
+                if success:
+                    turn_read_ok += 1
                 if exploration_budget is not None and reached_call:
                     counter.observe(exploration_payload)
                 content = json.dumps(payload, ensure_ascii=False)
@@ -489,6 +508,7 @@ def build_graph(
             "messages": messages,
             "observed_ids": sorted(observed),
             "evidence_ids": sorted(evidence),
+            "turn_read_ok": turn_read_ok,
             **counter.to_state(),
         }
         if exploration_budget is not None and counter.exhausted(exploration_budget):

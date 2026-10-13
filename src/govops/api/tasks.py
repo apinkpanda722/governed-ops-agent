@@ -2,7 +2,7 @@
 
 import asyncio
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -21,6 +21,7 @@ from govops.agent.graph import (
 from govops.agent.turns import MAX_TURNS, build_turn_state
 from govops.api.conversations import ConversationError, InMemoryTurnIndex, TurnIndex
 from govops.api.steps import tool_steps
+from govops.audit.log import AuditWriteError
 from govops.obs.trace import set_attributes, trace
 from govops.tools.effects import reconcile_effect
 from govops.tools.outbox import OutboxState
@@ -99,6 +100,8 @@ class TaskService:
         if not _TASK_ID.fullmatch(conversation_id):
             raise ConversationError(404, "conversation_not_found")
         async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            if await self.turns.is_deleted(conversation_id):
+                raise ConversationError(404, "conversation_not_found")
             state = await get_task(self.graph, conversation_id)
             if not state or state["user_id"] != user_id:
                 raise ConversationError(404, "conversation_not_found")
@@ -142,6 +145,48 @@ class TaskService:
             )
             self._launch(conversation_id, turn_id, user_id, request, state)
             return {"conversation_id": conversation_id, "turn_id": turn_id}
+
+    async def delete_conversation(self, user_id, conversation_id) -> dict:
+        if not _TASK_ID.fullmatch(conversation_id):
+            raise ConversationError(404, "conversation_not_found")
+        async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            if await self.turns.is_deleted(conversation_id):
+                raise ConversationError(404, "conversation_not_found")
+            state = await get_task(self.graph, conversation_id)
+            if not state or state["user_id"] != user_id:
+                raise ConversationError(404, "conversation_not_found")
+            running = self._running.get(conversation_id)
+            if (running is not None and not running.done()) or state[
+                "status"
+            ] == "running":
+                raise ConversationError(409, "turn_in_progress")
+            async with self._lock(state["task_id"]):
+                state = await self._expire(conversation_id, state)
+                snapshot = await self.graph.aget_state(self._config(conversation_id))
+                if state["status"] == "awaiting_approval" or any(
+                    task.interrupts for task in snapshot.tasks
+                ):
+                    raise ConversationError(409, "approval_pending")
+                if self.audit is None:
+                    raise ConversationError(500, "audit_write_failed")
+                try:
+                    await asyncio.to_thread(
+                        self.audit.append,
+                        "conversation.deleted",
+                        task_id=conversation_id,
+                        actor_sub=user_id,
+                    )
+                except AuditWriteError:
+                    raise ConversationError(500, "audit_write_failed") from None
+                try:
+                    await self.turns.mark_deleted(
+                        conversation_id,
+                        user_id,
+                        self.clock().astimezone(UTC).isoformat(),
+                    )
+                except Exception:  # noqa: BLE001 — hide storage details
+                    raise ConversationError(500, "delete_failed") from None
+            return {"conversation_id": conversation_id, "deleted": True}
 
     async def _update(self, task_id, values):
         state = await get_task(self.graph, task_id)
@@ -243,6 +288,8 @@ class TaskService:
         if not approval:
             view.update(
                 answer=state.get("answer"),
+                limited=state["status"] == "completed"
+                and state.get("stop_reason") == "max_steps_finalized",
                 cited_doc_ids=state.get("cited_doc_ids", []),
                 observed_doc_ids=state.get("observed_ids", []),
                 steps=state.get("steps", 0),
@@ -393,6 +440,8 @@ class TaskService:
         if not _TASK_ID.fullmatch(conversation_id):
             return None
         async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            if await self.turns.is_deleted(conversation_id):
+                return None
             state = await get_task(self.graph, conversation_id)
             if not state or state["user_id"] != user_id:
                 return None
@@ -404,6 +453,8 @@ class TaskService:
         if not _TASK_ID.fullmatch(conversation_id):
             raise ConversationError(404, "conversation_not_found")
         async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            if await self.turns.is_deleted(conversation_id):
+                raise ConversationError(404, "conversation_not_found")
             state = await get_task(self.graph, conversation_id)
             if not state or state["user_id"] != user_id:
                 raise ConversationError(404, "conversation_not_found")
@@ -431,6 +482,8 @@ class TaskService:
                 self._conv_lock(conversation_id),
                 self._lock(turn_id),
             ):
+                if await self.turns.is_deleted(conversation_id):
+                    continue
                 state = await get_task(self.graph, conversation_id)
                 if not state or state["task_id"] != turn_id:
                     await self.turns.set_awaiting(turn_id, False)
@@ -459,6 +512,8 @@ class TaskService:
             self._conv_lock(conversation_id),
             self._lock(task_id),
         ):
+            if await self.turns.is_deleted(conversation_id):
+                return None
             state = await get_task(self.graph, conversation_id)
             if not state or state["task_id"] != task_id:
                 return None
@@ -491,51 +546,54 @@ class TaskService:
         conversation_id = await self._resolve(task_id)
         if conversation_id is None:
             raise ApprovalError(404)
-        async with (
-            asyncio.timeout(120),
-            self._conv_lock(conversation_id),
-            self._lock(task_id),
-        ):
-            state = await get_task(self.graph, conversation_id)
-            if not state or state["task_id"] != task_id:
+        async with asyncio.timeout(120), self._conv_lock(conversation_id):
+            if await self.turns.is_deleted(conversation_id):
                 raise ApprovalError(404)
-            permission = self._decision(state, user_id)
-            if permission != Decision.ALLOW:
-                raise ApprovalError(403 if permission == Decision.FORBIDDEN else 404)
-            receipt = state.get("approval_receipt")
-            if receipt and state["status"] != "awaiting_approval":
-                if (receipt["draft_sha256"], receipt["decision"]) == (
-                    draft_sha256,
-                    decision,
+            async with self._lock(task_id):
+                state = await get_task(self.graph, conversation_id)
+                if not state or state["task_id"] != task_id:
+                    raise ApprovalError(404)
+                permission = self._decision(state, user_id)
+                if permission != Decision.ALLOW:
+                    raise ApprovalError(
+                        403 if permission == Decision.FORBIDDEN else 404
+                    )
+                receipt = state.get("approval_receipt")
+                if receipt and state["status"] != "awaiting_approval":
+                    if (receipt["draft_sha256"], receipt["decision"]) == (
+                        draft_sha256,
+                        decision,
+                    ):
+                        return 200, receipt["view"]
+                    raise ApprovalError(409)
+                state = await self._expire(conversation_id, state)
+                if (
+                    state["status"] != "awaiting_approval"
+                    or state["draft_sha256"] != draft_sha256
                 ):
-                    return 200, receipt["view"]
-                raise ApprovalError(409)
-            state = await self._expire(conversation_id, state)
-            if (
-                state["status"] != "awaiting_approval"
-                or state["draft_sha256"] != draft_sha256
-            ):
-                raise ApprovalError(409)
-            if not self._checked(state):
-                raise ApprovalError(409)
-            if decision == "edit_approve":
-                try:
-                    apply_edit(Draft(**state["draft"]), edited)
-                except (InvalidEdit, TypeError, ValueError):
-                    raise ApprovalError(422) from None
-            value = {
-                "approver": user_id,
-                "decision": decision,
-                "draft_sha256": draft_sha256,
-            }
-            if edited is not None:
-                value["edited"] = edited
-            execution = asyncio.create_task(
-                self._resume_approval(conversation_id, task_id, state["user_id"], value)
-            )
-            self._running[conversation_id] = execution
-            self._tasks.add(execution)
-            execution.add_done_callback(self._tasks.discard)
+                    raise ApprovalError(409)
+                if not self._checked(state):
+                    raise ApprovalError(409)
+                if decision == "edit_approve":
+                    try:
+                        apply_edit(Draft(**state["draft"]), edited)
+                    except (InvalidEdit, TypeError, ValueError):
+                        raise ApprovalError(422) from None
+                value = {
+                    "approver": user_id,
+                    "decision": decision,
+                    "draft_sha256": draft_sha256,
+                }
+                if edited is not None:
+                    value["edited"] = edited
+                execution = asyncio.create_task(
+                    self._resume_approval(
+                        conversation_id, task_id, state["user_id"], value
+                    )
+                )
+                self._running[conversation_id] = execution
+                self._tasks.add(execution)
+                execution.add_done_callback(self._tasks.discard)
         return await asyncio.shield(execution)
 
     async def _resume_approval(self, conversation_id, task_id, user_id, value):

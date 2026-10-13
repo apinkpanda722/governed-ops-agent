@@ -12,17 +12,17 @@
 - `/src/govops/agent/turns.py`(`CONVERSATION_KEYS`, `TURN_KEYS`, `turn_defaults`, `build_turn_state`), `/src/govops/agent/prompts.py`(`SYSTEM_PROMPT`, `SEND_RULES`)
 - `/src/govops/evalrun/regrade.py`(`n_candidate`, `regrade_run`), `/src/govops/evalrun/explore.py`(`candidate`, `longest_streak`), `/src/govops/eval/observation.py`(`stop_reason` 필드)
 - `/src/govops/replay/llm.py`(`prompt_hash`, `request_key`: 8단계 이후에만 도는 새 호출은 기존 기록의 키를 바꾸지 않는다)
-- `/tests/test_agent_limits.py`(`test_disabled_and_explicit_budget`, `test_cost_exact_limit_before_next_call`), `/tests/test_agent_graph.py`(`FakeChat`, `FakeTools`, 프로필 해시 단언), `/tests/test_agent_turns.py`(키 집합 단언), `/tests/test_evalrun_regrade.py`(`test_n_candidate_excludes_saved_mismatches`)
+- `/tests/test_agent_limits.py`(`test_disabled_and_explicit_budget`, `test_cost_exact_limit_before_next_call`), `/tests/test_agent_graph.py`(`FakeChat`, `FakeTools`, 프로필 해시 단언), `/tests/test_agent_turns.py`(키 집합 단언), `/tests/test_evalrun_regrade.py`(`test_n_candidate_excludes_saved_mismatches`), `/tests/test_obs_instrument.py`(`test_failure_trace`)
 - `/docs/results/hypotheses-m6-finalize.md`(안내문 sha256, 불변식, 사전 등록 — 읽기만 한다), `/docs/results/n-registration-m5.md`(읽기만 한다. 수정하지 않는다)
 
 이전 step에서 만들어진 코드를 꼼꼼히 읽고, 설계 의도를 이해한 뒤 작업하라.
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/agent/graph.py`, `src/govops/agent/turns.py`, `src/govops/agent/prompts.py`, `src/govops/evalrun/regrade.py`, `tests/test_agent_finalize.py`, `tests/test_agent_limits.py`, `tests/test_agent_graph.py`, `tests/test_agent_turns.py`, `tests/test_evalrun_regrade.py`. TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/agent/graph.py`, `src/govops/agent/turns.py`, `src/govops/agent/prompts.py`, `src/govops/evalrun/regrade.py`, `tests/test_agent_finalize.py`, `tests/test_agent_limits.py`, `tests/test_agent_graph.py`, `tests/test_agent_turns.py`, `tests/test_evalrun_regrade.py`, `tests/test_obs_instrument.py`. TDD.
 
 열람 금지 경로: `data/interim/`
-수정 허용 경로: `src/govops/agent/graph.py`, `src/govops/agent/turns.py`, `src/govops/agent/prompts.py`, `src/govops/evalrun/regrade.py`, `tests/test_agent_finalize.py`, `tests/test_agent_limits.py`, `tests/test_agent_graph.py`, `tests/test_agent_turns.py`, `tests/test_evalrun_regrade.py`
+수정 허용 경로: `src/govops/agent/graph.py`, `src/govops/agent/turns.py`, `src/govops/agent/prompts.py`, `src/govops/evalrun/regrade.py`, `tests/test_agent_finalize.py`, `tests/test_agent_limits.py`, `tests/test_agent_graph.py`, `tests/test_agent_turns.py`, `tests/test_evalrun_regrade.py`, `tests/test_obs_instrument.py`
 
 열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/` 아래 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드와 테스트는 `data/interim/`을 읽지 않는다. 회귀 테스트가 `data/results/dev/`·`data/eval/`·`data/seed/`를 읽는 것은 기존 `regrade` 테스트와 같고 이 금지의 대상이 아니다.
 
@@ -80,6 +80,8 @@
 - 해시: `hashlib.sha256(FINALIZE_NOTICE.encode("utf-8")).hexdigest() == "f12f48773bd515212c472c54ace59093d3563419488d5bcd97b96cadf6f1b831"`이고 이 값이 `docs/results/hypotheses-m6-finalize.md`에 같은 문자열로 있다.
 - 8단계 미만의 기존 흐름은 변하지 않는다: 골든 재생 테스트(`test_golden_m3`·`test_regolden`·`test_golden_trace`)와 프로필 해시 단언이 **수정 없이** 통과한다.
 - **`tests/test_agent_limits.py::test_disabled_and_explicit_budget`**: 첫 부분의 설정을 `FakeTools(*(ToolOutcome({}, True, ()) for _ in range(MAX_STEPS)))`처럼 **오류 결과**로 바꾸고 단언(`status == "failed"`, `error == "max_steps"`, `steps == len(chat.calls) == MAX_STEPS`)은 **그대로** 둔다(`exploration_budget=None`). 둘째 부분(`exploration_budget=1`)은 그대로다. 원래 설정(성공 읽기 8개, `exploration_budget=None`, `FakeChat`에 8개의 도구 호출 응답 + 마지막 본문 응답 1개)은 **새 테스트**로 남겨 `status == "completed"`, `stop_reason == "max_steps_finalized"`, `steps == 8`, 모델 호출 9회(`len(chat.calls) == 9`)를 단언한다. 이 변경은 이 테스트의 설정에 한한다.
+- **`tests/test_agent_graph.py::test_max_steps`**(~에 한함, 단언 약화 금지): 이 테스트는 성공 읽기(`ToolOutcome(..., False, ...)`) 8개로 8단계에 도달하므로 새 경로가 9번째 호출을 연다. 단언(`status == "failed"`, `error == "max_steps"`, `steps == MAX_STEPS`, `observed_ids`)을 그대로 두고 설정만 바꾼다: 도구 결과를 오류 결과로 바꿔 단언이 그대로 성립하면 그렇게 한다. `observed_ids` 단언이 오류 결과에서 성립하지 않으면 `FakeChat`에 도구 호출 응답을 하나 더 두어(마지막 호출이 도구를 부르면 `failed/max_steps`다) `len(chat.calls) == MAX_STEPS + 1`로만 고친다.
+- **`tests/test_obs_instrument.py::test_failure_trace[max_steps]`**(~에 한함, 단언 약화 금지): 같은 이유로 `FakeChat`이 8개 응답만 가지면 9번째 호출에서 소진된다. 단언(`result["error"] == "max_steps"`, `records[-1].status == "error"`, `error_code == result["error"]`, `closed == [ident]`)은 그대로 두고 `max_steps` 변형의 설정만 위와 같은 방식으로 바꾼다. `gateway` 변형은 건드리지 않는다.
 - `tests/test_agent_turns.py`: 키 집합 단언의 차이는 정확히 `{"turn_read_ok"}`이다(`turn_defaults()`의 키 집합 == `TURN_KEYS`, `CONVERSATION_KEYS | TURN_KEYS == set(AgentState.__annotations__)` 유지). 다른 키를 더하거나 단언을 느슨하게 하지 않는다.
 
 **사용자 실행(이 step에서 실행하지 않는다)**: 없음. live 확인은 phase 머지 뒤 브라우저에서 사용자가 한다.

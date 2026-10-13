@@ -12,17 +12,17 @@
 - Next 16 문서(`/web/node_modules/next/dist/docs/01-app/` 아래): `01-getting-started/15-route-handlers.md`, `03-api-reference/03-file-conventions/route.md`
 - `/web/src/app/api/conversations/[id]/route.ts`, `/web/src/app/api/conversations/[id]/turns/route.ts`(`requireSameOrigin` 호출 패턴), `/web/src/lib/server/proxy.ts`, `/web/src/lib/server/project.ts`, `/web/src/lib/server/origin.ts`
 - `/web/src/components/conversation-list.tsx`, `/web/src/components/conversation-list-context.tsx`, `/web/src/hooks/use-conversation-list.ts`, `/web/src/lib/bff.ts`, `/web/src/lib/messages.ts`, `/web/src/lib/testids.ts`
-- `/web/src/app/api/routes.test.ts`, `/web/src/app/api/bff.integration.test.ts`, `/web/src/lib/server/project.test.ts`, `/web/src/guards.test.ts`, `/web/src/ui-boundary.test.ts`, `/web/src/components/sidebar.test.tsx`, `/web/src/components/app-shell.test.tsx`, `/web/e2e/support.ts`, `/web/e2e/approval-flow.spec.ts`
+- `/web/src/app/api/routes.test.ts`, `/web/src/app/api/bff.integration.test.ts`, `/web/src/lib/server/project.test.ts`, `/web/src/guards.test.ts`, `/web/src/ui-boundary.test.ts`, `/web/src/components/sidebar.test.tsx`, `/web/src/components/app-shell.test.tsx`, `/web/e2e/support.ts`, `/web/e2e/approval-flow.spec.ts`, `/web/e2e/blocked-and-isolation.spec.ts`, `/web/src/e2e-config.test.ts`
 - 이전 step 산출물: `/src/govops/api/app.py`의 `DELETE /conversations/{conversation_id}`(200, `{conversation_id, deleted}`)
 
 이전 step에서 만들어진 코드를 꼼꼼히 읽고, 설계 의도를 이해한 뒤 작업하라.
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `web/src/app/api/conversations/[id]/route.ts`, `web/src/lib/server/project.ts`, `web/src/lib/server/project.test.ts`, `web/src/app/api/routes.test.ts`, `web/src/app/api/bff.integration.test.ts`, `web/src/components/conversation-list.tsx`, `web/src/components/conversation-list.test.tsx`, `web/src/components/sidebar.test.tsx`, `web/src/components/app-shell.test.tsx`, `web/src/lib/messages.ts`, `web/src/lib/testids.ts`, `web/e2e/delete-conversation.spec.ts`, `tests/test_web_sync.py`. TDD.
+**수정할 파일**(이 목록이 전부다): `web/src/app/api/conversations/[id]/route.ts`, `web/src/lib/server/project.ts`, `web/src/lib/server/project.test.ts`, `web/src/app/api/routes.test.ts`, `web/src/app/api/bff.integration.test.ts`, `web/src/components/conversation-list.tsx`, `web/src/components/conversation-list.test.tsx`, `web/src/components/sidebar.test.tsx`, `web/src/components/app-shell.test.tsx`, `web/src/lib/messages.ts`, `web/src/lib/testids.ts`, `web/e2e/delete-conversation.spec.ts`, `web/src/e2e-config.test.ts`, `tests/test_web_sync.py`. TDD.
 
 열람 금지 경로: `data/interim/`
-수정 허용 경로: `web/src/app/api/conversations/[id]/route.ts`, `web/src/lib/server/project.ts`, `web/src/lib/server/project.test.ts`, `web/src/app/api/routes.test.ts`, `web/src/app/api/bff.integration.test.ts`, `web/src/components/conversation-list.tsx`, `web/src/components/conversation-list.test.tsx`, `web/src/components/sidebar.test.tsx`, `web/src/components/app-shell.test.tsx`, `web/src/lib/messages.ts`, `web/src/lib/testids.ts`, `web/e2e/delete-conversation.spec.ts`, `tests/test_web_sync.py`
+수정 허용 경로: `web/src/app/api/conversations/[id]/route.ts`, `web/src/lib/server/project.ts`, `web/src/lib/server/project.test.ts`, `web/src/app/api/routes.test.ts`, `web/src/app/api/bff.integration.test.ts`, `web/src/components/conversation-list.tsx`, `web/src/components/conversation-list.test.tsx`, `web/src/components/sidebar.test.tsx`, `web/src/components/app-shell.test.tsx`, `web/src/lib/messages.ts`, `web/src/lib/testids.ts`, `web/e2e/delete-conversation.spec.ts`, `web/src/e2e-config.test.ts`, `tests/test_web_sync.py`
 
 열람 금지의 범위: 이 금지는 **Codex 세션이 `data/interim/` 아래 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드와 테스트는 `data/interim/`을 읽지 않는다(웹 코드와 vitest만 다룬다).
 
@@ -50,6 +50,7 @@
 - `routes.test.ts`: 라우트 파일 이름 집합은 그대로(8개)이고 `[id]/route.ts`가 `GET`·`DELETE`를 export하며 `DELETE`가 `requireSameOrigin(request)`를 호출한다는 기존 가드가 통과한다.
 - `project.test.ts`: `projectDeleted`가 `deleted: true`만 통과시키고 센티널 키를 버린다.
 - e2e 스펙 `web/e2e/delete-conversation.spec.ts`: replay 백엔드에서 대화를 만들고 삭제해 목록에서 사라지고 `/c/<id>`가 "대화를 찾을 수 없습니다"를 보이는지, 삭제 확인 문구가 보이는지 확인한다. 이 step에서는 `playwright test --list`(verify에 포함)로 수집만 된다.
+- `web/src/e2e-config.test.ts`(**~에 한함, 단언 약화 금지**): 12–13행의 `expect(specs).toHaveLength(2)`를 **정렬한 스펙 파일 이름의 정확 일치** 단언으로 바꾼다. 기대값은 `["approval-flow.spec.ts", "blocked-and-isolation.spec.ts", "delete-conversation.spec.ts"]`(정렬순) 세 개이고 개수만 늘리는 방식(`toHaveLength(3)`)은 쓰지 않는다. 14–21행의 소스 제약(`console.`·`storageState`·`waitForTimeout`·`data-testid`·`trace|screenshot|video:` 금지, `document.cookie` 금지(`document.cookie.length`만 허용), `cookies(` 사용 시 `.value` 금지, `from "../src/lib/testids"` import 필수, `switchUser` 금지, `getByTestId("…")` 문자열 리터럴 금지)과 `import.meta` 금지 검사는 **그대로 둔다**. 새 스펙 `delete-conversation.spec.ts`가 이 제약을 모두 통과해야 한다(`testids`의 함수로만 요소를 찾고 모달·`waitForTimeout`·`console`을 쓰지 않는다). 이 파일의 다른 테스트는 수정하지 않는다.
 
 **사용자 실행(이 step에서 실행하지 않는다)**: `make e2e-web`(포트 3200·8200·8201이 비어 있고 3100의 `next start` 서버가 꺼져 있어야 한다).
 
