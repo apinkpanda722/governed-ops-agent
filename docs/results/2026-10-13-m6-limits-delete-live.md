@@ -36,7 +36,7 @@
 - `make checkpoint-prune` dry-run: scanned=270 candidates=15 active=0 deleted=0 apply=false. 삭제 표시 대화의 DB 조회는 5개(오늘 만든 대화라 나이 기준으로는 후보가 될 수 없고, 나머지 10개는 나이 기준의 옛 thread로 해석한다. 대화별 분해는 하지 않았다). APPLY는 하지 않았다.
 
 ### e2e-web
-재실행 대기. 첫 실행에서 `delete-conversation.spec.ts`의 `getByRole("alert")`가 Next의 `__next-route-announcer__`(role="alert")와 겹쳐 strict mode violation이 났고, 선택자를 문구 필터로 좁혔다(본 PR).
+PASS: 3개 스펙 통과(approval-flow, isolation, delete-conversation), 삭제 스펙은 로케이터 수정(PR #128의 fix 커밋) 뒤 통과. 수정 전 첫 실행에서는 `getByRole("alert")`가 Next의 `__next-route-announcer__`(role="alert")와 겹쳐 strict mode violation이 났다.
 
 ## 3. 비용 원장과 모델 호출 수
 
