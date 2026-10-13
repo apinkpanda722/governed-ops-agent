@@ -44,6 +44,10 @@ class FakeService:
         self.calls.append("conversation_view")
         return {"conversation_id": conversation_id}
 
+    async def delete_conversation(self, user_id, conversation_id):
+        self.calls.append("delete_conversation")
+        return {"conversation_id": conversation_id, "deleted": True}
+
     async def conversations(self, user_id, limit):
         self.calls.append("conversations")
         return {"conversations": []}
@@ -79,6 +83,7 @@ EXPECTED = {
         "add_turn",
     ),
     ("GET", "/conversations/{conversation_id}"): (None, "conversation_view"),
+    ("DELETE", "/conversations/{conversation_id}"): (None, "delete_conversation"),
     ("GET", "/conversations/{conversation_id}/events"): (None, "progress"),
     ("GET", "/approvals"): (None, "approvals"),
 }

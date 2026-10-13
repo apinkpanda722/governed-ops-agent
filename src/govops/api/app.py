@@ -162,6 +162,17 @@ def create_app(
             except ConversationError as error:
                 raise HTTPException(error.status_code, detail=error.code) from None
 
+        @app.delete("/conversations/{conversation_id}")
+        async def delete_conversation(
+            conversation_id: str,
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
+        ):
+            try:
+                return await tasks.delete_conversation(user_id, conversation_id)
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
+
         @app.get("/conversations/{conversation_id}/events")
         async def conversation_events(
             conversation_id: str,
