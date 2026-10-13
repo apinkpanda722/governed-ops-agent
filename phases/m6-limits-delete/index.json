@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "delete-service",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T15:51:44+0900",
+      "summary": "TaskService 소프트 삭제와 모든 진입점의 삭제 확인, 감사·승인·실패·동시성 테스트 17건을 추가했습니다. make verify 재실행 전체 통과(3597 passed, 7 skipped).",
+      "completed_at": "2026-10-13T16:08:47+0900",
+      "usage": {
+        "input_tokens": 5463964,
+        "cached_input_tokens": 5279488,
+        "output_tokens": 13958,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
