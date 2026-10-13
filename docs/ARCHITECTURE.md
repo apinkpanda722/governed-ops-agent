@@ -218,7 +218,8 @@ stateDiagram-v2
 
 그림의 초안·검사·실행 내부 상태는 처리 단계이며 task 응답의 상태는 `running`·`awaiting_approval`·`completed`·`failed`·`blocked`·`blocked_input`·`rejected`·`expired`·`interrupted`다.
 
-- MAX_STEPS(8)·MAX_COST($0.40) 초과는 턴 단위로 어느 활성 상태에서든 실패(`max_steps`·`max_cost`)로 끝난다(ADR-013).
+- MAX_STEPS(8) 도달 시 이번 턴 성공 읽기 `turn_read_ok >= 1`을 먼저 확인하고, 이어 `turn_cost_usd >= MAX_COST_USD`를 확인한다. 성공 읽기가 없거나 비용 상한이면 마지막 호출을 생략하고 `failed/max_steps`로 끝낸다. 그 밖에는 같은 도구 정의에 고정 안내문을 덧붙여 마지막 답변 호출 1회를 하며 `steps`는 8로 유지한다. 도구 호출이 오거나 본문이 비면 `failed/max_steps`이며 도구 실행·초안 생성은 하지 않는다. 본문만 있으면 `completed`, `stop_reason="max_steps_finalized"`다. 상한 미만의 MAX_COST($0.40) 검사는 기존 `failed/max_cost`를 유지한다(ADR-013·ADR-025).
+- `turn_read_ok`는 턴마다 초기화하며 ID 없는 성공 읽기도 센다. 대화 범위 `evidence_ids`는 마무리 호출 조건에 쓰지 않는다. 마지막 호출도 gateway·Guardrail·비용 원장·성공 모델 감사 경로를 거치며 시스템 프롬프트·도구·프롬프트 해시와 상한 미만 호출은 불변이다. 골든 재기록·dev 재실행은 하지 않고 `max_steps_finalized` 턴은 N 재계산에서 제외한다([사전 등록](results/hypotheses-m6-finalize.md), ADR-025).
 - 탐색 예산(ADR-014): MAX_STEPS와 별도로, `running`에서 새 정보 없는 호출(결과에 이전까지 없던 문서·티켓 ID가 없는 도구 호출)이 N=4회 연속이면 그 턴을 `completed`와 고정 답변 "요청하신 정보를 찾을 수 없습니다."로 끝내고 관측 필드 `stop_reason=exploration_exhausted`를 남긴다(화면 비노출). N은 공식 dev 실행 전체의 성공 task별 최대 연속 무정보 호출 수의 최댓값 + 1이며 `docs/results/n-registration-m5.md`에 등록돼 있다. 권한 판정은 계속 에이전트에게 숨긴다. 사람 승인 대기 시간은 지연·MAX_STEPS·MAX_COST에서 제외한다.
 - 승인은 초안 내용 해시에 묶는다. 승인 시점의 해시와 실행할 초안의 해시가 다르면 실행하지 않는다(TOCTOU 방지).
 - 승인자 정책: 기본은 요청자 본인. **전사 공지 채널 발송만 요청자 팀 4급 이상이면서 요청자 본인이 아닌 사용자**가 승인한다(A 등급은 숫자가 클수록 상위). 승인자 신원은 세션에서 정한다.
@@ -231,6 +232,14 @@ stateDiagram-v2
 - 읽기 도구의 재시도 값(횟수·백오프·서킷·Timeout)은 ADR-018을 따른다. 연결 수립 실패·429·타임아웃·5xx·전송 오류를 재시도한다.
 
 승인 API 응답은 접수 202, 종료된 동일 해시·결정의 영수증 재요청 200, 전사 공지 요청자 본인의 승인 POST만 403, 다른 사용자·자격 없음·없는 task 404, 만료·상태·해시 충돌 409, 잘못된 수정·요청 422다. 승인자 GET은 검사 통과 상태(`passed`·`masked`)의 승인 대기 초안만 보여 준다.
+
+### 대화 삭제 API
+
+| API | 성공 상태 | 응답 본문 |
+|---|---|---|
+| `DELETE /conversations/{conversation_id}` | 200 | `{conversation_id, deleted}` (`deleted: true`) |
+
+삭제 신원은 인증된 세션의 요청자이며 첫 턴 ID가 대화 ID다. 타인·없음·삭제됨·형식 오류는 동일한 404 `conversation_not_found`, 실행 중은 409 `turn_in_progress`, 승인 대기·interrupt는 409 `approval_pending`이다. 만료된 승인은 대화 → task 잠금 안에서 먼저 닫는다. 감사 싱크 없음·쓰기 실패는 500 `audit_write_failed`, 표시 실패는 500 `delete_failed`이며 BFF는 내부 실패를 502 `upstream_unavailable`로 접는다. `approver_decision` 규칙은 유지한다. 삭제 확인은 대화 조회·턴 추가·SSE·task 조회·승인·승인함에도 적용하며 task 라우트는 기존 404 `Task not found`를 사용한다(ADR-025).
 
 `PROFILES = {writes_org}`인 읽기 전용 단일 레지스트리를 사용한다. `GOVOPS_AGENT_PROFILE` 허용값과 기본값은 `writes_org`다. `WITH_WRITES_ORG`는 조직 정보 절을 포함하며 `READ_ONLY`·`WITH_WRITES` 구성 객체는 단위 테스트·프로필 구성에 유지한다. M2 러너의 실행 경로는 삭제하고 공용 헬퍼·과거 결과 문서는 보존한다(ADR-022). 시작 정리는 checkpointer 전체 순회이며 수백 건 규모를 전제한다. 규모가 커지면 별도 테이블이 필요하다.
 
@@ -374,6 +383,7 @@ trace와 다르게 책임 추적용이다. `audit/log.py`의 AuditLog와 AuditPo
 - 프로세스 내 디렉터리별 잠금과 디렉터리 fd의 `flock(LOCK_EX | LOCK_NB)` 재시도는 전체 10초 마감이다. 초과는 `audit_lock_timeout`(fail-closed), 개행 없는 체인 꼬리는 `audit_chain_corrupt`로 append 거부다.
 - **원문 대신 내용 해시와 mock ID만** 남긴다. 실행 전 의도 기록 실패 시 부작용을 실행하지 않는다(fail-closed). 결과 기록 실패는 재시도 후 `audit_gap`으로 표시한다(ADR-018).
 - 시스템 이벤트 `service.start`·`chain.genesis`·`chain.anchor`·`auth.failed`·`checkpoint.pruned`는 `actor.sub="system"`, `task_id=null`이다. `service.start`는 정책·규칙·접근 인덱스 해시와 훅 규칙·코드 digest를 남긴다.
+- `conversation.deleted`는 필드 없는 비시스템 이벤트다. `task_id`는 대화 ID, `actor_sub`는 인증된 요청자이며 원문·추가 필드는 남기지 않는다. 삭제 표시 전에 감사를 먼저 쓰고 실패하면 표시하지 않는다. 감사 성공 뒤 표시 실패는 500이며 재시도 시 감사 이벤트가 중복될 수 있다(ADR-025).
 - `model.call`은 성공한 호출의 task·사용자·팀 식별자·모델 별칭·배포 ID·fallback·`cost_usd`(고정 6자리 문자열)·가용한 Guardrail 판정만 남긴다. 팀 키 값과 원문은 기록하지 않는다. 스레드 쓰기 실패는 fail-open으로 `model.audit_gap` 경보를 남긴다. 실패·차단된 호출의 `model.call`은 미기록이며 비용 원장·trace와 `guardrail.input_blocked`가 각각 기록한다.
 - `auth.failed` 사유 enum은 `missing_credentials`·`invalid_token`·`unknown_user`·`loopback_required`다. 앱별 스레드 안전 분당 60건 상한과 다음 허용 기록의 `suppressed` 집계를 사용한다. 호출자 sub는 식별하지 않으며 감사 실패는 인증 응답을 바꾸지 않는다.
 - 고정점: `make audit-anchor LABEL=…`와 dev·faults 러너가 `chain.anchor`를 덧붙이고 `data/interim/audit/anchors-pending.jsonl`(`AUDIT_ANCHORS_PENDING_FILE`, gitignore)에 `{dir, seq, hash, sig, kid, label, ts}`를 쓴다. 러너 종료 시 디렉터리별 고정점 실패는 fail-open으로 보고한다. 대기 파일 → 결과 PR이 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다.
@@ -415,17 +425,26 @@ M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec�
 
 `GET /conversations`는 소유자 본인의 대화만 상한 50개로 읽기 전용 조회한다. 색인은 후보를 찾는 힌트이고 체크포인트가 소유자·상태·제목의 권위다. 제목은 첫 사용자 요청의 공백을 정규화해 40자로 자르고 넘으면 말줄임표를 붙이며, 입력 차단 원문은 쓰지 않고 요청이 없으면 “새 대화”다. 요청자 본인 턴 뷰에는 읽기 도구의 이름·성공만 담은 `tool_steps`, `approval_method`, 턴별 UTC `effect_at`을 제공한다. 승인자 뷰에는 이 세 필드가 없다. BFF는 목록과 턴 뷰 모두 허용 목록으로 투영하고 목록 요청은 `limit=50`으로 고정한다.
 
+대화 목록의 삭제 버튼은 인라인 확인창을 열며 문구는 "원문은 다음 정리 때 제거되고, 감사 기록과 이미 발송된 효과는 남는다."다. 삭제 성공 후 목록을 새로 읽고 현재 대화를 삭제했으면 `/c`로 이동한다. 요청자 본인 완료 턴에는 `limited` 불리언을 제공하며 참이면 "조사 단계 한도(8단계)에서 멈추고 모은 근거로 답했습니다. 일부 내용이 빠졌을 수 있습니다."를 표시한다. 승인자 뷰·승인함에는 `limited`를 제공하지 않고 `stop_reason`은 계속 화면에 노출하지 않는다(ADR-025).
+
 마크다운은 정확 고정한 `react-markdown` 10.1.0·`remark-gfm` 4.0.1로 렌더링한다. `skipHtml`로 원시 HTML을 렌더링하지 않고 이미지·위험 스킴 링크를 금지하며 http/https만 허용한다. 외부 링크는 `rel="noopener noreferrer nofollow"`를 쓴다. 테마의 `localStorage` 예외는 `lib/theme.ts` 한 파일, 키 `govops-theme`, 값 `light`/`dark`/`system`뿐이며 접근은 `try/catch`로 감싼다. 글꼴 스택은 Pretendard, Apple SD Gothic Neo, Noto Sans KR, system-ui, sans-serif이며 외부 다운로드 없이 설치된 글꼴을 사용한다.
 
 기본 프로필 `writes_team`은 발송 규칙 템플릿에 세션 사용자의 요청자 절(소속 팀·보낼 채널·전사 공지 승인 조건)을 붙인다. 채널과 승인 급수는 `allowed_channels`·`ANNOUNCE_APPROVER_MIN_GRADE`가 단일 출처다. `prompt_hash`는 도구·모델·파라미터를 포함한 템플릿 해시이고 사용자별 요청자 절은 원문 대신 manifest·골든 헤더의 `requester_section_sha256`으로 기록한다. 호출별 `request_key`는 전체 messages를 덮는다. `writes_org`는 동결하며 골든은 사용자 dev 재실행 때 러너가 `writes_team`으로 재기록한다(ADR-024).
 
 ## 상태 관리
 - **에이전트 상태:** LangGraph state + 같은 Postgres 인스턴스의 `govops` 앱 DB checkpointer(`GOVOPS_DATABASE_URL`, ADR-017). `make verify` 테스트는 in-memory saver를 쓰며 실제 Postgres는 사용자 스모크로 확인한다. state에는 사용자 ID·초안·초안 해시·도구 결과가 들어가고 토큰은 들어가지 않는다. checkpointer는 실행에 필요한 원문을 두며, task 종료(완료·실패·거부·만료) 7일 뒤 삭제한다. 삭제 명령과 테스트는 M5에 둔다(ADR-015).
+- **삭제 표시·보존 정리:** 대화의 모든 턴 색인 행에 `deleted_at`을 표시하고 목록·승인 대기 조회에서 제외한다. `conversation_of`는 삭제된 대화도 ID를 반환하고 서비스가 `is_deleted`로 접근을 닫는다. 삭제 표시된 대화는 나이와 관계없이 다음 `checkpoint-prune` 후보지만 활성 상태(`running`·만료 전 `awaiting_approval`)는 보존한다. 일반 비활성 대화는 마지막 checkpoint `ts` 기준 7일 규칙을 유지한다. 기본 dry-run이며 `APPLY=1` 또는 serve 시작 시 정리를 적용해 원문과 해당 턴 색인 행을 지운다. 감사 기록·이미 발송된 효과는 남으며 즉시 하드 삭제 API는 이번 범위가 아니다(ADR-015·ADR-025).
 - **outbox:** 멱등 키별 상태(기록됨·시도됨·불확실·성공·실패), 해시·mock ID·`audit_gap`을 같은 Postgres 인스턴스의 `govops` DB 테이블에 둔다(ADR-018).
 - **mock 상태:** mock 서비스 메모리 또는 파일. 관리 엔드포인트로 초기화한다. 장애 주입은 요청 순번 스크립트로 재현한다.
 - **비용 원장:** `data/manifest/costs.jsonl`(주 모델·fallback·v2 분류기)과 `data/manifest/costs_grading.jsonl`(채점)은 커밋 대상이며, 원장이 없으면 호출 거부한다. 호출 직전에 상한 검사와 예약 행 기록을 원장 잠금 안에서 한 번에 하고 호출 뒤 같은 예약 ID로 정산하며, 정산되지 않은 예약은 상한 쪽으로 계속 센다(ADR-007). 공급사별 누적액(주 모델·fallback·v2 분류기는 게이트웨이 경유, 채점은 별도 원장). 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 상한은 [ADR.md](ADR.md)의 ADR-007, fallback 공급사별 예약·응답 모델 기준 정산은 ADR-019를 따른다.
 - **비밀 값:** API 키는 `.env`에서만 읽는다. 팀 가상 키는 `gateway/team_keys.py`가 사용자별로 선택해 요청 헤더에만 붙인다. 에이전트 키는 진단 전용이다.
 
+
+## 알려진 한계
+
+- 삭제 표시는 접근을 닫는 소프트 삭제다. 원문은 다음 정리까지 보존되며 제거 시점은 마지막 활동 후 7일이 아니라 다음 `checkpoint-prune` 적용 실행 때다. 활성 상태는 정리에서 제외한다.
+- `conversation.deleted` 감사 기록 후 표시가 실패하면 500이다. 재시도하면 같은 삭제의 감사 이벤트가 두 번 남을 수 있다.
+- 사이드바 승인 배지는 인박스 처리 직후 최대 10초 늦게 갱신된다. 공유 폴링 훅은 이번 범위에서 제외한다(ADR-025).
 
 ## M3 장애 주입 실행 경계
 

@@ -498,3 +498,119 @@ def test_m5_ui_decision_contract():
     assert len(lines) == 1
     assert "사용자 실행" in lines[0]
     assert "e2e가 새로 만든 변경만 실패" in lines[0]
+
+
+def test_m6_decision_contract():
+    import hashlib
+
+    adr = read("docs/ADR.md")
+    assert adr.count("### ADR-025:") == 1
+    previous, section = adr.split("### ADR-025:", 1)
+    # Step 8 시작 시 ADR-001~024 전체 본문과 변경 기록을 고정한다.
+    assert hashlib.sha256((previous.rstrip() + "\n").encode()).hexdigest() == (
+        "9d3f27dac87a37836f5d0677d0a6e5acf0fbe0724a4a4d9d075cb48d716b1edb"
+    )
+    for marker in (
+        "**상태**: 유효",
+        "**날짜**: 2026-10-13",
+        "**결정**:",
+        "**이유**:",
+        "**트레이드오프**:",
+        "**변경 기록**:",
+        "hypotheses-m6-finalize.md",
+        "hypotheses-m6-api-authz.md",
+    ):
+        assert marker in section, marker
+    decisions = re.findall(r"^([1-7])\. (.+)$", section, re.MULTILINE)
+    assert [number for number, _ in decisions] == list("1234567")
+    required = (
+        (
+            "turn_read_ok >= 1",
+            "turn_cost_usd >= MAX_COST_USD",
+            "failed/max_steps",
+            'stop_reason="max_steps_finalized"',
+            "실행",
+            "초안",
+            "시스템 프롬프트",
+            "골든",
+            "dev",
+        ),
+        ("turn_read_ok", "evidence_ids", "N 재계산", "max_steps_finalized"),
+        ("모든 턴 행", "deleted_at", "conversation_of", "is_deleted", "첫 턴 ID"),
+        (
+            "404",
+            "conversation_not_found",
+            "409",
+            "turn_in_progress",
+            "approval_pending",
+            "500",
+            "audit_write_failed",
+            "delete_failed",
+            "502",
+            "upstream_unavailable",
+            "approver_decision",
+        ),
+        ("conversation.deleted", "필드 없는", "task_id", "actor_sub", "두 번"),
+        ("checkpoint-prune", "나이와 관계없이", "활성", "하드 삭제"),
+        ("사이드바 승인 배지", "최대 10초", "공유 폴링 훅"),
+    )
+    for (_, decision), markers in zip(decisions, required, strict=True):
+        for marker in markers:
+            assert marker in decision, marker
+    first = decisions[0][1]
+    assert first.index("turn_read_ok >= 1") < first.index(
+        "turn_cost_usd >= MAX_COST_USD"
+    )
+    notice = "원문은 다음 정리 때 제거되고, 감사 기록과 이미 발송된 효과는 남는다."
+    assert notice in decisions[5][1]
+    result = re.compile(r"\b\d+\s*/\s*\d+\b|\d+(?:\.\d+)?\s*%|\b\d+\.\d+\b")
+    assert not result.search(section)
+    assert not re.search(r"(?:TCR|정확도)\s*[:=]?\s*\d", section)
+
+    architecture = read("docs/ARCHITECTURE.md")
+    assert (
+        "| `DELETE /conversations/{conversation_id}` | 200 | "
+        "`{conversation_id, deleted}` (`deleted: true`) |"
+    ) in architecture
+    assert notice in architecture
+    assert "conversation.deleted" in architecture.split("## 감사 로그", 1)[1]
+    for marker in ("deleted_at", "나이와 관계없이", "checkpoint-prune", "활성"):
+        assert marker in architecture.split("## 상태 관리", 1)[1]
+    limits = architecture.split("## 알려진 한계", 1)[1].split("\n## ", 1)[0]
+    for marker in ("다음 정리", "7일", "두 번", "최대 10초"):
+        assert marker in limits
+    assert not result.search(limits)
+
+    threat = read("docs/THREAT_MODEL.md")
+    row = next(line for line in threat.splitlines() if line.startswith("| TH15 /"))
+    for marker in ("타인", "존재 여부", "삭제 후 접근", "V16"):
+        assert marker in row
+    mapping = next(line for line in threat.splitlines() if line.startswith("| V16 "))
+    for marker in (
+        "hypotheses-m6-api-authz.md",
+        "R1~R6",
+        "S1~S4",
+        "R6 × S1",
+        "approver_decision",
+        "E1~E8",
+        "B1~B5",
+        "tests/test_api_conversation_delete.py",
+        "tests/test_api_conversation_delete_route.py",
+        "web/src/app/api/bff.integration.test.ts",
+    ):
+        assert marker in mapping, marker
+    assert (
+        "삭제는 소프트이며 원문이 다음 정리까지 남는다"
+        in threat.split("## 6. 잔여 위험·한계", 1)[1]
+    )
+    for block in (row, mapping):
+        assert not result.search(block)
+
+    sentence = (
+        "M6 선행: m6-limits-delete(M5 뒷정리 — 단계 상한 마무리, 대화 소프트 삭제). "
+        "그래프 변경이라 공식 test(정상 대조 test 40건) 전에 머지한다."
+    )
+    prd = read("docs/PRD.md")
+    assert prd.splitlines().count(sentence) == 1
+    m7 = next(line for line in prd.splitlines() if line.startswith("| M7 |"))
+    assert f"{m7}\n\n{sentence}\n\n`make verify`" in prd
