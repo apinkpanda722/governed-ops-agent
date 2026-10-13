@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "retention-deleted-ids",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T15:38:45+0900",
+      "summary": "삭제 표시된 비활성 대화를 나이와 무관하게 정리하도록 구현하고 활성 보존·조회 실패 차단·잠금·Postgres 테스트를 보강했습니다. CLI 형식 유지, make verify 전체 통과; 실제 Postgres 검증은 사용자 실행으로 남습니다.",
+      "completed_at": "2026-10-13T15:51:44+0900",
+      "usage": {
+        "input_tokens": 2233033,
+        "cached_input_tokens": 2096768,
+        "output_tokens": 8090,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
