@@ -76,7 +76,16 @@
     {
       "step": 5,
       "name": "web-delete-ui",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-13T16:48:00+0900",
+      "blocked_reason": "web/src/e2e-config.test.ts의 expect(specs).toHaveLength(2)가 새 삭제 스펙으로 인해 실패합니다. 해당 파일은 “수정할 파일(이 목록이 전부다)”에 포함되지 않습니다. 훅의 재검증 요청은 수정 허용 목록을 변경하지 않으므로, 이 파일의 가드를 정확한 3개 스펙 검증으로 수정할 수 있도록 명시적인 범위 확대가 필요합니다.",
+      "blocked_at": "2026-10-13T17:04:52+0900",
+      "usage": {
+        "input_tokens": 3493653,
+        "cached_input_tokens": 3327872,
+        "output_tokens": 13326,
+        "attempts": 2
+      }
     },
     {
       "step": 6,

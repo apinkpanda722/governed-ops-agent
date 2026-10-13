@@ -103,8 +103,9 @@
     },
     {
       "dir": "m6-limits-delete",
-      "status": "error",
-      "failed_at": "2026-10-13T16:10:33+0900"
+      "status": "blocked",
+      "failed_at": "2026-10-13T16:10:33+0900",
+      "blocked_at": "2026-10-13T17:04:52+0900"
     }
   ]
 }
