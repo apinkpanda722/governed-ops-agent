@@ -48,8 +48,14 @@ def n_candidate(
     manifest = json.loads((run_dir / "manifest.json").read_text())
     mismatches = sorted(manifest.get("tool_trace_mismatch", {}))
     grades = regrade_run(run_dir, rules)
+    observations = load_observations(run_dir / "observations.jsonl")
+    finalized = sorted(
+        obs.task_id for obs in observations if obs.stop_reason == "max_steps_finalized"
+    )
     passed = {
-        key: grade.tcr.passed and (include_mismatch or key not in mismatches)
+        key: grade.tcr.passed
+        and (include_mismatch or key not in mismatches)
+        and key not in finalized
         for key, grade in grades.items()
     }
     rows = [
@@ -57,7 +63,7 @@ def n_candidate(
             "task_id": obs.task_id,
             "tool_results": extract_tool_trace(obs.tool_results)[1],
         }
-        for obs in load_observations(run_dir / "observations.jsonl")
+        for obs in observations
     ]
     return {
         "grading_rules": rules,
@@ -68,6 +74,7 @@ def n_candidate(
         },
         "candidate": candidate(rows, passed),
         "excluded_mismatch_tasks": [] if include_mismatch else mismatches,
+        "excluded_finalized_tasks": finalized,
         "include_mismatch": include_mismatch,
         "notice": NOTICE,
     }

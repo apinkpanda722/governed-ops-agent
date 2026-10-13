@@ -237,7 +237,7 @@ async def test_max_steps():
     chat = FakeChat(*(reply(calls=[call()]) for _ in range(MAX_STEPS)))
     tools = FakeTools(
         *(
-            ToolOutcome({"doc_id": f"syn-{i}"}, False, ("syn-seen",))
+            ToolOutcome({"doc_id": f"syn-{i}"}, True, ("syn-seen",))
             for i in range(MAX_STEPS)
         )
     )

@@ -228,7 +228,7 @@ async def test_disabled_and_explicit_budget():
     chat = FakeChat(*(reply(calls=[call()]) for _ in range(MAX_STEPS)))
     state = await execute(
         chat,
-        FakeTools(*(ToolOutcome({}, False, ()) for _ in range(MAX_STEPS))),
+        FakeTools(*(ToolOutcome({}, True, ()) for _ in range(MAX_STEPS))),
         exploration_budget=None,
     )
     assert state["status"] == "failed"

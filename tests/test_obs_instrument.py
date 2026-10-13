@@ -89,7 +89,10 @@ def test_failure_trace(sink, mode):
         else FakeChat(*(reply(calls=[call()]) for _ in range(MAX_STEPS)))
     )
     tools = FakeTools(
-        *(ToolOutcome({"doc_id": f"syn-{i}"}, False, ()) for i in range(MAX_STEPS))
+        *(
+            ToolOutcome({"doc_id": f"syn-{i}"}, mode == "max_steps", ())
+            for i in range(MAX_STEPS)
+        )
     )
     service = TaskService(build_graph(chat, tools, InMemorySaver()))
     ident, result = asyncio.run(finish(service, "demo-platform-g3", "조회"))
