@@ -6,10 +6,13 @@ aget_tuple·aput·aput_writes·adelete_thread도 같은 잠금을 기다린다. 
 """
 
 import asyncio
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from test_agent_graph import FakeTools, async_test, reply
+from test_agent_retention import saved_thread
 
 from govops.agent.graph import build_graph
 from govops.agent.retention import prune_checkpoints
@@ -125,3 +128,41 @@ async def test_prune_and_startup_prune_finish_with_a_lock_holding_alist():
 
     service = TaskService(graph, turns=InMemoryTurnIndex(), audit=MemoryAuditLog())
     await asyncio.wait_for(startup_prune(service, saver, service.turns), BOUND)
+
+
+@async_test
+async def test_startup_prunes_deleted_recent_thread_outside_alist_lock():
+    saver = LockedSaver()
+    turns, audit = InMemoryTurnIndex(), MemoryAuditLog()
+    now = datetime.now(UTC)
+    for thread, status, expiry in (
+        ("deleted", "completed", None),
+        ("running", "running", None),
+        ("waiting", "awaiting_approval", (now + timedelta(days=1)).isoformat()),
+    ):
+        await saved_thread(saver, thread, status, expiry)
+        await turns.add(
+            turn_id=thread,
+            conversation_id=thread,
+            owner_sub="synthetic-user",
+            turn_index=1,
+            created_at=now.isoformat(),
+        )
+        assert await turns.mark_deleted(thread, "synthetic-user", now.isoformat()) == 1
+    deleted_ids = turns.deleted_conversation_ids
+
+    async def outside_lock():
+        assert not saver.lock.locked()
+        return await deleted_ids()
+
+    turns.deleted_conversation_ids = AsyncMock(side_effect=outside_lock)
+    graph = build_graph(Chat(), FakeTools(), saver)
+    service = TaskService(graph, turns=turns, audit=audit)
+    await asyncio.wait_for(startup_prune(service, saver, turns), BOUND)
+    turns.deleted_conversation_ids.assert_awaited_once_with()
+    assert len(audit.records) == 1 and audit.records[0]["pruned_count"] == 1
+    for thread in ("deleted", "running", "waiting"):
+        config = {"configurable": {"thread_id": thread}}
+        retained = thread != "deleted"
+        assert bool(await asyncio.wait_for(saver.aget_tuple(config), BOUND)) == retained
+        assert bool(await turns.conversation_of(thread)) == retained

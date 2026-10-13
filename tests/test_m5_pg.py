@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import psycopg
 import pytest
+from langgraph.checkpoint.base import empty_checkpoint
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 from psycopg import sql
@@ -339,7 +340,7 @@ def test_retention_isolated_database():
                         "pending": ("awaiting_approval", now + timedelta(days=1)),
                         "running": ("running", now),
                     }
-                    turns = InMemoryTurnIndex()
+                    turns = PostgresTurnIndex(isolated)
                     for thread, (status, expiry) in specs.items():
                         await graph.ainvoke(
                             {"status": status, "expires_at": expiry.isoformat()},
@@ -352,28 +353,106 @@ def test_retention_isolated_database():
                             turn_index=1,
                             created_at=now.isoformat(),
                         )
+                    for thread in ("recent", "recent-deleted"):
+                        checkpoint = empty_checkpoint()
+                        checkpoint["ts"] = (now - timedelta(hours=1)).isoformat()
+                        checkpoint["channel_values"] = {"status": "completed"}
+                        checkpoint["channel_versions"] = {"status": 1}
+                        await saver.aput(
+                            {
+                                "configurable": {
+                                    "thread_id": thread,
+                                    "checkpoint_ns": "",
+                                }
+                            },
+                            checkpoint,
+                            {"source": "update", "step": 0, "parents": {}},
+                            checkpoint["channel_versions"],
+                        )
+                        for n in (1, 2):
+                            await turns.add(
+                                turn_id=f"{thread}-turn-{n}",
+                                conversation_id=thread,
+                                owner_sub="synthetic-user",
+                                turn_index=n,
+                                created_at=checkpoint["ts"],
+                            )
+                    for thread, count in (
+                        ("recent-deleted", 2),
+                        ("pending", 1),
+                        ("running", 1),
+                    ):
+                        assert (
+                            await turns.mark_deleted(
+                                thread, "synthetic-user", now.isoformat()
+                            )
+                            == count
+                        )
                     audit = MemoryAuditLog()
                     dry = await run_prune(saver, turns, audit, now=now, apply=False)
-                    assert set(dry.candidates) == {"done", "expired"}
+                    assert set(dry.candidates) == {"done", "expired", "recent-deleted"}
+                    assert dry.scanned == 6 and dry.active == 2 and dry.deleted == 0
                     assert not audit.records
+                    assert await turns.deleted_conversation_ids() == [
+                        "pending",
+                        "recent-deleted",
+                        "running",
+                    ]
                     result = await run_prune(saver, turns, audit, now=now, apply=True)
-                    assert result.deleted == 2
-                    assert set(result.deleted_ids) == {"done", "expired"}
-                    for thread in specs:
-                        retained = thread in {"pending", "running"}
+                    assert result.deleted == 3
+                    assert set(result.deleted_ids) == {
+                        "done",
+                        "expired",
+                        "recent-deleted",
+                    }
+                    for thread in (*specs, "recent", "recent-deleted"):
+                        retained = thread in {"pending", "running", "recent"}
                         config = {"configurable": {"thread_id": thread}}
                         assert bool(await saver.aget_tuple(config)) == retained
                         assert (
                             bool([item async for item in saver.alist(config)])
                             == retained
                         )
-                        assert bool(await turns.conversation_of(thread)) == retained
+                        turn_ids = (
+                            [f"{thread}-turn-{n}" for n in (1, 2)]
+                            if thread.startswith("recent")
+                            else [thread]
+                        )
+                        for turn_id in turn_ids:
+                            assert (
+                                bool(await turns.conversation_of(turn_id)) == retained
+                            )
+                    assert await turns.deleted_conversation_ids() == [
+                        "pending",
+                        "running",
+                    ]
+                    async with await psycopg.AsyncConnection.connect(isolated) as conn:
+                        for table in (
+                            "checkpoints",
+                            "checkpoint_blobs",
+                            "checkpoint_writes",
+                        ):
+                            cursor = await conn.execute(
+                                sql.SQL(
+                                    "SELECT count(*) FROM {} WHERE thread_id = ANY(%s)"
+                                ).format(sql.Identifier(table)),
+                                (list(result.deleted_ids),),
+                            )
+                            assert (await cursor.fetchone())[0] == 0
+                        cursor = await conn.execute(
+                            "SELECT conversation_id, count(*) FROM govops_conversation_turns GROUP BY conversation_id"
+                        )
+                        assert dict(await cursor.fetchall()) == {
+                            "pending": 1,
+                            "running": 1,
+                            "recent": 2,
+                        }
                     assert audit.records == [
                         {
                             "event": "checkpoint.pruned",
                             "task_id": None,
                             "actor_sub": "system",
-                            "pruned_count": 2,
+                            "pruned_count": 3,
                             "cutoff": (now - timedelta(days=7)).isoformat(),
                         }
                     ]

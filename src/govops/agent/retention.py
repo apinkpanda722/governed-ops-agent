@@ -1,5 +1,6 @@
-"""Find old inactive checkpoint threads; deletion requires explicit apply."""
+"""Find old or deletion-marked inactive threads; deletion requires explicit apply."""
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -36,11 +37,13 @@ async def prune_checkpoints(
     now: datetime,
     apply: bool = False,
     retention_days: int = RETENTION_DAYS,
+    deleted_conversation_ids: Collection[str] = (),
 ) -> PruneResult:
     """Select each thread by latest ts, preserving active or unknown state."""
     if now.tzinfo is None or now.utcoffset() != timedelta(0):
         raise ValueError("now must be timezone-aware UTC")
     cutoff = now - timedelta(days=retention_days)
+    deleted_conversations = set(deleted_conversation_ids)
     latest: dict[str, tuple[datetime, object, object]] = {}
     unknown_ts: set[str] = set()
     async for item in saver.alist(None):
@@ -67,7 +70,7 @@ async def prune_checkpoints(
             or (status == "awaiting_approval" and (expiry is None or now < expiry))
         ):
             active += 1
-        elif ts < cutoff:
+        elif ts < cutoff or thread_id in deleted_conversations:
             candidates.append(thread_id)
 
     deleted_ids = []

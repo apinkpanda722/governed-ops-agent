@@ -42,7 +42,7 @@ async def fixture_threads():
     from langgraph.checkpoint.base import empty_checkpoint
 
     checkpoint = empty_checkpoint()
-    checkpoint["ts"] = (now - timedelta(days=6)).isoformat()
+    checkpoint["ts"] = (now - timedelta(hours=1)).isoformat()
     checkpoint["channel_values"] = {"status": "completed", "answer": ANSWER}
     checkpoint["channel_versions"] = {"status": 1, "answer": 1}
     await saver.aput(
@@ -109,6 +109,90 @@ async def test_apply_audits_intent_before_deleting_and_cleans_index():
     assert all(
         raw not in repr(record) for raw in (ANSWER, MESSAGE, DRAFT, "old", "expired")
     )
+
+
+@pytest.mark.parametrize("apply", [False, True])
+@async_test
+async def test_deleted_recent_conversation_prunes_all_turns(monkeypatch, apply):
+    saver, turns, audit, now = await fixture_threads()
+    await turns.add(
+        turn_id="recent-turn-2",
+        conversation_id="recent",
+        owner_sub="synthetic-owner",
+        turn_index=2,
+        created_at=now.isoformat(),
+    )
+    for name, count in (("recent", 2), ("running", 2), ("waiting", 2), ("expired", 2)):
+        assert (
+            await turns.mark_deleted(name, "synthetic-owner", now.isoformat()) == count
+        )
+    before = copy.deepcopy(turns.rows)
+    turns.deleted_conversation_ids = AsyncMock(wraps=turns.deleted_conversation_ids)
+    prune = AsyncMock(wraps=retention.prune_checkpoints)
+    monkeypatch.setattr(retention, "prune_checkpoints", prune)
+    delete = saver.adelete_thread
+
+    async def audited_delete(thread_id):
+        assert audit.records == [
+            {
+                "event": "checkpoint.pruned",
+                "task_id": None,
+                "actor_sub": "system",
+                "pruned_count": 3,
+                "cutoff": (now - timedelta(days=7)).isoformat(),
+            }
+        ]
+        await delete(thread_id)
+
+    saver.adelete_thread = AsyncMock(side_effect=audited_delete)
+    result = await retention.run_prune(saver, turns, audit, now=now, apply=apply)
+    assert result.candidates == ("expired", "old", "recent")
+    assert result.scanned == 5 and result.active == 2
+    turns.deleted_conversation_ids.assert_awaited_once_with()
+    assert [call.kwargs["apply"] for call in prune.await_args_list] == (
+        [False, True] if apply else [False]
+    )
+    deleted_ids = prune.await_args_list[0].kwargs["deleted_conversation_ids"]
+    assert deleted_ids == ["expired", "recent", "running", "waiting"]
+    assert all(
+        call.kwargs["deleted_conversation_ids"] is deleted_ids
+        for call in prune.await_args_list
+    )
+    if apply:
+        assert result.deleted_ids == result.candidates and result.deleted == 3
+        assert turns.rows == {
+            key: row
+            for key, row in before.items()
+            if row["conversation_id"] in {"running", "waiting"}
+        }
+        assert len(audit.records) == 1
+    else:
+        assert result.deleted == 0 and result.deleted_ids == ()
+        assert turns.rows == before
+        assert audit.records == []
+        saver.adelete_thread.assert_not_called()
+    for name in ("old", "expired", "recent", "running", "waiting"):
+        saved = await saver.aget_tuple({"configurable": {"thread_id": name}})
+        assert (saved is None) == (apply and name in result.candidates)
+
+
+@pytest.mark.parametrize("apply", [False, True])
+@async_test
+async def test_deleted_ids_read_failure_prevents_pruning(monkeypatch, apply):
+    saver, turns, audit, now = await fixture_threads()
+    before = copy.deepcopy(turns.rows)
+    turns.deleted_conversation_ids = AsyncMock(
+        side_effect=RuntimeError("private detail")
+    )
+    prune = AsyncMock(wraps=retention.prune_checkpoints)
+    monkeypatch.setattr(retention, "prune_checkpoints", prune)
+    saver.adelete_thread = AsyncMock(wraps=saver.adelete_thread)
+    with pytest.raises(RuntimeError, match="private detail"):
+        await retention.run_prune(saver, turns, audit, now=now, apply=apply)
+    turns.deleted_conversation_ids.assert_awaited_once_with()
+    prune.assert_not_called()
+    saver.adelete_thread.assert_not_called()
+    assert audit.records == [] and turns.rows == before
 
 
 @pytest.mark.parametrize("missing", [False, True])

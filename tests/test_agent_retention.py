@@ -106,6 +106,75 @@ async def test_status_age_matrix(status, days, expiry, target, active):
         result.deleted = 1
 
 
+@pytest.mark.parametrize("marked", [False, True])
+@pytest.mark.parametrize(
+    "status,expiry,active",
+    [
+        ("completed", None, False),
+        ("running", None, True),
+        ("awaiting_approval", "future", True),
+        ("awaiting_approval", "past", False),
+        ("awaiting_approval", None, True),
+        ("awaiting_approval", "invalid", True),
+        (None, None, True),
+    ],
+)
+@async_test
+async def test_deleted_recent_thread_preserves_active_priority(
+    marked, status, expiry, active
+):
+    saver = InMemorySaver()
+    base = datetime.now(UTC)
+    expires_at = {
+        "future": (base + timedelta(hours=2)).isoformat(),
+        "past": base.isoformat(),
+        "invalid": "not-a-date",
+    }.get(expiry)
+    graph, ts = await saved_thread(saver, "recent", status, expires_at)
+    saver.adelete_thread = AsyncMock(wraps=saver.adelete_thread)
+    result = await prune_checkpoints(
+        saver,
+        now=ts + timedelta(hours=1),
+        apply=True,
+        deleted_conversation_ids=["recent"] if marked else [],
+    )
+    target = marked and not active
+    assert result.scanned == 1
+    assert result.active == int(active)
+    assert result.candidates == result.deleted_ids == (("recent",) if target else ())
+    assert result.deleted == int(target)
+    assert saver.adelete_thread.await_count == int(target)
+    assert (await get_task(graph, "recent") is None) == target
+
+
+@pytest.mark.parametrize("timestamp", [None, "invalid", "2026-10-01T00:00:00"])
+@async_test
+async def test_deleted_thread_with_unknown_timestamp_stays_active(timestamp):
+    saver = InMemorySaver()
+    await saved_thread(saver, "unknown", "completed")
+    checkpoints = [item async for item in saver.alist(None)]
+    latest = max(datetime.fromisoformat(item.checkpoint["ts"]) for item in checkpoints)
+    # Even an older checkpoint of unknown age prevents proving the latest state.
+    checkpoints[-1].checkpoint["ts"] = timestamp
+
+    async def listed(config):
+        for item in checkpoints:
+            yield item
+
+    saver.alist = listed
+    saver.adelete_thread = AsyncMock(wraps=saver.adelete_thread)
+    result = await prune_checkpoints(
+        saver,
+        now=latest + timedelta(days=8),
+        apply=True,
+        deleted_conversation_ids={"unknown"},
+    )
+    assert result.scanned == result.active == 1
+    assert result.candidates == result.deleted_ids == ()
+    assert result.deleted == 0
+    saver.adelete_thread.assert_not_called()
+
+
 @pytest.mark.parametrize("extra_seconds,target", [(0, False), (1, True)])
 @async_test
 async def test_strict_boundary(extra_seconds, target):
