@@ -104,7 +104,16 @@
     {
       "step": 7,
       "name": "limited-notice",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-13T17:45:31+0900",
+      "blocked_reason": "작업 지시의 “요청자 본인 뷰(`approval=False`)에 `limited`를 불리언으로 더한다: `state[\"status\"] == \"completed\" and state.get(\"stop_reason\") == \"max_steps_finalized\"`. `stop_reason` 값 자체는 뷰에 넣지 않는다.”와 금지사항의 “`stop_reason`을 뷰·BFF·UI에 노출하거나 소스에 쓰지 마라.”가 충돌합니다. API 소스의 내부 상태 읽기는 허용되는지 명시가 필요합니다. 선점검 규칙에 따라 파일 수정과 검증 없이 중단했습니다.",
+      "blocked_at": "2026-10-13T17:47:57+0900",
+      "usage": {
+        "input_tokens": 163579,
+        "cached_input_tokens": 105600,
+        "output_tokens": 1371,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
