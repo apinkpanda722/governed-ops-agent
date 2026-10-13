@@ -21,6 +21,7 @@ EVENTS = frozenset(
     {
         "service.start",
         "checkpoint.pruned",
+        "conversation.deleted",
         "model.call",
         "auth.failed",
         "chain.genesis",
@@ -166,6 +167,7 @@ _NEW_REQUIRED = {
     "model.call": frozenset({"team", "model", "deployment_id", "fallback", "cost_usd"}),
     "auth.failed": frozenset({"reason"}),
     "checkpoint.pruned": frozenset({"pruned_count", "cutoff"}),
+    "conversation.deleted": frozenset(),
 }
 _GUARDRAIL_BUNDLE = frozenset(
     {"guardrail_pre", "guardrail_post", "guardrail_q", "guardrail_m"}

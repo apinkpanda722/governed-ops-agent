@@ -85,6 +85,7 @@ def test_events(tmp_path):
         "side_effect.marker_lookup",
         "service.start",
         "checkpoint.pruned",
+        "conversation.deleted",
         "model.call",
         "auth.failed",
         "chain.genesis",
