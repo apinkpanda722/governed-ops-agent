@@ -76,16 +76,16 @@
     {
       "step": 5,
       "name": "web-delete-ui",
-      "status": "blocked",
+      "status": "completed",
       "started_at": "2026-10-13T16:48:00+0900",
-      "blocked_reason": "web/src/e2e-config.test.ts의 expect(specs).toHaveLength(2)가 새 삭제 스펙으로 인해 실패합니다. 해당 파일은 “수정할 파일(이 목록이 전부다)”에 포함되지 않습니다. 훅의 재검증 요청은 수정 허용 목록을 변경하지 않으므로, 이 파일의 가드를 정확한 3개 스펙 검증으로 수정할 수 있도록 명시적인 범위 확대가 필요합니다.",
-      "blocked_at": "2026-10-13T17:04:52+0900",
       "usage": {
-        "input_tokens": 3493653,
-        "cached_input_tokens": 3327872,
-        "output_tokens": 13326,
-        "attempts": 2
-      }
+        "input_tokens": 3393994,
+        "cached_input_tokens": 3251072,
+        "output_tokens": 11861,
+        "attempts": 1
+      },
+      "summary": "대화 삭제 BFF·인라인 확인 UI와 권한·오류·목록 갱신 테스트, e2e 스펙을 추가했습니다. make verify 전체 통과(3614 pytest·196 vitest, e2e 3개 수집); e2e 실행은 사용자에게 남깁니다.",
+      "completed_at": "2026-10-13T17:35:12+0900"
     },
     {
       "step": 6,
