@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "audit-conversation-deleted",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T15:15:25+0900",
+      "summary": "무필드 비시스템 감사 이벤트 conversation.deleted와 필드·신원 거부, MemoryAuditLog, 서명 체인 검증 테스트를 추가했으며 make verify 전체 통과.",
+      "completed_at": "2026-10-13T15:25:33+0900",
+      "usage": {
+        "input_tokens": 3021980,
+        "cached_input_tokens": 2862592,
+        "output_tokens": 5381,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -47,5 +56,6 @@
       "name": "docs-sync",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-13T15:15:25+0900"
 }
