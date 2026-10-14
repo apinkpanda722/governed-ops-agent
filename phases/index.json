@@ -110,7 +110,8 @@
     },
     {
       "dir": "m6-guardrail-v2",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_at": "2026-10-14T11:06:06+0900"
     }
   ]
 }
