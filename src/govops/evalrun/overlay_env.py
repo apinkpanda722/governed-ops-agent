@@ -33,6 +33,39 @@ def overlay_ticket_ids(root: Path) -> list[str]:
     return ids
 
 
+def _body_sha256(text: str) -> str:
+    # Same algorithm and encoding as govops.mocks.jira._hash (evalrun may not import mocks).
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _seed_comments(ticket: dict) -> list[dict]:
+    """Comments mock-jira seeds for one overlay ticket (mocks/jira.py reset)."""
+    return [
+        {
+            "comment_id": f"seed-comment-{ticket['ticket_id']}-{index}",
+            "ticket_id": ticket["ticket_id"],
+            "author": comment["author"],
+            "body": comment["body"],
+            "metadata": {},
+            "created_at": ticket["created_at"],
+        }
+        for index, comment in enumerate(ticket.get("comments", []), 1)
+    ]
+
+
+def overlay_seed_comments(root: Path) -> list[dict]:
+    """Admin-state comment entries mock-jira reports for overlay tickets."""
+    payload = json.loads((root / OVERLAY_RELATIVE).read_text(encoding="utf-8"))
+    return [
+        {
+            **{key: value for key, value in comment.items() if key != "body"},
+            "body_sha256": _body_sha256(comment["body"]),
+        }
+        for ticket in payload["tickets"]
+        for comment in _seed_comments(ticket)
+    ]
+
+
 def overlay_seed_check(root: Path, *, runner=subprocess.run) -> bool:
     """Compare the unchanged admin state contract with base plus overlay counts."""
     try:
@@ -42,7 +75,7 @@ def overlay_seed_check(root: Path, *, runner=subprocess.run) -> bool:
         expected = [
             {
                 "ticket_count": len(tickets) + len(overlay_ids),
-                "comments": [],
+                "comments": overlay_seed_comments(root),
                 "children": [],
             },
             {
@@ -87,6 +120,8 @@ def overlay_seed_check(root: Path, *, runner=subprocess.run) -> bool:
             if result.returncode:
                 return False
             actual.append(json.loads(result.stdout))
+        _sort_comments(actual[0])
+        _sort_comments(expected[0])
 
         def digest(value):
             return hashlib.sha256(
@@ -103,6 +138,12 @@ def overlay_seed_check(root: Path, *, runner=subprocess.run) -> bool:
         subprocess.SubprocessError,
     ):
         return False
+
+
+def _sort_comments(state) -> None:
+    comments = state.get("comments") if isinstance(state, dict) else None
+    if isinstance(comments, list):
+        comments.sort(key=lambda item: str(item.get("comment_id")))
 
 
 async def read_overlay_matches(jira, base_tickets, overlay_tickets, users) -> bool:
@@ -124,7 +165,7 @@ async def read_overlay_matches(jira, base_tickets, overlay_tickets, users) -> bo
             expected = ticket | {
                 "parent_id": None,
                 "metadata": {},
-                "comments": ticket.get("comments", []),
+                "comments": _seed_comments(ticket),
                 "children": [],
             }
             required = {"ticket_id", "comments", "children"} | (
