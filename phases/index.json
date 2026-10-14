@@ -116,8 +116,9 @@
     },
     {
       "dir": "m6-redteam-run",
-      "status": "blocked",
-      "blocked_at": "2026-10-14T18:16:23+0900"
+      "status": "completed",
+      "blocked_at": "2026-10-14T18:16:23+0900",
+      "completed_at": "2026-10-14T19:34:32+0900"
     }
   ]
 }
