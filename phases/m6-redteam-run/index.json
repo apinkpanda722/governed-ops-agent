@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "test-run-path",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T19:05:27+0900",
+      "summary": "M6 dev/test 실행 경로·사전 가드·골든 기록 제외·manifest 유효성 및 사람 채점 안내를 TDD로 구현하고 make verify 전체 통과. 기존 기본 경로와 테스트는 유지.",
+      "completed_at": "2026-10-14T19:23:22+0900",
+      "usage": {
+        "input_tokens": 5322886,
+        "cached_input_tokens": 5141632,
+        "output_tokens": 22070,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
