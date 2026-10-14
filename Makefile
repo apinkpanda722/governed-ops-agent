@@ -144,6 +144,19 @@ obs-down:
 eval-run-dev:
 	uv run --env-file .env python -m govops.evalrun.dev_m3
 
+.PHONY: redteam-run
+# live A·LiteLLM·mock(오버레이)·Postgres 필요, 사용자 실행
+redteam-run:
+	uv run --env-file .env python -m govops.evalrun.redteam_run --config $(CONFIG) --run $(RUN)
+
+.PHONY: redteam-judge
+redteam-judge:
+	uv run python -m govops.eval.redteam_judge $(JUDGE_ARGS)
+
+.PHONY: run-verdict
+run-verdict:
+	uv run python -m govops.eval.run_summary verdict $(VERDICT_ARGS)
+
 .PHONY: test-outbox-pg
 # compose Postgres 기동·make db-init 후 사용자 실행, 테스트 전용 DB URL 필요
 test-outbox-pg:
