@@ -68,6 +68,8 @@ M6 선행: m6-limits-delete(M5 뒷정리 — 단계 상한 마무리, 대화 소
 
 `make verify`는 ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest → playwright test --list(설정·스펙 로드 검사, 브라우저·서버 불필요) 순서로 실행하고 API 키·네트워크 없이 통과한다. Playwright e2e는 `make e2e-web`으로 replay 모드에서 사용자가 실행하며, 사용자 e2e 통과가 M5 완료 조건이다.
 
+M6 phase ②: m6-guardrail-v2(Guardrail v2 — 호스트 수집 지점에서 분류하고 호출은 게이트웨이 별칭을 경유한다. 훅 안 호출은 지연 측정으로 불성립, ADR-026). 스위치 `GOVOPS_GUARDRAIL_V2` 기본 off, 공식 test(정상 대조 test 40건) 전에 머지한다.
+
 ### 축소 순서
 늦어지거나 비용이 넘치면 아래 순서로 덜어낸다.
 1. test 3회 → 2회
