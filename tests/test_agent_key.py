@@ -58,6 +58,7 @@ def test_success(tmp_path, capsys, caplog, original):
                 "agent-primary-only",
                 "agent-primary-down",
                 "agent-fallback",
+                "guardrail-v2",
             ],
             "key_alias": "govops-agent",
         }

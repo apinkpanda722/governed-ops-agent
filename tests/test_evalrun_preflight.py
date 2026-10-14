@@ -168,3 +168,76 @@ def local_digest(monkeypatch):
         "govops.evalrun.preflight.compute_digests",
         lambda _: HookDigests("a" * 12, "b" * 12),
     )
+
+
+def test_required_deployments_default_exact_and_v2_union():
+    from govops.costs import CLASSIFIER_DEPLOYMENTS
+
+    assert sorted(required_deployments()) == [
+        "anthropic-claude-sonnet-5-5",
+        "openai-gpt-6-luna",
+        "openai-gpt-6-luna-down",
+        "openai-gpt-6-luna-only",
+    ]
+    assert required_deployments(v2=True) == required_deployments() | set(
+        CLASSIFIER_DEPLOYMENTS
+    )
+
+
+@pytest.mark.parametrize(
+    "enabled,present,expected",
+    [(False, False, []), (True, False, ["litellm_config_stale"]), (True, True, [])],
+)
+def test_v2_model_info_requirement_preserves_http_order(
+    root, enabled, present, expected
+):
+    from govops.costs import CLASSIFIER_DEPLOYMENTS
+
+    class V2Http(Http):
+        def __init__(self):
+            super().__init__()
+            self.calls = []
+
+        def get(self, url, **kwargs):
+            self.calls.append(("get", url.rsplit("/", 1)[-1]))
+            ids = required_deployments() | (
+                set(CLASSIFIER_DEPLOYMENTS) if present else set()
+            )
+            return httpx.Response(
+                200, json={"data": [{"model_info": {"id": key}} for key in ids]}
+            )
+
+        def post(self, url, **kwargs):
+            self.calls.append(("post", url.rsplit("/", 1)[-1]))
+            return super().post(url, **kwargs)
+
+    http = V2Http()
+    (root / "data/seed").mkdir(parents=True)
+    (root / "data/seed/users.json").write_text('{"users":[{"team":"platform"}]}')
+
+    def runner(command, *, cwd):
+        stamp = (
+            "2026-10-05T00:00:00Z" if command[0] == "git" else "2026-10-06T00:00:00Z"
+        )
+        return subprocess.CompletedProcess(command, 0, stamp)
+
+    result = run_preflight(
+        root=root,
+        runner=runner,
+        http=http,
+        env=lambda name, default: (
+            ("on" if enabled else "off")
+            if name == "GOVOPS_GUARDRAIL_V2"
+            else "synthetic-team-key"
+            if name.startswith("LITELLM_TEAM_KEY_")
+            else default
+        ),
+        mock_admin=Admin(),
+        a_check=lambda: True,
+    )
+    assert result == expected
+    assert http.calls == [
+        ("get", "liveliness"),
+        ("get", "info"),
+        ("post", "completions"),
+    ]

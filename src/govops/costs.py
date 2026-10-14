@@ -65,6 +65,16 @@ PRICES: Mapping[str, Price] = MappingProxyType(
             for suffix, amount in (("input", 2), ("output", 10))
         },
         **{
+            f"anthropic.claude-haiku-5-5.{suffix}": Price(
+                service=f"anthropic.claude-haiku-5-5.{suffix}",
+                unit="token",
+                unit_price_usd=amount / 1_000_000,
+                source_url="https://platform.claude.com/docs/en/about-claude/pricing",
+                checked_on="2026-10-13",
+            )
+            for suffix, amount in (("input", 0.10), ("output", 0.50))
+        },
+        **{
             f"google.gemini-3.8-flash.{suffix}": Price(
                 service=f"google.gemini-3.8-flash.{suffix}",
                 unit="token",
@@ -148,6 +158,11 @@ DEPLOYMENT_MODELS: Mapping[str, str] = MappingProxyType(
 )
 
 
+CLASSIFIER_DEPLOYMENTS: Mapping[str, str] = MappingProxyType(
+    {"anthropic-claude-haiku-5-5": "claude-haiku-5-5"}
+)
+
+
 def resolve_deployment(deployment_id: str | None) -> ResolvedModel:
     model = DEPLOYMENT_MODELS.get(deployment_id)
     return REGISTERED_MODELS[model] if model else ResolvedModel(None, None, None, False)
@@ -187,6 +202,14 @@ def anthropic_cost_usd(
         input_tokens=input_tokens,
         cached_input_tokens=cached_input_tokens,
         output_tokens=output_tokens,
+    )
+
+
+def classifier_cost_usd(*, input_tokens: int, output_tokens: int) -> float:
+    _tokens(input_tokens, output_tokens)
+    return (
+        input_tokens * PRICES["anthropic.claude-haiku-5-5.input"].unit_price_usd
+        + output_tokens * PRICES["anthropic.claude-haiku-5-5.output"].unit_price_usd
     )
 
 

@@ -226,6 +226,7 @@ async def effect_probe(admin, slack):
     with TemporaryDirectory(prefix="govops-faults-smoke-") as directory:
         service = build_task_service(
             chat=SyntheticDraft(),
+            semantic=None,
             tools=ToolRuntime(
                 None,
                 JiraClient(env_or("MOCK_JIRA_URL", "http://127.0.0.1:8081")),

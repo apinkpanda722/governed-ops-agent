@@ -40,6 +40,8 @@ from govops.tools.registry import ToolRuntime
 from govops.tools.resilience import ToolPolicy
 from govops.tools.slack import SlackClient
 
+_FROM_ENV = object()
+
 
 def build_task_service(
     *,
@@ -51,8 +53,16 @@ def build_task_service(
     audit_dir: Path | None = None,
     clock=None,
     turn_index=None,
+    semantic=_FROM_ENV,
 ) -> TaskService:
-    """Assemble explicitly injected dependencies without consulting model/profile settings."""
+    """Assemble injected dependencies; only the optional v2 switch reads settings."""
+    if semantic is _FROM_ENV:
+        if env_or("GOVOPS_GUARDRAIL_V2", "off") == "on":
+            if not callable(getattr(chat, "classify", None)):
+                raise StartupError("guardrail_v2_unavailable")
+            semantic = chat
+        else:
+            semantic = None
     root = Path(__file__).resolve().parents[3]
     try:
         audit = AuditLog(
@@ -93,6 +103,7 @@ def build_task_service(
         scope=ScopeIndex.load(),
         policy=load_team_policy("data/policy/team_policy.json"),
         users=users,
+        semantic=semantic,
         **({"clock": clock} if clock is not None else {}),
     )
     return TaskService(

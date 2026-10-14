@@ -92,6 +92,7 @@ GUARDRAIL_CODES = frozenset(
         "guardrail_header_missing",
         "guardrail_stale",
         "guardrail_post_error",
+        "guardrail_v2_error",
     }
 )
 _GUARDRAIL_FORMATS = {

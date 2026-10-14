@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import re
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -42,10 +43,12 @@ from govops.audit.log import AuditPort, AuditWriteError
 from govops.costs import BudgetExceededError, LedgerMissingError
 from govops.gateway.client import (
     ChatClient,
+    ClassifyResult,
     GatewayError,
     GuardrailBlocked,
     GuardrailUnavailable,
 )
+from govops.guardrails import semantic as semantic_core
 from govops.guardrails.policy import TeamPolicy
 from govops.obs.trace import SpanKind, set_attributes, span
 from govops.tools.contract import find_identity_fields
@@ -206,6 +209,7 @@ def build_graph(
     users: Users | None = None,
     clock=utc_now,
     exploration_budget=_DEFAULT_EXPLORATION,
+    semantic=None,
 ) -> CompiledStateGraph:
     if exploration_budget is _DEFAULT_EXPLORATION:
         exploration_budget = exploration_budget_from_env()
@@ -224,6 +228,7 @@ def build_graph(
         "jira_create_followup_ticket": CreateFollowup,
     }
     allowed_names = {d["function"]["name"] for d in definitions}
+    semantic_config = semantic_core.load_config() if semantic is not None else None
 
     def guardrail_record(state, event, **fields):
         # Defense already happened: audit failure cannot undo it.
@@ -280,6 +285,52 @@ def build_graph(
             "guardrail_truncated": truncated,
         }
 
+    async def classify_items(items, state, runtime):
+        semaphore = asyncio.Semaphore(semantic_config["concurrency"])
+
+        async def classify(item):
+            async with semaphore:
+                return await semantic.classify(
+                    request=semantic_core.build_request(item, semantic_config),
+                    task_id=state["task_id"],
+                    user_id=runtime.context.user_id,
+                )
+
+        with span(SpanKind.GUARDRAIL, "semantic"):
+            started = time.perf_counter()
+            # Finish in-flight calls (and their settlements) before ending the round.
+            results = await asyncio.gather(
+                *(classify(item) for item in items), return_exceptions=True
+            )
+            completed = [r for r in results if isinstance(r, ClassifyResult)]
+            ok = sum(r.status == "ok" for r in completed)
+            set_attributes(
+                **{
+                    "guardrail.v2_n": len(items),
+                    "guardrail.v2_ok": ok,
+                    "guardrail.v2_flag": sum(
+                        r.status == "ok" and r.label == "unsafe" for r in completed
+                    ),
+                    "guardrail.v2_fail": len(items) - ok,
+                    "guardrail.v2_in": sum(r.input_tokens for r in completed),
+                    "guardrail.v2_out": sum(r.output_tokens for r in completed),
+                    "guardrail.v2_ms": (time.perf_counter() - started) * 1000,
+                }
+            )
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
+        return results
+
+    def semantic_failure(exc):
+        code = (
+            "budget_exceeded"
+            if isinstance(exc, BudgetExceededError)
+            else "ledger_missing"
+        )
+        set_attributes(error_code=code)
+        return {"status": "failed", "error": code}
+
     async def model_body(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
         finalizing = state["steps"] >= MAX_STEPS
         if finalizing:
@@ -290,6 +341,33 @@ def build_graph(
         else:
             if state.get("turn_cost_usd", 0.0) >= MAX_COST_USD:
                 return {"status": "failed", "error": "max_cost"}
+        if semantic is not None and state["steps"] == 0 and not finalizing:
+            item = semantic_core.select_user_item(state["request"], semantic_config)
+            if item is not None:
+                try:
+                    result = (await classify_items([item], state, runtime))[0]
+                except (BudgetExceededError, LedgerMissingError) as exc:
+                    return semantic_failure(exc)
+                if result.status != "ok":
+                    guardrail_record(
+                        state, "guardrail.error", code="guardrail_v2_error", count=1
+                    )
+                elif result.label == "unsafe":
+                    guardrail_record(
+                        state,
+                        "guardrail.input_blocked",
+                        code="injection_direct",
+                        input_sha256=hashlib.sha256(
+                            state["request"].encode("utf-8")
+                        ).hexdigest(),
+                        v2=True,
+                    )
+                    return {
+                        "status": "blocked_input",
+                        "error": "injection_direct",
+                        "guardrail_block": {"code": "injection_direct"},
+                        "answer": None,
+                    }
         steps = state["steps"] if finalizing else state["steps"] + 1
         with span(SpanKind.MODEL_CALL, "agent-primary"):
             try:
@@ -504,12 +582,56 @@ def build_graph(
                     if isinstance(payload.get("error"), dict)
                     else None,
                 )
+        semantic_update = {}
+        if semantic is not None:
+            offset = len(state["messages"])
+            round_messages = messages[offset:]
+            items, excess = semantic_core.select_tool_items(
+                round_messages, semantic_config
+            )
+            try:
+                results = await classify_items(items, state, runtime) if items else []
+            except (BudgetExceededError, LedgerMissingError) as exc:
+                return semantic_failure(exc)
+            flagged = {
+                (item.message_index, item.path): True
+                for item, result in zip(items, results, strict=True)
+                if result.status == "ok" and result.label == "unsafe"
+            }
+            replaced, identifiers = semantic_core.apply_quarantine(
+                round_messages, flagged
+            )
+            messages = [*messages[:offset], *replaced]
+            ids = list(state.get("quarantined_ids", []))
+            seen = set(ids)
+            for identifier in identifiers:
+                digest = hashlib.sha256(identifier.encode("utf-8")).hexdigest()
+                if digest not in seen:
+                    seen.add(digest)
+                    ids.append(digest)
+                    guardrail_record(
+                        state,
+                        "guardrail.tool_quarantined",
+                        tool_call_sha256=digest,
+                        count=1,
+                        v2=True,
+                    )
+            failures = excess + sum(result.status != "ok" for result in results)
+            if failures:
+                guardrail_record(
+                    state,
+                    "guardrail.error",
+                    code="guardrail_v2_error",
+                    count=failures,
+                )
+            semantic_update["quarantined_ids"] = ids
         update = {
             "messages": messages,
             "observed_ids": sorted(observed),
             "evidence_ids": sorted(evidence),
             "turn_read_ok": turn_read_ok,
             **counter.to_state(),
+            **semantic_update,
         }
         if exploration_budget is not None and counter.exhausted(exploration_budget):
             update.update(
@@ -878,6 +1000,7 @@ def build_graph(
     graph.agent_profile = profile
     graph.agent_clock = clock
     graph.agent_users = users
+    graph.agent_semantic = semantic
     return graph
 
 

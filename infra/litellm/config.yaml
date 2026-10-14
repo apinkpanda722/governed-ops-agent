@@ -32,6 +32,14 @@ model_list:
       api_base: http://127.0.0.1:9
       timeout: 15
       num_retries: 0
+  - model_name: guardrail-v2
+    model_info:
+      id: anthropic-claude-haiku-5-5
+    litellm_params:
+      model: anthropic/claude-haiku-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 4
+      num_retries: 0
 
 router_settings:
   fallbacks:

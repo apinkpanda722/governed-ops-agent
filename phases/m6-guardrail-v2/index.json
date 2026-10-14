@@ -5,32 +5,88 @@
     {
       "step": 0,
       "name": "v2-alias-and-prices",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T10:53:09+0900",
+      "summary": "guardrail-v2 배포·키 허용 목록·Haiku 단가·별도 분류기 매핑/비용 함수·관측 ID와 테스트를 추가했습니다. 에이전트 매핑과 fallback은 유지했으며 make verify 통과(Python 3667개, 웹 211개).",
+      "completed_at": "2026-10-14T11:04:02+0900",
+      "usage": {
+        "input_tokens": 3751160,
+        "cached_input_tokens": 3577728,
+        "output_tokens": 7552,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
       "name": "v2-semantic-core",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T11:06:49+0900",
+      "summary": "Guardrail v2 순수 선별·요청 구성·라벨 해석·격리 로직과 자리표시 설정, 테스트를 추가했습니다. v1 동치성과 계층 경계를 확인했으며 make verify 통과(Python 3755개, 웹 211개).",
+      "completed_at": "2026-10-14T11:21:46+0900",
+      "usage": {
+        "input_tokens": 4329338,
+        "cached_input_tokens": 4155520,
+        "output_tokens": 18896,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
       "name": "v2-classifier-client",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T11:21:46+0900",
+      "summary": "Guardrail v2 classify·ClassifyResult, 호출별 전송 옵션, 예약·정산, 안전한 상태 집계·설정 해시 위임과 테스트를 추가했습니다. 기존 complete 경로와 계층 경계를 유지했고 make verify 통과(Python 3801개, 웹 211개).",
+      "completed_at": "2026-10-14T11:35:48+0900",
+      "usage": {
+        "input_tokens": 4170658,
+        "cached_input_tokens": 3992064,
+        "output_tokens": 16775,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
       "name": "v2-graph-wiring",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T11:35:48+0900",
+      "summary": "Guardrail v2 사용자 차단·도구 격리, 서버·dev 결선, 장애 러너 off·재생 거부·manifest를 추가했습니다. off 불변성과 계층 경계를 확인했고 make verify 통과(Python 3843개, 웹 211개).",
+      "completed_at": "2026-10-14T11:56:03+0900",
+      "usage": {
+        "input_tokens": 7575766,
+        "cached_input_tokens": 7350400,
+        "output_tokens": 24556,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
       "name": "v2-smoke-and-preflight",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T11:56:03+0900",
+      "summary": "Guardrail v2 smoke-semantic 10단계와 on 전용 preflight 배포 검사를 추가했으며, 가짜 서비스 테스트와 make verify를 통과했습니다(Python 3897개, 웹 211개).",
+      "completed_at": "2026-10-14T12:21:31+0900",
+      "usage": {
+        "input_tokens": 7511465,
+        "cached_input_tokens": 7296000,
+        "output_tokens": 33203,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
       "name": "v2-docs-sync",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T12:21:31+0900",
+      "usage": {
+        "input_tokens": 3924763,
+        "cached_input_tokens": 3707648,
+        "output_tokens": 11336,
+        "attempts": 1
+      },
+      "summary": "ADR-026 추가와 아키텍처·위협 모델·평가 계획·환경 변수·문서 계약 테스트를 동기화했으며, 보호 문구 보존과 make verify 통과를 확인했습니다(Python 3898개, 웹 211개).",
+      "completed_at": "2026-10-14T12:36:45+0900"
     }
-  ]
+  ],
+  "created_at": "2026-10-14T10:53:09+0900",
+  "completed_at": "2026-10-14T12:36:45+0900"
 }

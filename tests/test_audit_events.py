@@ -176,8 +176,9 @@ def test_header_sets_and_model_aliases(sink):
         "agent-fallback",
         "agent-primary-only",
         "agent-primary-down",
+        "guardrail-v2",
     }
-    for model in aliases:
+    for model in (alias for alias in aliases if alias != "guardrail-v2"):
         emit(sink, "model.call", CASES["model.call"] | {"model": model})
 
 
