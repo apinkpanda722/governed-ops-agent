@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "v2-semantic-core",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T11:06:49+0900",
+      "summary": "Guardrail v2 순수 선별·요청 구성·라벨 해석·격리 로직과 자리표시 설정, 테스트를 추가했습니다. v1 동치성과 계층 경계를 확인했으며 make verify 통과(Python 3755개, 웹 211개).",
+      "completed_at": "2026-10-14T11:21:46+0900",
+      "usage": {
+        "input_tokens": 4329338,
+        "cached_input_tokens": 4155520,
+        "output_tokens": 18896,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
