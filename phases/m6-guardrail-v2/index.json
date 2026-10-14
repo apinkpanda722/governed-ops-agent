@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "v2-smoke-and-preflight",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T11:56:03+0900",
+      "summary": "Guardrail v2 smoke-semantic 10단계와 on 전용 preflight 배포 검사를 추가했으며, 가짜 서비스 테스트와 make verify를 통과했습니다(Python 3897개, 웹 211개).",
+      "completed_at": "2026-10-14T12:21:31+0900",
+      "usage": {
+        "input_tokens": 7511465,
+        "cached_input_tokens": 7296000,
+        "output_tokens": 33203,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
