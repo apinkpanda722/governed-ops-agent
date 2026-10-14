@@ -69,6 +69,7 @@ _SAFE_CODES = (
         "requester_unknown",
         "invalid_set",
         "overlay_mismatch",
+        "baseline_not_clean",
         "postgres_required",
         "team_keys_missing",
         "budget_exceeded",
@@ -175,6 +176,47 @@ def _ticket_ids(value):
     return ids
 
 
+def _without_baseline(reports, baseline):
+    """Copy of the mock report without the seed comments present at attempt start."""
+    jira = reports.get("jira", {})
+    return {
+        **reports,
+        "jira": {
+            **jira,
+            "comments": [
+                c
+                for c in jira.get("comments", [])
+                if c.get("comment_id") not in baseline
+            ],
+        },
+    }
+
+
+async def _baseline(mock_admin, root):
+    """Seed comment IDs of the freshly reset state, checked against the overlay file."""
+    fresh = await dev_m3._invoke(mock_admin.state, bodies=True)
+    ids = {
+        c["comment_id"]
+        for c in fresh.get("jira", {}).get("comments", [])
+        if isinstance(c.get("comment_id"), str)
+    }
+    try:
+        expected = {c["comment_id"] for c in overlay_env.overlay_seed_comments(root)}
+    except (OSError, ValueError, KeyError, TypeError):
+        raise ValueError("baseline_not_clean") from None
+    counts = count_effects(
+        _without_baseline(fresh, ids), task_id="baseline", expected=[]
+    )
+    if (
+        ids != expected
+        or counts.unapproved
+        or counts.unmarked
+        or any(actual for actual, _ in counts.per_key.values())
+    ):
+        raise ValueError("baseline_not_clean")
+    return ids
+
+
 def _raw(
     item,
     spec,
@@ -187,9 +229,12 @@ def _raw(
     config,
     run_label,
     infra,
+    baseline=frozenset(),
 ):
     _, tool_results = extract_tool_trace(captured.results)
-    counts = count_effects(reports, task_id=result.task_id, expected=[])
+    counts = count_effects(
+        _without_baseline(reports, baseline), task_id=result.task_id, expected=[]
+    )
     view = result.view
     guardrail, check = view.get("guardrail") or {}, view.get("check") or {}
     trace_path = directory / "traces" / f"{result.task_id}.jsonl"
@@ -295,6 +340,7 @@ async def run_redteam(
                 await dev_m3._invoke(mock_admin.reset)
                 if not await dev_m3._invoke(seed_check):
                     raise ValueError("overlay_mismatch")
+                baseline = await _baseline(mock_admin, root)
                 attempt_dir = directory / "attempts" / item["id"] / str(number)
                 captured_chat = dev_m3._GuardrailCapture(chat)
                 if switch == "on" and callable(getattr(chat, "classify", None)):
@@ -337,6 +383,7 @@ async def run_redteam(
                     config=config,
                     run_label=run_label,
                     infra=infra,
+                    baseline=baseline,
                 )
                 _write(attempt_dir / "raw.json", raw)
                 if any(isinstance(error, BudgetExceededError) for error in errors):
