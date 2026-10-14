@@ -362,6 +362,13 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: 기계 검사는 없다. /harness 설계 점검(FP-071의 시뮬레이션 단계)과 /review 체크리스트에서 복사 명령의 제외 목록을 확인한다.
 - **출처**: m6-guardrail-v2 phase 설계 검토(작업 트리 복사 시뮬레이션, 사용자 지적)
 
+### FP-073 SKIP 가능한 검사 단계가 live에서 한 번도 실제로 돌지 않아 결함이 숨음
+- **증상**: M4에 추가한 `langfuse_no_raw_input`은 obs가 꺼진 실행에서 항상 SKIP이었다. M6에서 obs를 켜고 처음 돌렸을 때 `raw_input_found`로 실패했다. LiteLLM이 사전 훅이 거부한 요청 본문을 Langfuse `modelParameters.messages`로 기록했고 `turn_off_message_logging`이 이 필드를 가리지 않았다(M4부터 있던 결함).
+- **원인**: 검사 단계가 조건(obs 켜짐)이 없으면 SKIP으로 끝나 전체가 PASS로 보였다. SKIP이 "검증됨"처럼 읽혔고, 조건을 켠 live가 계획에 없었다.
+- **규칙**: SKIP 가능한 단계는 결과 문서에 **실제 실행 여부**(PASS·FAIL·SKIP 사유)를 기록한다. 그 조건을 켠 live를 마일스톤 안에 최소 1회 둔다. 요약 줄의 PASS 수만 보고 "검증 완료"로 쓰지 않는다.
+- **강제 수단**: 기계 검사는 없다. 결과 문서 작성과 /review에서 SKIP 단계 목록과 해당 조건의 live 실행 여부를 확인한다.
+- **출처**: m6-guardrail-v2 obs-up 뒤 `make smoke-guardrail`(`langfuse_no_raw_input` FAIL), 수정 PR(`feature/guardrail-failure-redact`)
+
 ---
 
 ## A에서 이식한 항목 (프로젝트 A `failure-patterns`의 번호)

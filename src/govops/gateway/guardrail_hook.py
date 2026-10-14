@@ -20,6 +20,13 @@ TEAMS = frozenset(
 )
 PRE_CALL_TIMEOUT_S = 2.0
 _INFO = "govops_guardrail_info"
+# LiteLLM logs a pre-call rejection's request body (optional_params.messages) to
+# the failure callbacks and turn_off_message_logging does not cover that field.
+_REDACTED = "[govops:redacted]"
+
+
+def _redact(data):
+    data["messages"] = [{"role": "user", "content": _REDACTED}]
 
 
 class GovopsGuardrail(CustomGuardrail):
@@ -38,6 +45,7 @@ class GovopsGuardrail(CustomGuardrail):
 
         def block(code, pre, error="guardrail_blocked"):
             record(pre, code)
+            _redact(data)
             raise HTTPException(400, detail={"error": error, "code": code})
 
         async def check():
@@ -84,6 +92,7 @@ class GovopsGuardrail(CustomGuardrail):
             record("unavailable", "guardrail_unavailable")
         except Exception:  # noqa: BLE001 — prevent LiteLLM from exposing exception text
             record("unavailable", "guardrail_unavailable")
+        _redact(data)
         raise HTTPException(
             400,
             detail={"error": "guardrail_unavailable", "code": "guardrail_unavailable"},
