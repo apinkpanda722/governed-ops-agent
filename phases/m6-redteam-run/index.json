@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "redteam-runner",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T18:48:47+0900",
+      "summary": "레드팀 120건 순차 실행 러너·본문 없는 원자료/manifest·same_team_eligible 액터·Makefile 타깃 3개와 합성 테스트를 TDD로 구현하고 make verify 전체 통과.",
+      "completed_at": "2026-10-14T19:05:27+0900",
+      "usage": {
+        "input_tokens": 3851144,
+        "cached_input_tokens": 3690624,
+        "output_tokens": 21220,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
