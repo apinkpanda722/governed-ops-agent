@@ -362,3 +362,15 @@ def test_e2e_web_is_user_only_and_preserves_exit_code():
     assert "e2e_status=$$?" in recipe
     assert 'exit "$$e2e_status"' in recipe
     assert 'exit "$$clean_status"' in recipe
+
+
+def test_semantic_smoke_is_user_only_and_follows_agent():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: smoke-semantic\n" in text
+    assert (
+        "# 실제 API 호출, GOVOPS_GUARDRAIL_V2=on·compose·.env 필요, 사용자 실행\n"
+        "smoke-semantic:\n\tuv run --env-file .env python -m govops.api.smoke_semantic\n"
+    ) in text
+    between = text.split("\nsmoke-agent:\n", 1)[1].split("\nsmoke-semantic:\n", 1)[0]
+    assert [line for line in between.splitlines() if line.endswith(":")] == []
+    assert "smoke-semantic" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]

@@ -111,6 +111,11 @@ smoke-checkpointer:
 smoke-agent:
 	uv run --env-file .env python -m govops.api.smoke agent
 
+.PHONY: smoke-semantic
+# 실제 API 호출, GOVOPS_GUARDRAIL_V2=on·compose·.env 필요, 사용자 실행
+smoke-semantic:
+	uv run --env-file .env python -m govops.api.smoke_semantic
+
 .PHONY: eval-meta-extract
 # 읽기 전용 A 필요, 사용자 실행
 eval-meta-extract:

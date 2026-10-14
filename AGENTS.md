@@ -101,6 +101,7 @@ make smoke-obs # live task·Langfuse 연결·마스킹 검증(사용자 실행)
 make cost-report # 읽기 전용 비용 비율·계획 비용 재추정(사용자 실행)
 make smoke-fallback # LiteLLM fallback·원장 정산·장애 주입 백엔드 확인(사용자 실행)
 make smoke-agent # 두 사용자 live 조회·관찰·인용·비용 검증(사용자 실행)
+make smoke-semantic # Guardrail v2 호스트 분류 smoke(GOVOPS_GUARDRAIL_V2=on, 사용자 실행)
 
 make eval-meta-extract # A 합성 평가 메타데이터와 문서 제목(doc_titles.json) 읽기 전용 추출(사용자 실행)
 make eval-gen # 평가 task 60개 결정론 생성(사용자 실행)

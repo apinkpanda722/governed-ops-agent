@@ -11,7 +11,7 @@ its project govops, hence govops-mock-jira and govops-mock-slack.
 import re
 from datetime import datetime
 
-from govops.costs import DEPLOYMENT_MODELS
+from govops.costs import CLASSIFIER_DEPLOYMENTS, DEPLOYMENT_MODELS
 from govops.env import env_or
 from govops.gateway.hook_digest import compute_digests
 from govops.gateway.hook_header import GuardrailInfo, parse_header
@@ -31,14 +31,18 @@ def judge_guardrail_probe(status, headers, expected) -> bool:
     )
 
 
-def required_deployments() -> set[str]:
+def required_deployments(*, v2: bool = False) -> set[str]:
     # The deliberately dead deployment is not a cost-bearing response mapping.
     primary = next(
         key
         for key in DEPLOYMENT_MODELS
         if key.startswith("openai-") and not key.endswith("-only")
     )
-    return set(DEPLOYMENT_MODELS) | {primary + "-down"}
+    return (
+        set(DEPLOYMENT_MODELS)
+        | {primary + "-down"}
+        | (set(CLASSIFIER_DEPLOYMENTS) if v2 else set())
+    )
 
 
 def mock_images(root, env=env_or) -> list[str]:
@@ -113,7 +117,12 @@ def run_preflight(*, root, runner, http, env=env_or, mock_admin, a_check) -> lis
             else:
                 try:
                     ids = {row["model_info"]["id"] for row in response.json()["data"]}
-                    if not required_deployments() <= ids:
+                    if (
+                        not required_deployments(
+                            v2=env("GOVOPS_GUARDRAIL_V2", "off") == "on"
+                        )
+                        <= ids
+                    ):
                         failures.append("litellm_config_stale")
                 except (ValueError, TypeError, KeyError):
                     failures.append("litellm_config_stale")
