@@ -48,6 +48,7 @@ def test_actual_source_and_manifest_boundary():
         "redteam.py",
         "redteam_templates.py",
         "redteam_cards.py",
+        "redteam_judge.py",
     }
     for file in files:
         source = file.read_text()
