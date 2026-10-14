@@ -354,6 +354,7 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **규칙**: 새 파일, 새 응답 키, 새 이벤트, 새 상태를 만드는 step을 설계할 때 (a) 전체 `pytest`와 `vitest`를 **변경을 시뮬레이션한 상태로** 돌려 깨지는 소비자를 찾거나 (b) 정확 일치 단언(`== {`, `== [`, `toHaveLength(`, `toEqual(`, `set(...) ==`, 파일 목록·개수)을 grep한 목록을 만들어 해당 step의 수정 허용 경로에 "~에 한함, 단언 약화 금지"로 넣는다. 범위는 "정확히 무엇을 더하는 것에 한함"까지 적고 정확 일치를 부분 집합·포함 비교로 바꾸지 않는다고 명시한다. `step_file_checks`의 WARN은 하나씩 읽고 "동작이 바뀌는가"를 판단해 허용 목록에 넣거나 불필요한 이유를 남긴다(WARN 건수가 줄지 않았다는 이유로 통과시키지 않는다).
 - **강제 수단**: 기계 검사는 없다. 문서 변경은 시뮬레이션이 가능하다(예: ADR·PRD·ARCHITECTURE·THREAT_MODEL 수정을 임시 반영해 `tests/test_docs_consistency.py`를 돌린 뒤 원복). FP-060(소비자 경고)·FP-061(고정 개수 단언)의 설계 점검 항목을 이 규칙이 구체화한다.
 - **출처**: m6-limits-delete step 5 blocked(`71820b4`), step 7 blocked 2차(`f749a06`), 설계 검토에서 step 6·8 소비자 보강
+- **보완(m6-redteam-run)**: `git archive` 복사본은 `.git`이 없어 저장소 상태를 확인하는 테스트(예: `test_redteam_boundary`)를 실제로 돌리지 못한다. 시뮬레이션은 `git clone --local` 복사본으로 한다(`.env`·`data/interim`은 추적되지 않아 자연히 빠진다, FP-072).
 
 ### FP-072 작업 트리 복사 시뮬레이션이 비밀·서명 키를 임시 폴더로 복사
 - **증상**: m6-guardrail-v2 설계 검토에서 변경을 흉내 내려고 작업 트리를 통째로 임시 폴더에 복사했다(`tar`로 `.venv`·`node_modules`만 제외). 복사본에 `.env`(API 키), `data/interim/`(감사 서명 개인키 0600, mock `tokens.json`, 감사 로그, 레드팀 검수 카드)가 들어갔고 복사본에서 전체 `pytest`를 돌렸다. 내용을 출력하지는 않았지만 비밀이 의도 없이 다른 경로에 사본으로 남았다(사용자가 임시 폴더를 직접 삭제).

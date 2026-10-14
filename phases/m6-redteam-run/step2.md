@@ -10,20 +10,20 @@
 - `/.claude/skills/failure-patterns/SKILL.md` — 읽기만 한다
 - `/docs/results/hypotheses-m4-redteam.md`(§4 항목 필드, §5 판정 규칙), `/docs/results/hypotheses-m6-redteam-addendum.md`(§2 기계가 읽는 줄, §3)
 - `/src/govops/eval/redteam.py`(항목 필드·`PREFIXES` — 읽기만 한다), `/src/govops/eval/duplicates.py`(`count_effects`), `/src/govops/evalrun/observe.py`, `/src/govops/evalrun/tool_trace.py`, `/src/govops/obs/trace.py`(`SpanRecord`, `SpanKind`), `/src/govops/audit/log.py`(`_write`의 레코드 필드 — 읽기만 한다)
-- `/src/govops/eval/v2_validity.py`(step 0 산출물), `/tests/test_architecture.py`, `/tests/test_eval_redteam.py`(생성기 테스트 방식 — 읽기만 한다)
+- `/tests/test_redteam_boundary.py`(`test_actual_source_and_manifest_boundary` — 수정 대상), `/tests/test_architecture.py`, `/tests/test_eval_redteam.py`(생성기 테스트 방식 — 읽기만 한다)
 
 이전 step에서 만들어진 코드를 꼼꼼히 읽고, 설계 의도를 이해한 뒤 작업하라.
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/eval/redteam_judge.py`(신규), `tests/test_eval_redteam_judge.py`(신규). TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/eval/redteam_judge.py`(신규), `tests/test_eval_redteam_judge.py`(신규), `tests/test_redteam_boundary.py`(기대 파일 이름 집합에 새 이름 하나 추가). TDD.
 
 열람 금지 경로: `data/interim/`, `data/redteam/`, `data/eval/`, `src/govops/guardrails/rules_v1.json`
-수정 허용 경로: `src/govops/eval/redteam_judge.py`, `tests/test_eval_redteam_judge.py`
+수정 허용 경로: `src/govops/eval/redteam_judge.py`, `tests/test_eval_redteam_judge.py`, `tests/test_redteam_boundary.py`
 
 열람 금지의 범위: 이 금지는 **Codex 세션이 위 경로의 파일 내용을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 테스트는 위 경로의 실제 파일을 읽지 않고 임시 폴더에 만든 합성 파일만 쓴다. 코드가 실행 중에 `data/redteam/`·`data/eval/`를 읽는 것은 사용자 실행 시의 런타임 접근이므로 이 금지의 대상이 아니다(이 step에서 그 경로로 코드를 실행하지 않는다). 구조는 이 문서·등록 파일·기존 코드와 테스트로 파악한다.
 
-**소비자 점검 대상**(**~에 한함, 단언 약화 금지**): 이 step은 새 파일만 만든다. 변경을 시뮬레이션한 전체 `pytest`(`git archive HEAD` 복사본, `.env`·`data/interim`·`data/raw` 미복사)에서 새로 깨진 기존 테스트는 없었다. 소비자 점검 결과(시뮬레이션에서 통과, 수정 불필요): `tests/test_architecture.py`, `tests/test_makefile.py`, `tests/test_compose.py`, `tests/test_docs_consistency.py`. 이 단락 밖의 기존 테스트는 수정하지 않는다. 기존 테스트를 수정했다면 최종 응답 summary에 파일명과 깨진 단언 이름을 적는다.
+**소비자 점검 대상**(**~에 한함, 단언 약화 금지**): `tests/test_redteam_boundary.py::test_actual_source_and_manifest_boundary`는 `src/govops/eval/redteam*.py`의 파일 이름 집합이 `{redteam.py, redteam_templates.py, redteam_cards.py}`와 **정확히 같기를** 단언하므로 새 파일 `redteam_judge.py` 때문에 깨진다(첫 실행에서 step이 blocked 됐다). 이 단언의 이름 집합에 `"redteam_judge.py"` **하나만 더한다**(새 값을 반영하는 것에 한함). 같은 테스트의 나머지 검사는 새 파일에도 그대로 적용되며 약화하지 않는다: 소스에 `rules_v1` 문자열이 없고, `govops.*` import는 `govops.guardrails.registry`(`rules_sha256` 하나)뿐이며, import 경로에 `screen`·`injection`·`pii`·`policy` 부분이 없다. 따라서 `redteam_judge.py`는 **`govops.*`를 전혀 import하지 않고 표준 라이브러리만 쓴다**(원자료 검증·판정·통계를 모두 이 파일 안에 둔다). `guardrails`·`gateway`·`agent`·`api` 계층 파일에 `redteam` 단어가 없어야 한다는 같은 테스트의 검사도 그대로다. 그 밖의 소비자는 변경을 시뮬레이션한 전체 `pytest`(`git archive HEAD` 복사본, `.env`·`data/interim`·`data/raw` 미복사)에서 새로 깨진 기존 테스트는 없었다. 소비자 점검 결과(시뮬레이션에서 통과, 수정 불필요): `tests/test_architecture.py`, `tests/test_makefile.py`, `tests/test_compose.py`, `tests/test_docs_consistency.py`. 이 단락 밖의 기존 테스트는 수정하지 않는다. 기존 테스트를 수정했다면 최종 응답 summary에 파일명과 깨진 단언 이름을 적는다.
 
 **배경**: 레드팀 live 러너(step 4)가 항목마다 쓰는 **원자료 레코드**를 오프라인에서 판정·집계하는 순수 모듈이다. 판정 규칙은 `hypotheses-m4-redteam.md` §5와 addendum §3이 정본이며 이 모듈은 규칙을 바꾸지 않는다. 네트워크·서비스·`data/redteam/` 내용에 접근하지 않는다(CLI 런타임에서 러너 결과 디렉터리만 읽는다).
 
@@ -98,5 +98,5 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - p-value·McNemar·신뢰구간 외의 유의성 통계를 만들지 마라. 이유: 사전 등록 §8이 기술 통계만 허용한다.
 - 원자료와 출력에 요청 문장·답변·티켓 본문·도구 결과 본문을 넣지 마라. 이유: `data/redteam/` 원문이며 레드팀 공격 문장이 결과 문서로 새지 않아야 한다.
 - 실제 `data/redteam/set.json`·`confirmed.json`을 이 모듈의 테스트에서 읽지 마라. 이유: 열람 금지 경로다.
-- 이 모듈에서 `govops.evalrun`·`govops.gateway`·`govops.agent`·`govops.broker`를 import하지 마라. 이유: `eval/` 계층 경계다(순수 판정).
+- 이 모듈에서 `govops.*`를 import하지 마라(표준 라이브러리만). 이유: `tests/test_redteam_boundary.py`가 `eval/redteam*.py`의 `govops` import를 `govops.guardrails.registry` 하나로 제한하고 `eval/` 계층 경계도 지킨다(순수 판정).
 - 외부 통계 라이브러리(scipy 등)를 의존성에 추가하지 마라. 이유: 의존성 변경은 이 phase의 범위가 아니다.

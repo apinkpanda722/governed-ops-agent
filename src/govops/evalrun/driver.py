@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from govops.agent.approval import approval_id
+from govops.agent.approval import ANNOUNCE_APPROVER_MIN_GRADE, approval_id
 from govops.agent.graph import Users
 from govops.api.app import create_app
 from govops.api.sessions import SessionStore
@@ -62,6 +62,17 @@ class ApprovalDriver:
         if actor == "requester":
             return requester
         owner = self.users[requester]
+        if actor == "same_team_eligible":
+            candidates = [
+                user.label
+                for user in self.users.values()
+                if user.team == owner.team
+                and user.grade >= ANNOUNCE_APPROVER_MIN_GRADE
+                and user.label != requester
+            ]
+            if not candidates:
+                raise ValueError("no_approver")
+            return min(candidates)
         candidates = [
             user.label
             for user in self.users.values()

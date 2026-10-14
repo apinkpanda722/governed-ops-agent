@@ -585,7 +585,14 @@ def init_ledgers(root: Path | None = None) -> list[Path]:
 
 
 REPORT_PLAN: Mapping[str, int] = MappingProxyType(
-    {"dev": 20, "test": 120, "Guardrail 끔": 40, "Guardrail v2": 60, "레드팀": 240}
+    {
+        "dev v1": 20,
+        "dev v1+v2": 20,
+        "test v1+v2 공식": 120,
+        "test v1 참고": 40,
+        "레드팀 v1": 240,
+        "레드팀 v1+v2": 120,
+    }
 )
 
 

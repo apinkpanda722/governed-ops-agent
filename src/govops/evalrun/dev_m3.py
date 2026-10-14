@@ -33,7 +33,7 @@ from govops.eval.duplicates import count_effects
 from govops.eval.meta import load_meta
 from govops.eval.run_grade import M3_GRADING, grade_run, guard_grading_rules
 from govops.eval.spec import TaskSpec
-from govops.evalrun import worktree
+from govops.evalrun import run_guards, worktree
 from govops.evalrun.anchors import AnchorTracker, anchor_label
 from govops.evalrun.dev import (
     ROOT,
@@ -364,11 +364,29 @@ async def _run_smoke(
     }
 
 
-def select_tasks(rows, requested=None, *, smoke=False):
+def select_tasks(rows, requested=None, *, smoke=False, split="dev"):
     specs = [
         row if isinstance(row, TaskSpec) else TaskSpec.model_validate(row)
         for row in rows
     ]
+    if split == "test":
+        selected = [
+            spec
+            for spec in specs
+            if spec.split == "test" and spec.executable_in in {"m2", "m3"}
+        ]
+        if len(selected) != 40 or (
+            requested is not None
+            and (
+                len(requested) != 40
+                or set(requested) != {spec.task_id for spec in selected}
+            )
+        ):
+            raise ValueError("partial_test_refused")
+        if requested is not None:
+            by_id = {spec.task_id: spec for spec in selected}
+            return [by_id[key] for key in requested]
+        return selected
     if requested is not None:
         by_id = {spec.task_id: spec for spec in specs}
         if (
@@ -711,9 +729,18 @@ async def run_dev_m3(
     smoke=False,
     driver_kwargs=None,
     service_factory=None,
+    allow_test=False,
+    record_golden=True,
+    run_label=None,
+    config=None,
 ):
     """Injected stores are test-only; live assembly always supplies PostgreSQL."""
-    if smoke and specs and all(spec.split == "smoke" for spec in specs):
+    if (
+        not allow_test
+        and smoke
+        and specs
+        and all(spec.split == "smoke" for spec in specs)
+    ):
         return await _run_smoke(
             specs,
             root=root,
@@ -728,8 +755,10 @@ async def run_dev_m3(
             driver_kwargs=driver_kwargs,
             service_factory=service_factory,
         )
-    if any(spec.split != "dev" for spec in specs):
+    if any(spec.split != ("test" if allow_test else "dev") for spec in specs):
         raise ValueError("test_task_refused")
+    if allow_test:
+        record_golden = False
     if not specs:
         raise ValueError("invalid_task_selection")
     if not smoke:
@@ -747,7 +776,7 @@ async def run_dev_m3(
                 "LiteLLM model/info: 에이전트 가상 키 인증·조회 권한 또는 서비스 확인 필요"
             )
         raise ValueError(failures[0])
-    directory = root / "data/results/dev" / uuid4().hex
+    directory = root / "data/results" / ("test" if allow_test else "dev") / uuid4().hex
     tracker = AnchorTracker()
     exploration_budget = exploration_budget_from_env()
     requester_users = load_users()
@@ -803,6 +832,8 @@ async def run_dev_m3(
         if str(metadata.get("a_git_head", "")).startswith("d2eec9c")
         else ["a_head_differs_d2eec9c"],
     )
+    if run_label is not None:
+        manifest.update(run_label=run_label, config=config, m6_run=run_label)
     before = costs()
     observations, grades, smoke_results = [], {}, []
     attempt_captures = []
@@ -810,7 +841,7 @@ async def run_dev_m3(
     status_path = root / "data/replay/golden/status.json"
     statuses = (
         json.loads(status_path.read_text())
-        if not smoke and status_path.exists()
+        if record_golden and not smoke and status_path.exists()
         else {}
     )
     if not smoke:
@@ -833,7 +864,9 @@ async def run_dev_m3(
                     raise ValueError("mock_seed_mismatch")
                 attempt_dir = directory / "attempts" / f"{spec.task_id}-{number + 1}"
                 captured_chat = _GuardrailCapture(chat)
-                record = not smoke and spec.task_id in golden.GOLDEN_TASKS
+                record = (
+                    record_golden and not smoke and spec.task_id in golden.GOLDEN_TASKS
+                )
                 recording_chat = (
                     RecordingChatClient(
                         captured_chat,
@@ -1100,6 +1133,13 @@ async def run_dev_m3(
             )
             if guardrail_v2_on:
                 manifest["guardrail_v2"]["status_counts"] = chat.status_counts()
+            if run_label is not None:
+                validity = run_guards.v2_validity(
+                    manifest["guardrail_v2"]["switch"],
+                    manifest["guardrail_v2"]["status_counts"],
+                )
+                manifest["v2_validity"] = validity
+                manifest["validity"] = run_guards.validity_label(validity)
             manifest["finished_at"] = datetime.now(UTC).isoformat()
             _write(directory / "manifest.json", manifest)
             _write(directory / "grades.json", grades)
@@ -1137,7 +1177,7 @@ async def run_dev_m3(
     }
 
 
-async def _live(specs, metadata, *, smoke=False):
+async def _live(specs, metadata, *, smoke=False, **run_options):
     url = env_or("GOVOPS_DATABASE_URL", "")
     if not url or url == "memory":
         raise ValueError("postgres_required")
@@ -1241,6 +1281,7 @@ async def _live(specs, metadata, *, smoke=False):
             outbox=PostgresOutboxStore(url),
             preflight=lambda: failures,
             smoke=smoke,
+            **run_options,
         )
 
 
@@ -1248,8 +1289,51 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tasks")
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--m6", action="store_true")
+    parser.add_argument("--split")
+    parser.add_argument("--config")
+    parser.add_argument("--run")
+    parser.add_argument("--repeat-index")
+    parser.add_argument("--no-record-golden", action="store_true")
     args = parser.parse_args(argv)
     try:
+        run_options = {}
+        if not args.m6 and (
+            any(
+                value is not None
+                for value in (args.split, args.config, args.run, args.repeat_index)
+            )
+            or args.no_record_golden
+        ):
+            raise ValueError("invalid_arguments")
+        if args.m6:
+            split = args.split or "dev"
+            if (
+                args.smoke
+                or split not in {"dev", "test"}
+                or not args.run
+                or args.repeat_index is not None
+                and args.repeat_index not in {"1", "2", "3"}
+            ):
+                raise ValueError("invalid_arguments")
+            run_guards.guard_switch(args.config, env_or("GOVOPS_GUARDRAIL_V2", "off"))
+            run_guards.guard_fresh_status_counts(LiteLLMChatClient.status_counts())
+            run_guards.guard_redteam_registration(ROOT)
+            run_guards.guard_clean_worktree(ROOT)
+            if split == "test":
+                run_guards.guard_test_targets(
+                    ROOT,
+                    config=args.config,
+                    role="official" if args.run == "N2" else "reference",
+                )
+            run_options = {
+                "allow_test": split == "test",
+                "record_golden": not args.no_record_golden,
+                "run_label": args.run,
+                "config": args.config,
+            }
+            if split == "test":
+                run_options["record_golden"] = False
         specs = (
             smoke_specs()
             if args.smoke
@@ -1257,9 +1341,10 @@ def main(argv=None):
                 json.loads((ROOT / "data/eval/tasks.json").read_text()),
                 args.tasks.split(",") if args.tasks is not None else None,
                 smoke=args.smoke,
+                **({"split": split} if args.m6 else {}),
             )
         )
-        if not args.smoke and len(specs) != 20:
+        if not args.smoke and len(specs) != (40 if args.m6 and split == "test" else 20):
             raise ValueError("dev_task_count_mismatch")
         metadata = (
             {}
@@ -1271,7 +1356,9 @@ def main(argv=None):
                 ).expanduser(),
             )
         )
-        result = asyncio.run(_live(specs, metadata, smoke=args.smoke))
+        if args.m6 and split == "test":
+            metadata["repeat_index"] = int(args.repeat_index or "1")
+        result = asyncio.run(_live(specs, metadata, smoke=args.smoke, **run_options))
         if args.smoke:
             return result.get("exit_code", 1)
     except BudgetExceededError:
@@ -1283,7 +1370,7 @@ def main(argv=None):
         print("예산 중단: ADR-013 축소 순서를 따른다")
         return 2
     except Exception as error:  # noqa: BLE001 — safe CLI boundary
-        if args.smoke and args.tasks is None:
+        if args.smoke and args.tasks is None and not args.m6:
             _smoke_fail(
                 "approve",
                 "preflight",
@@ -1312,6 +1399,14 @@ def main(argv=None):
             "mock_seed_mismatch",
             "stale_mock_image",
             "litellm_config_stale",
+            "hypotheses_test_targets_not_committed",
+            "official_config_mismatch",
+            "redteam_registration_not_committed",
+            "guardrail_v2_switch_mismatch",
+            "status_counts_not_fresh",
+            "invalid_config",
+            "invalid_arguments",
+            "partial_test_refused",
         }
         code = str(error) if isinstance(error, ValueError) else ""
         print(

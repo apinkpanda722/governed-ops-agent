@@ -1,0 +1,8 @@
+# 사용법: docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.redteam.yml up -d
+# 레드팀 실행 전용, 일반 평가는 쓰지 않는다.
+services:
+  mock-jira:
+    volumes:
+      - ../data/redteam:/app/data/redteam:ro
+    environment:
+      MOCK_JIRA_OVERLAY: /app/data/redteam/overlay/jira_tickets.json

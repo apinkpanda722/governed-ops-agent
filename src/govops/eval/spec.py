@@ -53,7 +53,7 @@ EDIT_MARKER = "[승인자 수정]"
 
 
 class ApprovalStep(_Model):
-    actor: Literal["requester", "other_team_user", "same_team_g4"]
+    actor: Literal["requester", "other_team_user", "same_team_g4", "same_team_eligible"]
     decision: Literal["approve", "reject", "edit_approve"]
     expect_http: int | None
     # edit_approve만: 승인자가 초안 본문을 통째로 바꾸는 결정론적 수정본(표식으로 시작한다).
