@@ -1,0 +1,36 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m6-guardrail-v2",
+  "steps": [
+    {
+      "step": 0,
+      "name": "v2-alias-and-prices",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "v2-semantic-core",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "v2-classifier-client",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "v2-graph-wiring",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "v2-smoke-and-preflight",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "v2-docs-sync",
+      "status": "pending"
+    }
+  ]
+}
