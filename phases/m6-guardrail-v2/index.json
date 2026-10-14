@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "v2-classifier-client",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T11:21:46+0900",
+      "summary": "Guardrail v2 classify·ClassifyResult, 호출별 전송 옵션, 예약·정산, 안전한 상태 집계·설정 해시 위임과 테스트를 추가했습니다. 기존 complete 경로와 계층 경계를 유지했고 make verify 통과(Python 3801개, 웹 211개).",
+      "completed_at": "2026-10-14T11:35:48+0900",
+      "usage": {
+        "input_tokens": 4170658,
+        "cached_input_tokens": 3992064,
+        "output_tokens": 16775,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
