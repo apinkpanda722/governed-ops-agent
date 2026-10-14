@@ -294,7 +294,7 @@ def test_gateway_fallback_configs_match():
         assert models["guardrail-v2"] == {
             "model": "anthropic/claude-haiku-5-5",
             "api_key": "os.environ/ANTHROPIC_API_KEY",
-            "timeout": 4,
+            "timeout": 8,
             "num_retries": 0,
         }
 

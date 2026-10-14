@@ -72,8 +72,8 @@ def test_config_structure_and_registration(config):
     } == {
         "version": 1,
         "model": "guardrail-v2",
-        "max_completion_tokens": 16,
-        "timeout_s": 4.0,
+        "max_completion_tokens": 1024,
+        "timeout_s": 8.0,
         "connect_timeout_s": 2.0,
         "concurrency": 8,
         "round_item_limit": 16,
@@ -87,20 +87,16 @@ def test_config_structure_and_registration(config):
     assert (
         semantic.config_sha256() == hashlib.sha256(CONFIG_FILE.read_bytes()).hexdigest()
     )
-    registration = (ROOT / "docs/results/hypotheses-m6-guardrail-v2.md").read_text()
-    values = re.findall(r"^v2_config_sha256: (.+)$", registration, re.MULTILINE)
-    assert len(values) == 1
-    if re.fullmatch(r"[0-9a-fA-F]{64}", values[0]):
-        assert values[0] == semantic.config_sha256()
-    else:
-        assert values[0] == "UNREGISTERED"
-        phrases = [
-            *config["labels"].values(),
-            *config["system_prompts"].values(),
-            config["tool_notice"],
-        ]
-        assert len(phrases) == 5
-        assert all(phrase.startswith("PLACEHOLDER_") for phrase in phrases)
+
+    def registered(name):
+        text = (ROOT / "docs/results" / name).read_text()
+        values = re.findall(r"^v2_config_sha256: (.+)$", text, re.MULTILINE)
+        assert len(values) == 1
+        return values[0]
+
+    # r1 keeps the hash of the original configuration; r2 registers the current one.
+    assert re.fullmatch(r"[0-9a-f]{64}", registered("hypotheses-m6-guardrail-v2.md"))
+    assert registered("hypotheses-m6-guardrail-v2-r2.md") == semantic.config_sha256()
 
 
 @pytest.mark.parametrize("key", ["labels", "system_prompts", "version", "tool_notice"])
