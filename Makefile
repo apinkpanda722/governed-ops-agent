@@ -157,6 +157,16 @@ redteam-judge:
 run-verdict:
 	uv run python -m govops.eval.run_summary verdict $(VERDICT_ARGS)
 
+.PHONY: eval-run-dev-m6
+# 사용자 실행
+eval-run-dev-m6:
+	uv run --env-file .env python -m govops.evalrun.dev_m3 --m6 --split dev --config $(CONFIG) --run $(RUN) --no-record-golden
+
+.PHONY: eval-run-test
+# 사용자 실행
+eval-run-test:
+	uv run --env-file .env python -m govops.evalrun.dev_m3 --m6 --split test --config $(CONFIG) --run $(RUN) --repeat-index $(REPEAT) --no-record-golden
+
 .PHONY: test-outbox-pg
 # compose Postgres 기동·make db-init 후 사용자 실행, 테스트 전용 DB URL 필요
 test-outbox-pg:
