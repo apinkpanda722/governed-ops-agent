@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from govops.costs import CostLedger, cost_report, format_report, main
+from govops.costs import REPORT_PLAN, CostLedger, cost_report, format_report, main
 
 
 def settlement(cost=0.002, *, purpose="agent_primary", task="task-a", rid=None):
@@ -111,12 +111,17 @@ def test_nearest_rank(tmp_path, ratios, p50, p95):
 def test_plan_and_conservative_remaining(tmp_path):
     write(tmp_path, [reservation("pending", 1), settlement(0.01)])
     output = format_report(cost_report(tmp_path))
-    assert "합계 480" in output
-    assert "$4.800000" in output
-    assert "52.57%" in output
+    assert "합계 560" in output
+    assert "$5.600000" in output
+    assert "61.34%" in output
     assert "$8.120000" in output
-    assert "59.11%" in output
+    assert "68.97%" in output
     assert "장애 주입 표본은 미정이므로 제외" in output
+
+
+def test_m6_report_plan_has_six_keys_and_560_task_runs():
+    assert len(REPORT_PLAN) == 6
+    assert sum(REPORT_PLAN.values()) == 560
 
 
 def test_real_ledger_copy_is_read_only(tmp_path):

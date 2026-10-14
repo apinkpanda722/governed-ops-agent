@@ -49,9 +49,15 @@ src/govops/
 │   ├── preflight.py  # mock 이미지·LiteLLM 배포·서비스 확인
 │   ├── tool_trace.py  # 자격 증명 없는 공용 도구 호출·구조 ID 추출
 │   ├── faults.py·fault_scenarios.py·faults_smoke.py  # 장애 계획·판정·재개·부품 스모크
+│   ├── run_guards.py  # M6 실행 등록·구성·작업 트리·분류 카운터 사전 가드
+│   ├── overlay_env.py  # 레드팀 오버레이 시드·조회 정합 검사
+│   ├── redteam_run.py  # 레드팀 120건 순차 실행·승인 거절·본문 없는 원자료·manifest
 │   └── dev_m3.py  # dev 20 writes_org 실행·task별 캡처·절대 규칙·모델 혼합 보고
 ├── eval/         # 메타데이터 추출(meta.py·meta_extract.py), 명세·권한(spec.py·visibility.py), 생성기(taskgen.py), 카드·검수(cards.py·cards_content.py·cards_text.py·cards_assets.py·a_source.py·review.py·review_cli.py), TCR(observation.py·tcr.py·aggregate.py·rules.py), 정확도·채점(accuracy.py·grading.py·kappa.py·human.py·grading_cli.py, Gemini 직접 호출·별도 원장)
 │   ├── scope_index.py  # 접근 전용 인덱스 생성
+│   ├── v2_validity.py  # 고정 95% 기준·시도 0건의 v2 실행 유효성 판정
+│   ├── redteam_judge.py  # 레드팀 원자료 검증·판정·집계·쌍 비교·기술 통계
+│   ├── run_summary.py  # 실행·반복 요약·dev 근거의 공식 구성 판정·읽기 전용 CLI
 │   └── duplicates.py  # mock 상태 기반 중복·누락 집계
 ├── replay/       # 가짜 A MCP 서버, llm.py(LLM 응답 기록·재생), a_through.py·a_replay.py(A record-through·순차 재생)
 │   └── chaos_a.py  # F11 루프백 원시 장애 서버·합성 토큰·fact 판정
@@ -65,7 +71,8 @@ infra/
 │                                       # agent-fallback·agent-primary-only·agent-primary-down 별칭(ADR-019)
 ├── litellm/config.obs.yaml              # obs 전용 Langfuse 콜백·원문 로깅 끔
 ├── mocks/Dockerfile                     # mock-jira·mock-slack 공용 이미지
-└── docker-compose.yml                   # LiteLLM·Postgres·mock 2개, profile obs: Langfuse v3 스택
+├── docker-compose.yml                   # LiteLLM·Postgres·mock 2개, profile obs: Langfuse v3 스택
+└── docker-compose.redteam.yml           # 레드팀 전용 mock-jira 오버레이 읽기 전용 마운트·환경 변수
 data/
 ├── contract/     # A 계약 스냅샷(도구 4개 v1) + A 커밋 해시 (커밋, 수정 금지)
 ├── seed/         # tickets.json·users.json(label·team·grade)·mock_jira_token_hashes.json·mock_slack_token_hashes.json·manifest.json(추출 A 커밋 해시·개수) (커밋)
@@ -86,6 +93,7 @@ data/
 └── interim/      # 커밋 안 함 (감사 서명 개인키 0600 등)
     ├── audit/      # 감사 체인 JSONL·legacy·고정점 대기 파일, 0600(ADR-012)
     └── eval/cards/  # 오프라인 검수 카드 HTML 한 장(index.html: 목록·카드 60장·판정 저장), 본문 발췌 포함이라 커밋 안 함
+docs/HUMAN_GRADING_GUIDE.md  # 공식 test 1회차 블라인드 사람 채점·CSV 해시 등록 안내
 docs/results/     # 결과표, 가설 사전 등록, 감사 고정점 audit-anchors.jsonl (대기 파일에서 결과 PR로 이동)
 └── human-grading-registration.json  # docs/results/human-grading-registration.json, 사람 CSV 해시 등록
 logs/             # 로컬 JSONL trace (커밋 안 함)
