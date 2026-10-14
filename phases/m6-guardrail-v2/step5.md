@@ -29,7 +29,7 @@
 ### 1. `docs/ADR.md`
 
 - **ADR-026**을 파일 끝에 더한다. 제목: "M6 결정 — Guardrail v2는 호스트 수집 지점에서 분류하고 호출은 게이트웨이 경유". 상태 유효, 날짜 2026-10-14. 결정 항목: ① A 위치(LiteLLM 훅 안) 불성립 — 지연 측정 원문(`short p50 1.15s p95 1.33s`, `p50 p50 1.18s p95 1.42s`, `max p50 1.10s p95 1.43s max 2.58s`, `>1.2s` 18/60)과 판정(p50 > 0.9s, `docs/results/hypotheses-m6-guardrail-v2.md` §1 인용). ② 호스트 수집 지점(사용자 입력은 턴 시작 1회, 도구 결과는 수집 직후 항목별 1회, 판정은 메시지에 반영되어 재분류 없음). ③ 호출은 게이트웨이 별칭 `guardrail-v2`(`anthropic/claude-haiku-5-5`, fallback 없음), 사용자 팀 키, 호스트는 `ANTHROPIC_API_KEY`를 읽지 않음. ④ 사용자 입력은 `role:user`, 도구 결과는 `role:tool`(고정 가짜 `tool_call` 1개)로 보내 게이트웨이 v1이 같은 scope 규칙을 적용하게 하고 호스트 사전 선별과의 동치성을 테스트로 고정. ⑤ `unclassified`(`timeout`·`rate_limited`·`error`·`parse`·`v1_blocked`)는 v1만 남기고 통과 + `guardrail.error`(`guardrail_v2_error`). ⑥ 사용자 입력 차단 코드는 `injection_direct` 재사용, 도구는 항목 전체 격리. ⑦ 스위치 `GOVOPS_GUARDRAIL_V2`(기본 off, 호스트만 읽음), 기록 재생·CI는 off 고정. ⑧ 비용은 호스트 원장 `purpose=guardrail_v2` 예약·정산, 단가 입력 $0.10·출력 $0.50 /MTok(확인일 2026-10-13). ⑨ 에이전트 키·팀 키 모두 별칭 호출 가능(새 능력 없음: 이미 `agent-primary`·`agent-fallback`을 호출할 수 있음). 이유·트레이드오프(에이전트 비경유 호출은 v2를 거치지 않음, 항목 단위 격리의 오탐 비용, 분류기 비결정성, 라운드 항목 상한 초과 시 v1만 적용).
-- ADR-008의 "변경 기록"에 한 줄(2026-10-13: v2 분류기 호출 위치와 방식은 ADR-026), ADR-007에는 **변경하지 않는다**(문구가 여전히 맞다).
+- ADR-007·ADR-008에는 **변경하지 않는다**(문구가 여전히 맞다). `test_m6_decision_contract`의 `previous`가 ADR-001~024 전체를 해시로 고정하므로 ADR-008 변경 기록도 추가하지 않는다. v2 분류기의 위치·방식은 ADR-026에만 기록한다.
 
 ### 2. `docs/ARCHITECTURE.md`
 
