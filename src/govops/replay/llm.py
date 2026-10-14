@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from govops.env import env_or
 from govops.gateway.client import ChatClient, ChatResult, Usage
 from govops.obs.mask import scrub_secrets
 from govops.replay.recordings import RecordingRejected, _canonical
@@ -218,6 +219,8 @@ class RecordingChatClient:
 
 class ReplayChatClient:
     def __init__(self, calls: list[dict]):
+        if env_or("GOVOPS_GUARDRAIL_V2", "off") == "on":
+            raise ValueError("guardrail_v2_replay")
         self._calls = calls
         self._index = 0
 

@@ -664,6 +664,7 @@ async def execute_live(
         )
         service = build_task_service(
             chat=chat,
+            semantic=None,
             tools=tools,
             saver=saver,
             outbox=counted_outbox,

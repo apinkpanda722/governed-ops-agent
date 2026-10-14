@@ -757,6 +757,7 @@ async def run_dev_m3(
         ).hexdigest()
         for label in {spec.user for spec in specs}
     }
+    guardrail_v2_on = env_or("GOVOPS_GUARDRAIL_V2", "off") == "on"
     manifest = dict(
         metadata,
         requester_section_sha256=requester_hashes,
@@ -778,6 +779,12 @@ async def run_dev_m3(
         ),
         contract_snapshot_sha256=snapshot_sha256(),
         started_at=datetime.now(UTC).isoformat(),
+        guardrail_v2={
+            "switch": "on" if guardrail_v2_on else "off",
+            "cfg_sha256": chat.config_sha256() if guardrail_v2_on else None,
+            "status_counts": chat.status_counts() if guardrail_v2_on else {},
+            "runner_concurrency": 1,
+        },
         finished_at=None,
         models_seen=[],
         unmapped_models=[],
@@ -849,6 +856,9 @@ async def run_dev_m3(
                     else None
                 )
                 graph_chat = _Capture(recording_chat) if record else captured_chat
+                if callable(getattr(chat, "classify", None)):
+                    # Classification uses the original gateway, bypassing LLM recordings.
+                    graph_chat.classify = chat.classify
                 captured_tools = _TaskTools(
                     recording_tools if record else tools,
                     tools,
@@ -1088,6 +1098,8 @@ async def run_dev_m3(
                 metadata.get("guardrail_rules_sha256")
                 or rules_sha256_full(evaluation_root),
             )
+            if guardrail_v2_on:
+                manifest["guardrail_v2"]["status_counts"] = chat.status_counts()
             manifest["finished_at"] = datetime.now(UTC).isoformat()
             _write(directory / "manifest.json", manifest)
             _write(directory / "grades.json", grades)
