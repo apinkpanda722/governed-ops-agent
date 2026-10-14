@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import secrets
+import threading
 from collections.abc import Callable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -21,9 +22,12 @@ from openai import (
 )
 
 from govops.costs import (
+    CLASSIFIER_DEPLOYMENTS,
     BudgetExceededError,
     CostLedger,
+    LedgerMissingError,
     anthropic_cost_usd,
+    classifier_cost_usd,
     estimate_call_usd,
     resolve_deployment,
     resolve_model,
@@ -33,10 +37,16 @@ from govops.env import env_or
 from govops.gateway.faults import ModelFaultScript, model_fault_alias
 from govops.gateway.hook_digest import HookDigests
 from govops.gateway.hook_header import GuardrailInfo, parse_header
+from govops.guardrails import semantic
+from govops.guardrails.semantic import ClassifierRequest
 from govops.obs.trace import current_span_id, set_attributes
 
 _MODEL = "gpt-6-luna"
 _IN_CALL: ContextVar[bool] = ContextVar("gateway_model_call", default=False)
+_CLASSIFY_COUNTS = dict.fromkeys(
+    ("ok", "timeout", "rate_limited", "error", "parse", "v1_blocked"), 0
+)
+_CLASSIFY_COUNTS_LOCK = threading.Lock()
 
 
 class _CallLogFilter(logging.Filter):
@@ -92,8 +102,24 @@ class ChatResult:
     guardrail: GuardrailInfo | None = None
 
 
+@dataclass(frozen=True)
+class ClassifyResult:
+    label: Literal["safe", "unsafe"] | None
+    status: Literal["ok", "timeout", "rate_limited", "error", "parse", "v1_blocked"]
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+
+
 class GatewayError(Exception):
     """HTTP 상태 또는 오류 종류만 담는 안전한 호출 오류."""
+
+    def __init__(
+        self, message: str, *, status_code: int | None = None, timeout: bool = False
+    ):
+        self.status_code = status_code
+        self.timeout = timeout
+        super().__init__(message)
 
 
 class GuardrailBlocked(GatewayError):
@@ -347,6 +373,154 @@ class LiteLLMChatClient:
                     )
                 )
 
+    @staticmethod
+    def config_sha256() -> str:
+        return semantic.config_sha256()
+
+    @staticmethod
+    def status_counts() -> dict[str, int]:
+        with _CLASSIFY_COUNTS_LOCK:
+            return dict(_CLASSIFY_COUNTS)
+
+    async def classify(
+        self, *, request: ClassifierRequest, task_id: str, user_id: str
+    ) -> ClassifyResult:
+        label = None
+        status = "error"
+        input_tokens = output_tokens = 0
+        cost = 0.0
+        reservation = None
+        try:
+            config = semantic.load_config()
+            api_key = (
+                self._key_resolver(user_id)
+                if self._key_resolver is not None
+                else self._api_key
+            )
+            if not api_key or not api_key.strip():
+                raise GatewayError("gateway key missing")
+            metadata = {
+                "task_id": task_id,
+                "trace_user_id": user_id,
+                "generation_name": "guardrail-v2",
+            }
+            if re.fullmatch(r"[0-9a-f]{32}", task_id):
+                metadata["existing_trace_id"] = task_id
+            parent = current_span_id()
+            if parent is not None:
+                metadata["parent_observation_id"] = parent
+            body = {
+                "model": config["model"],
+                "messages": request.messages,
+                "user": user_id,
+                "metadata": metadata,
+                "max_completion_tokens": config["max_completion_tokens"],
+            }
+            if request.tools is not None:
+                body["tools"] = request.tools
+            if request.tool_choice is not None:
+                body["tool_choice"] = request.tool_choice
+            input_upper = (
+                2 * len(json.dumps(body, ensure_ascii=True).encode("utf-8")) + 1024
+            )
+            estimate = classifier_cost_usd(
+                input_tokens=input_upper,
+                output_tokens=config["max_completion_tokens"],
+            )
+            reservation = await asyncio.to_thread(
+                self._ledger.reserve,
+                purpose="guardrail_v2",
+                model="claude-haiku-5-5",
+                task_id=task_id,
+                estimate_usd=estimate,
+            )
+            # Until valid usage arrives, account conservatively for a paid attempt.
+            input_tokens = input_upper
+            output_tokens = config["max_completion_tokens"]
+            cost = estimate
+            completion, deployment_id, _, _, guardrail = await self._send(
+                body,
+                api_key=api_key,
+                user_id=user_id,
+                task_id=task_id,
+                max_output_tokens=config["max_completion_tokens"],
+                tools=request.tools,
+                tool_choice=request.tool_choice,
+                timeout_s=httpx.Timeout(
+                    config["timeout_s"], connect=config["connect_timeout_s"]
+                ),
+            )
+            usage = completion.usage
+            actual_cost = classifier_cost_usd(
+                input_tokens=usage.prompt_tokens,
+                output_tokens=usage.completion_tokens,
+            )
+            input_tokens, output_tokens = usage.prompt_tokens, usage.completion_tokens
+            cost = actual_cost
+            if self._require_guardrail and guardrail is None:
+                raise GuardrailUnavailable("guardrail_header_missing")
+            if (
+                self._expected_digests is not None
+                and guardrail is not None
+                and (
+                    guardrail.rules != self._expected_digests.rules
+                    or guardrail.code != self._expected_digests.code
+                )
+            ):
+                raise GuardrailUnavailable("guardrail_stale")
+            if deployment_id not in CLASSIFIER_DEPLOYMENTS:
+                raise GatewayError("gateway classifier deployment mismatch")
+            choice = completion.choices[0]
+            content = choice.message.content
+            if content is not None and not isinstance(content, str):
+                raise GatewayError("gateway malformed response")
+            if not isinstance(choice.finish_reason, str):
+                raise GatewayError("gateway malformed response")
+            label = semantic.parse_label(content, choice.finish_reason, config)
+            status = "ok" if label is not None else "parse"
+        except (BudgetExceededError, LedgerMissingError):
+            raise
+        except GuardrailBlocked:
+            status = "v1_blocked"
+            input_tokens = output_tokens = 0
+            cost = 0.0
+        except APITimeoutError:
+            status = "timeout"
+        except (APIStatusError, GatewayError) as exc:
+            # Read only structured transport facts, never exception text.
+            if getattr(exc, "timeout", False):
+                status = "timeout"
+            elif exc.status_code == 429:
+                status = "rate_limited"
+            if exc.status_code is not None and 400 <= exc.status_code < 500:
+                input_tokens = output_tokens = 0
+                cost = 0.0
+        except Exception:  # noqa: BLE001 - classifier boundary returns only safe status
+            # SDK/parsing/config/key/ledger failures must not block the original task.
+            label, status = None, "error"
+        finally:
+            if reservation is not None:
+                try:
+                    await asyncio.shield(
+                        asyncio.to_thread(
+                            self._ledger.settle,
+                            reservation,
+                            purpose="guardrail_v2",
+                            model="claude-haiku-5-5",
+                            task_id=task_id,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cost_usd=cost,
+                        )
+                    )
+                except (BudgetExceededError, LedgerMissingError):
+                    raise
+                except Exception:  # noqa: BLE001 - retain pending reservation safely
+                    label, status = None, "error"
+        with _CLASSIFY_COUNTS_LOCK:
+            _CLASSIFY_COUNTS[status] += 1
+        return ClassifyResult(label, status, input_tokens, output_tokens, cost)
+
     async def _send(
         self,
         body: dict,
@@ -355,6 +529,9 @@ class LiteLLMChatClient:
         user_id: str,
         task_id: str,
         max_output_tokens: int,
+        tools: Sequence[Mapping[str, Any]] | None = None,
+        tool_choice: str | None = None,
+        timeout_s: float | httpx.Timeout | None = None,
     ):
         _protect_transport_logs()
         token = _IN_CALL.set(True)
@@ -364,20 +541,27 @@ class LiteLLMChatClient:
                 api_key=api_key,
                 base_url=self._base_url,
                 http_client=self._http_client,
-                timeout=self._timeout_s,
+                timeout=self._timeout_s if timeout_s is None else timeout_s,
                 max_retries=0,
                 organization="",
                 project="",
             )
             try:
-                raw = await sdk.chat.completions.with_raw_response.create(
-                    model=body["model"],
-                    messages=body["messages"],
-                    tools=body["tools"],
+                options = {
+                    "model": body["model"],
+                    "messages": body["messages"],
+                }
+                selected_tools = body.get("tools") if tools is None else tools
+                if selected_tools is not None:
+                    options["tools"] = selected_tools
+                options.update(
                     user=user_id,
                     extra_body={"metadata": body["metadata"]},
                     max_completion_tokens=max_output_tokens,
                 )
+                if tool_choice is not None:
+                    options["tool_choice"] = tool_choice
+                raw = await sdk.chat.completions.with_raw_response.create(**options)
                 deployment_id = raw.headers.get("x-litellm-model-id")
                 model_group = raw.headers.get("x-litellm-model-group")
                 try:
@@ -393,11 +577,13 @@ class LiteLLMChatClient:
                 if self._http_client is None:
                     await sdk.close()
         except APITimeoutError:
-            error = GatewayError("gateway timeout")
+            error = GatewayError("gateway timeout", timeout=True)
         except APIConnectionError:
             error = GatewayError("gateway connection failure")
         except APIStatusError as exc:
-            error = GatewayError(f"gateway HTTP {exc.status_code}")
+            error = GatewayError(
+                f"gateway HTTP {exc.status_code}", status_code=exc.status_code
+            )
             if exc.status_code == 400:
                 body = exc.body
                 details = body.get("error", body) if isinstance(body, dict) else {}
@@ -414,6 +600,7 @@ class LiteLLMChatClient:
                     )
                 elif code in {"guardrail_unavailable", "team_unknown"}:
                     error = GuardrailUnavailable(code)
+            error.status_code = exc.status_code
         except OpenAIError:
             error = GatewayError("gateway SDK failure")
         finally:
