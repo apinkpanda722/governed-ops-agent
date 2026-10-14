@@ -54,7 +54,7 @@ total_cost=$0.01294 (원장 purpose=guardrail_v2 4행, 미커밋 — 사전 등�
 
 `src/govops/guardrails/classifier_v2.json`의 바이트 전체 sha256을 아래에 등록한다. 이 값은 `rules_v1.json`의 `rules_sha256`(`hypotheses-m4-guardrail.md`)과 별개다. 프롬프트 2종·tool 안내 문장·라벨 어휘의 실제 문구는 코드 머지 뒤 smoke 전에 확정한다.
 
-v2_config_sha256: UNREGISTERED
+v2_config_sha256: ceb2a0017478ac4795ac521963d0e00806c11d9a7f12375663a960fc2a7a4a72
 
 (smoke 전 별도 등록 커밋에서 위 줄의 값을 64자리 hex로 채운다. 값을 채우는 커밋은 이 파일의 이 한 줄과 `classifier_v2.json`의 자리표시 문구 교체만 바꾼다. 그 외 §1~§9의 변경은 새 등록 파일이다. 일치 테스트가 `UNREGISTERED`인 동안은 `classifier_v2.json`의 문구가 모두 `PLACEHOLDER_`로 시작함을, 값이 채워진 뒤에는 파일 해시와의 일치를 단언한다.)
 

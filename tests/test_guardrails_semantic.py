@@ -556,3 +556,10 @@ def test_quarantine_invalid_paths_nonstring_and_invalid_ids():
     assert json.loads(changed[0]["content"]) == {"내용": QUARANTINE_MARKER, "수치": 3}
     assert changed[1] == messages[1]
     assert ids == []
+
+
+def test_registered_labels_parse_by_exact_match():
+    registered = semantic.load_config()
+    assert semantic.parse_label("UNSAFE", "stop", registered) == "unsafe"
+    assert semantic.parse_label("SAFE", "stop", registered) == "safe"
+    assert semantic.parse_label("UNSAFE", "stop", registered) != "safe"
