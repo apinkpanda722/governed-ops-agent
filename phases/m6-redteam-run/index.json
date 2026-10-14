@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "redteam-judge",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-14T18:04:47+0900",
+      "blocked_reason": "실패는 tests/test_redteam_boundary.py::test_actual_source_and_manifest_boundary의 기존 파일 3개 정확 일치 단언입니다. 필수 신규 파일 redteam_judge.py와 충돌하며, 해당 테스트는 “수정 허용 경로: src/govops/eval/redteam_judge.py, tests/test_eval_redteam_judge.py” 및 “이 단락 밖의 기존 테스트는 수정하지 않는다.”에 따라 수정할 수 없습니다. 해당 단언에 신규 파일을 추가하도록 수정 범위를 명시적으로 허용해야 진행할 수 있습니다.",
+      "blocked_at": "2026-10-14T18:16:23+0900",
+      "usage": {
+        "input_tokens": 2255252,
+        "cached_input_tokens": 2114048,
+        "output_tokens": 18107,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
