@@ -113,6 +113,10 @@
       "status": "completed",
       "blocked_at": "2026-10-14T12:24:23+0900",
       "completed_at": "2026-10-14T12:36:45+0900"
+    },
+    {
+      "dir": "m6-redteam-run",
+      "status": "pending"
     }
   ]
 }

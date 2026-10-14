@@ -1,0 +1,41 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m6-redteam-run",
+  "steps": [
+    {
+      "step": 0,
+      "name": "run-guards",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "overlay-compose",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "redteam-judge",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "run-summary-verdict",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "redteam-runner",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "test-run-path",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "docs-sync",
+      "status": "pending"
+    }
+  ]
+}
