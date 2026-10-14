@@ -53,7 +53,7 @@
 }
 ```
 
-`head_chars + tail_chars + len(truncation_marker) <= item_max_chars`여야 한다(테스트로 단언).
+`head_chars + tail_chars <= item_max_chars`여야 한다(테스트로 단언). `item_max_chars`는 **원문 글자 수 기준 상한**이다. 원문이 이를 넘으면 앞 `head_chars`자 + `truncation_marker` + 뒤 `tail_chars`자를 보내며 전송 텍스트 길이는 `head_chars + len(truncation_marker) + tail_chars`(= 2508)다. 상한 이하의 원문은 그대로 보낸다(`truncated`는 거짓).
 
 ### 2. `src/govops/guardrails/semantic.py`(순수 함수·데이터 클래스, 시그니처 수준)
 
@@ -70,7 +70,7 @@
 
 ### 3. 테스트(`tests/test_guardrails_semantic.py`, 가짜 분류기·함수 호출만, 네트워크 없음)
 
-1. **구조·해시**: `load_config()`가 키 집합을 검사하고, 알 수 없는 키·누락 키는 `ValueError`다. `head_chars + tail_chars + len(truncation_marker) <= item_max_chars`. `docs/results/hypotheses-m6-guardrail-v2.md`에서 `^v2_config_sha256: (.+)$` 줄을 읽어 **둘 중 하나**를 단언한다: (a) 값이 64자리 hex이면 `config_sha256()`와 같다, (b) 값이 `UNREGISTERED`이면 `classifier_v2.json`의 `system_prompts`·`tool_notice`·`labels` 값이 모두 `PLACEHOLDER_`로 시작한다. 두 경우가 아니면 실패한다(등록 상태가 모호한 채 통과하지 않는다).
+1. **구조·해시**: `load_config()`가 키 집합을 검사하고, 알 수 없는 키·누락 키는 `ValueError`다. `head_chars + tail_chars <= item_max_chars`(마커 길이는 상한 계산에 넣지 않는다, 위 §1의 정의). `docs/results/hypotheses-m6-guardrail-v2.md`에서 `^v2_config_sha256: (.+)$` 줄을 읽어 **둘 중 하나**를 단언한다: (a) 값이 64자리 hex이면 `config_sha256()`와 같다, (b) 값이 `UNREGISTERED`이면 `classifier_v2.json`의 `system_prompts`·`tool_notice`·`labels` 값이 모두 `PLACEHOLDER_`로 시작한다. 두 경우가 아니면 실패한다(등록 상태가 모호한 채 통과하지 않는다).
 2. **선별**: v1 차단 사용자 입력은 `select_user_item`이 `None`이다. 전송 텍스트에 6종 PII가 없다(비-JSON 도구 본문의 `landline`·`card`·`account` 형식 합성값 포함, 형식만 맞춘 합성값을 쓴다). v1이 격리한 문장은 전송 텍스트에서 마커로만 남는다. 40자 미만·식별자 형식·마커-only는 제외된다. 길이 상한과 `truncated`. 라운드 항목 16개 상한과 초과 개수 계수, 최신 도구 메시지가 먼저 선택됨.
 3. **요청 구성**: 사용자형은 2메시지·`tools is None`, 도구형은 4메시지이며 `assistant.tool_calls[0].id == tool.tool_call_id`이고 `valid_tool_call_id(...)`가 참, `tool_choice == "none"`. `messages[-1].content == item.text`(래퍼 없음).
 4. **동치성(핵심, 호스트 선별 ↔ 게이트웨이 v1)**: 합성 문장 코퍼스(정상 업무 문장, 형식만 맞춘 합성 PII 포함 문장, 이미 마커가 있는 문장, 긴 문장)의 각 항목에 대해 `build_request(...).messages`를 `screen_request`(훅이 쓰는 함수)에 넣어 확인한다: 사용자형은 `verdict.action == "allow"`, 도구형은 `verdict.action == "allow"`이고 도구 메시지의 `content`가 **무변화**(해당 `ToolItem`의 `quarantined`·`masked`가 모두 거짓)이다. 고정 `system`·`user`(`tool_notice`) 문장도 `allow`·무변화다. 호스트의 `select_*` 결과가 항목으로 만든 것은 반드시 이 조건을 만족해야 하며, 만족하지 못하는 항목이 있으면 테스트가 실패한다(동치성 위반). 자리표시 `tool_notice`가 `allow`인지도 이 테스트가 확인한다.
