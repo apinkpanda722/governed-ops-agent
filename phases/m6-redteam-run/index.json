@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "run-summary-verdict",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T18:35:07+0900",
+      "summary": "지정된 신규 파일 2개에 실행·반복 요약, 고정 임계 v2 제외 판정과 읽기 전용 CLI를 합성 테스트부터 구현했으며 make verify 전체 통과.",
+      "completed_at": "2026-10-14T18:48:47+0900",
+      "usage": {
+        "input_tokens": 2163221,
+        "cached_input_tokens": 2024832,
+        "output_tokens": 15673,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
