@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "overlay-compose",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T17:53:40+0900",
+      "summary": "지정된 신규 파일 4개에 레드팀 compose 오버라이드와 오버레이 시드·조회 검사 및 합성 테스트를 TDD로 구현했으며, 기존 파일 변경 없이 make verify 전체 통과.",
+      "completed_at": "2026-10-14T18:04:47+0900",
+      "usage": {
+        "input_tokens": 3049695,
+        "cached_input_tokens": 2900992,
+        "output_tokens": 9330,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
