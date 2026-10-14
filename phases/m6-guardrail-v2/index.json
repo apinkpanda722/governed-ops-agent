@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "v2-graph-wiring",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T11:35:48+0900",
+      "summary": "Guardrail v2 사용자 차단·도구 격리, 서버·dev 결선, 장애 러너 off·재생 거부·manifest를 추가했습니다. off 불변성과 계층 경계를 확인했고 make verify 통과(Python 3843개, 웹 211개).",
+      "completed_at": "2026-10-14T11:56:03+0900",
+      "usage": {
+        "input_tokens": 7575766,
+        "cached_input_tokens": 7350400,
+        "output_tokens": 24556,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
