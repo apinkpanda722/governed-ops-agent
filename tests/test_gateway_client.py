@@ -842,6 +842,7 @@ def test_deployment_configuration_ids():
 
     expected = dict(costs.DEPLOYMENT_MODELS)
     expected["openai-gpt-6-luna-down"] = "gpt-6-luna"
+    expected.update(costs.CLASSIFIER_DEPLOYMENTS)
     configs = [
         yaml.safe_load(
             (Path(__file__).resolve().parents[1] / "infra/litellm" / name).read_text()

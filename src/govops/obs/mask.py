@@ -39,6 +39,7 @@ DEPLOYMENT_IDS = frozenset(
         "openai-gpt-6-luna-only",
         "openai-gpt-6-luna-down",
         "anthropic-claude-sonnet-5-5",
+        "anthropic-claude-haiku-5-5",
     }
 )
 IDENTIFIER_FORMATS = {

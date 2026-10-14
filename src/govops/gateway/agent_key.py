@@ -18,6 +18,7 @@ AGENT_KEY_MODELS = (
     "agent-primary-only",
     "agent-primary-down",
     "agent-fallback",
+    "guardrail-v2",
 )
 
 _ASSIGNMENT = re.compile(

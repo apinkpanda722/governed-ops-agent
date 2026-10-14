@@ -42,7 +42,7 @@ def test_prices_and_constants(monkeypatch):
     assert costs.estimate_call_usd(
         "gpt-6-luna", input_tokens_upper=1000000, max_output_tokens=1000000
     ) == pytest.approx(0.6)
-    assert len(costs.PRICES) == 8
+    assert len(costs.PRICES) == 10
     for suffix, amount in [
         ("input", 0.1),
         ("cached_input", 0.01),
@@ -53,6 +53,14 @@ def test_prices_and_constants(monkeypatch):
         assert price.unit_price_usd == amount / 1000000
         assert price.checked_on == "2026-09-30"
         assert price.source_url == "https://developers.openai.com/api/docs/pricing"
+    for suffix, amount in [("input", 0.10), ("output", 0.50)]:
+        price = costs.PRICES[f"anthropic.claude-haiku-5-5.{suffix}"]
+        assert price.unit_price_usd == amount / 1_000_000
+        assert price.checked_on == "2026-10-13"
+        assert (
+            price.source_url
+            == "https://platform.claude.com/docs/en/about-claude/pricing"
+        )
 
 
 def test_missing_and_init(tmp_path):

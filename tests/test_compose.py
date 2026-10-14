@@ -174,7 +174,7 @@ def test_litellm_has_primary_model_and_environment_settings() -> None:
     path = REPO_ROOT / "infra/litellm/config.yaml"
     text = path.read_text(encoding="utf-8")
     config = yaml.safe_load(text)
-    assert len(config["model_list"]) == 4
+    assert len(config["model_list"]) == 5
     model = config["model_list"][0]
     assert model["model_name"]
     assert model["litellm_params"] == {
@@ -280,6 +280,7 @@ def test_gateway_fallback_configs_match():
             "agent-fallback",
             "agent-primary-only",
             "agent-primary-down",
+            "guardrail-v2",
         }
         for name in ("agent-primary", "agent-primary-only", "agent-primary-down"):
             assert models[name]["model"] == "openai/gpt-6-luna"
@@ -290,6 +291,12 @@ def test_gateway_fallback_configs_match():
         assert models["agent-fallback"]["timeout"] == 30
         assert models["agent-primary-down"]["api_base"] == "http://127.0.0.1:9"
         assert models["agent-primary-only"] == models["agent-primary"]
+        assert models["guardrail-v2"] == {
+            "model": "anthropic/claude-haiku-5-5",
+            "api_key": "os.environ/ANTHROPIC_API_KEY",
+            "timeout": 4,
+            "num_retries": 0,
+        }
 
 
 def test_guardrail_mounts_and_configs(compose):
