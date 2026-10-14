@@ -328,14 +328,16 @@ LiteLLM 컨테이너 안의 `guardrail_hook.py`가 `pre_call`·`post_call`을 �
 - PII 범위: 주민번호, 전화, 개인 이메일, 계좌·카드번호. 직원 이름·사번·담당자는 업무 데이터라 제외한다.
 - 팀별 정책은 `agent/checks.py`가 발송 직전에 강제한다. 서비스 시작 정책 해시 감사는 M4 phase 2의 감사 이벤트 확장에 포함한다.
 - 마스킹은 도구 결과와 trace 전송 전에 적용한다. 사용자 입력은 차단하고 모델 출력은 탐지·경보한다.
-- 탐지기 두 버전(M6): v1 = 규칙(한국 형식 PII 정규식, 인젝션 패턴 사전), v2 = v1 + 게이트웨이 경유 Anthropic 소형 분류 모델(Haiku 계열). **확인 필요(구현 시 공식 문서로 확인): v2 분류기 모델 ID와 가격.**
-- v2 분류기를 주 모델(OpenAI)과 다른 회사에 두는 이유: 같은 회사면 주 모델 장애 때 사전 검사가 타임아웃 나고 fail-closed로 전부 차단되어 fallback이 무력화된다.
-- v2 실패 시 v1 결과로 판정하고 경보한다. v1까지 실패하면 차단한다(fail-closed).
+- 탐지기 두 버전(M6, ADR-026): v1 = 게이트웨이 규칙(한국 형식 PII 정규식, 인젝션 패턴 사전), v2 = v1 + 호스트 수집 지점의 Anthropic 소형 분류 모델. v1은 분류 요청을 포함한 모든 게이트웨이 호출, v2는 에이전트 그래프를 거친 호출에만 적용된다. 분류 호출은 `gateway` 클라이언트가 사용자 팀 키로 게이트웨이 별칭 `guardrail-v2`(→ `anthropic/claude-haiku-5-5`, fallback 없음)를 경유하며 호스트는 `ANTHROPIC_API_KEY`를 읽지 않는다.
+- v2는 사용자 입력을 턴 시작 첫 모델 호출 전 1회, 도구 결과를 수집 직후 라운드의 항목별 1회 분류한다. 호스트가 v1으로 선별·PII 6종 마스킹한 텍스트를 사용자 입력은 `role:user`, 도구 결과는 `role:tool`(고정 가짜 `tool_call` 1개)로 보내 같은 scope 규칙을 적용한다. 판정은 메시지·체크포인트에 남아 이후 호출에서 재분류하지 않는다.
+- v2 분류기는 주 모델(OpenAI)과 다른 회사(Anthropic)에 둔다. 주 모델 장애와 분류기 장애를 분리하며 v2 오류는 v1만 남기고 통과 + 경보로 처리한다. v1까지 실패하면 차단한다(fail-closed). `unclassified` 상태와 사용자 `injection_direct` 차단·도구 항목 전체 격리는 ADR-026을 따른다.
+- 스위치 `GOVOPS_GUARDRAIL_V2`는 호스트 전용이며 기본 off다. 기록 재생·CI는 off 고정이다. on일 때 Anthropic으로 나가는 내용은 fallback 호출분에서 **v1을 통과한 모든 에이전트 요청의 사용자 입력과 도구 결과(PII 6종 마스킹 뒤)** 로 늘어난다. 분류 경로는 호스트 → 게이트웨이 → Anthropic이다.
 - 역할 구분·헤더 전달·호스트 감사 계약은 ADR-023을 따른다.
 - fallback: Anthropic `claude-sonnet-5-5`, 호출 단위(LiteLLM Router) 전환·단가·모델 호출 타임아웃·정산은 ADR-019를 따른다. 모델이 섞인 task 수와 그 TCR을 따로 보고한다.
-- 응답 모델과 단가는 응답 헤더 `x-litellm-model-id`의 배포 ID로 매핑하고, 헤더가 없을 때만 본문 `model`을 사용한다. 두 LiteLLM 설정 파일의 `model_info.id`는 `openai-gpt-6-luna`·`openai-gpt-6-luna-only`·`openai-gpt-6-luna-down`·`anthropic-claude-sonnet-5-5`다. 응답할 수 없는 down 배포 ID는 매핑하지 않고 미등록으로 경보한다. LLM 기록은 `response_model`(매핑 결과)·`deployment_id`를, dev manifest는 제공자 모델 ID인 `models_seen`·미등록 식별자인 `unmapped_models`를 남긴다.
+- 응답 모델과 단가는 응답 헤더 `x-litellm-model-id`의 배포 ID로 매핑하고, 헤더가 없을 때만 본문 `model`을 사용한다. 두 LiteLLM 설정 파일의 에이전트 호출용 `model_info.id`는 `openai-gpt-6-luna`·`openai-gpt-6-luna-only`·`openai-gpt-6-luna-down`·`anthropic-claude-sonnet-5-5`다. 응답할 수 없는 down 배포 ID는 매핑하지 않고 미등록으로 경보한다. LLM 기록은 `response_model`(매핑 결과)·`deployment_id`를, dev manifest는 제공자 모델 ID인 `models_seen`·미등록 식별자인 `unmapped_models`를 남긴다.
+- 분류기 배포 ID `anthropic-claude-haiku-5-5`는 별도 `CLASSIFIER_DEPLOYMENTS`로 해석하며 에이전트 응답 매핑은 유지한다. 분류 비용은 호스트 원장 `purpose=guardrail_v2`로 예약·정산하며 단가·확인일은 ADR-026을 따른다.
 - F6 장애 주입 백엔드는 `down_alias` 하나이며, 닫힌 포트를 가리키는 `agent-primary-down` + fallbacks를 호출 번호 스크립트로 선택한다. `GOVOPS_MODEL_FAULT_MODE`는 `down_alias`만 허용하며 설정된 상태로는 일반 서비스가 시작되지 않는다. 요청 파라미터를 통한 fallback 시험은 프록시 기본 거부를 유지하고 이를 켜는 설정은 사용하지 않는다.
-- 에이전트 가상 키의 허용 모델은 두 설정 파일의 `model_name` 집합과 같은 네 별칭이며 테스트로 고정한다. 기존 키는 `make agent-key-update`로 갱신하고 `.env` 키 값은 유지한다.
+- 에이전트 키·팀 키의 허용 모델은 `AGENT_KEY_MODELS`가 단일 출처이며 두 설정 파일의 `model_name` 집합과 같은 다섯 별칭(`guardrail-v2` 포함)으로 테스트에 고정한다. 기존 에이전트 키는 `make agent-key-update`, 팀 키는 `make team-keys-update`로 갱신하며 `.env` 키 값은 유지한다.
 - `smoke-fallback`은 normal 단계의 OpenAI 증가 > 0·Anthropic 증가 = 0, fallback 단계의 Anthropic 증가 > 0·OpenAI 증가 = 0을 원장에서 검사하며 두 단계 모두 미등록 0건이어야 통과한다.
 
 ## trace 구조

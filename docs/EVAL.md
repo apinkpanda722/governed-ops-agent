@@ -121,7 +121,7 @@ TCR·정확도·지연 목표는 **dev 실행 뒤, test 실행 전에** `docs/re
 | dev | 20 × 1 |
 | test | 40 × 3 |
 | Guardrail 끔 | 40 × 1 |
-| Guardrail v2 | test 40 × 1 + dev 20 × 1 (v2 오탐률도 v1과 같은 정상 task 60개 분모로 맞추기 위해 dev 20을 더한다) |
+| Guardrail v2 | test 40 × 3 + dev 20 × 1 (M6 7절의 공식 test 3회, 정상 대조 task 60개 분모를 유지하기 위해 dev 20을 더하며 반복 test는 별개 task로 세지 않는다) |
 | 레드팀 | 120 × v1·v2 = 240 (정상 대조는 위 실행 재사용) |
 | 장애 주입 | F1~F11 × T2·T3 표본 |
 
@@ -204,11 +204,13 @@ B 전체 기간 총액(월 단위 아님). 모든 유료 호출은 **호출 직�
 | 공급사 | 용도 | 상한 |
 |---|---|---:|
 | OpenAI | 주 모델 | $9.13 |
-| Anthropic | fallback, Guardrail v2 분류기 | $11.47 |
+| Anthropic | fallback, Guardrail v2 분류기(게이트웨이 별칭 `guardrail-v2` 경유) | $11.47 |
 | Gemini | 채점(별도 원장) | $7.29 |
 | 합계 | | $27.89 |
 
 공급사 상한은 그대로 두고, 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. M2 파일럿 실측으로 전체 예상 비용을 다시 추정한다. 평가 실행마다 비용을 `docs/results/`에 적는다. Gemini 단가는 2026-12-31까지 유효하며 2027-01-01부터 채점 호출이 코드로 거부된다.
+
+Guardrail v2 분류기는 호스트 수집 지점에서 사용자 팀 키로 게이트웨이를 경유하며 비용은 호스트 원장 `purpose=guardrail_v2`로 예약·정산한다(ADR-026).
 
 `make cost-report`로 추정 상한 대비 실제 비용 비율과 파일럿 전 참고용 재추정을 확인한다(읽기 전용, 사용자 실행).
 

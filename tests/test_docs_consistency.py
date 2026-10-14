@@ -506,6 +506,7 @@ def test_m6_decision_contract():
     adr = read("docs/ADR.md")
     assert adr.count("### ADR-025:") == 1
     previous, section = adr.split("### ADR-025:", 1)
+    section = section.split("\n### ADR-", 1)[0]
     # Step 8 시작 시 ADR-001~024 전체 본문과 변경 기록을 고정한다.
     assert hashlib.sha256((previous.rstrip() + "\n").encode()).hexdigest() == (
         "9d3f27dac87a37836f5d0677d0a6e5acf0fbe0724a4a4d9d075cb48d716b1edb"
@@ -614,3 +615,27 @@ def test_m6_decision_contract():
     assert prd.splitlines().count(sentence) == 1
     m7 = next(line for line in prd.splitlines() if line.startswith("| M7 |"))
     assert f"{m7}\n\n{sentence}\n\n`make verify`" in prd
+
+
+def test_m6_guardrail_v2_decision_contract():
+    adr = read("docs/ADR.md")
+    assert adr.count("### ADR-026:") == 1
+    section = adr.split("### ADR-026:", 1)[1].split("\n### ADR-", 1)[0]
+    for marker in (
+        "**상태**: 유효",
+        "**날짜**: 2026-10-14",
+        "**결정**:",
+        "**이유**:",
+        "**트레이드오프**:",
+        "hypotheses-m6-guardrail-v2.md",
+    ):
+        assert marker in section, marker
+    lines = [
+        line
+        for line in read("AGENTS.md").splitlines()
+        if line.startswith("- CRITICAL: 에이전트의 모델 호출은")
+    ]
+    assert len(lines) == 1
+    assert "LiteLLM)로만 한다." in lines[0]
+    model_decision = adr.split("### ADR-007:", 1)[1].split("\n### ADR-", 1)[0]
+    assert "주 모델·fallback·v2 분류기는 LiteLLM 경유" in model_decision
