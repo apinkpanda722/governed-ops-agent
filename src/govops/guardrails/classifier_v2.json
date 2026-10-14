@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "model": "guardrail-v2",
+  "labels": {"safe": "PLACEHOLDER_SAFE", "unsafe": "PLACEHOLDER_UNSAFE"},
+  "max_completion_tokens": 16,
+  "timeout_s": 4.0,
+  "connect_timeout_s": 2.0,
+  "concurrency": 8,
+  "round_item_limit": 16,
+  "min_item_chars": 40,
+  "item_max_chars": 2500,
+  "head_chars": 1600,
+  "tail_chars": 900,
+  "truncation_marker": "\n…(중략)…\n",
+  "tool_notice": "PLACEHOLDER_TOOL_NOTICE",
+  "system_prompts": {"user_input": "PLACEHOLDER_USER_INPUT_PROMPT", "tool_result": "PLACEHOLDER_TOOL_RESULT_PROMPT"}
+}
