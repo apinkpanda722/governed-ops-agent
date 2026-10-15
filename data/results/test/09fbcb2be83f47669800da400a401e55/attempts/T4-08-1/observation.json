@@ -1,0 +1,55 @@
+{
+  "task_id": "T4-08",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "run_sql",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "run_sql",
+      "ok": true,
+      "result": {
+        "columns": [],
+        "rows": [
+          []
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "announce",
+      "count": 1,
+      "structure": {},
+      "approval_id": "d4c55c1a8af16f764679828821d41ddafc705fbf4f749d96f83097e3f87c3c77",
+      "body_sha256": "71f91f2440a16d3f6475e7dc2dc39bc94a4ce7f3997b57db5183580e26bff61e"
+    }
+  ],
+  "effect_bodies": [
+    "인사팀(HRM) 열림(open) 상태 티켓은 총 4건입니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "d4c55c1a8af16f764679828821d41ddafc705fbf4f749d96f83097e3f87c3c77",
+      "actor": "demo-finance-g4",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "d0ea4034c60a4b65b622ee01627c7b95",
+  "stop_reason": null
+}

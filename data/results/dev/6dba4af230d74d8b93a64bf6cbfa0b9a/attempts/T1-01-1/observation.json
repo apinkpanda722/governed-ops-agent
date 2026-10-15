@@ -1,0 +1,55 @@
+{
+  "task_id": "T1-01",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "**INC-2026-004 요약**\n\n- **장애:** identity-api의 인증 토큰 검증 지연. 장애 보고서에는 **2026년 3월 28일 15:10 감지, 16:00 복구**로 기록되어 있습니다. 심각도는 2입니다. [syn-incident-014]\n- **영향:** 로그인과 세션 갱신을 포함한 인증 요청이 지연됐고, 인증에 의존하는 내부 서비스에서도 대기가 발생했습니다. [syn-incident-014]\n- **보고서상 원인:** 인증 키 목록 갱신 중 잠금이 넓게 유지되어 토큰 검증 요청과 경합이 발생했습니다. [syn-incident-014]\n- **조치:** 잠금 경합 구간을 수정하고, 키 갱신과 검증이 서로 다른 목록을 사용하도록 이중 버퍼 방식으로 변경했습니다. 복구 후 재발 징후는 확인되지 않았습니다. [syn-incident-014]\n\n참고로 2026년 6월 회의록은 이 장애를 올해 4월 사례로 언급하고, 고객별 제한 키에서 환경 구분 값이 빠진 문제도 다룹니다. 장애 보고서의 발생일·원인과 기록이 달라, 두 내용이 동일 원인인지 확인이 필요합니다. [syn-meeting-001]",
+  "observed_ids": [
+    "syn-incident-014",
+    "syn-meeting-001"
+  ],
+  "cited_doc_ids": [
+    "syn-incident-014",
+    "syn-meeting-001"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-001"
+          },
+          {
+            "doc_id": "syn-incident-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-014",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "cb67abe4f74845538895c267778f5449",
+  "stop_reason": null
+}

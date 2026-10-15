@@ -1,0 +1,96 @@
+{
+  "task_id": "T5-10",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "### INC-2025-001 장애 요약\n\n- **발생 일시:** 2025년 1월 15일 09:10~10:05, 약 55분\n- **대상 서비스:** `core-gateway` / **심각도:** 2\n- **장애 및 영향:** 연결 자원이 부족해지면서 관문을 통과하는 API 요청에 지연과 일부 실패가 발생했습니다. 하위 서비스 호출 성공률에도 부정적인 영향이 있었지만, 서비스 전체 중단으로 이어지지는 않았습니다.\n- **주요 원인:** 연결 풀 상한이 트래픽 증가를 반영하지 못해 가용 연결이 소진되고 요청 대기열이 길어졌습니다. 연결 자원 소진을 조기에 알리는 경보도 마련되어 있지 않았습니다.\n- **조치 및 재발 방지:** 연결 풀 상한을 조정하고 자원 사용률 경보를 추가했습니다. 주요 관문 컴포넌트의 연결 설정을 정기적으로 재검토하고, 트래픽에 따른 자동 조정도 검토하기로 했습니다. 장애 당시에는 상한 조정 후 10:05 정상 복구를 확인하고 추가 모니터링을 진행했습니다.\n\n[장애보고서: syn-incident-001]",
+  "observed_ids": [
+    "syn-incident-001",
+    "syn-incident-014",
+    "syn-meeting-009",
+    "syn-runbook-011",
+    "syn-weekly-013"
+  ],
+  "cited_doc_ids": [
+    "syn-incident-001"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-009"
+          },
+          {
+            "doc_id": "syn-weekly-013"
+          },
+          {
+            "doc_id": "syn-runbook-011"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-weekly-013"
+          },
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-runbook-011"
+          },
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-runbook-011"
+          },
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-incident-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-001",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "fbf22796484244f39b59ca25917c5a95",
+  "stop_reason": null
+}

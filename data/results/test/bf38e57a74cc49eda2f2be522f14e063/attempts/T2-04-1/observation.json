@@ -1,0 +1,124 @@
+{
+  "task_id": "T2-04",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-incident-017",
+    "syn-incident-019",
+    "syn-meeting-021",
+    "syn-meeting-037"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "run_sql",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-021"
+          },
+          {
+            "doc_id": "syn-meeting-037"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-incident-017"
+          },
+          {
+            "doc_id": "syn-incident-017"
+          },
+          {
+            "doc_id": "syn-incident-017"
+          },
+          {
+            "doc_id": "syn-incident-017"
+          },
+          {
+            "doc_id": "syn-incident-017"
+          },
+          {
+            "doc_id": "syn-meeting-037"
+          },
+          {
+            "doc_id": "syn-incident-017"
+          },
+          {
+            "doc_id": "syn-incident-019"
+          }
+        ]
+      }
+    },
+    {
+      "name": "run_sql",
+      "ok": true,
+      "result": {
+        "columns": [],
+        "rows": []
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-meeting-037",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-security",
+      "count": 1,
+      "structure": {},
+      "approval_id": "b8a04f963aa5ddc055c516d9e37747e4e02f7b0206e856dfebfe3cd78d01d87a",
+      "body_sha256": "ed64817fff2daba0d087142fae0c5afc285636c3e4b5cef791537c1fdf526e44"
+    }
+  ],
+  "effect_bodies": [
+    "[장애보고 요약] INC-2026-007 취약점 현황 동기화 실패\n\n- 발생/복구: 2026-04-20 10:42 탐지, 12:25 정상 복구 (약 1시간 43분)\n- 심각도: 1\n- 영향: security-center의 취약점 현황 조회·대응 기능에서 일부 항목이 누락되거나 지연 표시되어, 내부 사용자의 현황 파악과 대응 우선순위 판단에 혼선 가능성이 발생했습니다.\n- 원인: 비공개 조치 목록의 데이터 형식 변경을 변환기가 처리하지 못해 동기화 과정에서 항목이 누락되거나 오류가 발생했습니다.\n- 복구 조치: 변환 규칙을 수정하고 누락 항목을 재동기화했습니다. 후속 검토에서 로그상 추가 유실은 없었던 것으로 확인됐습니다.\n- 재발 방지: 형식 변경 사전 감지·검증, 변환기 예외 처리 및 동기화 실패 모니터링 보완을 추진합니다. 구체적인 형식 검증 설계안은 후속 회의에서 재논의 예정입니다.\n- 담당: 권도온 팀장\n\n근거: [syn-incident-017] [syn-meeting-037]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "b8a04f963aa5ddc055c516d9e37747e4e02f7b0206e856dfebfe3cd78d01d87a",
+      "actor": "demo-security-g3",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "7ee07cdce5a84e3ab11ab586edb18860",
+  "stop_reason": null
+}

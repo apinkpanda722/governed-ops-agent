@@ -1,0 +1,75 @@
+{
+  "task_id": "T1-07",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "### 정보보안팀 경보 분류 화면 배포 운영 절차 요약\n\n대상은 **security-center의 경보 분류 화면**이며, 인증·인가 의존 서비스인 **identity-api 상태도 함께 확인**합니다. [syn-runbook-007]\n\n1. **배포 전 점검**\n   - 현재 버전과 변경 이력을 검토합니다.\n   - identity-api의 가용성과 응답을 확인합니다.\n   - 대상 환경 접근 권한과 변경 승인을 재확인합니다.\n   - 롤백할 이전 버전 아티팩트가 보관되어 있는지 확인합니다.\n\n2. **배포 및 직후 확인**\n   - 배포 시작을 공지한 뒤 security-center 배포 파이프라인을 실행합니다.\n   - identity-api 연동을 포함해 인증 흐름이 정상인지 확인합니다.\n   - 이상이 없으면 완료를 공지하고 모니터링으로 전환합니다.\n\n3. **배포 후 검증**\n   - 화면 접속·로그인, 경보 목록의 누락·중복 여부를 확인합니다.\n   - identity-api 응답 지연·오류와 모니터링 지표를 살핍니다.\n\n4. **실패 시 대응**\n   - 이상이 발견되면 먼저 이전 정상 버전으로 롤백합니다.\n   - 문제가 지속되면 identity-api 의존성 문제를 확인하고, 심각도 1 수준이면 정보보안팀 내부 절차로 즉시 공유합니다.\n   - 원인이 확인되기 전에는 재배포하지 않습니다. 장애 경위와 조치는 기록해 후속 개선에 반영합니다.\n\n문서 갱신 책임자는 **박시빈 선임**입니다. [syn-runbook-007]",
+  "observed_ids": [
+    "syn-guide-023",
+    "syn-runbook-007",
+    "syn-runbook-008",
+    "syn-runbook-009",
+    "syn-runbook-016"
+  ],
+  "cited_doc_ids": [
+    "syn-runbook-007"
+  ],
+  "tool_calls": [
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-runbook-007"
+          },
+          {
+            "doc_id": "syn-guide-023"
+          },
+          {
+            "doc_id": "syn-runbook-009"
+          },
+          {
+            "doc_id": "syn-guide-023"
+          },
+          {
+            "doc_id": "syn-runbook-016"
+          },
+          {
+            "doc_id": "syn-runbook-008"
+          },
+          {
+            "doc_id": "syn-guide-023"
+          },
+          {
+            "doc_id": "syn-guide-023"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-runbook-007",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "12ed6527300a4af49847405a0dd1d86c",
+  "stop_reason": null
+}

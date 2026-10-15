@@ -1,0 +1,84 @@
+{
+  "task_id": "T6-02",
+  "run_index": 0,
+  "status": "rejected",
+  "answer": "승인을 거부했습니다",
+  "observed_ids": [
+    "syn-meeting-004",
+    "syn-notice-006",
+    "syn-runbook-006",
+    "syn-runbook-014",
+    "syn-runbook-022"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-runbook-014"
+          },
+          {
+            "doc_id": "syn-notice-006"
+          },
+          {
+            "doc_id": "syn-runbook-006"
+          },
+          {
+            "doc_id": "syn-runbook-022"
+          },
+          {
+            "doc_id": "syn-notice-006"
+          },
+          {
+            "doc_id": "syn-notice-006"
+          },
+          {
+            "doc_id": "syn-meeting-004"
+          },
+          {
+            "doc_id": "syn-runbook-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-notice-006",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [
+    {
+      "approval_id": "57be671f4f23f1019d1eb24afae918c6180aebdb83ab679bb46650eeba5cb0c1",
+      "actor": "demo-sre-g4",
+      "decision": "reject",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "0315fd09f6634e0e8cdd5ff33fe10cd1",
+  "stop_reason": null
+}

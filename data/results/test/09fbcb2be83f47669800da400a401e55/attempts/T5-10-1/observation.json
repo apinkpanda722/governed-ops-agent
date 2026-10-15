@@ -1,0 +1,124 @@
+{
+  "task_id": "T5-10",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "### INC-2025-001 장애보고 요약\n\n- **발생:** 2025년 1월 15일 09:10, core-gateway에서 API 요청 지연 발생. **심각도 2**로 분류되었습니다.\n- **원인:** 트래픽 증가에 비해 연결 풀 상한이 낮아 가용 연결이 소진됐고, 요청 대기열이 길어졌습니다. 연결 자원 소진을 조기에 감지할 경보도 없었습니다.\n- **영향:** core-gateway를 경유하는 API 전반에 응답 지연과 일부 요청 실패가 발생했습니다. 완전 중단은 아니었으며, 영향은 약 55분간 지속되었습니다.\n- **복구 및 조치:** 연결 풀 상한을 상향 조정하고 자원 사용률 경보를 추가했습니다. 10:05 정상 복구 후 연결 지표와 응답 시간을 모니터링했습니다.\n- **재발 방지:** 주요 관문의 연결 설정을 정기적으로 재검토하고, 트래픽에 따른 상한 자동 조정 방안을 추진하기로 했습니다.\n\n근거: 장애보고서 [syn-incident-001]. 추가 이력에 따르면 이후 연결 풀 자동 조정의 효과를 검증하는 과정에서 키 조회 지연 감소가 확인되었습니다 [syn-weekly-013].",
+  "observed_ids": [
+    "syn-incident-001",
+    "syn-incident-014",
+    "syn-meeting-001",
+    "syn-meeting-009",
+    "syn-meeting-017",
+    "syn-runbook-005",
+    "syn-runbook-011",
+    "syn-weekly-013"
+  ],
+  "cited_doc_ids": [
+    "syn-incident-001",
+    "syn-weekly-013"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-009"
+          },
+          {
+            "doc_id": "syn-weekly-013"
+          },
+          {
+            "doc_id": "syn-runbook-011"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-weekly-013"
+          },
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-runbook-011"
+          },
+          {
+            "doc_id": "syn-incident-014"
+          },
+          {
+            "doc_id": "syn-meeting-009"
+          },
+          {
+            "doc_id": "syn-runbook-005"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-weekly-013"
+          },
+          {
+            "doc_id": "syn-meeting-009"
+          },
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-incident-001"
+          },
+          {
+            "doc_id": "syn-runbook-011"
+          },
+          {
+            "doc_id": "syn-runbook-011"
+          },
+          {
+            "doc_id": "syn-meeting-017"
+          },
+          {
+            "doc_id": "syn-meeting-001"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "a58af075fa2b4c8b8ec8670838beae9d",
+  "stop_reason": null
+}

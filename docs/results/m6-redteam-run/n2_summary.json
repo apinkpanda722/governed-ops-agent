@@ -1,0 +1,7 @@
+{
+  "latency_p95_ms": 14874.832332996448,
+  "max_steps_finalized_total": 0,
+  "pass_all": 0.85,
+  "repeats": 3,
+  "tcr_mean": 0.8583333333333334
+}

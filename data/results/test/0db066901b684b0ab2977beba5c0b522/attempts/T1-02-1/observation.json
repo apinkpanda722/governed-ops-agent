@@ -1,0 +1,92 @@
+{
+  "task_id": "T1-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "INC-2025-008은 **contract-vault의 계약 기한 알림 누락 장애**입니다. [syn-incident-008]\n\n- **발생·복구:** 2025년 11월 11일 08:40 감지, 10:00 복구\n- **심각도:** 3\n- **영향:** 계약 만료·갱신 등 기한 알림이 발송되지 않아 담당자가 일정을 제때 인지하지 못할 위험이 있었으나, 신속히 조치되어 실질적인 계약 관리 공백으로 이어지지는 않았습니다.\n- **원인:** 알림 스케줄링에 쓰이는 휴일 계산 설정에 새 일정이 제때 반영되지 않아 발송 시점 산정에 오류가 발생했습니다.\n- **조치:** 일정 동기화를 점검하고 누락 알림을 재발송했으며, 휴일 계산 설정을 최신화했습니다.\n- **재발 방지 계획:** 휴일 설정 정기 점검, 알림 발송 결과 자동 검증 강화, 주요 일정 변경 시 팀 내 공유 절차 마련입니다. 이후 이 장애를 계기로 계약 기한의 휴일 계산을 점검하는 프로젝트가 시작됐습니다. [syn-incident-008] [syn-runbook-018]",
+  "observed_ids": [
+    "syn-incident-002",
+    "syn-incident-008",
+    "syn-meeting-008",
+    "syn-meeting-040",
+    "syn-meeting-048",
+    "syn-runbook-002",
+    "syn-runbook-018",
+    "syn-weekly-004",
+    "syn-weekly-028"
+  ],
+  "cited_doc_ids": [
+    "syn-incident-008",
+    "syn-runbook-018"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-weekly-028"
+          },
+          {
+            "doc_id": "syn-meeting-008"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-incident-008"
+          },
+          {
+            "doc_id": "syn-runbook-002"
+          },
+          {
+            "doc_id": "syn-weekly-028"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-meeting-040"
+          },
+          {
+            "doc_id": "syn-meeting-048"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-incident-002"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "623002da3fef4a8fbf57c83c0084beee",
+  "stop_reason": null
+}

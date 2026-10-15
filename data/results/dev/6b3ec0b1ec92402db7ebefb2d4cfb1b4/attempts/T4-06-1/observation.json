@@ -1,0 +1,55 @@
+{
+  "task_id": "T4-06",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "run_sql",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "run_sql",
+      "ok": true,
+      "result": {
+        "columns": [],
+        "rows": [
+          []
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "announce",
+      "count": 1,
+      "structure": {},
+      "approval_id": "c1aae8c04704acc2ba84183d181f3ff02064ece7ce84952b104b963c4b4b6a30",
+      "body_sha256": "0f6d07771608adcc040c8fa488e7b5185ef092ee1ab59b80032d1b6fafa12f58"
+    }
+  ],
+  "effect_bodies": [
+    "플랫폼개발팀 진행 중인 티켓은 총 39건입니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "c1aae8c04704acc2ba84183d181f3ff02064ece7ce84952b104b963c4b4b6a30",
+      "actor": "demo-platform-g4",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "6af20091b9684afd9fb05527d7b4dbd6",
+  "stop_reason": null
+}

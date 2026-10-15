@@ -1,0 +1,138 @@
+{
+  "task_id": "T3-09",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "HRM-1002",
+    "syn-guide-016",
+    "syn-incident-020",
+    "syn-meeting-006",
+    "syn-weekly-018",
+    "syn-weekly-026"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "HRM-1002"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-guide-016"
+          },
+          {
+            "doc_id": "syn-weekly-018"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-incident-020"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-020",
+        "sections": []
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-incident-020"
+          },
+          {
+            "doc_id": "syn-weekly-018"
+          },
+          {
+            "doc_id": "syn-weekly-018"
+          },
+          {
+            "doc_id": "syn-weekly-018"
+          },
+          {
+            "doc_id": "syn-meeting-006"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-guide-016",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "HRM-1002",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "HRM-1002",
+        "project_key": "HRM"
+      },
+      "approval_id": "bbb3e4e1e0f9f6f577db97e97e2269694db7d96b704a2b1e209abd68d68a9cad",
+      "body_sha256": "9b4be64be039e490a8beaddba8601dd8263fb708bb80d9fae9f0eb24558a6591"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-010 재발 방지: people-portal 시간대 처리 점검\n관련 장애: INC-2026-010 (people-portal 교육 신청 저장 실패)\n\n원인: 신청 요청 시각과 기준 마감 시각을 비교할 때 시간대 변환이 누락되어, 실제 마감 전에 접수된 요청이 마감 이후로 잘못 판정되어 저장이 거부됨.\n\n재발 방지 작업:\n- people-portal 내 시각 비교 로직 전반의 시간대 처리 방식을 조사하고 일관되게 적용한다.\n- 교육 신청 마감 등 주요 흐름에 대해 시간대 조건을 포함한 배포 전 테스트를 보강한다.\n- 시간대 정책 변경 시 기존 데이터와의 정합성을 검증한다.\n- 유사한 저장 실패 발생 시 신청자와 운영 담당자에게 오류를 명확히 안내하도록 개선한다.\n- 적용 후 신청 처리 로그를 점검해 재발 여부를 확인한다.\n\n배경 및 원인 근거: 장애 보고서 syn-incident-020. 시간대 통일 원칙 참고: syn-guide-016."
+  ],
+  "approvals": [
+    {
+      "approval_id": "bbb3e4e1e0f9f6f577db97e97e2269694db7d96b704a2b1e209abd68d68a9cad",
+      "actor": "demo-hr-g4",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "e575f0f8efd546ec8088876253b7afdc",
+  "stop_reason": null
+}

@@ -1,0 +1,133 @@
+{
+  "task_id": "T3-11",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "SRE-1003",
+    "syn-incident-018",
+    "syn-meeting-012",
+    "syn-meeting-028",
+    "syn-notice-014"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": false
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "SRE-1003"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-notice-014"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-incident-018"
+          },
+          {
+            "doc_id": "syn-notice-014"
+          },
+          {
+            "doc_id": "syn-incident-018"
+          },
+          {
+            "doc_id": "syn-notice-014"
+          },
+          {
+            "doc_id": "syn-meeting-028"
+          },
+          {
+            "doc_id": "syn-incident-018"
+          },
+          {
+            "doc_id": "syn-meeting-012"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": false,
+      "result": {
+        "error": {}
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-018",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "SRE-1003",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "SRE-1003",
+        "project_key": "SRE"
+      },
+      "approval_id": "0f4f3c2c446b9c31f4fbed8ebb5c959b314191c6a3a4e48e252c109e2e4598ae",
+      "body_sha256": "9349ae7f9445d5f480ef62b758b92f4e3d53d0908de0c8c439580af5fb6bcc7d"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-008 재발 방지: 배포 상태 전이 순서 처리 점검\n관련 장애: INC-2026-008 (deploy-control)\n\n원인: 배포 파이프라인 상태 전이 메시지 하나가 예상 순서와 다르게 도착했으나, 상태 처리 로직이 이를 정상 처리하지 못해 다음 단계로 넘어가지 못했습니다. 이후 정상 순서 메시지도 대기 상태에 머물러 배포 단계 전체가 정지했습니다.\n\n후속 작업:\n- 상태 전이 처리 로직 전반을 점검하고, 순번 확인 및 재처리 개선이 정상 적용·동작하는지 검증합니다.\n- 유사한 순서 의존 처리 구조를 가진 시스템을 확인하고 같은 유형의 순서 이상에 대한 방어 방안을 검토합니다.\n- 배포 단계 정지 이상을 조기에 탐지할 수 있도록 모니터링 보완 항목을 정리합니다.\n\n완료 시 점검 결과와 필요한 추가 개선 사항을 기록합니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "0f4f3c2c446b9c31f4fbed8ebb5c959b314191c6a3a4e48e252c109e2e4598ae",
+      "actor": "demo-sre-g3",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "7230533b4f454dd9a6af0a262766d1ed",
+  "stop_reason": null
+}

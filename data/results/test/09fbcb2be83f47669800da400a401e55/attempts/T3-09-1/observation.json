@@ -1,0 +1,98 @@
+{
+  "task_id": "T3-09",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "HRM-1002",
+    "syn-guide-016",
+    "syn-incident-020",
+    "syn-weekly-018",
+    "syn-weekly-026"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "HRM-1002"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-guide-016"
+          },
+          {
+            "doc_id": "syn-weekly-018"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-incident-020"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-020",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "HRM-1002",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "HRM-1002",
+        "project_key": "HRM"
+      },
+      "approval_id": "21595cba3331a465a95c95a5a00067cbf730b3b59a3f82b18875838bfdb8fa90",
+      "body_sha256": "76c2dde672baca6df071afe75a81e0dd07615fc2785e5b9f8cae233a36f068a8"
+    }
+  ],
+  "effect_bodies": [
+    "people-portal 시간대 처리 점검 및 재발 방지\n관련 장애: INC-2026-010\n\n원인: 교육 신청 마감 시각 비교 단계에서 시간대 변환이 누락되어, 실제 마감 전에 접수한 요청을 마감 후로 오판하고 저장을 거부했습니다.\n\n재발 방지 작업:\n- people-portal에서 시각 비교가 이루어지는 로직의 시간대 처리 방식을 점검하고 일관되게 적용합니다.\n- 교육 신청 마감 등 시각 기준이 중요한 기능에 대해 시간대 조건을 포함한 배포 전 검증 절차를 강화합니다.\n- 기존 신청 데이터의 정합성을 확인하고, 시간대 통일 적용 시 영향 여부를 검증합니다.\n- 저장 실패 발생 시 신청자와 운영 담당자가 신속히 인지할 수 있도록 오류 안내 개선 방안을 검토합니다.\n- 적용 후 신청 처리 로그를 점검해 재발 여부를 확인합니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "21595cba3331a465a95c95a5a00067cbf730b3b59a3f82b18875838bfdb8fa90",
+      "actor": "demo-hr-g4",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "a58b0151776f4523a0b51f8fa79f24b7",
+  "stop_reason": null
+}

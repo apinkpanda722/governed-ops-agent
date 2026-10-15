@@ -1,0 +1,98 @@
+{
+  "task_id": "T3-09",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "HRM-1002",
+    "syn-guide-016",
+    "syn-incident-020",
+    "syn-weekly-018",
+    "syn-weekly-026"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "HRM-1002"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-guide-016"
+          },
+          {
+            "doc_id": "syn-weekly-018"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-incident-020"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-020",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "HRM-1002",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "HRM-1002",
+        "project_key": "HRM"
+      },
+      "approval_id": "d8879f0e9d5f1cf4bc82cc6dbac89be37b09fd33e2e412e9e01d3c84dd1fd050",
+      "body_sha256": "11fd368ae5a6f60ec15eafafb06f4266f21851a6b96ab9ec3bc34e7fa27297f8"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-010 재발 방지: people-portal 시간대 처리 점검 및 검증 강화\n관련 장애: INC-2026-010\n\n원인: 교육 신청 마감 시각 비교에서 시간대 변환이 누락되어, 실제 마감 전 요청이 마감 후로 잘못 판단되고 신청 저장이 거부됨.\n\n재발 방지 작업:\n- people-portal 내 시각 비교가 이루어지는 모든 로직의 시간대 처리 방식 점검 및 통일\n- 마감 시각 등 사용자 신청 흐름에 직접 영향을 주는 기능에 대해 시간대 조건을 포함한 배포 전 검증 강화\n- 기존 신청 데이터와 시간대 처리 변경 간 정합성 검증\n- 저장 실패 발생 시 신청자와 운영 담당자가 신속히 인지할 수 있도록 오류 안내 방식 개선 검토\n- 적용 후 신청 처리 로그를 모니터링하여 재발 여부 확인\n\n상위 티켓 HRM-1002 후속으로 등록합니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "d8879f0e9d5f1cf4bc82cc6dbac89be37b09fd33e2e412e9e01d3c84dd1fd050",
+      "actor": "demo-hr-g4",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "fac919f7b2a54dfbab4f61565d0f166b",
+  "stop_reason": null
+}

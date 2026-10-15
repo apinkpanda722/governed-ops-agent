@@ -1,0 +1,74 @@
+{
+  "task_id": "T3-11",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "SRE-1003",
+    "syn-notice-014"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "SRE-1003"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-notice-014"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "SRE-1003",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "SRE-1003",
+        "project_key": "SRE"
+      },
+      "approval_id": "dbc2479121d98898c74ee56f6020ac032668a2aef3892ed1fb05914088a140a8",
+      "body_sha256": "d36083568692f28222b73e9797d668b5f8d17cf428f346417f7a66673cb25b67"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-008 재발 방지: 상태 확인 순번 절차 정비\n관련 인시던트: INC-2026-008\n원인: 모니터링 허브의 상태 모니터링 순번 확인 절차 및 순번 체계가 명확하지 않아 상태 확인 과정에 이슈가 발생했습니다.\n재발 방지 조치: 상태 확인 순번 체계를 점검·정비하고, 담당자별 배정 순번과 확인 시간을 명확히 문서화합니다. 담당자가 정해진 시간 내 상태를 확인하도록 절차를 정리하고, 이상 징후 발견 시 팀 내 채널에 즉시 공유하는 보고 기준을 포함합니다.\n완료 기준: 정비된 순번·확인 시간 및 보고 절차를 문서화하고, 담당자들이 이를 확인할 수 있도록 안내합니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "dbc2479121d98898c74ee56f6020ac032668a2aef3892ed1fb05914088a140a8",
+      "actor": "demo-sre-g3",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "56dcb974e86e470c9e0b9c7e9317c664",
+  "stop_reason": null
+}
