@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "freeze-pin",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-15T23:02:46+0900",
+      "summary": "5d4302b와 일치하는 42개 동결 경로의 digest 스크립트·고정 상수·회귀 테스트를 추가하고 make verify 통과.",
+      "completed_at": "2026-10-15T23:11:47+0900",
+      "usage": {
+        "input_tokens": 5827667,
+        "cached_input_tokens": 5652224,
+        "output_tokens": 7983,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -47,5 +56,6 @@
       "name": "docs-readme-blog",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-15T23:02:46+0900"
 }
