@@ -150,11 +150,16 @@ async def _grade(
                     f.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
                     f.flush()
                     return 1
-                except GradingError:
+                except GradingError as exc:
                     failed = True
-                    row["scores"].append(
-                        {"repeat_index": repeat, "error": "grading_call_failure"}
+                    # Parse failures (e.g. output truncated at the token limit)
+                    # are not SDK/network failures; record them separately.
+                    code = (
+                        "grading_response_failure"
+                        if str(exc) == "grading response failure"
+                        else "grading_call_failure"
                     )
+                    row["scores"].append({"repeat_index": repeat, "error": code})
             if all("score" in r for r in row["scores"]):
                 score = RubricScore(
                     **{

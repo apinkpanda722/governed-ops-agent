@@ -163,10 +163,10 @@ def test_dryrun_gate_and_reporting(tmp_path, monkeypatch):
         task_id="synthetic-old",
         input_tokens=0,
         output_tokens=0,
-        cost_usd=0.02 - estimate - 0.000001,
+        cost_usd=0.05 - estimate - 0.000001,
     )
     with monkeypatch.context() as patch:
-        patch.setattr(costs, "SUPPLIER_CAPS_USD", {"gemini": 0.02})
+        patch.setattr(costs, "SUPPLIER_CAPS_USD", {"gemini": 0.05})
         before_calls = accesses.count("call")
         assert (
             grading_cli.main(
@@ -230,3 +230,53 @@ def test_smoke(tmp_path, mode, capsys, monkeypatch):
     assert grading_cli.smoke(ledger=target, call=call) == (0 if mode == "pass" else 1)
     output = capsys.readouterr().out
     assert ("FAIL" not in output) == (mode == "pass")
+
+
+def test_failure_codes_distinguish_call_and_response(tmp_path):
+    git(tmp_path, "init")
+    git(tmp_path, "config", "user.name", "Synthetic Reviewer")
+    git(tmp_path, "config", "user.email", "synthetic@example.invalid")
+    specs, obs = synthetic()
+    csv_path = tmp_path / "data/eval/human/scores.csv"
+    registration = tmp_path / "docs/results/human-grading-registration.json"
+    human.write_human_sheet(
+        human.select_human_sample(specs, obs),
+        csv_path,
+        csv_path.with_name("human_sample.json"),
+    )
+    filled(csv_path)
+    human.register_human_grading(csv_path, registration)
+    git(tmp_path, "add", str(csv_path), str(registration))
+    git(tmp_path, "commit", "-m", "test: synthetic grading")
+    observations = tmp_path / "obs.jsonl"
+    dump_observations(observations, obs)
+    calls = []
+
+    async def call(prompt):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("synthetic network failure")
+        if len(calls) == 2:
+            return "not a score", TokenUsage(10, 10)
+        return RubricScore(3, 3, 3), TokenUsage(10, 10)
+
+    def factory():
+        costs.init_ledgers(tmp_path / "ledger")
+        return costs.CostLedger(tmp_path / "ledger")
+
+    status = grading_cli.main(
+        ["grade", "--observations", str(observations), "--out", str(tmp_path / "out")],
+        repo_root=tmp_path,
+        specs=specs,
+        call=call,
+        ledger_factory=factory,
+    )
+    assert status == 1
+    first = json.loads((tmp_path / "out/grades.jsonl").read_text().splitlines()[0])
+    assert [r.get("error") for r in first["scores"]] == [
+        "grading_call_failure",
+        "grading_response_failure",
+        None,
+    ]
+    assert first["median"] is None
+    assert not (tmp_path / "out/report.json").exists()

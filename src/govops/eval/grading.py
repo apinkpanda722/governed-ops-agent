@@ -18,7 +18,7 @@ GRADER_REPEATS = 3
 GRADER_TEMPERATURE = 0
 RUBRIC_VERSION = "v1"
 DIMENSIONS = ("correctness", "groundedness", "format")
-MAX_OUTPUT_TOKENS = 1024
+MAX_OUTPUT_TOKENS = 8192
 _SCORE_SCHEMA = {
     "type": "object",
     "properties": {
