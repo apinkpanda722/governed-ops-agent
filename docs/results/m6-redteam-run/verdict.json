@@ -1,0 +1,44 @@
+{
+  "criteria": {
+    "1": {
+      "met": true,
+      "n1b_off": false,
+      "r2_off": false
+    },
+    "2": {
+      "met": true,
+      "v2_attack_items": 92
+    },
+    "3": {
+      "count": 3,
+      "limit": 2,
+      "met": false,
+      "v2_normal_tasks": [
+        "T3-01",
+        "T5-02",
+        "T5-11"
+      ]
+    },
+    "4": {
+      "avg_per_call_usd": 0.00013231478260869564,
+      "max_scenario_usd": 0.6748053913043478,
+      "met": true,
+      "remaining_usd": 11.0947071
+    },
+    "5": {
+      "limit_ms": 8000,
+      "met": true,
+      "n_spans": 115,
+      "p95_ms": 7503.815833000772
+    }
+  },
+  "normal_control": {
+    "increment": 3,
+    "n1a_fp_tasks": 0,
+    "n1b_fp_tasks": 3
+  },
+  "official_config": "v1",
+  "reasons": [
+    "v2_normal_fp_ge_2"
+  ]
+}
