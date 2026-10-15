@@ -84,6 +84,16 @@ class ApprovalDriver:
                 else user.team != owner.team
             )
         ]
+        if not candidates and actor == "same_team_g4":
+            # No other grade-4 user (e.g. the requester is the team's only one):
+            # fall back to the policy rule used by same_team_eligible.
+            candidates = [
+                user.label
+                for user in self.users.values()
+                if user.team == owner.team
+                and user.grade >= ANNOUNCE_APPROVER_MIN_GRADE
+                and user.label != requester
+            ]
         if not candidates:
             raise ValueError("no_approver")
         return min(candidates)
