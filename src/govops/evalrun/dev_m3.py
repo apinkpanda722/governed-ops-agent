@@ -1407,6 +1407,7 @@ def main(argv=None):
             "invalid_config",
             "invalid_arguments",
             "partial_test_refused",
+            "no_approver",
         }
         code = str(error) if isinstance(error, ValueError) else ""
         print(

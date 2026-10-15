@@ -241,8 +241,18 @@ def test_actor_selection_exact_grade_and_order():
     without_peers = {
         key: value for key, value in users.items() if not key.endswith("peer")
     }
-    with pytest.raises(ValueError, match="^no_approver$"):
+    # no other grade-4 user: falls back to the policy rule (grade >= 4, not requester)
+    assert (
         ApprovalDriver(SimpleNamespace(), without_peers)._actor(
+            "demo-requester-g3", "same_team_g4"
+        )
+        == "a-senior"
+    )
+    without_senior = {
+        key: value for key, value in without_peers.items() if key != "a-senior"
+    }
+    with pytest.raises(ValueError, match="^no_approver$"):
+        ApprovalDriver(SimpleNamespace(), without_senior)._actor(
             "demo-requester-g3", "same_team_g4"
         )
 
