@@ -1,0 +1,7 @@
+{
+  "csv_path": "../../data/eval/human/scores.csv",
+  "csv_sha256": "e9ce90788a887acf261ad29a38734af95bb60bba43d403ab6ab6f3976a3fa474",
+  "n": 30,
+  "registered_at": "2026-10-15T11:34:30.462732+00:00",
+  "sample_rule_sha256": "cef71a6c4b032b8f7cf0f25c31e461d1ab70b886fc962ce1c0474731fd63fd28"
+}
