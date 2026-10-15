@@ -1,0 +1,51 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m7-records-demo",
+  "steps": [
+    {
+      "step": 0,
+      "name": "freeze-pin",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "audit-records-reader",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "turn-index-turn-ids",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "audit-view-service",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "audit-routes-entrypoint",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "web-records-ui",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "e2e-records-spec",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "demo-scripts",
+      "status": "pending"
+    },
+    {
+      "step": 8,
+      "name": "docs-readme-blog",
+      "status": "pending"
+    }
+  ]
+}
