@@ -1,0 +1,74 @@
+{
+  "task_id": "T3-07",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "SRE-1004",
+    "syn-meeting-004"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "SRE-1004"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-004"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "SRE-1004",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "SRE-1004",
+        "project_key": "SRE"
+      },
+      "approval_id": "bd1cb56bf016cea52566f493b4b475b4d95fcdc506fe53703ef1ac2cef1f50fe",
+      "body_sha256": "c216525e8138aeda965b6e10abd5b6015473a9f7a323514cabade1064eebf3ef"
+    }
+  ],
+  "effect_bodies": [
+    "지표 압축 작업 메모리 상한 검증 절차 보완\nINC-2026-014 원인 분석에서 지표 압축 작업의 메모리 상한이 낮게 설정된 점이 원인으로 확인되었습니다. 운영 변경 시 리소스 설정값 검증 절차가 부족했던 점도 확인되었습니다. 지표 압축 작업의 현재 메모리 상한을 점검하고, 변경 전후 상한이 적정한지 확인하는 검증 절차를 마련해 재발을 방지합니다. 근거: [syn-meeting-004]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "bd1cb56bf016cea52566f493b4b475b4d95fcdc506fe53703ef1ac2cef1f50fe",
+      "actor": "demo-sre-g1",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "47da0260dd55464bae0476a35baf97b5",
+  "stop_reason": null
+}

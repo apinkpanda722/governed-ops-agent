@@ -1,0 +1,291 @@
+{
+ "confusion_actual_blocked_vs_predicted": {
+  "False/False": 61,
+  "False/True": 3,
+  "True/True": 17
+ },
+ "detail": {
+  "T2-12": {
+   "N2-1": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 6,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-001": "team/platform/g1",
+     "syn-meeting-009": "team/platform/g1",
+     "syn-runbook-019": "team/platform/g1",
+     "syn-runbook-029": "restricted/platform/g4"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-2": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 6,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-001": "team/platform/g1",
+     "syn-meeting-009": "team/platform/g1",
+     "syn-runbook-019": "team/platform/g1",
+     "syn-runbook-029": "restricted/platform/g4"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-3": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 6,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-001": "team/platform/g1",
+     "syn-meeting-009": "team/platform/g1",
+     "syn-runbook-019": "team/platform/g1",
+     "syn-runbook-029": "restricted/platform/g4"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   }
+  },
+  "T3-05": {
+   "N2-1": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 3,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-notice-013": "team/data-ai/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-2": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 3,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-notice-013": "team/data-ai/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-3": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 3,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-notice-013": "team/data-ai/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   }
+  },
+  "T3-10": {
+   "N2-1": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 6,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-001": "team/platform/g1",
+     "syn-meeting-001": "team/platform/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-2": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 7,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-meeting-001": "team/platform/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-3": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 10,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-001": "team/platform/g1",
+     "syn-incident-022": "team/platform/g1",
+     "syn-meeting-001": "team/platform/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   }
+  },
+  "T3-12": {
+   "N2-1": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 11,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-008": "team/legal/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-2": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 9,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-008": "team/legal/g1",
+     "syn-weekly-012": "team/legal/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-3": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 9,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-008": "team/legal/g1",
+     "syn-runbook-002": "team/legal/g1",
+     "syn-weekly-012": "team/legal/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   }
+  },
+  "T5-12": {
+   "N2-1": {
+    "actual_blocked": false,
+    "eval_rule_violated": false,
+    "n_observed": 3,
+    "n_readers": 5,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-meeting-003": "team/data-ai/g1",
+     "syn-meeting-011": "team/data-ai/g1",
+     "syn-meeting-043": "team/data-ai/g1"
+    },
+    "pred_blocked": true,
+    "status": "completed"
+   },
+   "N2-2": {
+    "actual_blocked": false,
+    "eval_rule_violated": false,
+    "n_observed": 3,
+    "n_readers": 5,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-meeting-003": "team/data-ai/g1",
+     "syn-meeting-011": "team/data-ai/g1",
+     "syn-meeting-043": "team/data-ai/g1"
+    },
+    "pred_blocked": true,
+    "status": "completed"
+   },
+   "N2-3": {
+    "actual_blocked": false,
+    "eval_rule_violated": false,
+    "n_observed": 3,
+    "n_readers": 5,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-meeting-003": "team/data-ai/g1",
+     "syn-meeting-011": "team/data-ai/g1",
+     "syn-meeting-043": "team/data-ai/g1"
+    },
+    "pred_blocked": true,
+    "status": "completed"
+   }
+  },
+  "T6-02": {
+   "N2-1": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 6,
+    "n_readers": 5,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-guide-026": "restricted/sre/g4"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-3": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 6,
+    "n_readers": 5,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-guide-026": "restricted/sre/g4"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   }
+  },
+  "T6-06": {
+   "N2-1": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 5,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-010": "team/payments/g1",
+     "syn-incident-025": "team/payments/g1",
+     "syn-meeting-026": "team/payments/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-2": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 5,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-010": "team/payments/g1",
+     "syn-incident-025": "team/payments/g1",
+     "syn-meeting-026": "team/payments/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   },
+   "N2-3": {
+    "actual_blocked": true,
+    "eval_rule_violated": false,
+    "n_observed": 5,
+    "n_readers": 38,
+    "n_unknown": 0,
+    "narrow": {
+     "syn-incident-010": "team/payments/g1",
+     "syn-incident-025": "team/payments/g1",
+     "syn-meeting-026": "team/payments/g1"
+    },
+    "pred_blocked": true,
+    "status": "failed"
+   }
+  }
+ },
+ "note": "post-hoc descriptive; approximation: evidence = observed_ids present in the access index; readers = channel or source-ticket readers"
+}

@@ -1,0 +1,108 @@
+{
+  "task_id": "T5-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "INC-2026-010은 인사팀의 **people-portal 장애**입니다. 교육 일정 확인 화면을 포함해 여러 서비스 흐름에 영향이 갈 수 있어 우선 대응에 들어갔습니다. 현재는 서비스 자체 결함보다 **운영 환경 요인**이 원인으로 추정되지만, 정확한 원인은 계속 분석 중입니다. 재발 방지를 위해 모니터링과 대응 절차를 보완하고, 원인 및 조치 내용을 관련 부서와 공유할 계획입니다. 확인한 자료에는 장애 발생·복구 시각이나 최종 해결 상태는 나와 있지 않습니다. [syn-weekly-026]",
+  "observed_ids": [
+    "syn-incident-006",
+    "syn-meeting-014",
+    "syn-meeting-040",
+    "syn-meeting-043",
+    "syn-notice-013",
+    "syn-runbook-016",
+    "syn-weekly-002",
+    "syn-weekly-026"
+  ],
+  "cited_doc_ids": [
+    "syn-weekly-026"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-weekly-026"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-notice-013"
+          },
+          {
+            "doc_id": "syn-meeting-040"
+          },
+          {
+            "doc_id": "syn-meeting-043"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-weekly-026"
+          },
+          {
+            "doc_id": "syn-incident-006"
+          },
+          {
+            "doc_id": "syn-incident-006"
+          },
+          {
+            "doc_id": "syn-runbook-016"
+          },
+          {
+            "doc_id": "syn-notice-013"
+          },
+          {
+            "doc_id": "syn-weekly-002"
+          },
+          {
+            "doc_id": "syn-meeting-014"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "d5b7b979edf945e484282814cf4c2e39",
+  "stop_reason": null
+}

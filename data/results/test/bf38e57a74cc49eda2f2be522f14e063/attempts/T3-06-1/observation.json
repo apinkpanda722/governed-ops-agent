@@ -1,0 +1,83 @@
+{
+  "task_id": "T3-06",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "PAY-1005",
+    "syn-incident-023"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_add_comment",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "PAY-1005"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-incident-023"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-023",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_comment",
+      "target": "PAY-1005",
+      "count": 1,
+      "structure": {},
+      "approval_id": "83b04d0245ea6ef9ab6d27afc9f40851e931bc95ec7bbeaf967ed95f961d131d",
+      "body_sha256": "0e3b5210fc7f112914c5626ae01de8937ac244401e944bb5c961772b991ebb29"
+    }
+  ],
+  "effect_bodies": [
+    "INC-2026-013 원인 및 조치:\n- 원인: 우회 경로 상태 정보가 오래된 값으로 유지되어, 사용할 수 없는 경로를 정상으로 판단하고 트래픽을 전달했습니다. 상태 정보 갱신 주기와 만료 기준이 운영 환경의 변화 속도를 따라가지 못한 것이 근본 원인입니다.\n- 즉시 조치: 우회 경로 상태 정보를 강제로 갱신해 서비스를 복구했습니다. 2026-06-05 11:27에 정상 복구되었습니다.\n- 재발 방지: 상태 만료 기준을 줄이고 능동 점검을 추가했으며, 개선 적용 여부와 관련 모니터링 체계를 지속 점검할 예정입니다. [syn-incident-023]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "83b04d0245ea6ef9ab6d27afc9f40851e931bc95ec7bbeaf967ed95f961d131d",
+      "actor": "demo-payments-g2",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "1d63648cc03143529710c158a7baf18b",
+  "stop_reason": null
+}

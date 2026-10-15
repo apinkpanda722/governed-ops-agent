@@ -1,0 +1,69 @@
+{
+  "task_id": "T5-04",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "**INC-2026-006 요약**\n\n- **서비스:** finance-ledger  \n- **발생 시각:** 2026-04-12 09:08  \n- **원인:** 조회 색인의 월 구분 값이 잘못 생성됨  \n- **심각도:** 3  \n- **복구:** 문제가 확인된 색인을 재생성해 09:46 정상화. 장애는 약 **38분** 지속됐으며, 복구 후 모니터링에서 추가 이상은 확인되지 않았습니다.  \n- **후속 조치:** 색인을 재생성하고 월 경계 테스트를 보강했습니다. 재발 방지를 위해 색인 단계에 월 경계 검사를 추가하기로 했으며, 상세 설계와 테스트 범위·일정은 추가 논의하기로 했습니다.  \n\n문서에는 구체적인 사용자 영향 범위는 기재되어 있지 않습니다. [syn-weekly-019] [syn-meeting-031]",
+  "observed_ids": [
+    "syn-meeting-031",
+    "syn-meeting-040",
+    "syn-runbook-001",
+    "syn-weekly-019"
+  ],
+  "cited_doc_ids": [
+    "syn-meeting-031",
+    "syn-weekly-019"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-meeting-031"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-meeting-031"
+          },
+          {
+            "doc_id": "syn-weekly-019"
+          },
+          {
+            "doc_id": "syn-weekly-019"
+          },
+          {
+            "doc_id": "syn-meeting-040"
+          },
+          {
+            "doc_id": "syn-runbook-001"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "d8a7331e6d7b450d977edb2e592dc86e",
+  "stop_reason": null
+}

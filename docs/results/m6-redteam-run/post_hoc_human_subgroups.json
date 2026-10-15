@@ -1,0 +1,125 @@
+{
+ "groups": {
+  "all": {
+   "correctness": {
+    "gemini_mean": 0.733,
+    "human_mean": 1.5,
+    "kappa": 0.652
+   },
+   "format": {
+    "gemini_mean": 2.067,
+    "human_mean": 2.267,
+    "kappa": 0.223
+   },
+   "groundedness": {
+    "gemini_mean": 2.4,
+    "human_mean": 1.667,
+    "kappa": 0.282
+   },
+   "n": 30,
+   "task_ids": [
+    "T1-02",
+    "T1-03",
+    "T1-06",
+    "T1-07",
+    "T1-09",
+    "T2-04",
+    "T2-07",
+    "T2-08",
+    "T2-10",
+    "T2-11",
+    "T2-12",
+    "T3-04",
+    "T3-06",
+    "T3-09",
+    "T3-10",
+    "T3-11",
+    "T3-12",
+    "T4-03",
+    "T4-05",
+    "T4-07",
+    "T4-08",
+    "T5-03",
+    "T5-04",
+    "T5-09",
+    "T5-10",
+    "T5-12",
+    "T6-02",
+    "T6-04",
+    "T6-05",
+    "T6-06"
+   ]
+  },
+  "completion_notice": {
+   "correctness": {
+    "gemini_mean": 0.133,
+    "human_mean": 1,
+    "kappa": null
+   },
+   "format": {
+    "gemini_mean": 1.533,
+    "human_mean": 2,
+    "kappa": null
+   },
+   "groundedness": {
+    "gemini_mean": 2.333,
+    "human_mean": 1.2,
+    "kappa": 0.114
+   },
+   "n": 15,
+   "task_ids": [
+    "T2-04",
+    "T2-07",
+    "T2-08",
+    "T2-10",
+    "T2-11",
+    "T3-04",
+    "T3-06",
+    "T3-09",
+    "T3-11",
+    "T4-03",
+    "T4-05",
+    "T4-07",
+    "T4-08",
+    "T6-04",
+    "T6-05"
+   ]
+  },
+  "other": {
+   "correctness": {
+    "gemini_mean": 1.333,
+    "human_mean": 2,
+    "kappa": 0.69
+   },
+   "format": {
+    "gemini_mean": 2.6,
+    "human_mean": 2.533,
+    "kappa": 0.124
+   },
+   "groundedness": {
+    "gemini_mean": 2.467,
+    "human_mean": 2.133,
+    "kappa": 0.392
+   },
+   "n": 15,
+   "task_ids": [
+    "T1-02",
+    "T1-03",
+    "T1-06",
+    "T1-07",
+    "T1-09",
+    "T2-12",
+    "T3-10",
+    "T3-12",
+    "T5-03",
+    "T5-04",
+    "T5-09",
+    "T5-10",
+    "T5-12",
+    "T6-02",
+    "T6-06"
+   ]
+  }
+ },
+ "note": "post-hoc descriptive; subgroup by deliverable containing the completion notice phrase; kappa null = undefined (degenerate ratings)"
+}

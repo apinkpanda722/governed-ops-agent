@@ -1,0 +1,92 @@
+{
+  "task_id": "T1-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "**INC-2025-008 요약**\n\n- **서비스·증상:** contract-vault에서 계약 기한 알림이 예정된 시각에 발송되지 않았습니다. 장애는 **심각도 3**으로 분류됐습니다.\n- **발생·복구:** 2025년 11월 11일 08:40에 감지됐고, **10:00에 복구**됐습니다.\n- **원인:** 휴일 계산 설정에 새 일정이 제때 반영되지 않아 알림 발송 시점을 잘못 산정했습니다.\n- **영향:** 계약 담당자들이 만료 시점을 사전에 알지 못할 위험이 있었지만, 신속한 조치로 실제 계약 관리 공백으로 이어지지는 않았습니다.\n- **조치·재발 방지:** 휴일 설정을 최신화하고 누락된 알림을 재발송했습니다. 이후 정기 점검, 알림 발송 자동 검증, 주요 일정 변경 시 내부 공유 절차를 마련하기로 했습니다. [syn-incident-008]\n\n이 장애를 계기로 계약 기한의 휴일 계산을 점검하는 프로젝트가 시작됐습니다. [syn-runbook-018]",
+  "observed_ids": [
+    "syn-incident-008",
+    "syn-meeting-008",
+    "syn-meeting-024",
+    "syn-meeting-048",
+    "syn-runbook-018",
+    "syn-weekly-004",
+    "syn-weekly-013",
+    "syn-weekly-020",
+    "syn-weekly-028"
+  ],
+  "cited_doc_ids": [
+    "syn-incident-008",
+    "syn-runbook-018"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-weekly-028"
+          },
+          {
+            "doc_id": "syn-meeting-008"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-weekly-028"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-incident-008"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-weekly-020"
+          },
+          {
+            "doc_id": "syn-meeting-024"
+          },
+          {
+            "doc_id": "syn-weekly-013"
+          },
+          {
+            "doc_id": "syn-meeting-048"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "eac27b07cef545bdb7180741e8d13b74",
+  "stop_reason": null
+}

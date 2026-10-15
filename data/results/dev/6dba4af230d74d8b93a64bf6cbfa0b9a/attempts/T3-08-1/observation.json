@@ -1,0 +1,98 @@
+{
+  "task_id": "T3-08",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "LGL-1002",
+    "syn-guide-010",
+    "syn-incident-021",
+    "syn-meeting-040",
+    "syn-runbook-018"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true
+    },
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "get_document",
+      "ok": true
+    },
+    {
+      "name": "jira_create_followup_ticket",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "jira_get_ticket",
+      "ok": true,
+      "result": {
+        "metadata": {},
+        "ticket_id": "LGL-1002"
+      }
+    },
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-guide-010"
+          },
+          {
+            "doc_id": "syn-meeting-040"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-incident-021"
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_document",
+      "ok": true,
+      "result": {
+        "doc_id": "syn-incident-021",
+        "sections": []
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "jira_followup_ticket",
+      "target": "LGL-1002",
+      "count": 1,
+      "structure": {
+        "parent_ticket_id": "LGL-1002",
+        "project_key": "LGL"
+      },
+      "approval_id": "ec5cdcd0dca110446f5cdd4fe6aa75c92f226d5b0ea5163dae6c68f37546109f",
+      "body_sha256": "da59a01dde90ddc56e6d6d394a874b571e560ff6b1a8e5b613b5edebda946eb1"
+    }
+  ],
+  "effect_bodies": [
+    "contract-vault 보관 상태 변경 시 검색 색인 동기화 재발 방지\nINC-2026-011 재발 방지 후속 조치. 원인: 계약 문서의 보관 상태 변경 이벤트가 검색 색인 갱신 파이프라인에서 누락되거나 처리 실패하여 원본 데이터와 검색 인덱스 간 불일치가 발생했고, 실제 계약 건이 검색 결과에서 누락됨. 조치: 보관 상태 변경-색인 갱신 연계 로직을 점검·개선하고, 이벤트 처리 실패 자동 감지 및 알림을 보완한다. 색인 이벤트 처리 상태를 주기적으로 검증하는 절차를 정례화하고, 재발 시 조기 탐지·복구를 위한 대응 절차를 문서화하여 공유한다. 계약 상태 변경 후 색인 정합성을 표본 점검하고 결과를 기록한다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "ec5cdcd0dca110446f5cdd4fe6aa75c92f226d5b0ea5163dae6c68f37546109f",
+      "actor": "demo-legal-g5",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "9144ddd5ce404821b45de298199829e4",
+  "stop_reason": null
+}

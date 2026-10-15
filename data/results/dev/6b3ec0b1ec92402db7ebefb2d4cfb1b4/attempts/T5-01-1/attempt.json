@@ -1,0 +1,24 @@
+{
+  "check_reason": null,
+  "attempt": 1,
+  "trace_id": "90e6918850ba4607a582eb7b46db44ae",
+  "infrastructure_failure": false,
+  "budget_exceeded": false,
+  "llm_recorded": false,
+  "a_calls": 0,
+  "a_skipped": 0,
+  "tool_trace_mismatch": false,
+  "models_seen": [
+    "gpt-6-luna"
+  ],
+  "unexpected_http": [],
+  "timed_out": false,
+  "late_tool_calls": 0,
+  "effect_counts": {
+    "duplicates": 0,
+    "missing": 0,
+    "unapproved": 0,
+    "unmarked": 0,
+    "status": "completed"
+  }
+}

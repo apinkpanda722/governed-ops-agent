@@ -1,0 +1,91 @@
+{
+  "task_id": "T1-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "**INC-2025-008 요약**\n\n- **서비스:** contract-vault  \n- **장애 내용:** 계약 기한 알림이 예정된 시각에 발송되지 않았습니다.\n- **발생·복구:** 2025년 11월 11일 08:40 감지, 같은 날 10:00 복구됐습니다.\n- **원인:** 휴일 계산 설정에 새 일정이 반영되지 않아 알림 발송 시점 산정에 오류가 발생했습니다.\n- **영향:** 계약 담당자가 만료 시점을 제때 알지 못할 위험이 있었으나, 신속한 조치로 실질적인 계약 관리 공백으로 이어지지는 않았습니다.\n- **조치:** 일정 동기화를 점검하고, 누락 알림을 재발송했으며 휴일 계산 설정을 최신화했습니다.\n- **재발 방지:** 휴일 설정 정기 점검, 알림 발송 자동 검증 강화, 일정 변경 사항의 내부 공유 절차 마련을 계획했습니다. [syn-incident-008]",
+  "observed_ids": [
+    "syn-incident-008",
+    "syn-meeting-008",
+    "syn-meeting-040",
+    "syn-notice-018",
+    "syn-runbook-002",
+    "syn-runbook-018",
+    "syn-weekly-004",
+    "syn-weekly-012",
+    "syn-weekly-028"
+  ],
+  "cited_doc_ids": [
+    "syn-incident-008"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-weekly-028"
+          },
+          {
+            "doc_id": "syn-meeting-008"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-incident-008"
+          },
+          {
+            "doc_id": "syn-weekly-028"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-notice-018"
+          },
+          {
+            "doc_id": "syn-meeting-040"
+          },
+          {
+            "doc_id": "syn-weekly-012"
+          },
+          {
+            "doc_id": "syn-runbook-002"
+          },
+          {
+            "doc_id": "syn-runbook-002"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "627ef2481ee546e99503181d39f3a4e6",
+  "stop_reason": null
+}

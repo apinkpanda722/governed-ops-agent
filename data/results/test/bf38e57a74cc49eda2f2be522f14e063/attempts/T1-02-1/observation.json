@@ -1,0 +1,92 @@
+{
+  "task_id": "T1-02",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "**INC-2025-008 요약**\n\n- **서비스·문제:** contract-vault에서 계약 기한 알림이 예정된 시각에 발송되지 않았습니다. 장애는 **2025년 11월 11일 08:40**에 감지됐고, 심각도 3으로 분류됐습니다.\n- **원인:** 휴일 계산 설정에 새 일정이 제때 반영되지 않아 영업일 판단과 알림 발송 시점 산정에 오류가 발생했습니다.\n- **영향:** 계약 담당자가 만료·갱신 시점을 사전에 알지 못할 위험이 있었지만, 신속한 조치로 실질적인 계약 관리 공백은 발생하지 않았다고 보고됐습니다.\n- **조치·복구:** 설정을 최신화하고 누락 알림을 재발송했으며, **10:00에 복구**됐습니다.\n- **재발 방지 계획:** 휴일 설정 정기 점검, 알림 발송 자동 검증 강화, 주요 일정 변경 시 내부 공유 절차 마련입니다. 후속 점검을 위해 계약 기한의 휴일 계산 검토 프로젝트도 진행됐습니다. [syn-incident-008] [syn-runbook-018]",
+  "observed_ids": [
+    "syn-incident-008",
+    "syn-meeting-008",
+    "syn-meeting-024",
+    "syn-notice-018",
+    "syn-runbook-018",
+    "syn-weekly-004",
+    "syn-weekly-013",
+    "syn-weekly-020",
+    "syn-weekly-028"
+  ],
+  "cited_doc_ids": [
+    "syn-incident-008",
+    "syn-runbook-018"
+  ],
+  "tool_calls": [
+    {
+      "name": "lookup_id",
+      "ok": true
+    },
+    {
+      "name": "search_docs",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "lookup_id",
+      "ok": true,
+      "result": {
+        "documents": [
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-weekly-028"
+          },
+          {
+            "doc_id": "syn-meeting-008"
+          }
+        ]
+      }
+    },
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-weekly-028"
+          },
+          {
+            "doc_id": "syn-incident-008"
+          },
+          {
+            "doc_id": "syn-runbook-018"
+          },
+          {
+            "doc_id": "syn-weekly-004"
+          },
+          {
+            "doc_id": "syn-notice-018"
+          },
+          {
+            "doc_id": "syn-meeting-024"
+          },
+          {
+            "doc_id": "syn-weekly-020"
+          },
+          {
+            "doc_id": "syn-weekly-013"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [],
+  "effect_bodies": [],
+  "approvals": [],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "a0c7ba50a3c84ce287ffe7680b6d8431",
+  "stop_reason": null
+}

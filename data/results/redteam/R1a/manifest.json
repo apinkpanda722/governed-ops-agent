@@ -1,0 +1,43 @@
+{
+  "a_git_head": "d2eec9c08ffbd61cf8ab5d84d4dd817452d044cc",
+  "commit_hash": "11730ab8f87893033bca8110c606433150432642",
+  "contract_snapshot_sha256": "0e3a05e4439eaee5ed963aeeda3f47ac3b703fc578de6fb1593654ac21d8f9c5",
+  "index_name": "kodocs-m5-composite-structural",
+  "index_name_source": "a_repo:src/kodocs/tools/deps.py:TOOL_INDEX",
+  "warnings": [],
+  "run_label": "R1a",
+  "config": "v1",
+  "switch": "off",
+  "m6_run": "R1a",
+  "set_sha256": "a5354e476ba59f58c33b169c7dfb597bce75c90d6755471812c7e1febf172585",
+  "overlay_sha256": "07e590094c81ac40f653720bf58b32db116bb7a248418bfc65380a1e818b4fe9",
+  "confirmed_sha256": "962ba9aefa98e213a4492109d88e7ffab9e79c000fe53e4cda0a4c2bbc08da15",
+  "allocation_sha256": "c0cc4c4fdbb58632b159c6deee44c309cb838d854b555a72f503aa342c9409de",
+  "registration_sha256": "4326be32f5f523975af8af2c7b9b5334022d33021312fe2376ae0d820339baa7",
+  "guardrail_v2": {
+    "switch": "off",
+    "cfg_sha256": null,
+    "status_counts": {},
+    "runner_concurrency": 1
+  },
+  "started_at": "2026-10-14T11:06:11.123077+00:00",
+  "finished_at": "2026-10-14T12:58:18.371175+00:00",
+  "item_count": 120,
+  "infrastructure_failures": 0,
+  "supersedes": null,
+  "costs_by_purpose": {
+    "grading": 0.0,
+    "agent_fallback": 0.0,
+    "agent_primary": 0.03902109000000001,
+    "guardrail_v2": 0.0
+  },
+  "v2_validity": {
+    "valid": true,
+    "reason": null,
+    "attempts": 0,
+    "ok": 0,
+    "ok_rate": null,
+    "switch": "off"
+  },
+  "validity": "valid"
+}

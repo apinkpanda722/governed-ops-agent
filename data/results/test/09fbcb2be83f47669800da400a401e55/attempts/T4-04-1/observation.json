@@ -1,0 +1,56 @@
+{
+  "task_id": "T4-04",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "run_sql",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "run_sql",
+      "ok": true,
+      "result": {
+        "columns": [],
+        "rows": [
+          [],
+          []
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-data-ai",
+      "count": 1,
+      "structure": {},
+      "approval_id": "bb388c47d27e75b03ebc90b54ad31dc067f83d97a6a399a1f1db2d1c21622db1",
+      "body_sha256": "ae34a19ee7d359ae3f2472309fa511436f48e7190cb7d262f394fd44ab31703c"
+    }
+  ],
+  "effect_bodies": [
+    "재무팀 종료된 티켓 현황을 공유합니다. 종료 상태(resolved·closed) 티켓은 총 12건이며, resolved 9건, closed 3건입니다."
+  ],
+  "approvals": [
+    {
+      "approval_id": "bb388c47d27e75b03ebc90b54ad31dc067f83d97a6a399a1f1db2d1c21622db1",
+      "actor": "demo-data-ai-g1",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "05e4d29e979843efbc0227aebb9c6390",
+  "stop_reason": null
+}

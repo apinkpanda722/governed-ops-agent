@@ -1,0 +1,66 @@
+{
+  "task_id": "T2-08",
+  "run_index": 0,
+  "status": "completed",
+  "answer": "승인된 내용대로 실행했습니다",
+  "observed_ids": [
+    "syn-meeting-004",
+    "syn-meeting-020",
+    "syn-meeting-028"
+  ],
+  "cited_doc_ids": [],
+  "tool_calls": [
+    {
+      "name": "search_docs",
+      "ok": true
+    },
+    {
+      "name": "slack_send_message",
+      "ok": true
+    }
+  ],
+  "tool_results": [
+    {
+      "name": "search_docs",
+      "ok": true,
+      "result": {
+        "results": [
+          {
+            "doc_id": "syn-meeting-004"
+          },
+          {
+            "doc_id": "syn-meeting-028"
+          },
+          {
+            "doc_id": "syn-meeting-020"
+          }
+        ]
+      }
+    }
+  ],
+  "effects": [
+    {
+      "kind": "slack_message",
+      "target": "team-sre",
+      "count": 1,
+      "structure": {},
+      "approval_id": "de8639a7db48cb9b44ec617c236f9340ed4e7fe410c8f96a07beac558fe984c4",
+      "body_sha256": "86cb0af170d362d4c03500d4acb1539e7bb065fb1d3abdae67e1e7dfa3941d36"
+    }
+  ],
+  "effect_bodies": [
+    "[2026-06-21 배포 중복 방지 결정 회의 요약]\n\n- 기존 승인 메시지별 중복 방지 키 결정의 실제 적용 범위를 점검하기로 했습니다.\n- deploy-control의 고위험 운영 변경 정책이 현재도 유효한지 재확인하고, 지난달 초 배포 로그를 추가로 확인합니다.\n- 구체적인 재발 방지 대책은 관련 로그·이력 확인 후 별도로 확정하기로 했습니다.\n- INC-2026-014는 지표 압축 작업의 메모리 상한이 낮았던 것이 원인으로 지목됐으며, 운영 변경 시 리소스 설정 검증 절차를 추가 협의합니다. 배포 중복 이슈와 직접 관련은 없습니다.\n- 모니터링 허브 경보 전달 목표(2분 이하)를 정기 점검 항목에 반영합니다.\n\n후속 조치: 중복 방지 키 적용 범위 점검, 고위험 변경 정책 유효성 재확인, 배포 상세 로그 확인, 리소스 설정 검증 절차 협의, 경보 전달 지표 점검.\n\n출처: [syn-meeting-004]"
+  ],
+  "approvals": [
+    {
+      "approval_id": "de8639a7db48cb9b44ec617c236f9340ed4e7fe410c8f96a07beac558fe984c4",
+      "actor": "demo-sre-g2",
+      "decision": "approve",
+      "http_status": 202
+    }
+  ],
+  "policy_violations": [],
+  "fault_injected": false,
+  "trace_id": "6c446d22a76543e0959a9726d970ee6d",
+  "stop_reason": null
+}
