@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "audit-routes-entrypoint",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:01:04+0900",
+      "summary": "감사 조회·검증 라우트 2개와 실제 진입점 경유 권한·비노출·읽기 전용·변조·캐시 프로브 18개를 추가하고, 기존 AST·계층·동결 검사 포함 make verify 통과.",
+      "completed_at": "2026-10-16T11:14:29+0900",
+      "usage": {
+        "input_tokens": 5959600,
+        "cached_input_tokens": 5782528,
+        "output_tokens": 16589,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
