@@ -411,3 +411,17 @@ def test_semantic_smoke_is_user_only_and_follows_agent():
     between = text.split("\nsmoke-agent:\n", 1)[1].split("\nsmoke-semantic:\n", 1)[0]
     assert [line for line in between.splitlines() if line.endswith(":")] == []
     assert "smoke-semantic" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+
+
+def test_m8_render_and_diagnose_targets_are_user_only_and_outside_verify():
+    text = (REPO_ROOT / "Makefile").read_text()
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    for target, command, env_file in (
+        ("m8-grounding-render", "render-evidence", True),
+        ("m8-grounding-diagnose", "diagnose-calibration", False),
+    ):
+        assert f".PHONY: {target}\n" in text
+        recipe = text.split(f"\n{target}:\n", 1)[1].splitlines()[0]
+        assert command in recipe and "$(ARGS)" in recipe
+        assert ("--env-file .env" in recipe) is env_file
+        assert target not in verify

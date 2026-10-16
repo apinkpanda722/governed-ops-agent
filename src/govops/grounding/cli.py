@@ -15,7 +15,16 @@ from govops.costs import BudgetExceededError, CostLedger, PriceExpiredError
 from govops.eval.grading import GradingError
 from govops.eval.grading_cli import _specs
 from govops.eval.observation import load_observations
-from govops.grounding import db, inject, metrics, prompt, registration, sample, sheets
+from govops.grounding import (
+    db,
+    diagnose,
+    inject,
+    metrics,
+    prompt,
+    registration,
+    sample,
+    sheets,
+)
 from govops.grounding.deliverable import (
     extract_citations,
     fabricated_citations,
@@ -38,6 +47,7 @@ COMMANDS = (
     "register-labels",
     "cost-probe",
     "calibrate",
+    "diagnose-calibration",
     "adopt",
     "draw-heldout",
     "sheet-heldout",
@@ -435,7 +445,23 @@ def _rates(rows, graded, repeats):
     }
 
 
-async def _evaluate(rows, human, human_supports, *, grader, version, stage, repeats):
+async def _evaluate(
+    rows,
+    human,
+    human_supports,
+    *,
+    grader,
+    version,
+    stage,
+    repeats,
+    detail_sink=None,
+):
+    """``detail_sink`` receives per-row diagnostics: IDs, labels, codes and costs only."""
+
+    def note(**entry):
+        if detail_sink is not None:
+            detail_sink.append(entry)
+
     compared, injected, graded = [], [], []
     failures = Counter()
     stop = None
@@ -449,6 +475,7 @@ async def _evaluate(rows, human, human_supports, *, grader, version, stage, repe
     before = grader.spend.total_usd(stage)
     for row in rows:
         sentences = build_sentences(select_deliverable(row.observation)[0])
+        row_before = grader.spend.total_usd(stage)
         try:
             agg, results = await _grade_row(
                 grader, row, sentences, version, stage, repeats
@@ -459,6 +486,18 @@ async def _evaluate(rows, human, human_supports, *, grader, version, stage, repe
                 )
             )
             graded.append((row, results))
+            note(
+                kind="row",
+                task_id=row.spec.task_id,
+                type=row.spec.type,
+                status="graded",
+                cost_usd=grader.spend.total_usd(stage) - row_before,
+                labels=dict(agg.labels),
+                supports=[
+                    [sid, doc, vote]
+                    for (sid, doc), vote in sorted(agg.citation_supports.items())
+                ],
+            )
             for key, value in human_supports[row.spec.task_id].items():
                 citation_matches += agg.citation_supports[key] == value
                 citation_count += 1
@@ -468,12 +507,30 @@ async def _evaluate(rows, human, human_supports, *, grader, version, stage, repe
                 if str(exc) == "grading_response_failure"
                 else "grading_call_failure"
             ] += 1
+            note(
+                kind="row",
+                task_id=row.spec.task_id,
+                type=row.spec.type,
+                status="failed",
+                code="grading_response_failure"
+                if str(exc) == "grading_response_failure"
+                else "grading_call_failure",
+                cost_usd=grader.spend.total_usd(stage) - row_before,
+            )
             continue
         except (SpendCapError, BudgetExceededError, PriceExpiredError) as exc:
             stop = (
                 "m8_stage_cap_exceeded"
                 if isinstance(exc, SpendCapError)
                 else "budget_or_price_block"
+            )
+            note(
+                kind="row",
+                task_id=row.spec.task_id,
+                type=row.spec.type,
+                status="stopped",
+                code=stop,
+                cost_usd=grader.spend.total_usd(stage) - row_before,
             )
             break
         if row.key not in kinds:
@@ -488,6 +545,14 @@ async def _evaluate(rows, human, human_supports, *, grader, version, stage, repe
         )
         if isinstance(copy, inject.InjectionSkip):
             injected.append(copy)
+            note(
+                kind="injection",
+                task_id=row.spec.task_id,
+                type=row.spec.type,
+                assigned=kinds[row.key],
+                outcome="skipped",
+                code=copy.reason,
+            )
             continue
         if copy.kind != "fact":
             sid = copy.target_sentence_id
@@ -504,12 +569,27 @@ async def _evaluate(rows, human, human_supports, *, grader, version, stage, repe
                 )
             ):
                 injected.append(inject.InjectionSkip(row.key, "no_candidate"))
+                note(
+                    kind="injection",
+                    task_id=row.spec.task_id,
+                    type=row.spec.type,
+                    assigned=kinds[row.key],
+                    outcome="skipped",
+                    code="no_candidate",
+                )
                 continue
         try:
             agg, _ = await _grade_row(
                 grader, row, copy.sentences, version, stage, repeats
             )
             injected.append((copy, agg))
+            note(
+                kind="injection",
+                task_id=row.spec.task_id,
+                type=row.spec.type,
+                assigned=kinds[row.key],
+                outcome="graded",
+            )
         except GradingError as exc:
             failures[
                 "grading_response_failure"
@@ -517,6 +597,14 @@ async def _evaluate(rows, human, human_supports, *, grader, version, stage, repe
                 else "grading_call_failure"
             ] += 1
             injected.append(inject.InjectionSkip(row.key, "grading_failure"))
+            note(
+                kind="injection",
+                task_id=row.spec.task_id,
+                type=row.spec.type,
+                assigned=kinds[row.key],
+                outcome="skipped",
+                code="grading_failure",
+            )
         except (SpendCapError, BudgetExceededError, PriceExpiredError) as exc:
             stop = (
                 "m8_stage_cap_exceeded"
@@ -524,6 +612,17 @@ async def _evaluate(rows, human, human_supports, *, grader, version, stage, repe
                 else "budget_or_price_block"
             )
             break
+    if detail_sink is not None:
+        seen = {e["task_id"] for e in detail_sink if e["kind"] == "row"}
+        for row in rows:
+            if row.spec.task_id not in seen:
+                note(
+                    kind="row",
+                    task_id=row.spec.task_id,
+                    type=row.spec.type,
+                    status="ungraded",
+                    code=stop,
+                )
     detection = metrics.detection_and_fpr(injected, compared)
     result = metrics.validation_verdict(
         rows=compared,
@@ -799,6 +898,7 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
                 {"scope": "m8", "status": "started", "complete": False},
                 exclusive=True,
             )
+        detail = []
         result = await _evaluate(
             rows,
             human,
@@ -807,6 +907,17 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
             version=version,
             stage="calibration" if command == "calibrate" else "validation",
             repeats=1 if command == "calibrate" else 3,
+            detail_sink=detail,
+        )
+        # Per-row diagnostics (IDs, labels, codes, costs) for diagnose-calibration.
+        _append(
+            out
+            / (
+                "calibration-detail.jsonl"
+                if command == "calibrate"
+                else "heldout-detail.jsonl"
+            ),
+            {"version": version, "rows": detail},
         )
         if command == "calibrate":
             _append(out / "calibration-log.jsonl", result)
@@ -975,6 +1086,22 @@ def main(
         root = Path.cwd() if repo_root is None else Path(repo_root)
         # No spec/evidence/ledger/SDK access before preregistration checks.
         registration.require_hypotheses(root)
+        if args.command == "diagnose-calibration":
+            # Offline: no specs, gates, grader, database or API; counts/IDs/codes only.
+            print(
+                json.dumps(
+                    diagnose.diagnose(
+                        root,
+                        version=args.version,
+                        test_results=_path(root, args.test_results),
+                    ),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    indent=2,
+                    allow_nan=False,
+                )
+            )
+            return 0
         task_specs = specs
         if task_specs is None and args.command not in {
             "cost-probe",
