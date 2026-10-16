@@ -61,16 +61,7 @@
     {
       "step": 4,
       "name": "sample-cli",
-      "status": "blocked",
-      "started_at": "2026-10-16T18:34:43+0900",
-      "blocked_reason": "선점검에서 검증 지시 충돌을 발견했습니다. “위 AC 커맨드를 실행한다.”(make verify)와 “테스트가 `data/interim/`·`data/eval/`·`data/redteam/`의 실제 파일 **내용**을 읽는 것은 여전히 금지이며 테스트는 임시 디렉터리·합성 명세·합성 관측만 쓴다.”를 동시에 충족할 수 없습니다. 기존 tests/test_m7_freeze.py의 test_digests_match_expected와 test_output_has_only_path_and_digest는 scripts/freeze_digest.py를 통해 실제 data/eval/·data/redteam/ 파일을 read_bytes()로 읽습니다. 해당 기존 검증에 대한 읽기 예외를 명시해야 진행할 수 있습니다. 파일 수정과 make verify 실행은 하지 않았습니다.",
-      "blocked_at": "2026-10-16T18:38:11+0900",
-      "usage": {
-        "input_tokens": 928395,
-        "cached_input_tokens": 829056,
-        "output_tokens": 2306,
-        "attempts": 1
-      }
+      "status": "pending"
     }
   ],
   "created_at": "2026-10-16T17:10:04+0900"
