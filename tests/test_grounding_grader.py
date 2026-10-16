@@ -224,7 +224,7 @@ def test_caps_and_expiry_refuse_before_call(tmp_path, cap):
             purpose="grading",
             model=grader.GRADER_MODEL,
             task_id=None,
-            estimate_usd=7.29,
+            estimate_usd=10.0,
         )
         expected = costs.BudgetExceededError
     else:

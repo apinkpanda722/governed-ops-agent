@@ -82,7 +82,7 @@ M6 phase ②: m6-guardrail-v2(Guardrail v2 — 호스트 수집 지점에서 분
 **덜어내지 않는 핵심:** 신원 위임(중개), outbox 멱등성과 장애 주입, HITL, 감사 해시체인, Guardrail v1 비대칭, TCR·정확도 분리, 승인 화면.
 
 ## 예산
-- **비용 상한(B 전체 기간 총액, 월 단위 아님):** OpenAI **$9.13**, Anthropic **$11.47**, Gemini **$7.29**(합계 $27.89). 근거는 ADR-007.
+- **비용 상한(B 전체 기간 총액, 월 단위 아님):** OpenAI **$9.13**, Anthropic **$11.47**, Gemini **$7.29**(합계 $27.89). 근거는 ADR-007. M8 추가 등록 1(2026-10-16)로 Gemini 상한만 **$10.00**(합계 $30.60)으로 올렸다.
 - 모든 유료 호출은 **호출 직전 공급사별 누적액 검사**로 상한을 강제한다(A `costs.py` 방식). 채점 비용은 별도 원장에 기록한다. 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. 용도: OpenAI = 주 모델, Anthropic = fallback·Guardrail v2 분류기, Gemini = 채점.
 - M2 파일럿 실측으로 B 전체 예상 비용을 다시 추정한다. 상한을 넘을 것으로 보이면 축소 순서를 적용하거나 추가 충전한다.
 

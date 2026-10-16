@@ -17,7 +17,7 @@ from types import MappingProxyType
 from zoneinfo import ZoneInfo
 
 SUPPLIER_CAPS_USD: Mapping[str, float] = MappingProxyType(
-    {"openai": 9.13, "anthropic": 11.47, "gemini": 7.29}
+    {"openai": 9.13, "anthropic": 11.47, "gemini": 10.0}
 )
 PURPOSES = ("agent_primary", "agent_fallback", "guardrail_v2", "grading")
 PURPOSE_SUPPLIER: Mapping[str, str] = MappingProxyType(

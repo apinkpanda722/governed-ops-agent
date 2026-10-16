@@ -25,7 +25,7 @@ def test_prices_and_constants(monkeypatch):
     assert dict(costs.SUPPLIER_CAPS_USD) == {
         "openai": 9.13,
         "anthropic": 11.47,
-        "gemini": 7.29,
+        "gemini": 10.0,
     }
     assert costs.PURPOSES == (
         "agent_primary",
