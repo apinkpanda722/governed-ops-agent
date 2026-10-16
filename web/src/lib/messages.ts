@@ -78,3 +78,12 @@ export function auditCodeLabel(code: string): string {
         anchor_sig_invalid: "고정점 서명 오류", anchor_dir_missing: "고정점 체인 없음", anchor_file_invalid: "고정점 파일 오류",
     } as Record<string,string>)[code] ?? code;
 }
+export function auditEventTitle(code: string, checkResult?: string): string {
+    if (code === "side_effect.draft" && checkResult) return "발송 초안 검사";
+    return auditEventLabel(code);
+}
+export function auditActorLabel(code: string): string {
+    if (code === "approval.requested") return "요청자";
+    if (["approval.approved", "approval.edited", "approval.rejected", "approval.expired"].includes(code)) return "결정자";
+    return "사용자";
+}
