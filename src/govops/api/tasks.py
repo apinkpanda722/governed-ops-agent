@@ -21,6 +21,7 @@ from govops.agent.graph import (
 from govops.agent.turns import MAX_TURNS, build_turn_state
 from govops.api.conversations import ConversationError, InMemoryTurnIndex, TurnIndex
 from govops.api.steps import tool_steps
+from govops.audit import records
 from govops.audit.log import AuditWriteError
 from govops.obs.trace import set_attributes, trace
 from govops.tools.effects import reconcile_effect
@@ -473,6 +474,68 @@ class TaskService:
                         else state.get("request"),
                     },
                 }
+
+    async def audit_view(self, user_id: str, conversation_id: str) -> dict:
+        if not _TASK_ID.fullmatch(conversation_id):
+            raise ConversationError(404, "conversation_not_found")
+        # 대화 잠금은 삭제 확인·턴 조회에만 쓴다. 파일 읽기는 잠금 밖.
+        async with self._conv_lock(conversation_id):
+            if await self.turns.is_deleted(conversation_id):
+                raise ConversationError(404, "conversation_not_found")
+            turns = await self.turns.turn_ids_of(conversation_id, user_id)
+        if not turns:
+            raise ConversationError(404, "conversation_not_found")
+        directory = getattr(self.audit, "directory", None)
+        if not directory:
+            raise ConversationError(503, "audit_unavailable")
+        try:
+            events, truncated = await asyncio.to_thread(
+                records.read_events, directory, [turn_id for turn_id, _ in turns]
+            )
+        except records.AuditUnavailable:
+            raise ConversationError(503, "audit_unavailable") from None
+        return {
+            "conversation_id": conversation_id,
+            "turns": [
+                {"turn_id": turn_id, "turn_index": index, "events": events[turn_id]}
+                for turn_id, index in turns
+            ],
+            "truncated": truncated,
+        }
+
+    async def audit_verify(self) -> dict:
+        directory = getattr(self.audit, "directory", None)
+        if not directory:
+            raise ConversationError(503, "audit_unavailable")
+        if not hasattr(self, "_audit_verify_cache"):
+            self._audit_verify_cache = records.VerifySummaryCache()
+        cache = self._audit_verify_cache
+        hit = cache.peek(directory)
+        if hit is not None:
+            return hit
+        # 단일 비행 대기는 이벤트 루프 쪽에서 한다: 계산만 스레드에서 돈다.
+        flights = self.__dict__.setdefault("_audit_verify_flights", {})
+        flight = flights.get(directory)
+        if flight is None:
+
+            async def compute() -> dict:
+                value = await asyncio.to_thread(records.verify_summary, directory)
+                cache.put(directory, value)
+                return value
+
+            flight = asyncio.ensure_future(compute())
+            flights[directory] = flight
+
+            def done(task: asyncio.Future) -> None:
+                flights.pop(directory, None)
+                if not task.cancelled():
+                    task.exception()
+
+            flight.add_done_callback(done)
+        try:
+            return await asyncio.shield(flight)
+        except records.AuditUnavailable:
+            raise ConversationError(503, "audit_unavailable") from None
 
     async def approvals(self, user_id):
         views = []

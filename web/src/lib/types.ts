@@ -127,3 +127,33 @@ export function conversationListView(value: unknown): ConversationListItem[] {
             awaiting_approval: row.awaiting_approval, turn_count: row.turn_count, updated_at: row.updated_at}];
     }).slice(0,50);
 }
+
+export type AuditEvent = {
+    seq?: number;
+    ts?: string;
+    event?: string;
+    actor?: string;
+    tool?: string;
+    decision?: string;
+    check_result?: string;
+    reason?: string;
+    code?: string;
+    mock_id?: string;
+    fallback?: boolean;
+    cost_usd?: string;
+    hash12?: string;
+    draft_hash12?: string;
+};
+export type AuditView = {
+    conversation_id?: string;
+    turns?: {turn_id: string; turn_index: number; events?: AuditEvent[]}[];
+    truncated?: boolean;
+};
+export type AuditVerifyView = {
+    status?: "pass" | "fail";
+    checked_at?: string;
+    chain?: {records?: number; files?: number; anchors_checked?: number; problems?: {code: string; seq?: number}[]};
+    anchors?: {committed?: number; pending?: number};
+    legacy_unverified?: {files?: number; lines?: number};
+    known_limit?: string;
+};

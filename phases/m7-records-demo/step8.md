@@ -45,7 +45,8 @@
 - `docs/BLOG_DRAFT.md`: 설계 문서 4-4절 개요. 첫 단락에 mock 시뮬레이션 명시. 수치는 4-2절 출처만.
 - `docs/PUBLIC_RELEASE_CHECKLIST.md`: 설계 문서 5절 C1~C13을 체크리스트로 옮긴다(검사 명령은 사용자 실행 항목으로 표시, 공개 신원 결정 항목과 A 저장소 쪽 항목 포함).
 - `docs/ARCHITECTURE.md`: 감사 로그 절의 "웹 기록 화면의 검증 결과 표시는 M7이다" 문구를 구현된 사실(API 2개·화면·한계)로 갱신하고 UI 계약에 기록 화면 한 단락을 더한다. 디렉터리 구조에 `audit/records.py`를 한 줄 더한다. `docs/THREAT_MODEL.md`: V10 검증 행에 기록 화면 프로브(`hypotheses-m7-records-authz.md`) 한 줄과 잔여 위험 한 줄(화면 PASS의 범위)을 더한다.
-- `docs/PRD.md`: M7 행의 상태만 갱신한다(번호·목표 문구 수정 금지). ADR 번호 참조는 바꾸지 않는다.
+- `docs/PRD.md`: M7 행의 상태만 갱신한다(번호·목표 문구 수정 금지). ADR 번호 참조는 바꾸지 않는다. **M7 행은 한 줄을 유지하고, 그 뒤의 빈 줄 → `M6 선행: …` 문장 → 빈 줄 → `make verify` 단락 순서를 바꾸지 않는다**(`tests/test_docs_consistency.py`가 이 순서를 단언한다).
+- **문서 일치 테스트 제약**: (a) `docs/ARCHITECTURE.md`의 `## 알려진 한계` 절과 ADR-025 절에는 `N/M` 형태 수치·`%`·`x.y` 소수를 새로 쓰지 않는다(결과 수치 금지 단언). (b) `## 감사 로그` 절에는 `anchors-pending` 또는 `대기 파일`, `conversation.deleted` 문구를 유지한다. (c) `docs/THREAT_MODEL.md`의 `| TH15 /`·`| V16 ` 행은 수정하지 않는다. V10 행·잔여 위험 절에 줄을 더하되 `| TH8 /` 행의 `anchors-pending`/`대기 파일` 문구는 유지한다. (d) ADR-012·ADR-024~027 절 본문은 그대로 둔다(ADR-012 변경 기록에 `웹 기록 화면` 문구가 있어야 한다).
 
 **사용자 실행(이 step에서 실행하지 않는다)**: 없음.
 

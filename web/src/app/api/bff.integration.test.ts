@@ -12,6 +12,8 @@ import * as turns from "./conversations/[id]/turns/route";
 import * as events from "./conversations/[id]/events/route";
 import * as approvals from "./approvals/route";
 import * as approval from "./tasks/[id]/approval/route";
+import * as audit from "./conversations/[id]/audit/route";
+import * as verify from "./audit/verify/route";
 
 let server:Server;
 let token:string;
@@ -252,4 +254,65 @@ test.each([[404,"conversation_not_found"],[409,"approval_pending"],[409,"turn_in
  const response=await conversation.DELETE(req(`conversations/${id}`,"DELETE",undefined,{cookie:token}),context);
  expect(response.status).toBe(status>=500?502:status);expect(await response.json()).toEqual({code});
  expect(calls).toBe(1);
+});
+
+const recordRoutes=[
+ {path:`conversations/${id}/audit`,get:(request:NextRequest)=>audit.GET(request,context)},
+ {path:"audit/verify",get:(request:NextRequest)=>verify.GET(request)},
+];
+test("B1 records require a cookie without calling upstream",async()=>{
+ for(const route of recordRoutes){
+ const response=await route.get(req(route.path));expect(response.status).toBe(401);
+ expect(await response.json()).toEqual({code:"unauthenticated"});
+ } expect(calls).toBe(0);
+});
+test("B2 records reject a mismatched Origin without calling upstream",async()=>{
+ for(const route of recordRoutes){
+ const response=await route.get(req(route.path,"GET",undefined,{cookie:token,origin:"http://evil.test"}));
+ expect(response.status).toBe(403);expect(await response.json()).toEqual({code:"origin_mismatch"});
+ } expect(calls).toBe(0);
+});
+test("B3 malformed record IDs fail locally",async()=>{
+ for(const bad of ["bad","A".repeat(32),"a".repeat(31),"../audit/verify"]){
+ const response=await audit.GET(req("records","GET",undefined,{cookie:token}),{params:Promise.resolve({id:bad})});
+ expect(response.status).toBe(404);expect(await response.json()).toEqual({code:"not_found"});
+ } expect(calls).toBe(0);
+});
+test("B4 upstream record 404 projects only conversation_not_found",async()=>{
+ failure={status:404,detail:"conversation_not_found"};
+ const response=await audit.GET(req(recordRoutes[0].path,"GET",undefined,{cookie:token}),context);
+ expect(response.status).toBe(404);expect(await response.json()).toEqual({code:"conversation_not_found"});
+ expect(calls).toBe(1);
+});
+test.each([500,503])("B5 record upstream %s becomes a fixed 502",async status=>{
+ failure={status,detail:"SENTINEL-error"};
+ for(const route of recordRoutes){
+ const response=await route.get(req(route.path,"GET",undefined,{cookie:token}));
+ expect(response.status).toBe(502);expect(await response.json()).toEqual({code:"upstream_unavailable"});
+ } expect(calls).toBe(2);
+});
+test("B6 B7 records strip nested secrets and expose no session value in body or headers",async()=>{
+ const ts="2026-10-16T01:02:03+00:00";
+ const junk={kid:"SENTINEL",sig:"f".repeat(128),hash:"e".repeat(64),path:"/private/audit",secret:token};
+ const event={seq:1,ts,event:"approval.approved",actor:"demo-platform-g4",hash12:"b".repeat(12)};
+ const expected=[{conversation_id:id,turns:[{turn_id:id,turn_index:1,events:[event]}],truncated:false},
+ {status:"pass",checked_at:ts,chain:{records:1,files:1,anchors_checked:0,problems:[{code:"seq_gap",seq:1}]},anchors:{committed:0,pending:0},legacy_unverified:{files:0,lines:0},known_limit:"tail_after_last_anchor_not_detected"}];
+ server.removeAllListeners("request");
+ server.on("request",(request,response)=>{
+ calls++;receivedUrl=request.url;receivedMethod=request.method;receivedAuth=request.headers.authorization;
+ const body=request.url==="/audit/verify"?{...expected[1],...junk,chain:{records:1,files:1,anchors_checked:0,problems:[{code:"seq_gap",seq:1,...junk}],...junk},anchors:{committed:0,pending:0,...junk},legacy_unverified:{files:0,lines:0,...junk}}:
+ {...expected[0],...junk,turns:[{turn_id:id,turn_index:1,...junk,events:[{...event,...junk},{seq:2,event:"e".repeat(64),actor:"/private/audit",cost_usd:token}]}]};
+ response.setHeader("content-type","application/json");response.setHeader("x-private",token);response.end(JSON.stringify(body));
+ });
+ for(const [i,route] of recordRoutes.entries()){
+ const response=await route.get(req(route.path,"GET",undefined,{cookie:token}));
+ expect(response.status).toBe(200);expect(receivedUrl).toBe(`/`+route.path);expect(receivedMethod).toBe("GET");expect(receivedAuth===`Bearer ${token}`).toBe(true);
+ const body=await response.json();
+ const target=i===0?{...expected[0],turns:[{turn_id:id,turn_index:1,events:[event,{seq:2}]}]}:expected[1];
+ expect(body).toEqual(target);
+ const serialized=JSON.stringify(body);expect(serialized).not.toMatch(/SENTINEL|[0-9a-f]{64}|kid|sig|private/);
+ expect(serialized.includes(token)).toBe(false);
+ expect(JSON.stringify([...response.headers]).includes(token)).toBe(false);expect(response.headers.get("x-private")).toBeNull();
+ expect(response.headers.get("cache-control")).toBe("no-store");
+ } expect(calls).toBe(2);
 });

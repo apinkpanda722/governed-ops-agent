@@ -305,6 +305,72 @@ def test_turn_index_soft_delete_postgres():
         raise RuntimeError("M5 soft-delete turn index verification failed") from None
 
 
+def test_turn_index_turn_ids_postgres():
+    url = database_url()
+
+    async def exercise():
+        table = "govops_m7_turn_ids_" + uuid4().hex
+        stores = [PostgresTurnIndex(url, table=table) for _ in range(2)]
+        try:
+            assert await bounded(stores[0].turn_ids_of("first", "owner")) == []
+            for turn, conversation, owner, position in (
+                ("third", "first", "owner", 2),
+                ("first", "first", "owner", 0),
+                ("second", "first", "owner", 1),
+                ("foreign", "first", "other-owner", 1),
+                ("other", "other", "owner", 0),
+            ):
+                await bounded(
+                    stores[0].add(
+                        turn_id=turn,
+                        conversation_id=conversation,
+                        owner_sub=owner,
+                        turn_index=position,
+                        created_at="2026-10-16T00:00:00+00:00",
+                    )
+                )
+            for store in stores:
+                assert await bounded(store.turn_ids_of("first", "owner")) == [
+                    ("first", 0),
+                    ("second", 1),
+                    ("third", 2),
+                ]
+                assert await bounded(store.turn_ids_of("first", "other-owner")) == [
+                    ("foreign", 1)
+                ]
+                for conversation, owner in (
+                    ("first", "missing-owner"),
+                    ("missing", "owner"),
+                    ("second", "owner"),
+                ):
+                    assert await bounded(store.turn_ids_of(conversation, owner)) == []
+            assert (
+                await bounded(
+                    stores[0].mark_deleted(
+                        "first", "owner", "2026-10-16T00:01:00+00:00"
+                    )
+                )
+                == 3
+            )
+            for store in stores:
+                assert await bounded(store.turn_ids_of("first", "owner")) == []
+                assert await bounded(store.turn_ids_of("first", "other-owner")) == [
+                    ("foreign", 1)
+                ]
+                assert await bounded(store.turn_ids_of("other", "owner")) == [
+                    ("other", 0)
+                ]
+        finally:
+            await ddl(
+                url, sql.SQL("DROP TABLE IF EXISTS {}").format(sql.Identifier(table))
+            )
+
+    try:
+        asyncio.run(exercise())
+    except Exception:  # noqa: BLE001 — conceal transport details
+        raise RuntimeError("M7 turn IDs verification failed") from None
+
+
 class State(TypedDict):
     status: str
     expires_at: str

@@ -48,6 +48,14 @@ class FakeService:
         self.calls.append("delete_conversation")
         return {"conversation_id": conversation_id, "deleted": True}
 
+    async def audit_view(self, user_id, conversation_id):
+        self.calls.append("audit_view")
+        return {"conversation_id": conversation_id, "turns": [], "truncated": False}
+
+    async def audit_verify(self):
+        self.calls.append("audit_verify")
+        return {"status": "pass"}
+
     async def conversations(self, user_id, limit):
         self.calls.append("conversations")
         return {"conversations": []}
@@ -85,6 +93,8 @@ EXPECTED = {
     ("GET", "/conversations/{conversation_id}"): (None, "conversation_view"),
     ("DELETE", "/conversations/{conversation_id}"): (None, "delete_conversation"),
     ("GET", "/conversations/{conversation_id}/events"): (None, "progress"),
+    ("GET", "/conversations/{conversation_id}/audit"): (None, "audit_view"),
+    ("GET", "/audit/verify"): (None, "audit_verify"),
     ("GET", "/approvals"): (None, "approvals"),
 }
 
@@ -94,7 +104,7 @@ def service_routes(app):
         (method, route.path)
         for route in app.routes
         if isinstance(route, APIRoute)
-        and route.path.startswith(("/tasks", "/conversations", "/approvals"))
+        and route.path.startswith(("/tasks", "/conversations", "/approvals", "/audit"))
         for method in route.methods
     }
 

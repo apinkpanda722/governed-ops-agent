@@ -36,7 +36,8 @@ src/govops/
 │   ├── policy.py  # 팀별 정책 로더
 │   └── pii.py    # 한국 형식 PII 판정
 ├── audit/        # 감사 로그 해시체인·서명 쓰기(유일한 쓰기 지점), audit-verify
-│   └── log.py  # M3 비체인 JSONL·AuditPort·결과 기록 재시도
+│   ├── log.py  # M3 비체인 JSONL·AuditPort·결과 기록 재시도
+│   └── records.py  # 읽기 전용 이벤트 투영·검증 요약·TTL 캐시와 단일 비행
 ├── obs/          # trace span, 전송 전 마스킹, 로컬 JSONL / Langfuse 출력
 │   └── trace.py·mask.py·jsonl.py·langfuse.py
 ├── env.py        # 빈 문자열·공백을 미설정으로 처리하는 env_or
@@ -249,7 +250,7 @@ stateDiagram-v2
 
 삭제 신원은 인증된 세션의 요청자이며 첫 턴 ID가 대화 ID다. 타인·없음·삭제됨·형식 오류는 동일한 404 `conversation_not_found`, 실행 중은 409 `turn_in_progress`, 승인 대기·interrupt는 409 `approval_pending`이다. 만료된 승인은 대화 → task 잠금 안에서 먼저 닫는다. 감사 싱크 없음·쓰기 실패는 500 `audit_write_failed`, 표시 실패는 500 `delete_failed`이며 BFF는 내부 실패를 502 `upstream_unavailable`로 접는다. `approver_decision` 규칙은 유지한다. 삭제 확인은 대화 조회·턴 추가·SSE·task 조회·승인·승인함에도 적용하며 task 라우트는 기존 404 `Task not found`를 사용한다(ADR-025).
 
-`PROFILES = {writes_org}`인 읽기 전용 단일 레지스트리를 사용한다. `GOVOPS_AGENT_PROFILE` 허용값과 기본값은 `writes_org`다. `WITH_WRITES_ORG`는 조직 정보 절을 포함하며 `READ_ONLY`·`WITH_WRITES` 구성 객체는 단위 테스트·프로필 구성에 유지한다. M2 러너의 실행 경로는 삭제하고 공용 헬퍼·과거 결과 문서는 보존한다(ADR-022). 시작 정리는 checkpointer 전체 순회이며 수백 건 규모를 전제한다. 규모가 커지면 별도 테이블이 필요하다.
+`PROFILES`는 `writes_org`(동결)·`writes_team`을 담은 읽기 전용 레지스트리이며 `GOVOPS_AGENT_PROFILE` 기본값은 `writes_team`이다(`api/wiring.py`, ADR-024). `WITH_WRITES_ORG`는 조직 정보 절을 포함하며 `READ_ONLY`·`WITH_WRITES` 구성 객체는 단위 테스트·프로필 구성에 유지한다. M2 러너의 실행 경로는 삭제하고 공용 헬퍼·과거 결과 문서는 보존한다(ADR-022). 시작 정리는 checkpointer 전체 순회이며 수백 건 규모를 전제한다. 규모가 커지면 별도 테이블이 필요하다.
 
 ## 도구와 부작용·멱등성
 
@@ -399,7 +400,9 @@ trace와 다르게 책임 추적용이다. `audit/log.py`의 AuditLog와 AuditPo
 - 고정점: `make audit-anchor LABEL=…`와 dev·faults 러너가 `chain.anchor`를 덧붙이고 `data/interim/audit/anchors-pending.jsonl`(`AUDIT_ANCHORS_PENDING_FILE`, gitignore)에 `{dir, seq, hash, sig, kid, label, ts}`를 쓴다. 러너 종료 시 디렉터리별 고정점 실패는 fail-open으로 보고한다. 대기 파일 → 결과 PR이 `docs/results/audit-anchors.jsonl`로 옮겨 커밋한다.
 - 키: `AUDIT_KEY_FILE` 기본 `data/interim/audit_ed25519.pem`(0600, 사용자 생성), `AUDIT_PUBLIC_KEY_FILE` 기본 `data/seed/audit_public_key.pem`(공개키만 커밋). 키 누락·권한·짝 오류는 서비스·러너 시작을 거부한다.
 - 읽기 전용 `make audit-verify`는 체인·서명·seq 빈틈·`legacy_sha256`과 두 고정점 파일을 `(dir, seq, hash)`로 중복 제거해 대조한다. `make smoke-audit`는 변조 5종과 실제 체인을 검증한다. 고정점 레코드 뒤만 자르면 다음 고정점 전까지 탐지하지 못하며, 같은 키로 전체 재계산은 고정점으로만 탐지한다.
-- 부작용 생애주기 이벤트는 ADR-018, Guardrail 이벤트는 ADR-023, 체인·서명과 시스템·모델 이벤트 필드는 ADR-012를 따른다. 쓰기 권한 거부는 `side_effect.result`의 `reason`으로 기록하며 웹 기록 화면의 검증 결과 표시는 M7이다.
+- 부작용 생애주기 이벤트는 ADR-018, Guardrail 이벤트는 ADR-023, 체인·서명과 시스템·모델 이벤트 필드는 ADR-012를 따른다. 쓰기 권한 거부는 `side_effect.result`의 `reason`으로 기록한다.
+- M7의 읽기 전용 API `GET /conversations/{conversation_id}/audit`는 소유자의 삭제되지 않은 대화에 속한 턴별 이벤트만 반환하고, `GET /audit/verify`는 인증된 모든 사용자에게 전역 검증 요약을 반환한다. `audit/records.py`가 기존 검증기를 호출하며 `TaskService`는 동기 파일 I/O를 `asyncio.to_thread`로 넘긴다. 검증 요약은 서비스별 10초 TTL 캐시와 단일 비행을 사용한다. 쓰기 중 마지막 줄이 미완성이면 완성된 개행까지 읽고 같은 스냅샷을 검증한다.
+- 기록 화면의 PASS는 이 호스트 체인과 작업 트리의 고정점 기준이다. 마지막 고정점 이후 꼬리·같은 키 전체 재계산·B 호스트 탈취는 막지 못한다. 턴 색인이 정리되면 감사 레코드가 남아도 화면은 404이며 체인은 CLI `make audit-verify`로 확인한다(ADR-028).
 
 ## BFF 인증 흐름 (httpOnly 쿠키)
 
@@ -432,6 +435,8 @@ sequenceDiagram
 M1 에이전트는 읽기 도구 6개만 연결한다. 부작용 도구는 spec만 두며 연결은 M3에 둔다. `MAX_STEPS`는 폭주 방지용 임시 상수이며 최종값은 M5에서 정한다.
 
 ### UI 계약
+
+대화 상단의 “기록” 링크는 `/records/[id]`를 연다. BFF의 `GET /api/conversations/[id]/audit`·`GET /api/audit/verify`가 각각 감사 API를 중계하며 서버와 BFF 모두 허용 목록으로 투영한다. 타인·없음·삭제됨·형식 오류·승인자·정리된 대화와 대화가 아닌 이후 턴 ID는 같은 404 `conversation_not_found`다. 소유자는 턴별 이벤트·승인자 라벨·해시 앞부분을 텍스트로 보고, 전역 검증 배지는 PASS/FAIL·확인 시각·레코드와 고정점 개수·고정 문제 코드와 한계를 표시한다. 전역 요약에는 경로·`kid`·해시·서명이 없다. 원문·PII·토큰·전체 해시·서명은 이벤트 화면에도 노출하지 않는다. 이벤트 상한을 넘으면 잘림을 안내하며 검증 자료 읽기 실패의 503 `audit_unavailable`은 BFF에서 502 `upstream_unavailable`로 접힌다. 기록 조회는 승인 만료 처리·상태 변경·감사 append·LLM 호출을 하지 않는다([사전 등록](results/hypotheses-m7-records-authz.md), ADR-028).
 
 `GET /conversations`는 소유자 본인의 대화만 상한 50개로 읽기 전용 조회한다. 색인은 후보를 찾는 힌트이고 체크포인트가 소유자·상태·제목의 권위다. 제목은 첫 사용자 요청의 공백을 정규화해 40자로 자르고 넘으면 말줄임표를 붙이며, 입력 차단 원문은 쓰지 않고 요청이 없으면 “새 대화”다. 요청자 본인 턴 뷰에는 읽기 도구의 이름·성공만 담은 `tool_steps`, `approval_method`, 턴별 UTC `effect_at`을 제공한다. 승인자 뷰에는 이 세 필드가 없다. BFF는 목록과 턴 뷰 모두 허용 목록으로 투영하고 목록 요청은 `limit=50`으로 고정한다.
 

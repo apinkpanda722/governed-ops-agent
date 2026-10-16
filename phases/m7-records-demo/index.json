@@ -5,47 +5,130 @@
     {
       "step": 0,
       "name": "freeze-pin",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-15T23:02:46+0900",
+      "summary": "5d4302b와 일치하는 42개 동결 경로의 digest 스크립트·고정 상수·회귀 테스트를 추가하고 make verify 통과.",
+      "completed_at": "2026-10-15T23:11:47+0900",
+      "usage": {
+        "input_tokens": 5827667,
+        "cached_input_tokens": 5652224,
+        "output_tokens": 7983,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
       "name": "audit-records-reader",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T10:17:55+0900",
+      "summary": "읽기 전용 감사 이벤트 조회·검증 요약·단일 비행 TTL 캐시와 합성 회귀 테스트를 추가하고, 계층·동결 검사 포함 make verify 통과.",
+      "completed_at": "2026-10-16T10:31:43+0900",
+      "usage": {
+        "input_tokens": 4796185,
+        "cached_input_tokens": 4647936,
+        "output_tokens": 17321,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
       "name": "turn-index-turn-ids",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T10:31:43+0900",
+      "summary": "TurnIndex와 두 구현에 소유자·삭제 필터 및 순서 보장 turn_ids_of를 추가하고, 단위 테스트·사용자 실행 PostgreSQL 케이스를 작성했으며 make verify 통과.",
+      "completed_at": "2026-10-16T10:41:15+0900",
+      "usage": {
+        "input_tokens": 3565737,
+        "cached_input_tokens": 3423872,
+        "output_tokens": 7903,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
       "name": "audit-view-service",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T10:41:15+0900",
+      "summary": "읽기 전용 audit_view·audit_verify와 합성 서비스 테스트 26개 추가. 기존 28개 메서드 불변 및 계층·동결 검사 포함 make verify 통과.",
+      "completed_at": "2026-10-16T10:53:20+0900",
+      "usage": {
+        "input_tokens": 3716235,
+        "cached_input_tokens": 3576576,
+        "output_tokens": 14889,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
       "name": "audit-routes-entrypoint",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:01:04+0900",
+      "summary": "감사 조회·검증 라우트 2개와 실제 진입점 경유 권한·비노출·읽기 전용·변조·캐시 프로브 18개를 추가하고, 기존 AST·계층·동결 검사 포함 make verify 통과.",
+      "completed_at": "2026-10-16T11:14:29+0900",
+      "usage": {
+        "input_tokens": 5959600,
+        "cached_input_tokens": 5782528,
+        "output_tokens": 16589,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
       "name": "web-records-ui",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:14:29+0900",
+      "summary": "감사 BFF 2개·허용 목록 투영·기록 화면·대화 기록 링크와 B1~B7 및 UI 회귀 테스트를 추가하고 make verify 통과.",
+      "completed_at": "2026-10-16T11:25:59+0900",
+      "usage": {
+        "input_tokens": 3342400,
+        "cached_input_tokens": 3198080,
+        "output_tokens": 15404,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
       "name": "e2e-records-spec",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:25:59+0900",
+      "summary": "임시 AuditLog의 기록 읽기·검증 경로를 격리하고 PASS·발송 이벤트·타인 및 삭제 대화 접근 차단 e2e 스펙과 목록 단언을 추가했으며, make verify 및 4개 스펙 수집 통과.",
+      "completed_at": "2026-10-16T11:36:02+0900",
+      "usage": {
+        "input_tokens": 3563204,
+        "cached_input_tokens": 3407872,
+        "output_tokens": 9278,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
       "name": "demo-scripts",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:36:02+0900",
+      "summary": "복사본 전용 scene5 스크립트·장애 규칙·데모 타깃 3개와 합성 회귀 테스트 12개를 추가하고, 원본 불변·꼬리 절단 탐지 및 make verify 통과.",
+      "completed_at": "2026-10-16T11:47:19+0900",
+      "usage": {
+        "input_tokens": 3671737,
+        "cached_input_tokens": 3514368,
+        "output_tokens": 13189,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
       "name": "docs-readme-blog",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:47:19+0900",
+      "summary": "README·MIT 라이선스·데모·블로그·공개 체크리스트와 ADR-028·M7 문서를 정리하고, 프로필 마커 두 곳만 갱신했으며 동결·계층 검사 포함 make verify 통과.",
+      "completed_at": "2026-10-16T12:03:44+0900",
+      "usage": {
+        "input_tokens": 5192004,
+        "cached_input_tokens": 4958592,
+        "output_tokens": 28371,
+        "attempts": 1
+      }
     }
-  ]
+  ],
+  "created_at": "2026-10-15T23:02:46+0900",
+  "completed_at": "2026-10-16T12:03:44+0900"
 }

@@ -44,3 +44,37 @@ export function sentResultLabel(tool: string): string {
 export function approvalMethodLabel(method: string): string {
     return ({approve: "승인", edit_approve: "수정 후 승인"} as Record<string,string>)[method] ?? method;
 }
+
+export const RECORDS_NOT_FOUND = "기록을 찾을 수 없습니다. 정리된 대화는 기록 화면에서 볼 수 없고 체인은 audit-verify로 확인합니다";
+export const RECORDS_TAIL_NOTICE = "마지막 고정점 이후는 탐지되지 않습니다";
+export const RECORDS_HOST_NOTICE = "이 호스트의 체인 기준입니다";
+export const RECORDS_TRUNCATED_NOTICE = "이벤트가 많아 일부 기록만 표시합니다.";
+export function auditEventLabel(code: string): string {
+    if (code.startsWith("guardrail.")) return "Guardrail 판정";
+    return ({
+        "model.call": "모델 호출", "conversation.deleted": "대화 삭제",
+        "side_effect.draft": "발송 초안", "side_effect.attempt": "발송 시도", "side_effect.result": "발송 결과",
+        "side_effect.marker_lookup": "표식 조회", "approval.requested": "승인 요청", "approval.approved": "승인 완료",
+        "approval.edited": "초안 수정", "approval.rejected": "승인 거부", "approval.expired": "승인 만료",
+    } as Record<string,string>)[code] ?? code;
+}
+export function auditCodeLabel(code: string): string {
+    return ({
+        approve: "승인", edit_approve: "수정 후 승인", reject: "거부", expired: "만료",
+        passed: "검사 통과", blocked: "차단", recipient_not_allowed: "허용되지 않은 수신처",
+        pii_blocked_by_team_policy: "팀 개인정보 정책 차단", scope_wider_than_evidence: "근거보다 넓은 발송 범위",
+        evidence_scope_unknown: "근거 범위 확인 불가", ticket_not_found: "티켓 없음",
+        audit_gap: "감사 기록 누락", already_succeeded: "이미 실행 완료", already_failed: "이미 실행 실패",
+        in_progress: "처리 중", audit_write_failed: "감사 기록 실패", circuit_open: "연결 일시 중단",
+        connect: "연결 실패", rate_limited: "호출 제한", uncertain: "결과 불확실", definitive: "확정 실패",
+        unsent_confirmed: "미발송 확인", injection_direct: "지시 변경 시도", pii_input: "개인정보 포함",
+        guardrail_unavailable: "Guardrail 확인 불가", team_unknown: "팀 확인 불가",
+        guardrail_header_missing: "Guardrail 응답 누락", guardrail_stale: "Guardrail 설정 불일치",
+        no_chain: "체인 없음", unterminated_tail: "미완성 레코드", invalid_json: "레코드 형식 오류",
+        invalid_record: "유효하지 않은 레코드", hash_mismatch: "내용 해시 불일치", prev_hash_mismatch: "체인 연결 불일치",
+        seq_order: "레코드 순서 오류", seq_gap: "레코드 누락", kid_unknown: "알 수 없는 서명 키",
+        sig_invalid: "서명 오류", genesis_missing: "시작 레코드 없음", legacy_sha256_mismatch: "이전 기록 해시 불일치",
+        tail_truncated: "꼬리 잘림", anchor_missing: "고정점 없음", anchor_hash_mismatch: "고정점 해시 불일치",
+        anchor_sig_invalid: "고정점 서명 오류", anchor_dir_missing: "고정점 체인 없음", anchor_file_invalid: "고정점 파일 오류",
+    } as Record<string,string>)[code] ?? code;
+}

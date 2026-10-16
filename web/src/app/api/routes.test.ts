@@ -9,6 +9,8 @@ function walk(path:string):string[] {
 test("route file names and server boundaries", () => {
  const files=walk(root).filter(p=>p.endsWith("/route.ts"));
  expect(files.map(p=>relative(root,p)).sort()).toEqual([
+ "audit/verify/route.ts",
+ "conversations/[id]/audit/route.ts",
  "demo-users/route.ts","session/route.ts","conversations/route.ts","conversations/[id]/route.ts",
  "conversations/[id]/turns/route.ts","conversations/[id]/events/route.ts","approvals/route.ts","tasks/[id]/approval/route.ts"
  ].sort());

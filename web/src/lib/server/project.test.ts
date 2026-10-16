@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import { conversationView, type ConversationView } from "../types";
-import { projectConversation, projectApprovals, projectTurn, projectConversationList, projectDeleted } from "./project";
+import { projectConversation, projectApprovals, projectTurn, projectConversationList, projectDeleted, projectAudit, projectVerify } from "./project";
 test("allowlist preserves useful fields without internal data", () => {
  const token=randomBytes(32).toString("base64url");
  const junk={messages:token,rules:"SENTINEL-rules", reasoning:"SENTINEL-reason", stop_reason:token};
@@ -108,4 +108,34 @@ test.each([true,false,"SENTINEL"])("approval projection always discards limited 
  expect(view).toEqual({approvals:[{turn_id:"a".repeat(32)}]});
  expect(JSON.stringify(view)).not.toContain("limited");
  expect(JSON.stringify(view)).not.toContain("SENTINEL");
+});
+
+const auditTime = "2026-10-16T01:02:03.123456+00:00";
+const auditEvent = {seq:1, ts:auditTime, event:"approval.approved", actor:"demo-platform-g4", tool:"slack_send_message", decision:"approve", check_result:"passed", reason:"already_succeeded", code:"future_code", mock_id:"message-1", fallback:false, cost_usd:"0.001234", hash12:"b".repeat(12), draft_hash12:"c".repeat(12)};
+const auditSummary = {status:"pass", checked_at:auditTime, chain:{records:3,files:1,anchors_checked:2,problems:[{code:"seq_gap",seq:2}]}, anchors:{committed:1,pending:1},legacy_unverified:{files:0,lines:0},known_limit:"tail_after_last_anchor_not_detected"};
+test("audit projections preserve exactly their allowlists at every nesting level", () => {
+ const junk={kid:"SENTINEL",sig:"d".repeat(128),hash:"e".repeat(64),path:"/private/audit",body:"SENTINEL"};
+ const row={turn_id:"a".repeat(32),turn_index:1,events:[auditEvent]};
+ const expected={conversation_id:"a".repeat(32),turns:[row],truncated:false};
+ expect(projectAudit({...expected,...junk,turns:[{...row,...junk,events:[{...auditEvent,...junk}]}]})).toEqual(expected);
+ expect(projectVerify({...auditSummary,...junk,chain:{...auditSummary.chain,...junk,problems:[{code:"seq_gap",seq:2,...junk}]},anchors:{...auditSummary.anchors,...junk},legacy_unverified:{...auditSummary.legacy_unverified,...junk}})).toEqual(auditSummary);
+});
+test("audit projection rejects malformed values even in allowed fields", () => {
+ for(const bad of ["d".repeat(64),"f".repeat(128),"/private/audit","../chain",null,[],{}]) {
+ const event=Object.fromEntries(Object.keys(auditEvent).map(k=>[k,bad]));
+ expect(projectAudit({conversation_id:bad,turns:[{turn_id:"a".repeat(32),turn_index:1,events:[event]}],truncated:bad}))
+ .toEqual({turns:[{turn_id:"a".repeat(32),turn_index:1,events:[{}]}],...(typeof bad==="boolean"?{truncated:bad}:{})});
+ }
+ for(const [key,bad] of [["seq",1.5],["ts","2026/10/16"],["event","UPPER.event"],["actor","demo-Platform-g4"],["cost_usd","0.1"],["cost_usd",0.001234],["hash12","A".repeat(12)],["fallback","false"],["mock_id","x".repeat(41)]]) {
+ const expected={...auditEvent}; delete (expected as Record<string,unknown>)[key as string];
+ const view=projectAudit({turns:[{turn_id:"a".repeat(32),turn_index:1,events:[{...auditEvent,[key as string]:bad}]}]});
+ expect(view).toEqual({turns:[{turn_id:"a".repeat(32),turn_index:1,events:[expected]}]});
+ }
+ expect(projectAudit({turns:[null,{turn_id:"A".repeat(32),turn_index:1,events:[]}]})).toEqual({turns:[]});
+});
+test("verification projection validates counts, timestamps, codes and the fixed limit", () => {
+ expect(projectVerify({status:"unknown",checked_at:"/private/audit",chain:{records:-1,files:1.5,anchors_checked:"2",problems:[{code:"/private/audit",seq:1},{code:"e".repeat(64),seq:2},{code:"future_code",seq:1.5}]},anchors:{committed:-1,pending:1},legacy_unverified:{files:0,lines:"0"},known_limit:"e".repeat(64)}))
+ .toEqual({chain:{problems:[{code:"future_code"}]},anchors:{pending:1},legacy_unverified:{files:0}});
+ expect(projectVerify({...auditSummary,status:"fail"})).toEqual({...auditSummary,status:"fail"});
+ for(const value of [null,[],{}]) {expect(projectAudit(value)).toEqual({});expect(projectVerify(value)).toEqual({});}
 });

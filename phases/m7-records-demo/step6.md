@@ -33,6 +33,8 @@ replay 백엔드(임시 키·임시 디렉터리·합성 데이터)가 **실제 
 
 기존 스펙의 시작·로그인 패턴을 따른다. ① 요청 → 승인 → 완료 후 `/records/{conversation_id}`가 PASS 배지와 시도·결과 이벤트를 보여 준다 ② 다른 사용자로 로그인해 같은 주소를 열면 "기록을 찾을 수 없습니다" ③ 삭제한 대화는 찾을 수 없다.
 
+- **스펙 파일 제약(`web/src/e2e-config.test.ts`가 스펙과 `support.ts`를 읽어 검사한다)**: `console.`·`storageState`·`waitForTimeout`·`data-testid` 문자열·`trace:`/`screenshot:`/`video:` 옵션·`document.cookie`(`document.cookie.length` 제외)·`switchUser`를 쓰지 않고, `getByTestId("리터럴")` 대신 `from "../src/lib/testids"`의 상수를 쓰며 그 import 줄을 둔다. `import.meta`를 쓰지 않는다(CommonJS 변환).
+
 ### 3. `web/src/e2e-config.test.ts`
 
 스펙 목록 단언을 **새 스펙 이름 하나를 더하는 데 한함**(`toHaveLength(3)` → 4, 이름 집합에 `records.spec.ts` 추가). 단언 약화 금지.

@@ -111,3 +111,56 @@ export function projectConversationList(value: unknown): Obj {
     }];
   }).slice(0, 50) };
 }
+
+const auditId = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f]{32}$/.test(v);
+const count = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+function auditString(pattern: RegExp) {
+  return (v: unknown): v is string => typeof v === "string" && !/[0-9a-f]{64}/i.test(v) && pattern.test(v);
+}
+const auditCode = auditString(/^[a-z_]{1,40}$/);
+const auditTime = (v: unknown): v is string => typeof v === "string" && v.length <= 64 &&
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v));
+function counts(input: unknown, keys: string[]): Obj {
+  const v = object(input), out: Obj = {};
+  for (const key of keys) if (count(v[key])) out[key] = v[key];
+  return out;
+}
+function projectAuditEvent(value: unknown): Obj {
+  const v = object(value), out: Obj = counts(v, ["seq"]);
+  Object.assign(out, strings(v, ["ts"], auditTime),
+    strings(v, ["event"], auditString(/^[a-z_.]{1,40}$/)),
+    strings(v, ["actor"], auditString(/^demo-[a-z-]+-g[0-9]+$/)),
+    strings(v, ["tool", "decision", "check_result", "reason", "code"], auditCode),
+    strings(v, ["mock_id"], auditString(/^[A-Za-z0-9._-]{1,40}$/)),
+    strings(v, ["cost_usd"], auditString(/^[0-9]+\.[0-9]{6}$/)),
+    strings(v, ["hash12", "draft_hash12"], auditString(/^[0-9a-f]{12}$/)));
+  if (typeof v.fallback === "boolean") out.fallback = v.fallback;
+  return out;
+}
+export function projectAudit(value: unknown): Obj {
+  const v = object(value), out = strings(v, ["conversation_id"], auditId);
+  if (typeof v.truncated === "boolean") out.truncated = v.truncated;
+  if (Array.isArray(v.turns)) out.turns = v.turns.flatMap(value => {
+    const turn = object(value);
+    if (!auditId(turn.turn_id) || !count(turn.turn_index)) return [];
+    return [{turn_id: turn.turn_id, turn_index: turn.turn_index,
+      ...(Array.isArray(turn.events) ? {events: turn.events.map(projectAuditEvent)} : {})}];
+  });
+  return out;
+}
+export function projectVerify(value: unknown): Obj {
+  const v = object(value), out: Obj = strings(v, ["checked_at"], auditTime);
+  if (v.status === "pass" || v.status === "fail") out.status = v.status;
+  if (v.chain !== undefined) {
+    const chain = object(v.chain), result = counts(chain, ["records", "files", "anchors_checked"]);
+    if (Array.isArray(chain.problems)) result.problems = chain.problems.flatMap(value => {
+      const problem = object(value);
+      return auditCode(problem.code) ? [{code: problem.code, ...counts(problem, ["seq"])}] : [];
+    });
+    out.chain = result;
+  }
+  if (v.anchors !== undefined) out.anchors = counts(v.anchors, ["committed", "pending"]);
+  if (v.legacy_unverified !== undefined) out.legacy_unverified = counts(v.legacy_unverified, ["files", "lines"]);
+  if (v.known_limit === "tail_after_last_anchor_not_detected") out.known_limit = v.known_limit;
+  return out;
+}
