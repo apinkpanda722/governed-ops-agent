@@ -58,7 +58,7 @@ def draw_heldout(pool_with_evidence: Sequence[PoolRow]) -> list[PoolRow]: ...
 - 채점기·원장·증거 로더는 팩토리 함수로 주입한다(`build_grader(call=None)`) → 테스트는 가짜 `call`을 넣는다. 실제 키는 `os.environ["GEMINI_API_KEY"]`(기본값 없음)로만 읽는다.
 - `cost-probe`: 합성 입력 3~5건(실제 근거·실제 라벨 사용 금지)으로 호출당 비용을 보고만 한다. 보정 단계 상한에 합산된다.
 - `grade-heldout`: 결과를 `data/interim/m8-grounding/heldout-result.json`에 쓴다. 이미 있으면 거부한다. 보고서에는 §10의 모든 값(문장 단위 κ와 클러스터 CI, 4×4 혼동 행렬, 정밀도·재현율, 행 단위 κ, 탐지율·오탐률, 판정 불가 조건 충족 여부), 근거 부족·초과·채점 실패·`split_count_changed` 건수, 문장 수 분포, 유형 분포를 포함하고 **미달·판정 불가여도 모든 값을 그대로 출력**한다. 판정 문자열은 `metrics.validation_verdict`의 값을 그대로 쓰며 CLI가 기준을 바꾸지 않는다.
-- 모든 출력에는 근거 본문·deliverable 본문·ID 목록을 넣지 않는다(개수·해시·코드만).
+- CLI의 표준 출력·표준 오류·로그와 `calibration-log.jsonl`·`heldout-result.json`·`report` 결과에는 근거 본문·deliverable 본문·ID 목록을 넣지 않는다(개수·해시·코드만). 예외: 2절의 사람 라벨링용 시트 파일(`labels.csv`·`citations.csv`·`evidence.html`·`meta.json`)은 라벨링을 위해 문장 원문·task_id·근거 본문을 담으며 `data/interim/m8-grounding/` 아래 `0600`으로만 쓴다.
 
 ### 5. Makefile (`verify` 레시피 불변)
 
@@ -118,11 +118,11 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 이 step의 금지사항
 
-- `make m8-grounding-sheet`·`make m8-grounding-register`·`make m8-grounding-calibrate`·`make m8-grounding-heldout`·`make m8-grounding-grade`·`make m8-grounding-measure`를 실행하지 마라. 이유: 실제 Gemini·DB를 호출하는 사용자 실행 항목이다(AGENTS.md).
+- `make m8-grounding-sheet`·`make m8-grounding-register`·`make m8-grounding-calibrate`·`make m8-grounding-heldout`·`make m8-grounding-grade`·`make m8-grounding-measure`·`make m8-grounding-report`·`make m8-evidence-probe`를 실행하지 마라. 이유: 실제 Gemini·DB를 호출하는 사용자 실행 항목이다(AGENTS.md).
 - 가드를 우회하는 옵션(`--force`·`--skip-guard`·`--rerun`)이나 환경 변수를 만들지 마라. 이유: held-out은 한 번만 채점하고 등록 이후 변경을 막는 것이 이 검증의 전제다(hypotheses-m8-grader §6·12, FP-043).
 - 기존 `docs/results/human-grading-registration.json`·`docs/HUMAN_GRADING_GUIDE.md`·`eval/human.py`를 수정하지 마라. 이유: M6 등록·동결 경로다. 새 등록은 `m8-grader-registration.json`에 덧붙인다.
 - DB 접근에 `open_checkpointer`나 `setup()`을 쓰지 마라(`db.open_readonly_saver`만). 이유: 읽기 전용 계약이며 step 0의 AST 테스트가 막는다.
-- 시트·CLI 출력에 채점기 결과나 기존 0~3 점수를 섞지 마라. 이유: 사람 라벨링은 채점기 결과를 보지 않는 블라인드여야 한다.
+- 사람 라벨링용 시트(`labels.csv`·`citations.csv`·`evidence.html`·`meta.json`)와 `sheet-calibration`·`sheet-heldout`의 출력에 채점기 결과나 기존 0~3 점수를 섞지 마라. 라벨링이 끝난 뒤 `grade-heldout`·`measure`·`report`의 집계 지표 출력은 이 금지의 대상이 아니다. 이유: 사람 라벨링은 채점기 결과를 보지 않는 블라인드여야 한다.
 - `git status --porcelain`을 경로 한정 없이 쓰지 마라. 이유: 작업 트리 청결 검사는 예외 목록을 거치는 한 곳이 맡는다(FP-064).
 
 ## 소비자 점검(시뮬레이션)
