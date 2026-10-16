@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "web-records-ui",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:14:29+0900",
+      "summary": "감사 BFF 2개·허용 목록 투영·기록 화면·대화 기록 링크와 B1~B7 및 UI 회귀 테스트를 추가하고 make verify 통과.",
+      "completed_at": "2026-10-16T11:25:59+0900",
+      "usage": {
+        "input_tokens": 3342400,
+        "cached_input_tokens": 3198080,
+        "output_tokens": 15404,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
