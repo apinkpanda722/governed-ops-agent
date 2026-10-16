@@ -17,7 +17,7 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/grounding/sample.py`, `src/govops/grounding/sheets.py`, `src/govops/grounding/registration.py`, `src/govops/grounding/cli.py`, `Makefile`, `tests/test_makefile.py`, `tests/test_grounding_sample.py`, `tests/test_grounding_sheets.py`, `tests/test_grounding_registration.py`, `tests/test_grounding_cli.py`, `tests/test_grounding_guide.py`, `src/govops/grounding/db.py`, `src/govops/grounding/probe.py`, `tests/test_grounding_db.py`, `tests/test_grounding_probe.py`. 단 앞의 4개 파일은 아래 7절 기능 추가에 한하며 기존 단언 약화 금지. TDD(테스트를 먼저 쓰고 통과하는 구현을 쓴다).
+**수정할 파일**(이 목록이 전부다): `src/govops/grounding/sample.py`, `src/govops/grounding/sheets.py`, `src/govops/grounding/registration.py`, `src/govops/grounding/cli.py`, `Makefile`, `tests/test_makefile.py`, `tests/test_grounding_sample.py`, `tests/test_grounding_sheets.py`, `tests/test_grounding_registration.py`, `tests/test_grounding_cli.py`, `tests/test_grounding_guide.py`, `src/govops/grounding/db.py`, `src/govops/grounding/probe.py`, `tests/test_grounding_db.py`, `tests/test_grounding_probe.py`. 단 `db.py`·`probe.py`·`tests/test_grounding_db.py`·`tests/test_grounding_probe.py`는 아래 7절 기능 추가에 한하며 기존 단언 약화 금지. TDD(테스트를 먼저 쓰고 통과하는 구현을 쓴다).
 
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`
 수정 허용 경로: `src/govops/grounding/sample.py`, `src/govops/grounding/sheets.py`, `src/govops/grounding/registration.py`, `src/govops/grounding/cli.py`, `Makefile`, `tests/test_makefile.py`, `tests/test_grounding_sample.py`, `tests/test_grounding_sheets.py`, `tests/test_grounding_registration.py`, `tests/test_grounding_cli.py`, `tests/test_grounding_guide.py`, `src/govops/grounding/db.py`, `src/govops/grounding/probe.py`, `tests/test_grounding_db.py`, `tests/test_grounding_probe.py`
