@@ -15,6 +15,7 @@ import sys
 import tempfile
 from contextlib import asynccontextmanager, nullcontext
 from pathlib import Path
+from unittest.mock import patch
 
 import httpx
 import uvicorn
@@ -34,6 +35,7 @@ from govops.api.sessions import SessionStore
 from govops.api.tasks import TaskService
 from govops.api.users import load_users
 from govops.api.wiring import build_task_service
+from govops.audit import records
 from govops.gateway.client import ChatResult, GuardrailBlocked
 from govops.mocks.auth import TokenHashStore
 from govops.mocks.jira import JiraState
@@ -225,6 +227,7 @@ def temporary_credentials(directory):
     return {
         "AUDIT_KEY_FILE": str(key),
         "AUDIT_PUBLIC_KEY_FILE": str(public),
+        "AUDIT_ANCHORS_PENDING_FILE": str(directory / "anchors-pending.jsonl"),
         "KODOCS_MCP_TOKENS_FILE": str(a_file),
         "MOCK_TOKENS_FILE": str(mock_file),
     }
@@ -298,7 +301,10 @@ async def run(port, probe_port, directory):
             app.state.task_service = service
             app.state.audit = service.audit
             try:
-                yield
+                # The real AuditLog above and its reader share the temporary tree;
+                # verification must not use the host's committed audit anchors.
+                with patch.object(records, "ROOT", directory):
+                    yield
             finally:
                 await service.aclose()
 
