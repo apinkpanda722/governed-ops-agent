@@ -53,7 +53,7 @@ MIN_POS_SENTENCES = 10; MIN_POS_ROWS = 5; KAPPA_MIN = 0.6; DETECTION_MIN = 0.90;
 @dataclass(frozen=True)
 class RowLabels: row_key: str; human: dict[str, str]; model: dict[str, str]; model_positive: dict[str, bool]   # sentence_id → 라벨
 def sentence_kappa(rows: Sequence[RowLabels]) -> float | None: ...
-def cluster_bootstrap_ci(rows: Sequence[RowLabels], *, seed=20261005, resamples=10000) -> tuple[float, float] | None: ...
+def cluster_bootstrap_ci(rows: Sequence[RowLabels], *, seed=20261005, resamples=10000) -> tuple[float, float, int] | None: ...   # (하한, 상한, 건너뛴 퇴화 표본 수). 모든 재표집이 퇴화하면 None → 판정은 등록된 "판정 불가(κ 퇴화)"
 def confusion_matrix(rows) -> dict[str, dict[str, int]]: ...        # 4×4, 행=사람 라벨, 열=채점기 라벨
 def precision_recall(rows) -> dict: ...                               # 양성 기준, 사람 기준
 def row_level_kappa(rows) -> float | None: ...                        # 보조 지표
@@ -62,14 +62,14 @@ def validation_verdict(*, rows, detection_rate, false_positive_rate) -> dict: ..
 ```
 
 - `sentence_kappa`: 양성 = `unsupported`·`contradicted`, 음성 = `supported`·`not_claim`. **모든 행의 모든 문장**을 모아 `eval.kappa.weighted_kappa`(0/1 범주, 이진에서 Cohen κ와 같음)로 계산한다. 사람 문장 번호 집합과 채점기 번호 집합이 다르면 `ValueError`. 한쪽 라벨이 전부 같으면 `None`.
-- `cluster_bootstrap_ci`: **행을 복원추출**(행 안의 문장은 함께 이동)해 κ를 다시 계산하는 95% 백분위 CI. 기본 시드 20261005, 10,000회, 퇴화 표본은 건너뛰고 그 횟수를 반환에 포함한다.
+- `cluster_bootstrap_ci`: **행을 복원추출**(행 안의 문장은 함께 이동)해 κ를 다시 계산하는 95% 백분위 CI. 기본 시드 20261005, 10,000회, 퇴화 표본은 건너뛰고 그 횟수를 반환의 세 번째 값으로 돌려준다. 모든 재표집이 퇴화하면 `None`을 돌려주고, 이 경우 `validation_verdict`는 등록된 `"판정 불가(κ 퇴화)"`로 이어진다.
 - `validation_verdict`는 hypotheses-m8-grader §10을 그대로 구현한다. 사람 양성 문장이 `MIN_POS_SENTENCES` 미만이거나 양성 문장이 있는 행이 `MIN_POS_ROWS` 미만이면 `verdict="판정 불가(양성 부족)"`, κ가 `None`이면 `"판정 불가(κ 퇴화)"`. 아니면 κ 점추정 ≥ 0.6·탐지율 ≥ 0.90·오탐률 ≤ 0.10을 **모두** 만족해야 `"채점기 v3 검증 통과"`, 아니면 `"채점기 v3 검증 미달"`. 반환에는 모든 값(κ, CI, 혼동 행렬, 정밀도·재현율, 일치율, 양성/음성 문장 수, 양성 행 수, 행 단위 κ, 탐지율, 오탐률, 분모, 각 기준의 met 여부)을 담는다. 기준 값은 모듈 상수에 두고 호출자가 바꿀 수 없다.
 - `detection_and_fpr`: 탐지율 = `injection_detected` 참 / 주입 복사본 수(skip 건수 별도). **오탐률(문장 단위)** = 주입하지 않은 정상 행에서 사람 라벨이 `supported`인 문장 중 채점기가 양성으로 판정한 비율. 행 단위 오탐률(양성 문장이 없는 정상 행 중 채점기가 양성 문장을 낸 비율)을 보조로 함께 돌려준다. 분모 0이면 `None`과 사유 코드(빈 집합 공허 통과 금지, FP-069).
 
 ### 3. 테스트 (합성 데이터)
 
 - `tests/test_grounding_inject.py`: 같은 시드 같은 결과, `assign_kinds` 균등 배정(유형별 개수 차이 ≤ 1), 세 유형 각각 **정답 보장**(주입 값이 근거 전체에 없음, 대체 ID가 관측 집합에 없음, 핵심 문자열이 대체 근거에 없음)을 시드 고정 무작위 500행(건수 명시)으로 검증, `fact`의 새 번호가 `s{N+1}`이고 기존 번호 불변, 인용 교체 후 문장 수·번호 불변과 `split_count_changed` skip, 후보 소진 → skip 사유, 인용 없는 행 skip, `injection_detected` 경계(대상 번호 누락·`not_claim`·`supported`는 미탐지, 부분 문자열이 같아도 번호가 다르면 미탐지).
-- `tests/test_grounding_metrics.py`: `sentence_kappa` 손계산 값(완전 일치 1.0, 완전 불일치, 우연 수준), 한쪽 라벨이 전부 같으면 `None`, 번호 집합 불일치 → `ValueError`, 클러스터 부트스트랩이 같은 시드에서 결정론이고 행 단위로 재표집함(문장 단위 재표집과 결과가 다른 합성 사례), 혼동 행렬 합 = 문장 수, 정밀도·재현율 손계산, 판정 경계 모든 조합(κ 0.599/0.6, 탐지율 0.899/0.90, 오탐률 0.10/0.101, 양성 문장 9/10, 양성 행 4/5)에서 `verdict` 문자열이 정확히 맞음, **각 기준이 따로 실패하는 케이스**(한 기준만 만족해 통과하지 않음, FP-021), `판정 불가` 두 종류, 분모 0 사유 코드.
+- `tests/test_grounding_metrics.py`: `sentence_kappa` 손계산 값(완전 일치 1.0, 완전 불일치, 우연 수준), 한쪽 라벨이 전부 같으면 `None`, 번호 집합 불일치 → `ValueError`, 클러스터 부트스트랩이 같은 시드에서 결정론이고 반환이 `(하한, 상한, 건너뛴 횟수)` 세 값이며 모든 재표집이 퇴화하면 `None`이고 행 단위로 재표집함(문장 단위 재표집과 결과가 다른 합성 사례), 혼동 행렬 합 = 문장 수, 정밀도·재현율 손계산, 판정 경계 모든 조합(κ 0.599/0.6, 탐지율 0.899/0.90, 오탐률 0.10/0.101, 양성 문장 9/10, 양성 행 4/5)에서 `verdict` 문자열이 정확히 맞음, **각 기준이 따로 실패하는 케이스**(한 기준만 만족해 통과하지 않음, FP-021), `판정 불가` 두 종류, 분모 0 사유 코드.
 
 **사용자 실행**: 없음.
 

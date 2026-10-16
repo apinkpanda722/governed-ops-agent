@@ -17,10 +17,10 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/grounding/sample.py`, `src/govops/grounding/sheets.py`, `src/govops/grounding/registration.py`, `src/govops/grounding/cli.py`, `Makefile`, `tests/test_makefile.py`, `tests/test_grounding_sample.py`, `tests/test_grounding_sheets.py`, `tests/test_grounding_registration.py`, `tests/test_grounding_cli.py`, `tests/test_grounding_guide.py`. TDD(테스트를 먼저 쓰고 통과하는 구현을 쓴다).
+**수정할 파일**(이 목록이 전부다): `src/govops/grounding/sample.py`, `src/govops/grounding/sheets.py`, `src/govops/grounding/registration.py`, `src/govops/grounding/cli.py`, `Makefile`, `tests/test_makefile.py`, `tests/test_grounding_sample.py`, `tests/test_grounding_sheets.py`, `tests/test_grounding_registration.py`, `tests/test_grounding_cli.py`, `tests/test_grounding_guide.py`, `src/govops/grounding/db.py`, `src/govops/grounding/probe.py`, `tests/test_grounding_db.py`, `tests/test_grounding_probe.py`. 단 앞의 4개 파일은 아래 7절 기능 추가에 한하며 기존 단언 약화 금지. TDD(테스트를 먼저 쓰고 통과하는 구현을 쓴다).
 
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`
-수정 허용 경로: `src/govops/grounding/sample.py`, `src/govops/grounding/sheets.py`, `src/govops/grounding/registration.py`, `src/govops/grounding/cli.py`, `Makefile`, `tests/test_makefile.py`, `tests/test_grounding_sample.py`, `tests/test_grounding_sheets.py`, `tests/test_grounding_registration.py`, `tests/test_grounding_cli.py`, `tests/test_grounding_guide.py`
+수정 허용 경로: `src/govops/grounding/sample.py`, `src/govops/grounding/sheets.py`, `src/govops/grounding/registration.py`, `src/govops/grounding/cli.py`, `Makefile`, `tests/test_makefile.py`, `tests/test_grounding_sample.py`, `tests/test_grounding_sheets.py`, `tests/test_grounding_registration.py`, `tests/test_grounding_cli.py`, `tests/test_grounding_guide.py`, `src/govops/grounding/db.py`, `src/govops/grounding/probe.py`, `tests/test_grounding_db.py`, `tests/test_grounding_probe.py`
 
 열람 금지의 범위: 이 금지는 **Codex 세션이 해당 경로의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드가 런타임에 그 경로를 다루는 것(예: 기본 출력 경로 `data/interim/m8-grounding/`, 평가 명세를 읽는 `load_specs`)은 대상이 아니다. 테스트가 `data/interim/`·`data/eval/`·`data/redteam/`의 실제 파일 **내용**을 읽는 것은 여전히 금지이며 테스트는 임시 디렉터리·합성 명세·합성 관측만 쓴다. 예외로 `data/results/`의 실행 디렉터리는 파일 이름과 JSON 키 이름을 확인하는 데 한해 열람할 수 있고, 응답 본문(`answer`·`effect_bodies`)이나 근거 본문을 출력·인용하지 않는다.
 
@@ -71,6 +71,19 @@ def draw_heldout(pool_with_evidence: Sequence[PoolRow]) -> list[PoolRow]: ...
 - `tests/test_grounding_registration.py`: 임시 git 저장소로 각 가드(문서 미커밋, 해시 미등록, 해시 불일치, 두 번째 채점, 등록 파일 변경)가 거부함, 정상 경로 통과, 기존 등록 항목을 덮어쓰지 않음.
 - `tests/test_grounding_cli.py`: 가짜 `call`로 `calibrate`→`adopt`→`draw-heldout`→`grade-heldout` 종단 흐름, 채택 규칙(문장 단위 κ 최고, 동률이면 탐지율, 그래도 같으면 이른 버전), 개정 4번째 요청 거부(상한 3), 비용 상한 초과 시 중단, 미달·판정 불가에서도 모든 값을 출력하고 종료 코드가 0, 출력에 합성 본문이 없음. 토큰 값이 출력되지 않음.
 - `tests/test_grounding_guide.py`: `docs/HUMAN_GRADING_GUIDE_M8.md`에 `## 1.`~`## 7.` 제목, 예시 절, 4개 라벨 이름(`supported`·`unsupported`·`contradicted`·`not_claim`), `supports`·`지지`·`비지지`, `make m8-grounding-register`, `4~5.5시간` 문구가 있고 시트의 `label` 칸 이름이 안내서와 일치함.
+
+### 7. DB 이름 지정 옵션 (`db.py`·`probe.py` 기능 추가에 한함, 기존 단언 약화 금지)
+
+복원한 임시 DB를 사용자가 연결 문자열을 만들지 않고 가리키게 한다.
+
+```python
+DBNAME_RE = r"^[a-z_][a-z0-9_]{0,62}$"
+def url_with_dbname(url: str, dbname: str) -> str: ...
+```
+
+- `url_with_dbname`: URL의 **경로(DB 이름)만** 바꾸고 사용자·비밀번호·호스트·포트·쿼리는 그대로 둔다(`urllib.parse`로 분해·재조립, 비밀번호의 특수문자 인코딩 보존). `dbname`이 `DBNAME_RE`와 맞지 않으면 `ValueError("invalid_dbname")`. 오류 메시지에 URL을 넣지 않는다.
+- `probe.py`의 CLI와 이 step에서 만드는 `cli.py`(근거 로더를 쓰는 모든 서브커맨드)가 `--dbname NAME`을 받는다. `--url-env`(기본 `GOVOPS_DATABASE_URL`)의 값에 `url_with_dbname`을 적용해 `db.open_readonly_saver`로 연결한다. 출력에는 **DB 이름만** 쓰고 URL은 쓰지 않는다. `--dbname` 없으면 기존 동작 그대로.
+- 테스트(`tests/test_grounding_db.py`·`tests/test_grounding_probe.py`에 추가): 비밀번호(특수문자 포함)·포트·쿼리 보존, 경로만 교체, 잘못된 DB 이름(대문자·숫자 시작·길이 64·`;`·공백·빈 문자열) 거부, 오류 메시지·예외·stdout/stderr에 URL과 비밀번호 문자열이 없음, probe `--dbname` 사용 시 출력에 DB 이름만 있음, `cli.py` 서브커맨드가 `--dbname`을 받음.
 
 **사용자 실행(이 step에서 실행하지 않는다)**: `make m8-grounding-sheet`, `make m8-grounding-register`, `make m8-grounding-calibrate`, `make m8-grounding-heldout`, `make m8-grounding-grade`, `make m8-grounding-measure`, `make m8-grounding-report` — 순서와 가드는 hypotheses-m8-grader §12.
 
