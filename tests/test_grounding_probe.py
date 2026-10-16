@@ -166,6 +166,37 @@ def test_inmemory_dict_and_object_message_counts():
     asyncio.run(run())
 
 
+def test_tool_call_only_assistant_messages_are_counted_not_unknown():
+    async def run():
+        saver = InMemorySaver()
+        calls = [{"id": "c1", "function": {"name": "search_docs"}}]
+        await seed(
+            saver,
+            [
+                {"role": "system", "content": "s"},
+                {"role": "assistant", "content": None, "tool_calls": calls},
+                {"role": "tool", "content": BODY, "tool_call_id": "c1"},
+                AIMessage(
+                    content="", tool_calls=[{"id": "c2", "name": "x", "args": {}}]
+                ),
+                {"role": "assistant", "content": "answer"},
+            ],
+        )
+        stats = await probe.probe_threads(saver, [link()])
+        assert stats.assistant_tool_calls == 2
+        assert stats.shape_unknown == 0
+        assert stats.shape_dict == 4 and stats.shape_object == 1
+        assert stats.tool_messages == stats.nonempty == 1
+        # A message that is neither text nor a tool request stays unknown.
+        await seed(saver, [{"role": "assistant", "content": None}])
+        stats = await probe.probe_threads(saver, [link()])
+        assert stats.assistant_tool_calls == 0 and stats.shape_unknown == 1
+        status, detail = probe._tool_result(stats)
+        assert status == "FAIL" and "assistant_tool_calls=0" in detail
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize(
     "length,bucket", [(19999, 0), (20000, 1), (40000, 2), (80000, 3), (120000, 4)]
 )
@@ -345,8 +376,15 @@ def lf_transport(mode):
         if mode == "shape":
             return httpx.Response(200, json={"data": BODY})
         page = int(request.url.params["page"])
+        if mode == "no_traces":
+            return httpx.Response(
+                200, json={"data": [], "meta": {"page": 1, "totalPages": 1}}
+            )
         if request.url.path.endswith("/traces"):
             data = [{"id": TRACE}]
+            pages = 1
+        elif mode == "no_inputs":
+            data = [{"type": "GENERATION", "input": None}]
             pages = 1
         else:
             data = (
@@ -431,6 +469,16 @@ def test_langfuse_checks_observation_shape_even_with_no_linked_traces():
     [
         ("ok", "PASS langfuse traces=1 generations_with_input=1", 0),
         ("shape", "FAIL langfuse langfuse_shape", 1),
+        (
+            "no_traces",
+            "SKIP langfuse no_usable_traces traces=0 generations_with_input=0",
+            0,
+        ),
+        (
+            "no_inputs",
+            "SKIP langfuse no_usable_traces traces=1 generations_with_input=0",
+            0,
+        ),
         ("unauthorized", "HTTPStatusError", 1),
     ],
 )

@@ -248,3 +248,53 @@ def test_evidence_module_never_imports_write_factory_or_lists_checkpoints():
                 assert "open_checkpointer" not in (node.module or "")
         if isinstance(node, ast.Attribute):
             assert node.attr not in {"alist", "connect", "setup", "asetup"}
+
+
+@pytest.mark.parametrize("objects", [False, True])
+def test_tool_call_only_assistant_messages_do_not_break_collection(objects):
+    """Real checkpoints hold assistant turns with content=None and tool_calls."""
+
+    async def run():
+        saver = InMemorySaver()
+        if objects:
+            messages = [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {"id": "c1", "name": "search_docs", "args": {}},
+                        {"id": "c2", "name": "lookup_id", "args": {}},
+                    ],
+                ),
+                ToolMessage(content=BODY + "1", tool_call_id="c1"),
+                ToolMessage(content=BODY + "2", tool_call_id="c2"),
+            ]
+        else:
+            messages = [
+                {"role": "system", "content": "s"},
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {"id": "c1", "function": {"name": "search_docs"}},
+                        {"id": "c2", "function": {"name": "lookup_id"}},
+                    ],
+                },
+                {"role": "tool", "content": BODY + "1", "tool_call_id": "c1"},
+                {"role": "tool", "content": BODY + "2", "tool_call_id": "c2"},
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [{"id": "c3", "function": {"name": "get_document"}}],
+                },
+                {"role": "tool", "content": BODY + "3", "tool_call_id": "c3"},
+            ]
+        await seed(saver, messages)
+        result = await evidence.load_evidence(saver, link(THREAD), max_chars=10_000)
+        assert result.status == "ok"
+        names = [item.tool_name for item in result.items]
+        assert names[:2] == ["search_docs", "lookup_id"]
+        assert len(result.items) == (2 if objects else 3)
+        if not objects:
+            assert names[2] == "get_document"
+
+    asyncio.run(run())
