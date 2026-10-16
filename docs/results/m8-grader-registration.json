@@ -1,0 +1,9 @@
+{
+  "entries": [
+    {
+      "evidence_max_chars": 80000,
+      "splitter_rules_sha256": "c3ed951ff1f8129a1af6eeee13a590da4276733b7eb3c396977ef78957341d4e",
+      "splitter_rules_version": "sent-v1"
+    }
+  ]
+}
