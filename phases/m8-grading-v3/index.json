@@ -47,16 +47,7 @@
     {
       "step": 3,
       "name": "injection-metrics",
-      "status": "blocked",
-      "started_at": "2026-10-16T18:05:36+0900",
-      "blocked_reason": "선점검에서 반환 계약 충돌을 확인했습니다. “def cluster_bootstrap_ci(rows: Sequence[RowLabels], *, seed=20261005, resamples=10000) -> tuple[float, float] | None: ...”는 CI 두 값 또는 None만 반환하도록 지정하지만, “퇴화 표본은 건너뛰고 그 횟수를 반환에 포함한다.”는 추가 반환값을 요구합니다. 퇴화 횟수를 포함할 반환 형식의 확정이 필요합니다. 코드는 수정하지 않았습니다.",
-      "blocked_at": "2026-10-16T18:08:00+0900",
-      "usage": {
-        "input_tokens": 235659,
-        "cached_input_tokens": 166016,
-        "output_tokens": 1439,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 4,
