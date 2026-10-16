@@ -360,3 +360,8 @@ m8-grounding-report:
 # 사용자 실행, 근거 카드 evidence.html만 다시 만든다(CSV·meta.json·등록 파일 불변)
 m8-grounding-render:
 	uv run --env-file .env python -m govops.grounding.cli render-evidence $(ARGS)
+
+.PHONY: m8-grounding-diagnose
+# 사용자 실행, 오프라인 진단(API·DB 없음, 개수·코드·ID 이름만 출력)
+m8-grounding-diagnose:
+	uv run python -m govops.grounding.cli diagnose-calibration $(ARGS)
