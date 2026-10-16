@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { apiError, bff } from "@/lib/bff";
 import type { ApiError, AuditEvent, AuditView, AuditVerifyView } from "@/lib/types";
-import { auditCodeLabel, auditEventLabel, errorMessage, toolLabel, RECORDS_NOT_FOUND, RECORDS_TAIL_NOTICE, RECORDS_HOST_NOTICE, RECORDS_TRUNCATED_NOTICE } from "@/lib/messages";
+import { auditActorLabel, auditCodeLabel, auditEventTitle, errorMessage, toolLabel, RECORDS_NOT_FOUND, RECORDS_TAIL_NOTICE, RECORDS_HOST_NOTICE, RECORDS_TRUNCATED_NOTICE } from "@/lib/messages";
 import { testids } from "@/lib/testids";
 
 type Snapshot = {id: string; audit?: AuditView; verify?: AuditVerifyView; auditError?: ApiError; verifyError?: ApiError};
@@ -49,8 +49,8 @@ export function RecordsView({id}: {id: string}) {
 }
 function EventRow({event}: {event: AuditEvent}) {
     return <li data-testid={testids.recordsEvent} data-seq={event.seq} className="space-y-1 break-words text-sm">
-        <p className="font-medium">#{event.seq} · {auditEventLabel(event.event ?? "")}</p>
-        <p><time>{event.ts}</time> · {event.event?.startsWith("approval.") ? "승인자" : "사용자"}: {event.actor}</p>
+        <p className="font-medium">#{event.seq} · {auditEventTitle(event.event ?? "", event.check_result)}</p>
+        <p><time>{event.ts}</time> · {auditActorLabel(event.event ?? "")}: {event.actor}</p>
         {event.tool && <p>도구: {toolLabel(event.tool)}</p>}
         {event.decision && <p>결정: {auditCodeLabel(event.decision)}</p>}
         {event.check_result && <p>검사: {auditCodeLabel(event.check_result)}</p>}

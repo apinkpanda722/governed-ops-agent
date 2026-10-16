@@ -29,7 +29,7 @@ test("timeline orders turns and sequences, labels events and keeps unknown codes
  expect(rows.map(row=>row.getAttribute("data-seq"))).toEqual(["1","2","3","4"]);
  expect(rows[0].textContent).toContain("Guardrail 판정");
  for(const code of ["future.event","future_reason","future_decision","future_code"])expect(rows[1].textContent).toContain(code);
- expect(rows[2].textContent).toContain("승인자");expect(rows[2].textContent).toContain("승인 완료");
+ expect(rows[2].textContent).toContain("결정자");expect(rows[2].textContent).toContain("승인 완료");
 });
 test("404 explains cleanup and CLI verification even if global verification fails",async()=>{
  vi.stubGlobal("fetch",vi.fn(async(path:string)=>new Response(JSON.stringify({code:path.endsWith("/verify")?"upstream_unavailable":"conversation_not_found"}),{status:path.endsWith("/verify")?502:404})));
@@ -50,4 +50,15 @@ test("verification errors never imply PASS and preserve the timeline",async()=>{
  render(<RecordsView id={id}/>);
  await waitFor(()=>expect(screen.getAllByTestId(testids.recordsEvent)).toHaveLength(4));
  expect(screen.queryByTestId(testids.recordsVerify)).toBeNull();expect(screen.getByRole("alert").textContent).toContain("검증 결과");
+});
+test("draft with check result, requester and decider are labeled by role",async()=>{
+ const rich={...audit,turns:[{turn_id:id,turn_index:1,events:[event(1,"side_effect.draft"),{...event(2,"side_effect.draft"),check_result:"passed"},event(3,"approval.requested"),event(4,"approval.rejected")]}]};
+ vi.stubGlobal("fetch",vi.fn(async(path:string)=>new Response(JSON.stringify(path.endsWith("/verify")?verify:rich),{status:200})));
+ render(<RecordsView id={id}/>);
+ await waitFor(()=>expect(screen.getAllByTestId(testids.recordsEvent)).toHaveLength(4));
+ const rows=screen.getAllByTestId(testids.recordsEvent);
+ expect(rows[0].textContent).toContain("발송 초안");expect(rows[0].textContent).not.toContain("발송 초안 검사");
+ expect(rows[1].textContent).toContain("발송 초안 검사");
+ expect(rows[2].textContent).toContain("요청자");expect(rows[2].textContent).not.toContain("승인자");
+ expect(rows[3].textContent).toContain("결정자");
 });
