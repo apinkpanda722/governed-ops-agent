@@ -125,6 +125,10 @@
       "status": "completed",
       "blocked_at": "2026-10-16T10:55:58+0900",
       "completed_at": "2026-10-16T12:03:44+0900"
+    },
+    {
+      "dir": "m8-grading-v3",
+      "status": "pending"
     }
   ]
 }
