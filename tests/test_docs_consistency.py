@@ -308,8 +308,8 @@ def test_fault_harness_document_contract():
         "faults_smoke.py",
         "chaos_a.py",
         "fault_transport.py",
-        "PROFILES = {writes_org}",
-        "기본값은 `writes_org`",
+        "`PROFILES`는 `writes_org`(동결)·`writes_team`을 담은 읽기 전용 레지스트리",
+        "`GOVOPS_AGENT_PROFILE` 기본값은 `writes_team`",
         "M2 러너의 실행 경로",
         "공용 헬퍼",
     ):

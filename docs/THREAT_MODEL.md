@@ -92,6 +92,7 @@ eval/ → Gemini 채점 (게이트웨이 미경유, 별도 원장)
 | V8 outbox·표식 | `tools/` outbox | "처리 후 응답 유실"·처리 후 5xx 주입 → 재시도 전 표식 조회로 성공 판정·재발송 0, 2단계 조회 모두 표식 없음 → 재발송, F5와 결합한 1.0초 조회 반영 지연(F10) → 재발송 0. 표식은 메타데이터 필드에 있고 본문에 없음. 장애 주입 하 중복 실행 건수 = (task, 부작용 종류, 대상)별 Σ max(0, mock 실제 건수 − 기대 건수)를 멱등 키와 무관하게 mock 상태와 task 표식으로 세어 0건(절대 규칙 1). `tests/test_effects_matrix.py`와 `tests/test_evalrun_faults.py`로 장애 매트릭스·주입 증거를 검증한다. F5와 결합한 6.0초 지연은 절대 규칙에서 제외하는 한계 시연이며 계획·분모는 [사전 등록](results/hypotheses-m3-faults.md)을 따른다 |
 | V9 재개 반복(M3) | `agent/` 승인·실행 노드 분리 | `Command(resume=...)` 여러 번 → 부작용 1회, 승인 API 이중 호출 → 부작용 1회. 실행기 동일 키 반복·동시 실행은 `tests/test_effects_matrix.py`로 검증하고 그래프·승인 API 연결은 [tests/test_agent_graph.py](../tests/test_agent_graph.py)·[tests/test_api_tasks.py](../tests/test_api_tasks.py)에서 검증한다 |
 | V10 감사 무결성 | `audit/`, `make audit-verify`·`make smoke-audit` | 실행마다 고정점(대기 파일 → 결과 PR 커밋). 변조 5종 탐지: 수정, 중간 삭제, 순서 변경, 고정점 레코드를 제거하는 꼬리 잘라내기, 다른 키 서명. 고정점 레코드 뒤만 자르면 다음 고정점 전까지 탐지 못 하며 같은 키로 전체 재계산은 고정점으로만 탐지한다. M3 실행 전 감사 쓰기 실패 시 부작용 실행 안 함, 결과 기록 실패는 재시도 후 `audit_gap`(ADR-018) |
+| V10 기록 화면 프로브 | `audit/records.py`, `api/`, `web/` BFF | [hypotheses-m7-records-authz.md](results/hypotheses-m7-records-authz.md)의 A1×S1~S7·E1~E10·B1~B7: 소유자 한정 조회·동일 404·허용 목록 투영·비노출·읽기 전용·변조·캐시·쓰기 중 읽기를 합성 체인으로 검사한다. `tests/test_audit_records.py`·`tests/test_api_audit_view.py`·`tests/test_api_audit_route.py`·`web/src/app/api/bff.integration.test.ts`가 `make verify` 안에서 실행된다 |
 | V11 Guardrail 장애 | `gateway/` 훅·클라이언트, `agent/` 호스트 수집 지점 | `tests/test_gateway_guardrail_hook.py`·`tests/test_team_keys.py`·`tests/test_guardrail_registration.py`·`tests/test_smoke_guardrail.py`로 사전 fail-closed·사후 fail-open·인증 팀·해시 정합·진단 경로를 확인한다. F6·F7은 `make smoke-guardrail`로 확인한다. v2 오류 시 v1 판정으로 통과 + 경보는 `tests/test_agent_semantic.py::test_unclassified_user_and_tool_pass_and_alert_once_each`로 검증한다. `timeout`·`rate_limited`·`error`·`parse`·`v1_blocked` 모두 task 완료와 `guardrail.error`(`guardrail_v2_error`)만 기록됨을 단언한다 |
 | V12 PII 영구 기록 방지 | `audit/`, `obs/`, checkpointer 삭제 명령 | 감사 로그 줄에 원문·PII 정규식 일치 0건, trace 전송 전 마스킹 테스트, 종료 7일 지난 task의 checkpoint가 삭제 명령 뒤 0건이고 7일 안 된 task와 진행 중 task는 남는 테스트 |
 | V13 비용·루프 | `costs.py`, `agent/` | 누적액이 상한을 넘으면 호출 전에 멈춤, MAX_STEPS·MAX_COST 초과 시 실패 종료, 새 정보 없는 호출 N회 연속 시 종료, 승인 대기 시간은 계산에서 제외 |
@@ -123,6 +124,7 @@ mock 장애는 엔드포인트별로 설정하고 요청 순번 스크립트로 
 
 ## 6. 잔여 위험·한계
 
+- **기록 화면 PASS의 범위:** 이 호스트 체인과 작업 트리 고정점을 기준으로 한 읽기 전용 검증 요약이다. 마지막 고정점 이후 꼬리·같은 키 전체 재계산·B 호스트 탈취는 막지 못하며, 턴 색인이 정리된 대화는 감사 레코드가 남아도 화면에서 404다. 체인은 CLI로 확인한다(ADR-028).
 - **B 탈취:** B 프로세스가 사용자들의 A 토큰과 감사 서명 개인키를 가진다. B가 탈취되면 전 사용자로 행동할 수 있고 감사 로그를 재계산·재서명할 수 있다. git에 커밋된 고정점 이전 구간만 보호된다.
 - **탐지의 확률성:** 입력 차단·도구 결과 격리·출력 탐지는 규칙(v1)과 소형 분류기(v2)에 의존한다. 놓친 인젝션은 결정론 검사·승인이 피해 지점에서 막지만, 부작용 없는 답변(T1)의 품질 오염은 막지 못한다.
 - **v2 적용 범위:** 에이전트를 거치지 않고 팀 키로 게이트웨이를 직접 부르는 호출은 v2를 거치지 않고 v1만 적용된다. 라운드당 항목 16개 초과분·분류 실패·`v1_blocked` 항목도 v1만 적용된다(ADR-026).
