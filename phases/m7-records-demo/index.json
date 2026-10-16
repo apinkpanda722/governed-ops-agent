@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "e2e-records-spec",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:25:59+0900",
+      "summary": "임시 AuditLog의 기록 읽기·검증 경로를 격리하고 PASS·발송 이벤트·타인 및 삭제 대화 접근 차단 e2e 스펙과 목록 단언을 추가했으며, make verify 및 4개 스펙 수집 통과.",
+      "completed_at": "2026-10-16T11:36:02+0900",
+      "usage": {
+        "input_tokens": 3563204,
+        "cached_input_tokens": 3407872,
+        "output_tokens": 9278,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
