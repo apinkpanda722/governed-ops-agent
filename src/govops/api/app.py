@@ -162,6 +162,27 @@ def create_app(
             except ConversationError as error:
                 raise HTTPException(error.status_code, detail=error.code) from None
 
+        @app.get("/conversations/{conversation_id}/audit")
+        async def read_conversation_audit(
+            conversation_id: str,
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
+        ):
+            try:
+                return await tasks.audit_view(user_id, conversation_id)
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
+
+        @app.get("/audit/verify")
+        async def verify_audit(
+            user_id: str = Depends(current_user),
+            tasks: TaskService = TASK_SERVICE,
+        ):
+            try:
+                return await tasks.audit_verify()
+            except ConversationError as error:
+                raise HTTPException(error.status_code, detail=error.code) from None
+
         @app.delete("/conversations/{conversation_id}")
         async def delete_conversation(
             conversation_id: str,
