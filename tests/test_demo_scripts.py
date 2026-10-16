@@ -45,7 +45,7 @@ def demo_repo(tmp_path):
     return root
 
 
-def _environment(root, *, verifier_output=None):
+def _environment(root, *, verifier_output=None, precut_output=None):
     """Replace only uv dispatch; execute inline Python and the real verifier CLI."""
     bin_dir = root / "bin"
     bin_dir.mkdir()
@@ -77,7 +77,13 @@ def _environment(root, *, verifier_output=None):
                     },
                 }
                 Path("probe.json").write_text(json.dumps(probe))
-                if "SYNTHETIC_VERIFY_OUTPUT" in os.environ:
+                calls = Path("calls.txt")
+                call = int(calls.read_text()) + 1 if calls.exists() else 1
+                calls.write_text(str(call))
+                if call == 1 and "SYNTHETIC_PRECUT_OUTPUT" in os.environ:
+                    print(os.environ["SYNTHETIC_PRECUT_OUTPUT"])
+                    sys.exit(1)
+                if call > 1 and "SYNTHETIC_VERIFY_OUTPUT" in os.environ:
                     print(os.environ["SYNTHETIC_VERIFY_OUTPUT"])
                     sys.exit(1)
             result = subprocess.run([sys.executable, *args], timeout=15, check=False)
@@ -93,6 +99,8 @@ def _environment(root, *, verifier_output=None):
     }
     if verifier_output is not None:
         env["SYNTHETIC_VERIFY_OUTPUT"] = verifier_output
+    if precut_output is not None:
+        env["SYNTHETIC_PRECUT_OUTPUT"] = precut_output
     return env
 
 
@@ -277,3 +285,69 @@ def test_demo_make_targets_are_user_run_only():
         f"\ndemo-faults-on:\n\t{command}set --file /dev/stdin < scripts/demo/mock_faults.json\n"
     ) in text
     assert f"\ndemo-faults-off:\n\t{command}clear\n" in text
+
+
+def _legacy_chain(root):
+    directory = root / "data/interim/audit"
+    directory.mkdir(parents=True)
+    (directory / "2025-12-31.jsonl").write_bytes(
+        b"".join(json.dumps({"seq": i}).encode() + b"\n" for i in range(1, 4))
+    )
+    pending = directory / "anchors-pending.jsonl"
+    log = AuditLog(directory, clock=lambda: datetime(2026, 1, 1, tzinfo=UTC))
+    _emit(log)
+    selected = log.anchor("selected", repo_root=root, pending_file=pending)
+    _emit(log)
+    return directory, selected
+
+
+def test_copy_without_legacy_files_reproduces_legacy_mismatch(demo_repo):
+    root = demo_repo
+    directory, selected = _legacy_chain(root)
+    bare = root / "bare-copy"
+    bare.mkdir()
+    for source in directory.glob("chain-*.jsonl"):
+        shutil.copyfile(source, bare / source.name)
+    report = verify_chain(
+        bare, anchors=[{**selected, "dir": "bare-copy"}], repo_root=root
+    )
+    assert "legacy_sha256_mismatch" in {p.code for p in report.problems}
+
+
+def test_scene5_with_legacy_files_passes_before_cut_then_tail_truncated(demo_repo):
+    root = demo_repo
+    directory, selected = _legacy_chain(root)
+    protected = [
+        *directory.iterdir(),
+        root / "data/interim/demo-scene5-previous/keep.txt",
+    ]
+    snapshot = _snapshot(protected)
+    env = _environment(root)
+    env["AUDIT_DIR"] = str(directory)
+    result = _run(root, env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "legacy_sha256_mismatch" not in result.stdout
+    lines = result.stdout.splitlines()
+    passed = next(i for i, l in enumerate(lines) if l.startswith("PASS chain"))
+    failed = [i for i, l in enumerate(lines) if l.startswith("FAIL chain")]
+    assert len(failed) == 1 and passed < failed[0]
+    assert f"code=tail_truncated seq={selected['seq']}" in lines[failed[0]]
+    assert "chains_pass=0 chains_fail=1" in lines[-1]
+    probe = json.loads((root / "probe.json").read_text())
+    assert "2025-12-31.jsonl" in probe["files"]
+    assert _snapshot(protected) == snapshot
+    _assert_cleaned(root)
+
+
+def test_scene5_precut_failure_prints_only_codes_and_exits_one(demo_repo):
+    root = demo_repo
+    directory, _ = _legacy_chain(root)
+    env = _environment(
+        root, precut_output="FAIL chain dir=x code=legacy_sha256_mismatch seq=4"
+    )
+    env["AUDIT_DIR"] = str(directory)
+    result = _run(root, env)
+    assert result.returncode == 1
+    assert "code=legacy_sha256_mismatch" in result.stdout
+    assert "tail_truncated" not in result.stdout
+    _assert_cleaned(root)

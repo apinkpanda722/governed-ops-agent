@@ -13,7 +13,6 @@ work=$(mktemp -d "$root/data/interim/demo-scene5-XXXXXX")
 [ -n "$work" ] || exit 1
 
 uv run python - "$root" "$work" <<'PY'
-import json
 import shutil
 import sys
 from pathlib import Path
@@ -30,7 +29,8 @@ def prepare():
     copied = work / "chain"
     copied.mkdir()
     files = sorted(source.glob("chain-*.jsonl"))
-    for path in files:
+    # chain.genesis seals the legacy files, so the copy needs them to verify.
+    for path in [*sorted(source.glob("????-??-??.jsonl")), *files]:
         shutil.copyfile(path, copied / path.name)
 
     anchors = read_anchor_lines([
@@ -50,13 +50,6 @@ def prepare():
         return 1
 
     # Use the external anchor, not a chain.anchor found inside the chain.
-    last = copied / files[-1].name
-    kept = [
-        line
-        for line in last.read_bytes().splitlines(keepends=True)
-        if json.loads(line)["seq"] < fixed["seq"]
-    ]
-    last.write_bytes(b"".join(kept))
     rebased = {**fixed, "dir": copied.relative_to(root).as_posix()}
     (work / "anchors.jsonl").write_text(canonical_json(rebased) + "\n", encoding="utf-8")
     return 0
@@ -69,6 +62,34 @@ except (OSError, ValueError, KeyError, TypeError):
     print("FAIL scene5 code=copy_failed", file=sys.stderr)
     status = 1
 raise SystemExit(status)
+PY
+
+# The copy must verify before it is cut; otherwise the cause is the copy.
+uv run python -m govops.audit.verify \
+    --dir "$work/chain" --anchors "$work/anchors.jsonl" --repo-root "$root" \
+    > "$work/before.out" 2>&1 || :
+if ! grep -q '^PASS chain' "$work/before.out" || grep -q '^FAIL' "$work/before.out"; then
+    echo "FAIL scene5 code=copy_not_pass"
+    grep -o 'code=[a-z0-9_]*' "$work/before.out" | sort -u
+    exit 1
+fi
+grep '^PASS chain' "$work/before.out"
+
+uv run python - "$root" "$work" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root, work = (Path(value) for value in sys.argv[1:])
+fixed = json.loads((work / "anchors.jsonl").read_text(encoding="utf-8"))
+copied = root / fixed["dir"]
+last = sorted(copied.glob("chain-*.jsonl"))[-1]
+kept = [
+    line
+    for line in last.read_bytes().splitlines(keepends=True)
+    if json.loads(line)["seq"] < fixed["seq"]
+]
+last.write_bytes(b"".join(kept))
 PY
 
 # A verification failure is expected; success here requires the precise signal.
