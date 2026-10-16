@@ -393,3 +393,28 @@ def test_modified_adopted_prompt_is_rejected_before_evidence_loading(
 
     monkeypatch.setattr(cli, "_rows", forbidden)
     assert run("draw-heldout") == 2
+
+
+def test_render_evidence_rewrites_only_the_card_and_rejects_set_mismatch(
+    tmp_path, monkeypatch, capsys
+):
+    run, calls = environment(tmp_path, monkeypatch)
+    assert run("sheet-calibration") == 0
+    out = sheet_dir(tmp_path, "calibration")
+    registration_path = tmp_path / registration.REGISTRATION_PATH
+    watched = [out / n for n in ("labels.csv", "citations.csv", "meta.json")]
+    watched.append(registration_path)
+    before = {p: p.read_bytes() for p in watched}
+    (out / "evidence.html").write_text("stale", encoding="utf-8")
+    assert run("render-evidence", "--split", "calibration") == 0
+    assert (out / "evidence.html").read_text() != "stale"
+    assert EVIDENCE in (out / "evidence.html").read_text()
+    assert {p: p.read_bytes() for p in watched} == before and not calls
+    printed = capsys.readouterr().out
+    assert EVIDENCE not in printed and BODY not in printed
+    lines = (out / "labels.csv").read_text().splitlines(keepends=True)
+    (out / "labels.csv").write_text("".join(lines[:-1]))
+    card = (out / "evidence.html").read_bytes()
+    assert run("render-evidence", "--split", "calibration") == 1
+    assert (out / "evidence.html").read_bytes() == card
+    assert registration_path.read_bytes() == before[registration_path]
