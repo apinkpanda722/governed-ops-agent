@@ -103,7 +103,16 @@
     {
       "step": 7,
       "name": "demo-scripts",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T11:36:02+0900",
+      "summary": "복사본 전용 scene5 스크립트·장애 규칙·데모 타깃 3개와 합성 회귀 테스트 12개를 추가하고, 원본 불변·꼬리 절단 탐지 및 make verify 통과.",
+      "completed_at": "2026-10-16T11:47:19+0900",
+      "usage": {
+        "input_tokens": 3671737,
+        "cached_input_tokens": 3514368,
+        "output_tokens": 13189,
+        "attempts": 1
+      }
     },
     {
       "step": 8,
