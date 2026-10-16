@@ -1,7 +1,6 @@
 """Blind sentence/citation sheets; these private files alone may contain bodies."""
 
 import csv
-import html
 import io
 import json
 import os
@@ -9,6 +8,7 @@ import random
 from dataclasses import dataclass
 from pathlib import Path
 
+from govops.grounding.cards import render_cards
 from govops.grounding.deliverable import select_deliverable
 from govops.grounding.grader import LABELS
 from govops.grounding.sentences import (
@@ -93,6 +93,54 @@ def _csv(columns, rows):
     return target.getvalue()
 
 
+def _card_html(expected: SheetSet, rows) -> str:
+    by_task = {row.spec.task_id: row for row in rows}
+    task_of = {r["sample_id"]: r["task_id"] for r in expected.labels}
+    return render_cards(
+        expected.labels,
+        expected.citations,
+        {s: by_task[t].spec.request for s, t in task_of.items()},
+        {s: by_task[t].evidence.items for s, t in task_of.items()},
+    )
+
+
+def rewrite_evidence_card(rows, out_dir, *, registered_splitter=None) -> dict:
+    """Overwrite only evidence.html for the same sample and evidence as the sheets."""
+    out = Path(out_dir)
+    if out.name not in {"calibration", "heldout"} or out.parent.parts[-3:] != (
+        "data",
+        "interim",
+        "m8-grounding",
+    ):
+        raise ValueError("private_sheet_path_required")
+    expected = expected_sheets(rows, registered_splitter=registered_splitter)
+
+    def keys(path, columns):
+        with Path(path).open(encoding="utf-8", newline="") as source:
+            reader = csv.DictReader(source)
+            if tuple(reader.fieldnames or ()) != tuple(columns):
+                raise ValueError("sheet_columns_changed")
+            return {tuple(row[c] for c in columns) for row in reader}
+
+    existing_labels = keys(out / "labels.csv", LABEL_COLUMNS)
+    existing_citations = keys(out / "citations.csv", CITATION_COLUMNS)
+    meta = json.loads((out / "meta.json").read_text(encoding="utf-8"))
+    wanted_labels = {tuple(r[c] for c in LABEL_COLUMNS) for r in expected.labels}
+    wanted_cites = {tuple(r[c] for c in CITATION_COLUMNS) for r in expected.citations}
+
+    def ident(items):
+        return {(x[0], x[1]) for x in items}  # (sample_id, sentence_id)
+
+    if (
+        ident(existing_labels) != ident(wanted_labels)
+        or {x[:3] for x in existing_citations} != {x[:3] for x in wanted_cites}
+        or meta.get("splitter_rules_sha256") != expected.splitter_rules_sha256
+    ):
+        raise ValueError("sheet_set_mismatch")
+    private_write(out / "evidence.html", _card_html(expected, rows))
+    return {"n_rows": len({r["sample_id"] for r in expected.labels})}
+
+
 def write_label_sheets(rows, out_dir, *, registered_splitter=None) -> SheetSet:
     out = Path(out_dir)
     if out.name not in {"calibration", "heldout"} or out.parent.parts[-3:] != (
@@ -108,29 +156,7 @@ def write_label_sheets(rows, out_dir, *, registered_splitter=None) -> SheetSet:
         for name in ("labels.csv", "citations.csv", "evidence.html")
     ):
         raise ValueError("sheets_already_exist")
-    sections = [
-        "<!doctype html><html lang='ko'><meta charset='utf-8'><title>M8 근거 카드</title><body>"
-    ]
-    by_task = {row.spec.task_id: row for row in rows}
-    for label in expected.labels:
-        if label["sentence_id"] != "s1":
-            continue
-        row = by_task[label["task_id"]]
-        sections.append(
-            f"<section><h1>{html.escape(label['sample_id'])}</h1><p>{html.escape(row.spec.request)}</p><ol>"
-        )
-        for item in expected.labels:
-            if item["sample_id"] == label["sample_id"]:
-                sections.append(
-                    f"<li>{html.escape(item['sentence_id'])}: {html.escape(item['sentence'])}</li>"
-                )
-        sections.append("</ol>")
-        for n, evidence in enumerate(row.evidence.items, 1):
-            sections.append(
-                f"<h2>E{n} {html.escape(evidence.tool_name or '')}</h2><pre>{html.escape(evidence.content)}</pre>"
-            )
-        sections.append("</section>")
-    sections.append("</body></html>")
+    card = _card_html(expected, rows)
     private_write(
         out / "labels.csv", _csv(LABEL_COLUMNS, expected.labels), exclusive=True
     )
@@ -139,7 +165,7 @@ def write_label_sheets(rows, out_dir, *, registered_splitter=None) -> SheetSet:
         _csv(CITATION_COLUMNS, expected.citations),
         exclusive=True,
     )
-    private_write(out / "evidence.html", "\n".join(sections), exclusive=True)
+    private_write(out / "evidence.html", card, exclusive=True)
     meta_path = out / "meta.json"
     meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
     meta.update(

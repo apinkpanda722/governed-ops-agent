@@ -355,3 +355,8 @@ m8-grounding-measure:
 # 사용자 실행
 m8-grounding-report:
 	uv run --env-file .env python -m govops.grounding.cli report $(ARGS)
+
+.PHONY: m8-grounding-render
+# 사용자 실행, 근거 카드 evidence.html만 다시 만든다(CSV·meta.json·등록 파일 불변)
+m8-grounding-render:
+	uv run --env-file .env python -m govops.grounding.cli render-evidence $(ARGS)

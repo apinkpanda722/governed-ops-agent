@@ -34,6 +34,7 @@ from govops.grounding.spend import M8Spend, SpendCapError
 
 COMMANDS = (
     "sheet-calibration",
+    "render-evidence",
     "register-labels",
     "cost-probe",
     "calibrate",
@@ -614,7 +615,8 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
     registration.require_clean(
         root,
         GATE_SCOPE
-        if command not in {"sheet-calibration", "register-labels", "adopt"}
+        if command
+        not in {"sheet-calibration", "register-labels", "adopt", "render-evidence"}
         else [p for p in GATE_SCOPE if p != str(registration.REGISTRATION_PATH)],
     )
     if args.dbname is not None:
@@ -706,12 +708,12 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
             saver_factory,
             evidence_loader,
         )
-    else:  # register-labels may append to a not-yet-committed cap registration.
+    else:  # register-labels/render-evidence may use a not-yet-committed registration.
         value = registration.read_registration(regpath)
         if args.split == "heldout":
             registration.require_adopted(regpath, repo_root=root)
     args.evidence_max_chars = value["evidence_max_chars"]
-    if command == "register-labels":
+    if command in {"register-labels", "render-evidence"}:
         split = args.split
     else:
         split = (
@@ -744,6 +746,12 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
             "type_distribution": rows.type_distribution,
             "excluded": rows.excluded,
         }
+    if command == "render-evidence":
+        # Same sample and evidence as the sheets; only evidence.html is rewritten.
+        _verify_meta(directory, rows)
+        return sheets.rewrite_evidence_card(
+            rows, directory, registered_splitter=value["splitter_rules_sha256"]
+        )
     meta = _verify_meta(directory, rows)
     if command == "sheet-heldout":
         with _template(value["adopted_prompt_version"], args.prompt_file):
