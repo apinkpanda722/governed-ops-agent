@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "grader-v3",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T17:52:25+0900",
+      "summary": "문장별 근거·인용 채점기 v3.0, 엄격 파싱·반복 집계, M8 비용 예약·정산 상한과 합성 테스트 추가; make verify 통과(4570 pytest·228 웹 테스트).",
+      "completed_at": "2026-10-16T18:05:36+0900",
+      "usage": {
+        "input_tokens": 5719105,
+        "cached_input_tokens": 5531264,
+        "output_tokens": 21311,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
