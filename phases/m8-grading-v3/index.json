@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "injection-metrics",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T18:16:21+0900",
+      "summary": "결정론 합성 주입 3종·문장 번호 기반 탐지·κ/클러스터 CI·탐지율/오탐률·고정 합격선 판정 구현; make verify 통과(Python 4,644개·웹 228개).",
+      "completed_at": "2026-10-16T18:30:53+0900",
+      "usage": {
+        "input_tokens": 3672054,
+        "cached_input_tokens": 3529600,
+        "output_tokens": 21392,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
