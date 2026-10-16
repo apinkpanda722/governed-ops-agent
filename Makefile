@@ -301,3 +301,16 @@ e2e-web:
 	rm -f "$$before_status" "$$after_status"; \
 	if [ "$$e2e_status" -ne 0 ]; then exit "$$e2e_status"; fi; \
 	exit "$$clean_status"
+
+.PHONY: demo-scene5 demo-faults-on demo-faults-off
+# 사용자 실행, 복사본에서만 꼬리를 자른다
+demo-scene5:
+	sh scripts/demo/scene5.sh
+
+# 사용자 실행, compose 내부 관리 CLI에 stdin으로 규칙을 전달한다
+demo-faults-on:
+	docker compose --env-file .env -f infra/docker-compose.yml exec -T mock-slack python -m govops.mocks.admin faults set --file /dev/stdin < scripts/demo/mock_faults.json
+
+# 사용자 실행, 장면 1 이후 주입 규칙을 해제한다
+demo-faults-off:
+	docker compose --env-file .env -f infra/docker-compose.yml exec -T mock-slack python -m govops.mocks.admin faults clear

@@ -1,0 +1,12 @@
+[
+  {
+    "endpoint": "slack.send",
+    "nth": [1],
+    "action": {"type": "drop_after_apply"}
+  },
+  {
+    "endpoint": "slack.send",
+    "nth": [1],
+    "action": {"type": "hide_for", "ms": 1000}
+  }
+]
