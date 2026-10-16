@@ -96,3 +96,20 @@ def test_all_grounding_modules_forbid_schema_setup_and_write_factory():
                 assert node.func.attr not in {"setup", "asetup"}
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
                 assert node.func.id not in {"setup", "asetup", "open_checkpointer"}
+
+
+def test_url_with_dbname_preserves_encoded_password_port_query():
+    url = "postgresql://synthetic:p%40ss%3A%2F%25@localhost:5439/old?sslmode=require&options=x%20y"
+    assert db.url_with_dbname(url, "govops_m8_evidence") == url.replace(
+        "/old?", "/govops_m8_evidence?"
+    )
+
+
+@pytest.mark.parametrize("name", ["Upper", "1db", "a" * 64, "a;b", "a b", ""])
+def test_dbname_rejects_without_url_or_password(name):
+    url = "postgresql://synthetic:synthetic-private-password@localhost/db"
+    with pytest.raises(ValueError, match="^invalid_dbname$") as caught:
+        db.url_with_dbname(url, name)
+    assert url not in str(caught.value) and "synthetic-private-password" not in str(
+        caught.value
+    )

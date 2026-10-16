@@ -1,13 +1,27 @@
 """Open existing checkpoints with database-enforced read-only connections."""
 
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit, urlunsplit
 
 import psycopg
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg.rows import dict_row
 
 READONLY_OPTIONS = "-c default_transaction_read_only=on"
+DBNAME_RE = r"^[a-z_][a-z0-9_]{0,62}$"
+
+
+def url_with_dbname(url: str, dbname: str) -> str:
+    """Replace only the database path, preserving encoded credentials verbatim."""
+    if not isinstance(dbname, str) or re.fullmatch(DBNAME_RE, dbname) is None:
+        raise ValueError("invalid_dbname")
+    try:
+        parts = urlsplit(url)
+        return urlunsplit(parts._replace(path="/" + dbname))
+    except (ValueError, TypeError):
+        raise ValueError("invalid_database_url") from None
 
 
 def readonly_connect_kwargs() -> dict:

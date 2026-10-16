@@ -312,9 +312,15 @@ async def _run(args) -> dict[str, tuple[str, str]]:
     else:
         opened = False
         try:
+            if args.dbname is not None:
+                url = db.url_with_dbname(url, args.dbname)
             async with db.open_readonly_saver(url) as saver:
                 opened = True
-                stages["db_connect"] = ("PASS", "connected=1")
+                stages["db_connect"] = (
+                    "PASS",
+                    "connected=1"
+                    + (f" dbname={args.dbname}" if args.dbname is not None else ""),
+                )
                 if links:
                     stats = await probe_threads(saver, links)
                     stages["thread_read"] = (
@@ -376,6 +382,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = _Parser(description=__doc__)
     parser.add_argument("--results", type=Path, nargs="+", required=True)
     parser.add_argument("--url-env", default="GOVOPS_DATABASE_URL")
+    parser.add_argument("--dbname")
     parser.add_argument("--langfuse", action="store_true")
     try:
         args = parser.parse_args(argv)

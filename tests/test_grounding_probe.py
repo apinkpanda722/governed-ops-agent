@@ -20,6 +20,45 @@ TASK = "T1-02"
 STAGES = ("db_connect", "link", "thread_read", "tool_messages", "langfuse")
 
 
+def test_probe_dbname_only_in_output(tmp_path, monkeypatch, capsys):
+    root = results(tmp_path)
+    url = "postgresql://synthetic:private%40password@localhost:5439/old?sslmode=require"
+    monkeypatch.setenv("SYNTHETIC_DB_URL", url)
+    calls = []
+
+    @asynccontextmanager
+    async def opened(value):
+        calls.append(value)
+        yield type("Saver", (), {"aget_tuple": AsyncMock(return_value=None)})()
+
+    monkeypatch.setattr(probe.db, "open_readonly_saver", opened)
+    probe.main(
+        [
+            "--results",
+            str(root),
+            "--url-env",
+            "SYNTHETIC_DB_URL",
+            "--dbname",
+            "govops_m8_evidence",
+        ]
+    )
+    output = capsys.readouterr()
+    assert calls == [url.replace("/old?", "/govops_m8_evidence?")]
+    assert "govops_m8_evidence" in output.out
+    assert (
+        url not in output.out + output.err
+        and "private%40password" not in output.out + output.err
+    )
+    calls.clear()
+    assert (
+        probe.main(
+            ["--results", str(root), "--url-env", "SYNTHETIC_DB_URL", "--dbname", "Bad"]
+        )
+        == 1
+    )
+    assert not calls
+
+
 def results(tmp_path, *, trace=TRACE, audit_ids=(TRACE, OTHER, None, "invalid")):
     root = tmp_path / "synthetic-run"
     root.mkdir()
