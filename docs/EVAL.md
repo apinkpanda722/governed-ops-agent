@@ -208,10 +208,10 @@ B 전체 기간 총액(월 단위 아님). 모든 유료 호출은 **호출 직�
 |---|---|---:|
 | OpenAI | 주 모델 | $9.13 |
 | Anthropic | fallback, Guardrail v2 분류기(게이트웨이 별칭 `guardrail-v2` 경유) | $11.47 |
-| Gemini | 채점(별도 원장) | $7.29 |
-| 합계 | | $27.89 |
+| Gemini | 채점(별도 원장) | $10.00 |
+| 합계 | | $30.60 |
 
-공급사 상한은 그대로 두고, 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. M2 파일럿 실측으로 전체 예상 비용을 다시 추정한다. 평가 실행마다 비용을 `docs/results/`에 적는다. Gemini 단가는 2026-12-31까지 유효하며 2027-01-01부터 채점 호출이 코드로 거부된다.
+공급사 상한은 그대로 두고, 원장 `purpose` 필드(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)로 용도별 비용을 보고한다. M2 파일럿 실측으로 전체 예상 비용을 다시 추정한다. 평가 실행마다 비용을 `docs/results/`에 적는다. Gemini 단가는 2026-12-31까지 유효하며 2027-01-01부터 채점 호출이 코드로 거부된다. Gemini 상한은 [M8 추가 등록 1](results/hypotheses-m8-grader-addendum-1.md) §H로 $7.29에서 $10.00으로 올렸다(ADR-007 본문은 보존, 동결 digest 갱신 절차 준수).
 
 Guardrail v2 분류기는 호스트 수집 지점에서 사용자 팀 키로 게이트웨이를 경유하며 비용은 호스트 원장 `purpose=guardrail_v2`로 예약·정산한다(ADR-026).
 

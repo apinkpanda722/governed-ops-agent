@@ -6,7 +6,12 @@ import threading
 
 import pytest
 
-from govops.grounding.spend import STAGE_CAPS_USD, M8Spend, SpendCapError
+from govops.grounding.spend import (
+    STAGE_CAPS_USD,
+    TOTAL_CAP_USD,
+    M8Spend,
+    SpendCapError,
+)
 
 
 def test_reservation_settlement_and_restart(tmp_path):
@@ -48,10 +53,12 @@ def test_stage_boundary_and_check_is_read_only(tmp_path, stage, cap):
 
 def test_total_cap_counts_actual_and_pending(tmp_path):
     spend = M8Spend(tmp_path / "spend.jsonl")
-    reservation = spend.reserve("calibration", 0.8)
-    spend.settle(reservation, 1.4)  # confirmed usage can exceed an estimate
-    spend.reserve("validation", 0.6)
-    assert spend.total_usd() == 2
+    validation = STAGE_CAPS_USD["validation"]
+    reservation = spend.reserve("calibration", STAGE_CAPS_USD["calibration"])
+    # confirmed usage can exceed an estimate
+    spend.settle(reservation, TOTAL_CAP_USD - validation)
+    spend.reserve("validation", validation)
+    assert spend.total_usd() == TOTAL_CAP_USD
     spend.check("measurement", 0)
     with pytest.raises(SpendCapError):
         spend.reserve("measurement", 0.000001)
@@ -123,7 +130,7 @@ def test_sixteen_threads_cannot_overreserve(tmp_path):
     def worker():
         try:
             barrier.wait()
-            M8Spend(path).reserve("calibration", 0.3)
+            M8Spend(path).reserve("calibration", STAGE_CAPS_USD["calibration"] / 2)
             outcome = "reserved"
         except SpendCapError:
             outcome = "rejected"
@@ -139,4 +146,4 @@ def test_sixteen_threads_cannot_overreserve(tmp_path):
         thread.join(timeout=30)
     assert not any(thread.is_alive() for thread in threads)
     assert sorted(outcomes) == ["rejected"] * 14 + ["reserved"] * 2
-    assert M8Spend(path).total_usd() == pytest.approx(0.6)
+    assert M8Spend(path).total_usd() == pytest.approx(STAGE_CAPS_USD["calibration"])

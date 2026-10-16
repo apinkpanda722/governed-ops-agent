@@ -2,9 +2,11 @@
 
 import argparse
 import asyncio
+import csv
 import hashlib
 import json
 import os
+import re
 from collections import Counter
 from contextlib import contextmanager
 from dataclasses import replace
@@ -62,6 +64,16 @@ N2_RUNS = (
 )
 N1A_RUN = "6b3ec0b1ec92402db7ebefb2d4cfb1b4"
 PRIVATE_DIR = Path("data/interim/m8-grounding")
+# Addendum 1 §B order: fact, then the two citation kinds.
+INJECTION_ORDER = ("fact", "fabricated_id", "wrong_support")
+LIMITED_NOTICE = (
+    "제한적 검증(자연 양성 부족): 사람 양성 문장이 부족해 κ는 판정하지 못했고 "
+    "합성 주입 탐지와 음성 문장 오탐으로 제한적으로 확인했다"
+)
+HUMAN_RATE_CAVEAT = (
+    "보정 표본은 M6 층화 표본(T1 5·T2 6·T3 6·T4 4·T5 5·T6 4)이며 전체 평가셋의 "
+    "환각률 추정이 아니다. 검수자 1인, 표본이 작아 CI가 넓다"
+)
 GATE_SCOPE = (
     "src/govops/grounding",
     "docs/results/m8-grader-registration.json",
@@ -145,7 +157,10 @@ def check_revision(version, logs):
         raise ValueError("version_already_calibrated")
     if version != f"v3.{len(logs)}":
         raise ValueError("revision_order")
-    if any(row.get("status", "complete") != "complete" for row in logs):
+    # A stage-cap stop is a finished record; only a run that never finished blocks.
+    if any(
+        row.get("status", "complete") not in {"complete", "stopped"} for row in logs
+    ):
         raise ValueError("calibration_incomplete")
     if logs:
         last = logs[-1]
@@ -361,8 +376,53 @@ async def _grade_row(grader, row, sentences, version, stage, repeats):
     return aggregate, results
 
 
+def _human_rates(out):
+    """Human-label hallucination rates (grader-independent), counts and CIs only."""
+    sections, combined = {}, []
+    for split in ("calibration", "heldout"):
+        path = out / split / "labels.csv"
+        if not path.exists():
+            sections[split] = {"unavailable": "labels_missing"}
+            continue
+        with path.open(encoding="utf-8", newline="") as source:
+            rows = list(csv.DictReader(source))
+        if not rows or any(not row["label"].strip() for row in rows):
+            sections[split] = {"unavailable": "labels_incomplete"}
+            continue
+        rows = [
+            {"sample_id": f"{split}:{r['sample_id']}", "label": r["label"]}
+            for r in rows
+        ]
+        sections[split] = metrics.human_hallucination(rows)
+        combined.extend(rows)
+    if combined:
+        sections["combined"] = metrics.human_hallucination(combined)
+    sections["caveat"] = HUMAN_RATE_CAVEAT
+    return sections
+
+
 def _ratio(a, b):
     return a / b if b else None
+
+
+def _evidence_blob(row):
+    """Raw and JSON-decoded evidence text, as a search haystack for IDs."""
+    items = row.evidence.items if row.evidence is not None else ()
+    parts = []
+    for item in items:
+        parts.append(item.content)
+        try:
+            parts.append(json.dumps(json.loads(item.content), ensure_ascii=False))
+        except (ValueError, RecursionError):
+            pass
+    return "\n".join(parts)
+
+
+def _id_in_text(doc_id, text):
+    return (
+        re.search(r"(?<![A-Za-z0-9])" + re.escape(doc_id) + r"(?![A-Za-z0-9])", text)
+        is not None
+    )
 
 
 def _rates(rows, graded, repeats):
@@ -404,17 +464,19 @@ def _rates(rows, graded, repeats):
             }
         )
     n_citations = fabricated = no_citations = request_citations = 0
+    strict = 0  # fabricated and absent from the evidence text (addendum §F)
     citation_types = Counter()
     for row in rows:
         text, _ = select_deliverable(row.observation)
         citations = extract_citations(text or "")
         n_citations += len(citations)
         no_citations += not citations
-        fabricated += len(
-            fabricated_citations(
-                citations, row.observation.observed_ids, row.spec.request
-            )
+        missing = fabricated_citations(
+            citations, row.observation.observed_ids, row.spec.request
         )
+        fabricated += len(missing)
+        blob = _evidence_blob(row)
+        strict += sum(not _id_in_text(doc, blob) for doc in missing)
         request_citations += len(extract_citations(row.spec.request))
         for doc in citations:
             citation_types[
@@ -430,8 +492,12 @@ def _rates(rows, graded, repeats):
             for key, values in rates.items()
         },
         "fabricated_id_rate": _ratio(fabricated, n_citations),
+        "fabricated_strict_rate": _ratio(strict, n_citations),
+        "in_evidence_only_rate": _ratio(fabricated - strict, n_citations),
         "n_citations": n_citations,
         "n_fabricated": fabricated,
+        "n_fabricated_strict": strict,
+        "n_in_evidence_only": fabricated - strict,
         "n_no_citations": no_citations,
         "n_request_citations": request_citations,
         "citation_type_distribution": dict(citation_types),
@@ -466,12 +532,7 @@ async def _evaluate(
     failures = Counter()
     stop = None
     citation_matches = citation_count = 0
-    normal = [
-        r.key
-        for r in rows
-        if not any(label in POSITIVE_LABELS for label in human[r.spec.task_id].values())
-    ]
-    kinds = inject.assign_kinds(normal, sample.HELDOUT_SEED)
+    candidates = []  # graded human-negative rows that may receive injections
     before = grader.spend.total_usd(stage)
     for row in rows:
         sentences = build_sentences(select_deliverable(row.observation)[0])
@@ -501,6 +562,10 @@ async def _evaluate(
             for key, value in human_supports[row.spec.task_id].items():
                 citation_matches += agg.citation_supports[key] == value
                 citation_count += 1
+            if not any(
+                label in POSITIVE_LABELS for label in human[row.spec.task_id].values()
+            ):
+                candidates.append((row, sentences))
         except GradingError as exc:
             failures[
                 "grading_response_failure"
@@ -517,7 +582,6 @@ async def _evaluate(
                 else "grading_call_failure",
                 cost_usd=grader.spend.total_usd(stage) - row_before,
             )
-            continue
         except (SpendCapError, BudgetExceededError, PriceExpiredError) as exc:
             stop = (
                 "m8_stage_cap_exceeded"
@@ -533,85 +597,88 @@ async def _evaluate(
                 cost_usd=grader.spend.total_usd(stage) - row_before,
             )
             break
-        if row.key not in kinds:
-            continue
-        copy = inject.inject(
-            row.key,
-            kinds[row.key],
-            sentences,
-            row.evidence.items,
-            row.observation.observed_ids,
-            sample.HELDOUT_SEED,
-        )
-        if isinstance(copy, inject.InjectionSkip):
-            injected.append(copy)
-            note(
-                kind="injection",
-                task_id=row.spec.task_id,
-                type=row.spec.type,
-                assigned=kinds[row.key],
-                outcome="skipped",
-                code=copy.reason,
+    # Injections run after every row is graded (addendum §B): a stage cap can then only
+    # shorten the injection pass. Kind by kind, so each kind reaches the rows in turn.
+    for kind in INJECTION_ORDER:
+        if stop is not None:
+            break
+        for row, sentences in candidates:
+            task = row.spec.task_id
+            allowed = None
+            if kind != "fact":
+                # Citation replacement truth requires a human-supported source pair.
+                allowed = {
+                    (s.sentence_id, doc)
+                    for s in sentences
+                    if human[task][s.sentence_id] == "supported"
+                    for doc in s.citations
+                    if human_supports[task].get((s.sentence_id, doc)) is True
+                }
+            copy = inject.inject(
+                row.key,
+                kind,
+                sentences,
+                row.evidence.items,
+                row.observation.observed_ids,
+                sample.HELDOUT_SEED,
+                allowed,
             )
-            continue
-        if copy.kind != "fact":
-            sid = copy.target_sentence_id
-            # Citation replacement truth requires a human-supported source pair.
-            old = set(
-                next(s.citations for s in sentences if s.sentence_id == sid)
-            ) - set(next(s.citations for s in copy.sentences if s.sentence_id == sid))
-            if (
-                human[row.spec.task_id][sid] != "supported"
-                or not old
-                or not all(
-                    human_supports[row.spec.task_id].get((sid, doc)) is True
-                    for doc in old
-                )
-            ):
-                injected.append(inject.InjectionSkip(row.key, "no_candidate"))
+            if isinstance(copy, inject.InjectionSkip):
+                injected.append(copy)
                 note(
                     kind="injection",
-                    task_id=row.spec.task_id,
+                    task_id=task,
                     type=row.spec.type,
-                    assigned=kinds[row.key],
+                    assigned=kind,
                     outcome="skipped",
-                    code="no_candidate",
+                    code=copy.reason,
+                    cause=copy.cause,
                 )
                 continue
-        try:
-            agg, _ = await _grade_row(
-                grader, row, copy.sentences, version, stage, repeats
-            )
-            injected.append((copy, agg))
-            note(
-                kind="injection",
-                task_id=row.spec.task_id,
-                type=row.spec.type,
-                assigned=kinds[row.key],
-                outcome="graded",
-            )
-        except GradingError as exc:
-            failures[
-                "grading_response_failure"
-                if str(exc) == "grading_response_failure"
-                else "grading_call_failure"
-            ] += 1
-            injected.append(inject.InjectionSkip(row.key, "grading_failure"))
-            note(
-                kind="injection",
-                task_id=row.spec.task_id,
-                type=row.spec.type,
-                assigned=kinds[row.key],
-                outcome="skipped",
-                code="grading_failure",
-            )
-        except (SpendCapError, BudgetExceededError, PriceExpiredError) as exc:
-            stop = (
-                "m8_stage_cap_exceeded"
-                if isinstance(exc, SpendCapError)
-                else "budget_or_price_block"
-            )
-            break
+            try:
+                agg, _ = await _grade_row(
+                    grader, row, copy.sentences, version, stage, repeats
+                )
+                injected.append((copy, agg))
+                note(
+                    kind="injection",
+                    task_id=task,
+                    type=row.spec.type,
+                    assigned=kind,
+                    outcome="graded",
+                )
+            except GradingError as exc:
+                code = (
+                    "grading_response_failure"
+                    if str(exc) == "grading_response_failure"
+                    else "grading_call_failure"
+                )
+                failures[code] += 1
+                injected.append(inject.InjectionSkip(row.key, "grading_failure", code))
+                note(
+                    kind="injection",
+                    task_id=task,
+                    type=row.spec.type,
+                    assigned=kind,
+                    outcome="skipped",
+                    code="grading_failure",
+                    cause=code,
+                )
+            except (SpendCapError, BudgetExceededError, PriceExpiredError) as exc:
+                stop = (
+                    "m8_stage_cap_exceeded"
+                    if isinstance(exc, SpendCapError)
+                    else "budget_or_price_block"
+                )
+                note(
+                    kind="injection",
+                    task_id=task,
+                    type=row.spec.type,
+                    assigned=kind,
+                    outcome="stopped",
+                    code=stop,
+                )
+                break
     if detail_sink is not None:
         seen = {e["task_id"] for e in detail_sink if e["kind"] == "row"}
         for row in rows:
@@ -624,10 +691,15 @@ async def _evaluate(
                     code=stop,
                 )
     detection = metrics.detection_and_fpr(injected, compared)
+    # Addendum §D: rows whose grading failed or never started, over all rows.
+    failed_rows = len(rows) - len(graded)
+    row_failure_ratio = failed_rows / len(rows) if len(rows) else None
     result = metrics.validation_verdict(
         rows=compared,
         detection_rate=detection["detection_rate"],
         false_positive_rate=detection["false_positive_rate"],
+        detection=detection,
+        row_failure_ratio=row_failure_ratio,
     )
     result.update(
         {
@@ -647,6 +719,8 @@ async def _evaluate(
             "n_deliverable_empty": rows.excluded.get("deliverable_empty", 0),
             "n_input_rows": len(rows) + sum(rows.excluded.values()),
             "n_ungraded_rows": len(rows) - len(graded),
+            "n_failed_rows": failed_rows,
+            "row_failure_ratio": row_failure_ratio,
             "split_count_changed": detection["skip_reasons"].get(
                 "split_count_changed", 0
             ),
@@ -676,7 +750,13 @@ async def _evaluate(
             key: value
             for key, value in deterministic.items()
             if key.startswith("n_")
-            or key in {"fabricated_id_rate", "citation_type_distribution"}
+            or key
+            in {
+                "fabricated_id_rate",
+                "fabricated_strict_rate",
+                "in_evidence_only_rate",
+                "citation_type_distribution",
+            }
         }
     return result
 
@@ -696,6 +776,20 @@ async def _cost_probe(grader):
         )
     cost = grader.spend.total_usd("calibration") - before
     return {"scope": "m8", "calls": 3, "cost_usd": cost, "cost_per_call_usd": cost / 3}
+
+
+def measurement_allowed(validation) -> bool:
+    """Full validation, or addendum §D limited validation that was not cap-stopped."""
+    full = validation.get("verdict") == "채점기 v3 검증 통과" and bool(
+        validation.get("complete")
+    )
+    limited = (
+        validation.get("verdict") == metrics.LIMITED_VERDICT
+        and validation.get("original_verdict") == "판정 불가(양성 부족)"
+        and validation.get("stop_code") is None
+        and validation.get("status") == "complete"
+    )
+    return full or limited
 
 
 def _assert_adopted(value, version):
@@ -724,10 +818,16 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
     if command == "cost-probe":
         return await _cost_probe(grader_factory())
     if command == "report":
-        result = json.loads((out / "heldout-result.json").read_text(encoding="utf-8"))
+        heldout_path = out / "heldout-result.json"
+        result = (
+            json.loads(heldout_path.read_text(encoding="utf-8"))
+            if heldout_path.exists()
+            else None
+        )
         # Reports are our own count-only artifacts; source sheets are never printed.
         return {
             "heldout": result,
+            "human_hallucination": _human_rates(out),
             "calibration": _log(out / "calibration-log.jsonl"),
             "measurement": json.loads((out / "measurement-result.json").read_text())
             if (out / "measurement-result.json").exists()
@@ -791,9 +891,7 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
     elif command == "measure":
         value = registration.require_adopted(regpath, repo_root=root)
         validation = json.loads((out / "heldout-result.json").read_text())
-        if validation.get("verdict") != "채점기 v3 검증 통과" or not validation.get(
-            "complete"
-        ):
+        if not measurement_allowed(validation):
             raise registration.RegistrationError("validation_not_passed")
         if validation["prompt_sha256"] != value["adopted_prompt_sha256"]:
             raise registration.RegistrationError("adopted_prompt_changed")
@@ -806,6 +904,7 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
             grader_factory,
             saver_factory,
             evidence_loader,
+            validation=validation,
         )
     else:  # register-labels/render-evidence may use a not-yet-committed registration.
         value = registration.read_registration(regpath)
@@ -927,7 +1026,15 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
 
 
 async def _measure(
-    args, root, specs, value, out, grader_factory, saver_factory, evidence_loader
+    args,
+    root,
+    specs,
+    value,
+    out,
+    grader_factory,
+    saver_factory,
+    evidence_loader,
+    validation=None,
 ):
     """Traverse N2-1, N2-2, N2-3 in order; stop at the fixed measurement budget."""
     target = out / "measurement-result.json"
@@ -969,6 +1076,15 @@ async def _measure(
         "n_input_rows": sum(map(len, all_rows)),
         "n_graded_rows": 0,
     }
+    if validation is not None:
+        verdict = validation.get("verdict")
+        result["validation"] = {
+            "verdict": verdict,
+            "original_verdict": validation.get("original_verdict", verdict),
+            "limited": verdict == metrics.LIMITED_VERDICT,
+        }
+        if verdict == metrics.LIMITED_VERDICT:
+            result["validation"]["notice"] = LIMITED_NOTICE
     _json(target, result | {"status": "started"}, exclusive=True)
     all_graded = []
     with _template(version, args.prompt_file):
@@ -1126,7 +1242,7 @@ def main(
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, allow_nan=False))
         if args.command == "report":
-            heldout = result["heldout"]
+            heldout = result["heldout"] or {}
             print("metric\tvalue")
             for key in (
                 "kappa",
@@ -1134,8 +1250,11 @@ def main(
                 "detection_rate",
                 "false_positive_rate",
                 "verdict",
+                "original_verdict",
             ):
                 print(f"{key}\t{heldout.get(key)}")
+            if heldout.get("verdict") == metrics.LIMITED_VERDICT:
+                print(f"notice\t{LIMITED_NOTICE}")
         return int(bool(result.get("stop_code")))
     except registration.RegistrationError as exc:
         print("FAIL " + str(exc))

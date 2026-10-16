@@ -15,7 +15,9 @@ from pathlib import Path
 from statistics import median
 
 from govops.eval.observation import load_observations
+from govops.grounding import inject
 from govops.grounding.deliverable import extract_citations, fabricated_citations
+from govops.grounding.sample import HELDOUT_SEED
 
 PRIVATE = Path("data/interim/m8-grounding")
 LEDGER = Path("data/manifest/costs_grading.jsonl")
@@ -350,6 +352,34 @@ def diagnose(root, *, version="v3.0", test_results=None):
         result["ledger_rows"]["no_second_call_by_type"] = dict(
             Counter(type_of[s] for s in no_second)
         )
+        # Legacy (v3.0) flow: one injection kind per human-negative row, round-robin
+        # over sorted row keys. Reconstructed from the sheets and the ledger only.
+        positive = {
+            r["sample_id"]
+            for r in labels
+            if r["label"] in {"unsupported", "contradicted"}
+        }
+        sample_task = {v: k for k, v in task_sample.items()}
+        normal = {
+            f"{sample_task[s]}:{run_index.get(sample_task[s], 0)}"
+            for s in set(task_sample.values()) - positive
+        }
+        kinds = inject.assign_kinds(sorted(normal), HELDOUT_SEED)
+        second = set(result["ledger_rows"]["second_call_rows"])
+        attribution = defaultdict(lambda: {"assigned": 0, "second_call": 0})
+        for key, kind in kinds.items():
+            task = key.rsplit(":", 1)[0]
+            sample = task_sample[task]
+            cell = attribution[f"{kind}|{type_of[sample]}"]
+            cell["assigned"] += 1
+            cell["second_call"] += sample in second
+        result["injection_attribution_legacy_single_kind"] = {
+            name: {
+                **cell,
+                "without_second_call": cell["assigned"] - cell["second_call"],
+            }
+            for name, cell in sorted(attribution.items())
+        }
     except OSError:
         result["cost"] = _unavailable("ledger_missing")
     try:

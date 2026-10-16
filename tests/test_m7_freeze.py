@@ -33,7 +33,7 @@ EXPECTED: dict[str, str] = {
     "data/eval": "1efdcc559daa1ea84452dacb408bfb99c9e0627454517a3978201b6ca76ec4c5",
     "data/redteam": "835705710c2344c49a8d15cf8180a3044882bf1399a854b766af9d1b55c02553",
     "docs/results/m6-redteam-run": "b9ec95c306c43bab174bfa0aeb5e3e07a579551e2d485dbd9f5c51e1bef990f9",
-    "src/govops/costs.py": "638786f5ac04aa3b23194072757e3102759106fe4cd54b55157b92e50d76169c",
+    "src/govops/costs.py": "4460adf2d3745ee0368450f1cf8c70f4274fe082dc7772dde89711de8ea80a98",
     "src/govops/golden.py": "972d343c894cccbe4bf647dcc1abc8b980a805e42b7361aa096884388642c0df",
     "infra/litellm/config.yaml": "3e3c3837e9541d4cf97279d7d1daeb48b5179f316d097a7931a376267722935e",
     "src/govops/audit/__init__.py": "69e5aad3174fbdc1c26681b458d724d627c8f137fadbcd7bea1b3858901aeee3",

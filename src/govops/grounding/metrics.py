@@ -15,6 +15,15 @@ MIN_POS_ROWS = 5
 KAPPA_MIN = 0.6
 DETECTION_MIN = 0.90
 FPR_MAX = 0.10
+# Addendum 1 §D ("제한적 검증"): applies only when the original verdict is
+# "판정 불가(양성 부족)". Fixed constants; callers cannot change them.
+LIMITED_MIN_DETECTED = 20
+LIMITED_MIN_WILSON_LOWER = 0.80
+LIMITED_MIN_NEGATIVE_SENTENCES = 150
+LIMITED_MAX_NEGATIVE_POSITIVE_RATE = 0.05
+LIMITED_MAX_ROW_FAILURE_RATIO = 0.10
+LIMITED_VERDICT = "제한적 검증(자연 양성 부족)"
+Z95 = 1.959963984540054
 
 
 @dataclass(frozen=True)
@@ -104,6 +113,48 @@ def confusion_matrix(rows: Sequence[RowLabels]) -> dict[str, dict[str, int]]:
     return matrix
 
 
+def wilson(successes: int, n: int, z: float = Z95) -> tuple[float, float] | None:
+    """Wilson score interval; None without observations."""
+    if n <= 0 or not 0 <= successes <= n:
+        return None
+    p = successes / n
+    denominator = 1 + z * z / n
+    center = (p + z * z / (2 * n)) / denominator
+    margin = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denominator
+    return max(0.0, center - margin), min(1.0, center + margin)
+
+
+def human_hallucination(label_rows: Sequence[dict]) -> dict:
+    """Human-label hallucination rates (independent of the grader), Wilson 95% CIs.
+
+    ``label_rows`` hold ``sample_id`` and ``label`` per sentence.
+    """
+    positives = claims = 0
+    rows: dict[str, bool] = {}
+    for row in label_rows:
+        label = row["label"]
+        if label not in LABELS:
+            raise ValueError("unknown sentence label")
+        rows.setdefault(row["sample_id"], False)
+        if label != "not_claim":
+            claims += 1
+        if label in POSITIVE_LABELS:
+            positives += 1
+            rows[row["sample_id"]] = True
+    positive_rows = sum(rows.values())
+    return {
+        "n_rows": len(rows),
+        "n_sentences": len(label_rows),
+        "n_claim_sentences": claims,
+        "n_positive_sentences": positives,
+        "sentence_rate": _ratio(positives, claims),
+        "sentence_ci": wilson(positives, claims),
+        "n_positive_rows": positive_rows,
+        "row_rate": _ratio(positive_rows, len(rows)),
+        "row_ci": wilson(positive_rows, len(rows)),
+    }
+
+
 def _ratio(numerator: int, denominator: int) -> float | None:
     return numerator / denominator if denominator else None
 
@@ -151,13 +202,21 @@ def detection_and_fpr(
     """Keep skips separate; FPR uses only human-negative, unmodified rows."""
     _validate(clean)
     skip_reasons = Counter()
+    skip_causes = Counter()
     detected = injection_count = 0
+    by_kind: dict[str, list[int]] = {}
     for entry in injected:
         if isinstance(entry, InjectionSkip):
             skip_reasons[entry.reason] += 1
+            if entry.cause:
+                skip_causes[entry.cause] += 1
         else:
             injection_count += 1
-            detected += injection_detected(*entry)
+            hit = injection_detected(*entry)
+            detected += hit
+            counts = by_kind.setdefault(entry[0].kind, [0, 0])
+            counts[0] += 1
+            counts[1] += hit
     normal = [
         row
         for row in clean
@@ -191,8 +250,19 @@ def detection_and_fpr(
         "false_positives": false_positives,
         "false_positive_rows": false_positive_rows,
         "denominators": denominators,
+        "detection_ci": wilson(detected, injection_count),
+        "by_kind": {
+            kind: {
+                "n": n,
+                "detected": hit,
+                "rate": _ratio(hit, n),
+                "ci": wilson(hit, n),
+            }
+            for kind, (n, hit) in sorted(by_kind.items())
+        },
         "skip_count": sum(skip_reasons.values()),
         "skip_reasons": dict(skip_reasons),
+        "skip_causes": dict(skip_causes),
         "reasons": reasons,
     }
 
@@ -202,6 +272,8 @@ def validation_verdict(
     rows: Sequence[RowLabels],
     detection_rate: float | None,
     false_positive_rate: float | None,
+    detection: dict | None = None,
+    row_failure_ratio: float | None = None,
 ) -> dict:
     """Apply §10, retaining diagnostics even for insufficient/degenerate samples.
 
@@ -260,9 +332,55 @@ def validation_verdict(
         verdict = "채점기 v3 검증 통과"
     else:
         verdict = "채점기 v3 검증 미달"
+    original = verdict
+    limited = None
+    if original == "판정 불가(양성 부족)":
+        det = detection or {}
+        detected = det.get("detected")
+        injected_n = (det.get("denominators") or {}).get("injected_rows") or 0
+        interval = wilson(detected, injected_n) if detected is not None else None
+        negatives = pr["tn"] + pr["fp"]
+        negative_rate = pr["fp"] / negatives if negatives else None
+        limited = {
+            "applicable": True,
+            "detected": {
+                "value": detected,
+                "n": injected_n,
+                "wilson_lower": interval[0] if interval else None,
+                "threshold": LIMITED_MIN_DETECTED,
+                "wilson_threshold": LIMITED_MIN_WILSON_LOWER,
+                "met": detected is not None
+                and interval is not None
+                and detected >= LIMITED_MIN_DETECTED
+                and interval[0] >= LIMITED_MIN_WILSON_LOWER,
+            },
+            "negative_sentences": {
+                "value": negatives,
+                "positive_rate": negative_rate,
+                "threshold": LIMITED_MIN_NEGATIVE_SENTENCES,
+                "rate_threshold": LIMITED_MAX_NEGATIVE_POSITIVE_RATE,
+                "met": negatives >= LIMITED_MIN_NEGATIVE_SENTENCES
+                and negative_rate is not None
+                and negative_rate <= LIMITED_MAX_NEGATIVE_POSITIVE_RATE,
+            },
+            "row_failure_ratio": {
+                "value": row_failure_ratio,
+                "threshold": LIMITED_MAX_ROW_FAILURE_RATIO,
+                "met": row_failure_ratio is not None
+                and row_failure_ratio <= LIMITED_MAX_ROW_FAILURE_RATIO,
+            },
+        }
+        limited["met"] = all(
+            limited[name]["met"]
+            for name in ("detected", "negative_sentences", "row_failure_ratio")
+        )
+        if limited["met"]:
+            verdict = LIMITED_VERDICT
     return {
         **pr,
         "verdict": verdict,
+        "original_verdict": original,
+        "limited_validation": limited,
         "kappa": kappa,
         "kappa_ci": ci,
         "confusion_matrix": confusion_matrix(rows),

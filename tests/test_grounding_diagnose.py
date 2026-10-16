@@ -288,3 +288,21 @@ def test_missing_inputs_are_reported_as_codes(tmp_path):
     result = diagnose.diagnose(tmp_path, test_results=tmp_path / "results")
     assert result["cost"] == {"unavailable": "ledger_missing"}
     assert result["fabricated"] == {"unavailable": "evidence_card_missing"}
+
+
+def test_legacy_single_kind_attribution_is_reconstructed_from_sheets_and_ledger(
+    tmp_path,
+):
+    build(tmp_path, detail=False)
+    result = diagnose.diagnose(
+        tmp_path, version="v3.0", test_results=tmp_path / "results"
+    )
+    cells = result["injection_attribution_legacy_single_kind"]
+    # S01 holds the human-positive sentence, so only S02 (T2) was a candidate.
+    assert sum(c["assigned"] for c in cells.values()) == 1
+    ((name, cell),) = cells.items()
+    assert name.endswith("|T2") and cell == {
+        "assigned": 1,
+        "second_call": 0,
+        "without_second_call": 1,
+    }
