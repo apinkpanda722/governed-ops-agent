@@ -4,6 +4,10 @@
       "evidence_max_chars": 80000,
       "splitter_rules_sha256": "c3ed951ff1f8129a1af6eeee13a590da4276733b7eb3c396977ef78957341d4e",
       "splitter_rules_version": "sent-v1"
+    },
+    {
+      "calibration_citations_sha256": "ffc8119b2a838dd368e1b4d6cb5db4e55bc805c4d746c49d744d257a95f2d687",
+      "calibration_labels_sha256": "e7a12cb5e299c3453599d049839c3e0d851a3b7667a15d67a5d2b318e777dacb"
     }
   ]
 }
