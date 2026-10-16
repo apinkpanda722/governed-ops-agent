@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "turn-index-turn-ids",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T10:31:43+0900",
+      "summary": "TurnIndex와 두 구현에 소유자·삭제 필터 및 순서 보장 turn_ids_of를 추가하고, 단위 테스트·사용자 실행 PostgreSQL 케이스를 작성했으며 make verify 통과.",
+      "completed_at": "2026-10-16T10:41:15+0900",
+      "usage": {
+        "input_tokens": 3565737,
+        "cached_input_tokens": 3423872,
+        "output_tokens": 7903,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
