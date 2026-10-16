@@ -122,7 +122,8 @@
     },
     {
       "dir": "m7-records-demo",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_at": "2026-10-16T10:55:58+0900"
     }
   ]
 }

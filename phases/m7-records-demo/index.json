@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "audit-routes-entrypoint",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-16T10:53:20+0900",
+      "blocked_reason": "지시 충돌: “이 step의 수정 허용 목록에 해당 파일을 \"표·FakeService 갱신에 한함\"으로 넣었다.”와 “라우트 집합 정확 일치 단언과 AST 가드는 그대로 통과해야 한다(표 갱신에 한함, 단언 약화 금지).”를 함께 만족할 수 없습니다. tests/test_api_entrypoint.py의 service_routes는 /tasks·/conversations·/approvals만 수집하므로 EXPECTED에 /audit/verify를 추가하면 정확 일치 단언이 실패합니다. service_routes의 수집 접두사에 /audit를 추가하는 수정까지 허용해야 합니다. 코드 수정·커밋은 하지 않았습니다.",
+      "blocked_at": "2026-10-16T10:55:58+0900",
+      "usage": {
+        "input_tokens": 212395,
+        "cached_input_tokens": 155264,
+        "output_tokens": 1025,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
