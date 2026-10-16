@@ -61,16 +61,7 @@
     {
       "step": 4,
       "name": "sample-cli",
-      "status": "blocked",
-      "started_at": "2026-10-16T18:30:53+0900",
-      "blocked_reason": "수정 범위 지시가 충돌합니다. “단 앞의 4개 파일은 아래 7절 기능 추가에 한하며 기존 단언 약화 금지.”는 sample.py·sheets.py·registration.py·cli.py를 7절의 DB 이름 옵션 추가로 제한하지만, “보정·검증 표본 추출, 사람 라벨 시트와 근거 카드, CSV 해시 등록과 가드, 채점·보고 CLI를 만든다.”와 1~4절은 같은 파일에 추가 기능 구현을 요구합니다. 공통 선점검 규칙에 따라 코드 수정 없이 중단했습니다. 앞의 4개 파일에 1~4절 구현도 허용되는지 지시 수정이 필요합니다.",
-      "blocked_at": "2026-10-16T18:33:16+0900",
-      "usage": {
-        "input_tokens": 65458,
-        "cached_input_tokens": 26752,
-        "output_tokens": 689,
-        "attempts": 1
-      }
+      "status": "pending"
     }
   ],
   "created_at": "2026-10-16T17:10:04+0900"
