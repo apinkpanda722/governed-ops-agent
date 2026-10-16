@@ -18,7 +18,7 @@ OFFICIAL = pathlib.Path(
 
 
 def main() -> int:
-    root = pathlib.Path(".").resolve()
+    root = pathlib.Path.cwd()
     digests = compute_digests(root)
     now = {
         "policy_sha256": team_policy_sha256(root / "data/policy/team_policy.json"),
@@ -29,7 +29,7 @@ def main() -> int:
         "hook_rules_digest": digests.rules,
         "hook_code_digest": digests.code,
     }
-    chain = sorted(OFFICIAL.glob("chain-*.jsonl"))[0]
+    chain = min(OFFICIAL.glob("chain-*.jsonl"))
     official = next(
         row
         for row in map(json.loads, chain.read_text().splitlines())
