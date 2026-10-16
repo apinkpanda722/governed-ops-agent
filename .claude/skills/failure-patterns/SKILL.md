@@ -370,6 +370,13 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: 기계 검사는 없다. 결과 문서 작성과 /review에서 SKIP 단계 목록과 해당 조건의 live 실행 여부를 확인한다.
 - **출처**: m6-guardrail-v2 obs-up 뒤 `make smoke-guardrail`(`langfuse_no_raw_input` FAIL), 수정 PR(`feature/guardrail-failure-redact`)
 
+### FP-074 phase 실행 전 점검 누락과 step 파일의 자기모순이 반복 blocked를 만듦
+- **증상**: m8-grading-v3에서 step 2·3·4가 코드를 쓰기 전 선점검에서 `blocked`됐다(step 4는 3회). ① step 2: 새 모듈의 `google.genai` import가 `tests/test_eval_grading.py::test_google_sdk_import_is_confined`의 집합 `==` 단언을 깼는데 그 테스트가 수정 허용 목록에 없었다(FP-071 시뮬레이션 stub에 SDK import가 없어 걸리지 않았다). ② step 3: 함수 시그니처의 반환 형식(`tuple[float, float] | None`)에 본문이 요구한 값(퇴화 표본 수)을 담을 자리가 없었다. ③ step 4: "앞의 4개 파일"이라는 위치 지칭이 목록 앞쪽 파일을 가리켜 기능 구현 요구와 충돌했고, "테스트는 실제 파일 내용을 읽지 않는다"가 `make verify`가 도는 기존 동결 digest 테스트(`data/eval` 바이트 읽기)와 충돌했고, "CLI 출력에 채점기 결과를 섞지 마라"가 같은 step의 집계 지표 출력 요구와 충돌했다. 또 phase 실행 전 작업 트리에 미커밋 원장 변경(M7 데모 live 비용 36행)이 있어 step 0 커밋에 함께 들어갔다.
+- **원인**: 작성 시 요구와 금지를 같은 파일 안에서 문장 쌍으로 대조하지 않았고, 시뮬레이션 stub이 실제 import 구성을 재현하지 않았다. 고친 뒤에도 같은 step 전체를 다시 대조하지 않아 같은 부류의 충돌이 한 번에 하나씩 나타났다.
+- **규칙**: (a) phase 실행 전 `git status`가 깨끗한지 확인하고 미커밋 원장 변경이 있으면 별도 커밋으로 먼저 정리한다. (b) FP-071 시뮬레이션 stub에는 실제 import 구성(외부 SDK 포함)을 넣는다. 집합 `==` 같은 정확 일치 단언은 stub에 import가 없으면 걸리지 않는다. (c) step 파일의 시그니처와 본문 요구가 서로 맞는지(반환 형식에 요구한 값을 담을 자리가 있는지) 작성 시 대조한다. (d) "테스트는 실제 파일 내용을 읽지 않는다" 같은 금지에는 `make verify`가 읽는 기존 소비자(동결 digest 테스트 등)를 예외로 같은 문단에 적는다. 이후 phase의 step 파일 공통 문단("열람 금지의 범위")도 템플릿 수준에서 같은 예외를 담는다. (e) blocked를 고친 뒤 재실행 전에 같은 step 전체를 선점검 방식으로(작업 지시·수정 파일·허용 경로·열람 금지·공통 금지·이 step의 금지·AC가 실행하는 기존 테스트를 서로) 직접 대조한다. (f) 금지 문장은 대상 산출물(시트, 보고서, 로그)을 이름으로 적어 범위를 한정하고, 범위 제한 문구는 "앞의 N개" 같은 위치 지칭 대신 파일 이름으로 쓴다.
+- **강제 수단**: 기계 검사는 없다. /harness 설계 점검(자체 점검 9번)과 /review에서 확인한다. `step_file_checks.py`는 의미상의 요구-금지 충돌을 잡지 못한다.
+- **출처**: m8-grading-v3 step 2 blocked(`145e729`), step 3 blocked(`395e798`), step 4 blocked 3회(`1d21fec`·`17107f3`·`93f7a14`)
+
 ---
 
 ## A에서 이식한 항목 (프로젝트 A `failure-patterns`의 번호)
