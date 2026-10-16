@@ -45,6 +45,7 @@ class ProbeStats:
     shape_dict: int
     shape_object: int
     shape_unknown: int
+    assistant_tool_calls: int = 0
 
 
 @dataclass(frozen=True)
@@ -120,6 +121,22 @@ def _message_parts(message: object) -> tuple[str | None, str, str]:
     return role, content, shape
 
 
+def _is_tool_call_only(message: object) -> bool:
+    """An assistant turn that only requested tools (no text) is a normal message."""
+    if isinstance(message, dict):
+        role, content = message.get("role"), message.get("content")
+        calls = message.get("tool_calls")
+    else:
+        role = getattr(message, "type", None)
+        content = getattr(message, "content", None)
+        calls = getattr(message, "tool_calls", None)
+    if role not in {"assistant", "ai"}:
+        return False
+    if not (content is None or (isinstance(content, str) and not content.strip())):
+        return False
+    return isinstance(calls, (list, tuple)) and len(calls) > 0
+
+
 async def probe_threads(saver, links: Sequence[RowLink]) -> ProbeStats:
     """Read latest tuples directly, outside any lock-holding saver iterator."""
     checkpoints: dict[str, object] = {}
@@ -143,6 +160,7 @@ async def probe_threads(saver, links: Sequence[RowLink]) -> ProbeStats:
     row_counts, row_nonempty = [], []
     nonempty = truncated = 0
     shapes = {"dict": 0, "object": 0, "unknown": 0}
+    assistant_tool_calls = 0
     buckets = [0] * 5
     for link in links:
         count = chars = present = 0
@@ -160,6 +178,10 @@ async def probe_threads(saver, links: Sequence[RowLink]) -> ProbeStats:
                 shapes["unknown"] += 1
                 continue
             for message in messages:
+                if _is_tool_call_only(message):
+                    shapes["dict" if isinstance(message, dict) else "object"] += 1
+                    assistant_tool_calls += 1
+                    continue
                 role, content, shape = _message_parts(message)
                 shapes[shape] += 1
                 if role == "tool":
@@ -186,6 +208,7 @@ async def probe_threads(saver, links: Sequence[RowLink]) -> ProbeStats:
         shape_dict=shapes["dict"],
         shape_object=shapes["object"],
         shape_unknown=shapes["unknown"],
+        assistant_tool_calls=assistant_tool_calls,
     )
 
 
@@ -277,7 +300,8 @@ def _tool_result(stats: ProbeStats) -> tuple[str, str]:
             f"rows_nonempty={rows_nonempty} messages={stats.tool_messages} "
             f"nonempty={stats.nonempty} truncated={stats.truncated} "
             f"shape_dict={stats.shape_dict} shape_object={stats.shape_object} "
-            f"shape_unknown={stats.shape_unknown} {buckets}"
+            f"shape_unknown={stats.shape_unknown} "
+            f"assistant_tool_calls={stats.assistant_tool_calls} {buckets}"
         ),
     )
 
@@ -361,9 +385,15 @@ async def _run(args) -> dict[str, tuple[str, str]]:
                     follow_redirects=False,
                 ) as client:
                     stats_lf = await langfuse_counts(client, links)
+                detail = (
+                    f"traces={stats_lf.traces} "
+                    f"generations_with_input={stats_lf.generations_with_input}"
+                )
+                # Zero usable traces cannot establish anything: report SKIP with the reason.
                 stages["langfuse"] = (
-                    "PASS",
-                    f"traces={stats_lf.traces} generations_with_input={stats_lf.generations_with_input}",
+                    ("SKIP", f"no_usable_traces {detail}")
+                    if stats_lf.traces == 0 or stats_lf.generations_with_input == 0
+                    else ("PASS", detail)
                 )
             except LangfuseShapeError:
                 stages["langfuse"] = ("FAIL", "langfuse_shape")
