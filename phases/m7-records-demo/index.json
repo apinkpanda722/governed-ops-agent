@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "audit-records-reader",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T10:17:55+0900",
+      "summary": "읽기 전용 감사 이벤트 조회·검증 요약·단일 비행 TTL 캐시와 합성 회귀 테스트를 추가하고, 계층·동결 검사 포함 make verify 통과.",
+      "completed_at": "2026-10-16T10:31:43+0900",
+      "usage": {
+        "input_tokens": 4796185,
+        "cached_input_tokens": 4647936,
+        "output_tokens": 17321,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
