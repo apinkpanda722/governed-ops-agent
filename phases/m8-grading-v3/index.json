@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "evidence-loader",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T17:23:56+0900",
+      "summary": "sent-v1 문장 분할·발송 본문 우선 선택·인용 추출·checkpoint 근거 로더와 합성 테스트 추가; make verify 통과(4503 pytest·228 웹 테스트).",
+      "completed_at": "2026-10-16T17:38:48+0900",
+      "usage": {
+        "input_tokens": 4018029,
+        "cached_input_tokens": 3880192,
+        "output_tokens": 20951,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
