@@ -36,7 +36,7 @@
 
 ### 2. `tests/test_api_entrypoint.py`
 
-`FakeService`에 `audit_view`·`audit_verify`를 더하고 `EXPECTED`에 `("GET", "/conversations/{conversation_id}/audit")`·`("GET", "/audit/verify")` 두 줄만 더한다. 라우트 집합 정확 일치 단언과 AST 가드는 그대로 통과해야 한다(**표 갱신에 한함, 단언 약화 금지**).
+수정 범위는 **`EXPECTED`에 새 라우트 2줄 추가(`("GET", "/conversations/{conversation_id}/audit")`·`("GET", "/audit/verify")`), `FakeService`에 `audit_view`·`audit_verify` 메서드 추가, `service_routes`의 접두사 튜플(`("/tasks", "/conversations", "/approvals")`)에 `"/audit"` 추가에 한한다.** 기존 `EXPECTED` 항목·단언·AST 가드는 바꾸지 않는다. `service_routes`의 수집 범위 확장은 단언 약화가 아니다(새 라우트가 수집 대상에 들어와 정확 일치 단언의 검사 범위가 넓어진다). 라우트 집합 정확 일치 단언과 AST 가드는 그대로 통과해야 한다.
 
 ### 3. `tests/test_api_audit_route.py`(신규)
 
@@ -78,9 +78,9 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 - 라우트 함수에서 `create_app` 클로저의 이름 `service`를 읽지 마라. 이유: lifespan이 서비스를 교체하므로 클로저 값은 자리표시자다(FP-070). AST 가드가 실패한다.
 - `create_app(service=실제)`로만 만든 앱으로 결선을 검증했다고 하지 마라. 이유: 클로저와 `app.state`가 같아 이 결함을 못 잡는다(FP-070).
 - 응답·오류 본문에 경로·`kid`·해시 전체·서명·대화 제목·상태를 넣지 마라. 이유: 사전 등록 프로브 2·E5가 실패한다.
-- `tests/test_api_entrypoint.py`의 라우트 집합 정확 일치 단언을 느슨하게 하지 마라. 이유: 새 라우트는 표에 정확히 두 줄을 더해서만 반영한다(FP-071).
+- `tests/test_api_entrypoint.py`의 라우트 집합 정확 일치 단언을 느슨하게 하지 마라(단언 약화 금지). 이유: 새 라우트는 표에 정확히 두 줄을 더하고 `service_routes` 접두사에 `"/audit"`를 더하는 것으로만 반영한다(FP-071). 접두사 추가는 수집 범위 확장이며 약화가 아니다.
 - 403을 쓰지 마라. 이유: 존재를 구별하게 한다. 타인·승인자·정리된 대화는 모두 404 `conversation_not_found`다.
 
 ## 소비자 점검(시뮬레이션 통과)
 
-스텁 라우트를 넣은 전체 pytest에서 `tests/test_api_entrypoint.py::test_every_service_route_uses_the_service_installed_by_lifespan`가 새 라우트 2개를 표에서 찾지 못해 실패했다(라우트 집합 정확 일치). 이 step의 수정 허용 목록에 해당 파일을 "표·FakeService 갱신에 한함"으로 넣었다. 그 밖의 실패는 이 변경과 무관했다.
+스텁 라우트를 넣은 전체 pytest에서 `tests/test_api_entrypoint.py::test_every_service_route_uses_the_service_installed_by_lifespan`가 새 라우트 2개를 표에서 찾지 못해 실패했다(라우트 집합 정확 일치). 이 step의 수정 허용 목록에 해당 파일을 넣었다. 첫 실행에서 `service_routes`가 `/tasks`·`/conversations`·`/approvals` 접두사만 수집해 `/audit/verify`가 수집되지 않는 문제로 step이 `blocked`됐고(수집 범위 누락), 접두사 튜플에 `"/audit"`를 더하는 것까지 허용 범위에 넣었다. 그 밖의 실패는 이 변경과 무관했다.
