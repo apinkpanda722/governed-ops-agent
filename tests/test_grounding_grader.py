@@ -14,7 +14,12 @@ from govops.eval.grading import GradingError, TokenUsage
 from govops.grounding import grader, prompt
 from govops.grounding.evidence import EvidenceItem
 from govops.grounding.sentences import Sentence
-from govops.grounding.spend import M8Spend, SpendCapError
+from govops.grounding.spend import (
+    STAGE_CAPS_USD,
+    TOTAL_CAP_USD,
+    M8Spend,
+    SpendCapError,
+)
 
 SENTENCES = (Sentence("s1", "합성 서비스 정상(syn-guide-001).", ("syn-guide-001",)),)
 BODY = "SYNTHETIC_EVIDENCE_SENTINEL" * 1000
@@ -213,11 +218,11 @@ def test_caps_and_expiry_refuse_before_call(tmp_path, cap):
 
     target = setup(tmp_path, call)
     if cap == "stage":
-        target.spend.reserve("calibration", 0.8)
+        target.spend.reserve("calibration", STAGE_CAPS_USD["calibration"])
         expected = SpendCapError
     elif cap == "total":
-        reservation = target.spend.reserve("validation", 0.6)
-        target.spend.settle(reservation, 2)
+        reservation = target.spend.reserve("validation", 0)
+        target.spend.settle(reservation, TOTAL_CAP_USD)
         expected = SpendCapError
     elif cap == "ledger":
         target.ledger.reserve(
@@ -414,3 +419,95 @@ def test_prompt_hash_tracks_registered_template_bytes(tmp_path, monkeypatch):
     assert prompt.prompt_sha256("v3.0") == digest
     registered.write_bytes(registered.read_bytes() + b"\n")
     assert prompt.prompt_sha256("v3.0") != digest
+
+
+@pytest.mark.parametrize(
+    "input_upper,expected",
+    [
+        (0, 60),
+        (1000, 62),
+        (10_000, 80),
+        (45_000, 150),
+        (89_999, 239.998),
+        (90_000, 240),
+        (96_452, 240),
+        (10_000_000, 240),
+    ],
+)
+def test_timeout_is_sixty_plus_two_per_thousand_input_tokens_capped(
+    input_upper, expected
+):
+    assert grader.call_timeout_seconds(input_upper) == pytest.approx(expected)
+
+
+def test_call_uses_the_size_scaled_timeout(tmp_path, monkeypatch):
+    seen = []
+    real = asyncio.wait_for
+
+    async def spy(awaitable, timeout=None):
+        seen.append(timeout)
+        return await real(awaitable, timeout=timeout)
+
+    async def call(built):
+        return response(item()), TokenUsage(100, 10)
+
+    monkeypatch.setattr(grader.asyncio, "wait_for", spy)
+    target = setup(tmp_path, call)
+    run(target)
+    built = prompt.build_prompt("v3.0", "합성 요청", SENTENCES, EVIDENCE)
+    expected = grader.call_timeout_seconds(2 * len(built.encode()) + 4096)
+    assert 60 < expected < 240 and seen == [expected]
+
+
+def test_sdk_http_timeout_matches_the_scaled_timeout(tmp_path, monkeypatch):
+    """The SDK client timeout is the same scaled value, in milliseconds."""
+    import sys
+    import types as pytypes
+
+    captured = {}
+
+    class Options:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    class Models:
+        async def generate_content(self, **kwargs):
+            usage = pytypes.SimpleNamespace(
+                prompt_token_count=10, candidates_token_count=5, thoughts_token_count=0
+            )
+            return pytypes.SimpleNamespace(
+                text="{}", usage_metadata=usage, model_version=grader.GRADER_MODEL
+            )
+
+    class Aio:
+        models = Models()
+
+        async def aclose(self):
+            return None
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.aio = Aio()
+
+        def close(self):
+            return None
+
+    kinds = pytypes.SimpleNamespace(
+        HttpOptions=Options,
+        HttpRetryOptions=lambda **kw: kw,
+        GenerateContentConfig=lambda **kw: kw,
+    )
+    package = pytypes.ModuleType("google")
+    package.__path__ = []
+    genai = pytypes.ModuleType("google.genai")
+    genai.Client, genai.types = Client, kinds
+    package.genai = genai
+    monkeypatch.setitem(sys.modules, "google", package)
+    monkeypatch.setitem(sys.modules, "google.genai", genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", kinds)
+    monkeypatch.setenv("GEMINI_API_KEY", "synthetic-key")
+    target = setup(tmp_path, None)
+    asyncio.run(target._sdk_call("합성", 90_000))
+    assert captured["timeout"] == 240_000
+    asyncio.run(target._sdk_call("합성", 1_000))
+    assert captured["timeout"] == 62_000

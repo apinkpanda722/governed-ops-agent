@@ -15,7 +15,7 @@ from govops.eval.grading import TokenUsage
 from govops.eval.observation import dump_observations
 from govops.grounding import cli, registration
 from govops.grounding.evidence import Evidence, EvidenceItem
-from govops.grounding.spend import M8Spend
+from govops.grounding.spend import STAGE_CAPS_USD, M8Spend
 
 BODY = "SYNTHETIC_PRIVATE_DELIVERABLE"
 EVIDENCE = "SYNTHETIC_PRIVATE_EVIDENCE"
@@ -220,7 +220,7 @@ def test_probe_is_synthetic_costs_count_towards_calibration_cap(
     spend = M8Spend(sheet_dir(tmp_path).parent / "spend.jsonl")
     assert spend.total_usd("calibration") > 0
     reservation = spend.reserve("calibration", 0)
-    spend.settle(reservation, 0.8)
+    spend.settle(reservation, STAGE_CAPS_USD["calibration"])
     before = len(calls)
     assert run("cost-probe") == 1 and len(calls) == before
     assert "m8_stage_cap_exceeded" in capsys.readouterr().out
@@ -272,6 +272,12 @@ def test_grader_failures_are_counted_without_exposing_text(
     label(tmp_path, "calibration")
     assert run("register-labels") == 0
     commit(tmp_path)
+    if failure == "call":
+        # Leave 0.1 USD below the stage cap so the failing calls hit it.
+        seeded = M8Spend(sheet_dir(tmp_path).parent / "spend.jsonl")
+        seeded.settle(
+            seeded.reserve("calibration", 0), STAGE_CAPS_USD["calibration"] - 0.1
+        )
     assert run("calibrate") == (1 if failure == "call" else 0)
     result = json.loads(
         (sheet_dir(tmp_path).parent / "calibration-log.jsonl")
@@ -284,7 +290,7 @@ def test_grader_failures_are_counted_without_exposing_text(
     if failure == "call":
         assert 0 < len(calls) < 30
         assert result["stop_code"] == "m8_stage_cap_exceeded"
-        assert 0 < result["cost_usd"] <= 0.8
+        assert 0 < result["cost_usd"] <= 0.1
     else:
         assert len(calls) == 30
     assert not result["complete"]

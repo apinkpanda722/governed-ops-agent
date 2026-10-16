@@ -231,3 +231,93 @@ def test_invalid_kind_and_noncanonical_sentence_numbers():
     assert injection.inject("r", "fact", bad, [], [], 1) == (
         injection.InjectionSkip("r", "split_count_changed")
     )
+
+
+def two_cited():
+    return build_sentences(
+        "첫째 합성수치는 11111111입니다(syn-guide-001).\n"
+        "둘째 합성수치는 22222222입니다(syn-guide-002)."
+    )
+
+
+@pytest.mark.parametrize("kind", ["fabricated_id", "wrong_support"])
+def test_allowed_pairs_restricts_the_target_sentence(kind):
+    sentences = two_cited()
+    bundle = evidence(
+        '{"documents":['
+        '{"doc_id":"syn-guide-003","text":"다른 자료"},'
+        '{"doc_id":"syn-guide-001","text":"11111111"},'
+        '{"doc_id":"syn-guide-002","text":"22222222"}]}'
+    )
+    for allowed, expected in (
+        ({("s1", "syn-guide-001")}, "s1"),
+        ({("s2", "syn-guide-002")}, "s2"),
+    ):
+        for seed in range(25):  # the random choice never leaves the allowed pairs
+            result = injection.inject(
+                "r", kind, sentences, bundle, ["syn-guide-003"], seed, allowed
+            )
+            assert isinstance(result, injection.InjectedRow)
+            assert result.target_sentence_id == expected
+            assert result.target_doc_id not in {"syn-guide-001", "syn-guide-002"}
+
+
+def test_no_eligible_pair_is_a_reasoned_skip_not_a_random_rejection():
+    skip = injection.inject(
+        "r", "fabricated_id", two_cited(), evidence("x"), [], 1, allowed_pairs=set()
+    )
+    assert skip == injection.InjectionSkip("r", "no_candidate")
+    assert skip.cause == "no_eligible_cited_sentence"
+    none = injection.inject(
+        "r", "fabricated_id", build_sentences("거절합니다."), (), [], 1
+    )
+    assert none.cause == "no_cited_sentence"
+
+
+def test_wrong_support_judges_a_bundled_response_per_document():
+    sentences = build_sentences("핵심합성값9876543 입니다(syn-guide-001).")
+    # The key appears in the bundle, but only inside the cited document's own entry.
+    bundle = evidence(
+        '{"results":[{"doc_id":"syn-guide-001","text":"핵심합성값9876543"},'
+        '{"doc_id":"syn-guide-002","text":"무관한 다른 합성 문서"}]}'
+    )
+    result = injection.inject(
+        "r", "wrong_support", sentences, bundle, ["syn-guide-002"], 1
+    )
+    assert isinstance(result, injection.InjectedRow)
+    assert result.target_doc_id == "syn-guide-002"
+    # Unparseable bundles keep the conservative whole-response check (skip).
+    flat = evidence("syn-guide-001 핵심합성값9876543 syn-guide-002 무관")
+    skipped = injection.inject(
+        "r", "wrong_support", sentences, flat, ["syn-guide-002"], 1
+    )
+    assert isinstance(skipped, injection.InjectionSkip)
+    assert skipped.cause == "key_in_matching_evidence"
+    # The candidate's own document containing the key is still unsafe.
+    own = evidence(
+        '{"results":[{"doc_id":"syn-guide-002","text":"핵심합성값9876543 포함"}]}'
+    )
+    unsafe = injection.inject(
+        "r", "wrong_support", sentences, own, ["syn-guide-002"], 1
+    )
+    assert unsafe.cause == "key_in_matching_evidence"
+
+
+def test_cause_codes_for_remaining_wrong_support_skips():
+    sentences = build_sentences("핵심합성값9876543 입니다(syn-guide-001).")
+    assert (
+        injection.inject("r", "wrong_support", sentences, (), [], 1).cause
+        == "no_observed_candidate"
+    )
+    assert (
+        injection.inject(
+            "r", "wrong_support", sentences, evidence("무관"), ["syn-guide-002"], 1
+        ).cause
+        == "no_matching_evidence"
+    )
+    assert (
+        injection.inject(
+            "r", "wrong_support", build_sentences("값 3(syn-guide-001)."), (), [], 1
+        ).cause
+        == "no_key_string"
+    )

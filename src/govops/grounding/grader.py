@@ -220,6 +220,19 @@ def aggregate_repeats(results: Sequence[GradeResult]) -> RowAggregate:
     return RowAggregate(labels, positive, supports, any(positive.values()))
 
 
+# Addendum 1 §E: 60 s + 2 s per 1,000 reserved input tokens, at most 240 s.
+TIMEOUT_BASE_SECONDS = 60
+TIMEOUT_PER_1K_INPUT_SECONDS = 2
+TIMEOUT_MAX_SECONDS = 240
+
+
+def call_timeout_seconds(input_upper: int) -> float:
+    return min(
+        TIMEOUT_MAX_SECONDS,
+        TIMEOUT_BASE_SECONDS + TIMEOUT_PER_1K_INPUT_SECONDS * input_upper / 1000,
+    )
+
+
 class GroundingGrader:
     def __init__(
         self,
@@ -325,7 +338,7 @@ class GroundingGrader:
                     self.call(prompt)
                     if self.call is not None
                     else self._sdk_call(prompt, input_upper),
-                    timeout=60,
+                    timeout=call_timeout_seconds(input_upper),
                 )
                 if not isinstance(confirmed, TokenUsage):
                     raise GradingError("grading_response_failure")
@@ -382,7 +395,8 @@ class GroundingGrader:
             api_key=key,
             vertexai=False,
             http_options=types.HttpOptions(
-                timeout=60000, retry_options=types.HttpRetryOptions(attempts=1)
+                timeout=int(call_timeout_seconds(input_upper) * 1000),
+                retry_options=types.HttpRetryOptions(attempts=1),
             ),
         )
         try:

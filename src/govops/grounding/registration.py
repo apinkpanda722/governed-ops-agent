@@ -11,9 +11,13 @@ from pathlib import Path
 from govops.grounding.sentences import SPLITTER_RULES_VERSION, splitter_rules_sha256
 
 REGISTRATION_PATH = Path("docs/results/m8-grader-registration.json")
-HYPOTHESES = tuple(
-    f"docs/results/hypotheses-m8-{kind}.md"
-    for kind in ("grader", "citation", "hallucination")
+HYPOTHESES = (
+    *(
+        f"docs/results/hypotheses-m8-{kind}.md"
+        for kind in ("grader", "citation", "hallucination")
+    ),
+    # Addendum 1 is a registration too: it must be committed and unchanged.
+    "docs/results/hypotheses-m8-grader-addendum-1.md",
 )
 FIELDS = {
     "evidence_max_chars",

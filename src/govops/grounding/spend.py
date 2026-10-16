@@ -9,8 +9,9 @@ from contextlib import contextmanager
 from decimal import Decimal
 from pathlib import Path
 
-STAGE_CAPS_USD = {"calibration": 0.8, "validation": 0.6, "measurement": 0.6}
-TOTAL_CAP_USD = 2.0
+# Addendum 1 (docs/results/hypotheses-m8-grader-addendum-1.md §E): previously 0.8/0.6/0.6, total 2.0.
+STAGE_CAPS_USD = {"calibration": 3.0, "validation": 2.5, "measurement": 1.5}
+TOTAL_CAP_USD = 7.0
 DEFAULT_PATH = (
     Path(__file__).resolve().parents[3] / "data/interim/m8-grounding/spend.jsonl"
 )
