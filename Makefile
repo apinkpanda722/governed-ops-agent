@@ -314,3 +314,8 @@ demo-faults-on:
 # 사용자 실행, 장면 1 이후 주입 규칙을 해제한다
 demo-faults-off:
 	docker compose --env-file .env -f infra/docker-compose.yml exec -T mock-slack python -m govops.mocks.admin faults clear
+
+.PHONY: m8-evidence-probe
+# 사용자 실행, 읽기 전용
+m8-evidence-probe:
+	uv run --env-file .env python -m govops.grounding.probe $(PROBE_ARGS)
