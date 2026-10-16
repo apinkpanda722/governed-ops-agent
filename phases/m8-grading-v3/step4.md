@@ -22,7 +22,7 @@
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`
 수정 허용 경로: `src/govops/grounding/sample.py`, `src/govops/grounding/sheets.py`, `src/govops/grounding/registration.py`, `src/govops/grounding/cli.py`, `Makefile`, `tests/test_makefile.py`, `tests/test_grounding_sample.py`, `tests/test_grounding_sheets.py`, `tests/test_grounding_registration.py`, `tests/test_grounding_cli.py`, `tests/test_grounding_guide.py`, `src/govops/grounding/db.py`, `src/govops/grounding/probe.py`, `tests/test_grounding_db.py`, `tests/test_grounding_probe.py`
 
-열람 금지의 범위: 이 금지는 **Codex 세션이 해당 경로의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드가 런타임에 그 경로를 다루는 것(예: 기본 출력 경로 `data/interim/m8-grounding/`, 평가 명세를 읽는 `load_specs`)은 대상이 아니다. 테스트가 `data/interim/`·`data/eval/`·`data/redteam/`의 실제 파일 **내용**을 읽는 것은 여전히 금지이며 테스트는 임시 디렉터리·합성 명세·합성 관측만 쓴다. 예외로 `data/results/`의 실행 디렉터리는 파일 이름과 JSON 키 이름을 확인하는 데 한해 열람할 수 있고, 응답 본문(`answer`·`effect_bodies`)이나 근거 본문을 출력·인용하지 않는다.
+열람 금지의 범위: 이 금지는 **Codex 세션이 해당 경로의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드가 런타임에 그 경로를 다루는 것(예: 기본 출력 경로 `data/interim/m8-grounding/`, 평가 명세를 읽는 `load_specs`)은 대상이 아니다. 테스트가 `data/interim/`·`data/eval/`·`data/redteam/`의 실제 파일 **내용**을 읽는 것은 여전히 금지이며 테스트는 임시 디렉터리·합성 명세·합성 관측만 쓴다. 예외로 `data/results/`의 실행 디렉터리는 파일 이름과 JSON 키 이름을 확인하는 데 한해 열람할 수 있고, 응답 본문(`answer`·`effect_bodies`)이나 근거 본문을 출력·인용하지 않는다. 단 이 step이 새로 작성하는 테스트에 한한 제한이며, 기존 `tests/test_m7_freeze.py`가 `scripts/freeze_digest.py`로 해시를 계산하며 동결 경로 파일을 바이트로 읽는 것은 `make verify`의 일부이므로 허용한다. Codex 세션이 그 파일 내용을 출력·인용하는 것은 여전히 금지다. `docs/results/m8-grader-registration.json`은 사용자 실행 CLI가 런타임에 덧붙여 쓰는 파일이며, 이 step의 테스트는 임시 저장소에서만 쓰고 실제 파일을 만들거나 고치지 않는다.
 
 **배경**: 보정·검증 표본 추출, 사람 라벨 시트와 근거 카드, CSV 해시 등록과 가드, 채점·보고 CLI를 만든다. 가드 순서는 hypotheses-m8-grader §6·§8·§12가 정본이다. 이 step에서 실제 Gemini·DB를 호출하지 않는다(채점은 가짜 `call`을 주입하는 seam으로 테스트).
 
@@ -62,7 +62,7 @@ def draw_heldout(pool_with_evidence: Sequence[PoolRow]) -> list[PoolRow]: ...
 
 ### 5. Makefile (`verify` 레시피 불변)
 
-`m8-grounding-sheet`, `m8-grounding-register`(`register-labels`), `m8-grounding-calibrate`, `m8-grounding-heldout`(`draw-heldout`+`sheet-heldout`), `m8-grounding-grade`, `m8-grounding-measure`, `m8-grounding-report` 타깃. 모두 `uv run --env-file .env python -m govops.grounding.cli <sub> $(ARGS)`, `.PHONY`, "사용자 실행" 주석. `tests/test_makefile.py`(수정 허용: **새 타깃들이 `verify`에 없고 사용자 실행 타깃임을 확인하는 테스트 추가에 한함**).
+`m8-grounding-sheet`, `m8-grounding-register`(`register-labels`), `m8-grounding-calibrate`, `m8-grounding-heldout`(`draw-heldout`+`sheet-heldout`), `m8-grounding-grade`, `m8-grounding-measure`, `m8-grounding-report` 타깃. 모두 `uv run --env-file .env python -m govops.grounding.cli <sub> $(ARGS)`, "사용자 실행" 주석, 타깃마다 자기 줄 `.PHONY: <타깃>`을 둔다(step 0이 만든 `.PHONY: m8-evidence-probe` 줄은 `tests/test_makefile.py`가 정확히 단언하므로 바꾸지 않는다). `tests/test_makefile.py`(수정 허용: **새 타깃들이 `verify`에 없고 사용자 실행 타깃임을 확인하는 테스트 추가에 한함**).
 
 ### 6. 테스트 (합성 데이터)
 
