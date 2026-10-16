@@ -33,16 +33,7 @@
     {
       "step": 2,
       "name": "grader-v3",
-      "status": "blocked",
-      "started_at": "2026-10-16T17:38:48+0900",
-      "blocked_reason": "선점검에서 충돌을 발견했습니다. 요구사항 “`_sdk_call`은 `eval/grading.py`의 구조를 따라 새로 작성하되 이 step에서 실행하지 않는다.”에 따라 새 모듈에서 Gemini SDK를 import하면, tests/test_eval_grading.py::test_google_sdk_import_is_confined의 `assert found == {\"eval/grading.py\"}`가 실패하여 “기존 테스트를 깨뜨리지 마라.”와 충돌합니다. 해당 테스트는 수정 허용 목록에도 없습니다. SDK 허용 파일 집합에 grounding/grader.py를 추가하도록 작업 범위 조정이 필요합니다. 코드 수정과 검증 실행 없이 중단했습니다.",
-      "blocked_at": "2026-10-16T17:41:31+0900",
-      "usage": {
-        "input_tokens": 169804,
-        "cached_input_tokens": 111616,
-        "output_tokens": 1087,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 3,
