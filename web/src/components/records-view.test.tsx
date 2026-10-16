@@ -1,0 +1,53 @@
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vitest";
+import { RecordsView } from "./records-view";
+import { testids } from "@/lib/testids";
+
+const id="a".repeat(32), ts="2026-10-16T01:02:03+00:00";
+const event=(seq:number, name="side_effect.attempt")=>({seq,ts,event:name,actor:"demo-platform-g3",hash12:"b".repeat(12)});
+const audit={conversation_id:id,truncated:false,turns:[{turn_id:"c".repeat(32),turn_index:2,events:[event(4),event(3,"approval.approved")]},{turn_id:id,turn_index:1,events:[{...event(2,"future.event"),reason:"future_reason",decision:"future_decision",code:"future_code"},event(1,"guardrail.new_event")]}]};
+const verify={status:"pass",checked_at:ts,chain:{records:4,files:1,anchors_checked:2,problems:[]},anchors:{committed:1,pending:1},legacy_unverified:{files:0,lines:0},known_limit:"tail_after_last_anchor_not_detected"};
+function stub(auditStatus=200, summary:unknown=verify) {
+ const fetcher=vi.fn(async(path:string)=>new Response(JSON.stringify(path.endsWith("/verify")?summary:auditStatus===200?audit:{code:"conversation_not_found"}),{status:path.endsWith("/verify")?200:auditStatus}));
+ vi.stubGlobal("fetch",fetcher); return fetcher;
+}
+afterEach(()=>{cleanup();vi.unstubAllGlobals();});
+test.each(["pass","fail"])("records show %s badge with host and anchor limitations",async status=>{
+ const fetcher=stub(200,{...verify,status,chain:{...verify.chain,problems:status==="fail"?[{code:"tail_truncated",seq:5}]:[]}});
+ render(<RecordsView id={id}/>);
+ await waitFor(()=>expect(screen.getByTestId(testids.recordsVerify).textContent).toContain(status.toUpperCase()));
+ const badge=screen.getByTestId(testids.recordsVerify).textContent;
+ expect(badge).toContain("레코드 4개");expect(badge).toContain("고정점 2개");
+ expect(badge).toContain("마지막 고정점 이후는 탐지되지 않습니다");expect(badge).toContain("이 호스트의 체인 기준입니다");
+ expect(fetcher.mock.calls.map(([path])=>path).sort()).toEqual([`/api/conversations/${id}/audit`,"/api/audit/verify"].sort());
+ if(status==="fail")expect(badge).toContain("꼬리 잘림");
+});
+test("timeline orders turns and sequences, labels events and keeps unknown codes as text",async()=>{
+ stub(); render(<RecordsView id={id}/>);
+ await waitFor(()=>expect(screen.getAllByTestId(testids.recordsEvent)).toHaveLength(4));
+ const rows=screen.getAllByTestId(testids.recordsEvent);
+ expect(rows.map(row=>row.getAttribute("data-seq"))).toEqual(["1","2","3","4"]);
+ expect(rows[0].textContent).toContain("Guardrail 판정");
+ for(const code of ["future.event","future_reason","future_decision","future_code"])expect(rows[1].textContent).toContain(code);
+ expect(rows[2].textContent).toContain("승인자");expect(rows[2].textContent).toContain("승인 완료");
+});
+test("404 explains cleanup and CLI verification even if global verification fails",async()=>{
+ vi.stubGlobal("fetch",vi.fn(async(path:string)=>new Response(JSON.stringify({code:path.endsWith("/verify")?"upstream_unavailable":"conversation_not_found"}),{status:path.endsWith("/verify")?502:404})));
+ render(<RecordsView id={id}/>);
+ await waitFor(()=>expect(screen.getByTestId(testids.recordsNotFound).textContent).toBe("기록을 찾을 수 없습니다. 정리된 대화는 기록 화면에서 볼 수 없고 체인은 audit-verify로 확인합니다"));
+ expect(screen.queryByTestId(testids.recordsVerify)).toBeNull();
+});
+test("timeline renders HTML and markdown as plain text and indicates truncation",async()=>{
+ const value={...audit,truncated:true,turns:[{turn_id:id,turn_index:1,events:[{...event(1,"<b>**future**</b>"),reason:"<script>text</script>"}]}]};
+ vi.stubGlobal("fetch",vi.fn(async(path:string)=>new Response(JSON.stringify(path.endsWith("/verify")?verify:value))));
+ const {container}=render(<RecordsView id={id}/>);
+ await waitFor(()=>expect(screen.getAllByTestId(testids.recordsEvent)).toHaveLength(1));
+ expect(screen.getByTestId(testids.recordsEvent).textContent).toContain("<b>**future**</b>");
+ expect(container.querySelector("script, b, strong")).toBeNull();expect(screen.getByText("이벤트가 많아 일부 기록만 표시합니다.")).toBeDefined();
+});
+test("verification errors never imply PASS and preserve the timeline",async()=>{
+ vi.stubGlobal("fetch",vi.fn(async(path:string)=>new Response(JSON.stringify(path.endsWith("/verify")?{code:"upstream_unavailable"}:audit),{status:path.endsWith("/verify")?502:200})));
+ render(<RecordsView id={id}/>);
+ await waitFor(()=>expect(screen.getAllByTestId(testids.recordsEvent)).toHaveLength(4));
+ expect(screen.queryByTestId(testids.recordsVerify)).toBeNull();expect(screen.getByRole("alert").textContent).toContain("검증 결과");
+});
