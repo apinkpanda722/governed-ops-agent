@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "audit-view-service",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-16T10:41:15+0900",
+      "summary": "읽기 전용 audit_view·audit_verify와 합성 서비스 테스트 26개 추가. 기존 28개 메서드 불변 및 계층·동결 검사 포함 make verify 통과.",
+      "completed_at": "2026-10-16T10:53:20+0900",
+      "usage": {
+        "input_tokens": 3716235,
+        "cached_input_tokens": 3576576,
+        "output_tokens": 14889,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
