@@ -253,6 +253,17 @@ class VerifySummaryCache:
         self._lock = threading.Lock()
         self._values: dict[Hashable, tuple[float, dict]] = {}
 
+    def peek(self, key) -> dict | None:
+        with self._lock:
+            cached = self._values.get(key)
+            if cached is not None and self.clock() < cached[0]:
+                return cached[1]
+            return None
+
+    def put(self, key, value: dict) -> None:
+        with self._lock:
+            self._values[key] = (self.clock() + self.ttl, value)
+
     def get(self, key, compute: Callable[[], dict]) -> dict:
         with self._lock:
             cached = self._values.get(key)

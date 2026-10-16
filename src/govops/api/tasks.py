@@ -509,12 +509,31 @@ class TaskService:
             raise ConversationError(503, "audit_unavailable")
         if not hasattr(self, "_audit_verify_cache"):
             self._audit_verify_cache = records.VerifySummaryCache()
+        cache = self._audit_verify_cache
+        hit = cache.peek(directory)
+        if hit is not None:
+            return hit
+        # 단일 비행 대기는 이벤트 루프 쪽에서 한다: 계산만 스레드에서 돈다.
+        flights = self.__dict__.setdefault("_audit_verify_flights", {})
+        flight = flights.get(directory)
+        if flight is None:
+
+            async def compute() -> dict:
+                value = await asyncio.to_thread(records.verify_summary, directory)
+                cache.put(directory, value)
+                return value
+
+            flight = asyncio.ensure_future(compute())
+            flights[directory] = flight
+
+            def done(task: asyncio.Future) -> None:
+                flights.pop(directory, None)
+                if not task.cancelled():
+                    task.exception()
+
+            flight.add_done_callback(done)
         try:
-            return await asyncio.to_thread(
-                self._audit_verify_cache.get,
-                directory,
-                lambda: records.verify_summary(directory),
-            )
+            return await asyncio.shield(flight)
         except records.AuditUnavailable:
             raise ConversationError(503, "audit_unavailable") from None
 

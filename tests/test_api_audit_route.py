@@ -6,6 +6,7 @@ import json
 import re
 import secrets
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -553,26 +554,27 @@ async def test_e6_corrupt_anchor_is_fixed_503(monkeypatch, verify_chain, tmp_pat
 @async_test
 async def test_e7_concurrent_requests_share_one_compute(monkeypatch, verify_chain):
     service, _, _ = verify_chain
-    cache = records.VerifySummaryCache()
-    service._audit_verify_cache = cache
-    original_get, verify = cache.get, records.verify_summary
-    all_entered, release = threading.Event(), threading.Event()
-    lock, arrivals = threading.Lock(), []
+    service._audit_verify_cache = records.VerifySummaryCache()
+    # 기본 실행기를 요청 수보다 작게 고정한다: 대기가 스레드를 점유하면 굶는다.
+    pool = ThreadPoolExecutor(max_workers=4)
+    asyncio.get_running_loop().set_default_executor(pool)
+    verify = records.verify_summary
+    entered, release = threading.Event(), threading.Event()
+    arrivals = []
     count = 6
+    original = service.audit_verify
 
-    def get(key, compute):
-        with lock:
-            arrivals.append(key)
-            if len(arrivals) == count:
-                all_entered.set()
-        return original_get(key, compute)
+    async def counted():
+        arrivals.append(1)
+        return await original()
 
     def held(directory):
+        entered.set()
         assert release.wait(timeout=10)
         return verify(directory)
 
     compute = Mock(side_effect=held)
-    monkeypatch.setattr(cache, "get", get)
+    monkeypatch.setattr(service, "audit_verify", counted)
     monkeypatch.setattr(records, "verify_summary", compute)
     async with server(monkeypatch, service) as (client, auth):
         headers = auth(OWNER)
@@ -581,7 +583,11 @@ async def test_e7_concurrent_requests_share_one_compute(monkeypatch, verify_chai
             for _ in range(count)
         ]
         try:
-            assert await asyncio.to_thread(all_entered.wait, 5)
+            async with asyncio.timeout(5):
+                while len(arrivals) < count or not entered.is_set():
+                    await asyncio.sleep(0.01)
+            # 대기 중인 검증 요청이 공용 스레드를 점유하지 않는다.
+            await asyncio.wait_for(asyncio.to_thread(lambda: None), 2)
         finally:
             release.set()
         responses = await asyncio.wait_for(asyncio.gather(*requests), 10)
@@ -591,6 +597,7 @@ async def test_e7_concurrent_requests_share_one_compute(monkeypatch, verify_chai
         assert all(v == values[0] for v in values) and values[0]["status"] == "pass"
         expect(await client.get("/audit/verify", headers=headers), 200, values[0])
         assert compute.call_count == 1
+    pool.shutdown(wait=False)
 
 
 @async_test
