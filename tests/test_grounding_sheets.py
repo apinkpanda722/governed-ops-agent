@@ -151,3 +151,45 @@ def test_citation_validation_splitter_and_immutable_text(tmp_path, monkeypatch):
         sheets.load_labels(out / "citations.csv", expected)
     with pytest.raises(ValueError, match="splitter_rules_changed"):
         sheets.write_label_sheets(rows, out, registered_splitter="old")
+
+
+def test_rewrite_evidence_card_only_touches_the_html(tmp_path):
+    rows = pool(4)
+    out = sheet_dir(tmp_path)
+    expected = sheets.write_label_sheets(rows, out)
+    fill(out / "labels.csv", "label", ["supported", "unsupported"])
+    names = ("labels.csv", "citations.csv", "meta.json")
+    before = {n: (out / n).read_bytes() for n in names}
+    (out / "evidence.html").write_text("old", encoding="utf-8")
+    sheets.rewrite_evidence_card(
+        rows, out, registered_splitter=expected.splitter_rules_sha256
+    )
+    assert {n: (out / n).read_bytes() for n in names} == before
+    assert (out / "evidence.html").read_text() != "old"
+    assert stat.S_IMODE((out / "evidence.html").stat().st_mode) == 0o600
+
+
+@pytest.mark.parametrize("mutation", ["label_row", "citation_row", "splitter"])
+def test_rewrite_evidence_card_rejects_set_or_hash_mismatch(tmp_path, mutation):
+    rows = pool(4)
+    out = sheet_dir(tmp_path)
+    sheets.write_label_sheets(rows, out)
+    card_bytes = (out / "evidence.html").read_bytes()
+    if mutation == "label_row":
+        lines = (out / "labels.csv").read_text().splitlines(keepends=True)
+        (out / "labels.csv").write_text("".join(lines[:-1]))
+    elif mutation == "citation_row":
+        (out / "citations.csv").write_text(
+            (out / "citations.csv").read_text() + "S01,s9,syn-guide-009,\n"
+        )
+    else:
+        meta = json.loads((out / "meta.json").read_text())
+        meta["splitter_rules_sha256"] = "f" * 64
+        (out / "meta.json").write_text(json.dumps(meta))
+    csv_before = {
+        n: (out / n).read_bytes() for n in ("labels.csv", "citations.csv", "meta.json")
+    }
+    with pytest.raises(ValueError):
+        sheets.rewrite_evidence_card(rows, out)
+    assert (out / "evidence.html").read_bytes() == card_bytes
+    assert {n: (out / n).read_bytes() for n in csv_before} == csv_before
