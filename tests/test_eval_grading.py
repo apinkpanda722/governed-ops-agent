@@ -126,7 +126,7 @@ def test_google_sdk_import_is_confined():
                 )
             ):
                 found.add(path.relative_to(root).as_posix())
-    assert found == {"eval/grading.py"}
+    assert found == {"eval/grading.py", "grounding/grader.py"}
 
 
 def test_parse_failure_keeps_confirmed_usage(tmp_path):

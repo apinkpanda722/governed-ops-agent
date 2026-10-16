@@ -314,3 +314,44 @@ demo-faults-on:
 # 사용자 실행, 장면 1 이후 주입 규칙을 해제한다
 demo-faults-off:
 	docker compose --env-file .env -f infra/docker-compose.yml exec -T mock-slack python -m govops.mocks.admin faults clear
+
+.PHONY: m8-evidence-probe
+# 사용자 실행, 읽기 전용
+m8-evidence-probe:
+	uv run --env-file .env python -m govops.grounding.probe $(PROBE_ARGS)
+
+.PHONY: m8-grounding-sheet
+# 사용자 실행
+m8-grounding-sheet:
+	uv run --env-file .env python -m govops.grounding.cli sheet-calibration $(ARGS)
+
+.PHONY: m8-grounding-register
+# 사용자 실행
+m8-grounding-register:
+	uv run --env-file .env python -m govops.grounding.cli register-labels $(ARGS)
+
+.PHONY: m8-grounding-calibrate
+# 사용자 실행
+m8-grounding-calibrate:
+	uv run --env-file .env python -m govops.grounding.cli calibrate $(ARGS)
+
+.PHONY: m8-grounding-heldout
+# 사용자 실행
+m8-grounding-heldout:
+	uv run --env-file .env python -m govops.grounding.cli draw-heldout $(ARGS)
+	uv run --env-file .env python -m govops.grounding.cli sheet-heldout $(ARGS)
+
+.PHONY: m8-grounding-grade
+# 사용자 실행
+m8-grounding-grade:
+	uv run --env-file .env python -m govops.grounding.cli grade-heldout $(ARGS)
+
+.PHONY: m8-grounding-measure
+# 사용자 실행
+m8-grounding-measure:
+	uv run --env-file .env python -m govops.grounding.cli measure $(ARGS)
+
+.PHONY: m8-grounding-report
+# 사용자 실행
+m8-grounding-report:
+	uv run --env-file .env python -m govops.grounding.cli report $(ARGS)

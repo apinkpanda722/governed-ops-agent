@@ -5,6 +5,43 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_m8_grounding_targets_are_user_run_and_outside_verify():
+    text = (REPO_ROOT / "Makefile").read_text()
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    for suffix, commands in {
+        "sheet": ["sheet-calibration"],
+        "register": ["register-labels"],
+        "calibrate": ["calibrate"],
+        "heldout": ["draw-heldout", "sheet-heldout"],
+        "grade": ["grade-heldout"],
+        "measure": ["measure"],
+        "report": ["report"],
+    }.items():
+        target = "m8-grounding-" + suffix
+        assert f".PHONY: {target}\n# 사용자 실행\n{target}:\n" in text
+        recipe = text.split(target + ":\n", 1)[1].split("\n\n", 1)[0]
+        assert recipe.splitlines() == [
+            f"\tuv run --env-file .env python -m govops.grounding.cli {command} $(ARGS)"
+            for command in commands
+        ]
+        assert target not in verify
+
+
+def test_m8_evidence_probe_is_user_run_readonly_and_outside_verify():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: m8-evidence-probe\n" in text
+    assert (
+        "# 사용자 실행, 읽기 전용\nm8-evidence-probe:\n"
+        "\tuv run --env-file .env python -m govops.grounding.probe $(PROBE_ARGS)\n"
+    ) in text
+    assert "m8-evidence-probe" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    commands = (REPO_ROOT / "AGENTS.md").read_text().split("## 명령어", 1)[1]
+    assert (
+        "make m8-evidence-probe # 근거 보존 점검, 개수만 출력(읽기 전용, 사용자 실행)"
+        in commands
+    )
+
+
 def test_db_init_is_idempotent_and_user_run_only() -> None:
     text = (REPO_ROOT / "Makefile").read_text()
     assert ".PHONY: db-init" in text

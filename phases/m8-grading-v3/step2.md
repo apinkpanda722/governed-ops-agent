@@ -17,10 +17,10 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/grounding/prompt.py`, `src/govops/grounding/prompts/v3_0.txt`, `src/govops/grounding/grader.py`, `src/govops/grounding/spend.py`, `tests/test_grounding_grader.py`, `tests/test_grounding_spend.py`. TDD(테스트를 먼저 쓰고 통과하는 구현을 쓴다).
+**수정할 파일**(이 목록이 전부다): `src/govops/grounding/prompt.py`, `src/govops/grounding/prompts/v3_0.txt`, `src/govops/grounding/grader.py`, `src/govops/grounding/spend.py`, `tests/test_grounding_grader.py`, `tests/test_grounding_spend.py`, `tests/test_eval_grading.py`(`test_google_sdk_import_is_confined`의 기대 집합에 `grounding/grader.py` 한 항목 추가에 한함. 정확 일치(`==`) 단언 유지, 다른 단언 약화 금지). TDD(테스트를 먼저 쓰고 통과하는 구현을 쓴다).
 
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`
-수정 허용 경로: `src/govops/grounding/prompt.py`, `src/govops/grounding/prompts/v3_0.txt`, `src/govops/grounding/grader.py`, `src/govops/grounding/spend.py`, `tests/test_grounding_grader.py`, `tests/test_grounding_spend.py`
+수정 허용 경로: `src/govops/grounding/prompt.py`, `src/govops/grounding/prompts/v3_0.txt`, `src/govops/grounding/grader.py`, `src/govops/grounding/spend.py`, `tests/test_grounding_grader.py`, `tests/test_grounding_spend.py`, `tests/test_eval_grading.py`
 
 열람 금지의 범위: 이 금지는 **Codex 세션이 해당 경로의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드가 런타임에 그 경로를 다루는 것(예: 기본 출력 경로 `data/interim/m8-grounding/`, 평가 명세를 읽는 `load_specs`)은 대상이 아니다. 테스트가 `data/interim/`·`data/eval/`·`data/redteam/`의 실제 파일 **내용**을 읽는 것은 여전히 금지이며 테스트는 임시 디렉터리·합성 명세·합성 관측만 쓴다. 예외로 `data/results/`의 실행 디렉터리는 파일 이름과 JSON 키 이름을 확인하는 데 한해 열람할 수 있고, 응답 본문(`answer`·`effect_bodies`)이나 근거 본문을 출력·인용하지 않는다.
 
@@ -124,4 +124,4 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 소비자 점검(시뮬레이션 통과)
 
-`tests/test_costs*.py`는 `PURPOSES`와 원장 파일 이름을 단언하지만 이 step은 기존 purpose(`grading`)만 쓰고 `costs.py`를 바꾸지 않으므로 영향이 없다. `tests/test_eval_grading.py`는 기존 모듈을 수정하지 않아 불변이다. `tests/test_architecture.py`가 `grounding`의 `openai`·`anthropic`·`litellm` import를 막고 `google.genai`는 허용한다. `tests/test_env_defaults.py`는 `environ.get`에 비어 있지 않은 기본값을 넘기는 코드를 막으므로 `GEMINI_API_KEY`는 기존 `eval/grading.py`와 같은 방식으로 읽는다.
+`tests/test_costs*.py`는 `PURPOSES`와 원장 파일 이름을 단언하지만 이 step은 기존 purpose(`grading`)만 쓰고 `costs.py`를 바꾸지 않으므로 영향이 없다. `tests/test_eval_grading.py::test_google_sdk_import_is_confined`는 `google.genai`를 import하는 파일 집합을 `==`로 단언하므로 `grounding/grader.py`의 SDK import가 이 집합을 바꾼다(기대 집합에 그 한 항목을 더하는 것이 이 step의 허용 범위). 이 단언은 앞선 시뮬레이션에서 놓쳤다: stub 모듈에 SDK import가 없어 정확 일치 단언이 걸리지 않았다(FP-071 보완 후보, 결과 PR의 FP-074). `tests/test_architecture.py`가 `grounding`의 `openai`·`anthropic`·`litellm` import를 막고 `google.genai`는 허용한다. `tests/test_env_defaults.py`는 `environ.get`에 비어 있지 않은 기본값을 넘기는 코드를 막으므로 `GEMINI_API_KEY`는 기존 `eval/grading.py`와 같은 방식으로 읽는다.
