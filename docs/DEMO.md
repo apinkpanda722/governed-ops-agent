@@ -182,7 +182,7 @@ make audit-verify
 make demo-scene5
 ```
 
-스크립트는 임시 디렉터리에 체인을 복사하고 원본 디렉터리의 최신 고정점을 고른다. 복사본 마지막 파일에 그 고정점보다 작은 seq만 남기고, 임시 고정점의 `dir`만 복사본으로 바꿔 기존 검증기를 호출한다. 기대 출력은 `FAIL chain … code=tail_truncated seq=<n>`다. 원본 체인·고정점은 읽기만 하며 임시 복사본은 종료 시 정리한다. 고정점이 없으면 안내와 함께 exit 2이므로 사전 고정점을 먼저 남긴다.
+스크립트는 임시 디렉터리에 체인 파일과 legacy 파일(`chain.genesis`가 봉인한다)을 복사하고 원본 디렉터리의 최신 고정점을 고른다. 복사본 검증: 자르기 전 PASS → 자른 뒤 FAIL. 먼저 복사본을 검증해 `PASS chain …`을 출력하고(PASS가 아니면 코드만 출력하고 exit 1), 마지막 체인 파일에 그 고정점보다 작은 seq만 남긴 뒤 임시 고정점의 `dir`만 복사본으로 바꿔 기존 검증기를 다시 호출한다. 기대 출력은 `PASS chain …` 다음 `FAIL chain … code=tail_truncated seq=<n>`다. 원본 체인·고정점은 읽기만 하며 임시 복사본은 종료 시 정리한다. 고정점이 없으면 안내와 함께 exit 2이므로 사전 고정점을 먼저 남긴다.
 
 Langfuse에서 시연 task의 trace를 보여 준다. 수치 화면은 [README 결과 표](../README.md#평가-결과-요약)의 출처와 같은 문구만 쓴다. 감사 탐지의 기존 관측은 [M4 결과 41·77행](results/2026-10-08-m4-audit-live.md), [`scene5_tail_cut` 재확인 35행](results/2026-10-13-m6-limits-delete-live.md#감사보존)에 있다. 복사본 live 시연은 촬영 전 확인할 항목이다.
 
