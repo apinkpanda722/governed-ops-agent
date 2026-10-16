@@ -21,6 +21,9 @@ class TurnIndex(Protocol):
         self, *, turn_id, conversation_id, owner_sub, turn_index, created_at
     ) -> None: ...
     async def list_for_owner(self, owner_sub: str, limit: int) -> list[dict]: ...
+    async def turn_ids_of(
+        self, conversation_id, owner_sub
+    ) -> list[tuple[str, int]]: ...
     async def conversation_of(self, turn_id) -> str | None: ...
     async def set_awaiting(self, turn_id, awaiting: bool) -> None: ...
     async def awaiting(self) -> list[tuple[str, str]]: ...
@@ -68,6 +71,18 @@ class InMemoryTurnIndex:
         rows = sorted(groups.values(), key=lambda row: row["conversation_id"])
         rows.sort(key=lambda row: row["last_created_at"], reverse=True)
         return rows[:limit]
+
+    async def turn_ids_of(self, conversation_id, owner_sub) -> list[tuple[str, int]]:
+        return sorted(
+            (
+                (turn_id, row["turn_index"])
+                for turn_id, row in self.rows.items()
+                if row["conversation_id"] == conversation_id
+                and row["owner_sub"] == owner_sub
+                and row["deleted_at"] is None
+            ),
+            key=lambda turn: turn[1],
+        )
 
     async def conversation_of(self, turn_id):
         return self.rows.get(turn_id, {}).get("conversation_id")
@@ -190,6 +205,20 @@ class PostgresTurnIndex:
                 (owner_sub, limit),
             )
             return await cursor.fetchall()
+
+        return await self._run(operation)
+
+    async def turn_ids_of(self, conversation_id, owner_sub) -> list[tuple[str, int]]:
+        async def operation(conn):
+            cursor = await conn.execute(
+                sql.SQL(
+                    "SELECT turn_id, turn_index FROM {} WHERE conversation_id = %s AND owner_sub = %s AND deleted_at IS NULL ORDER BY turn_index ASC"
+                ).format(self.table),
+                (conversation_id, owner_sub),
+            )
+            return [
+                (row["turn_id"], row["turn_index"]) for row in await cursor.fetchall()
+            ]
 
         return await self._run(operation)
 
