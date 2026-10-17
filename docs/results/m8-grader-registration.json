@@ -8,6 +8,10 @@
     {
       "calibration_citations_sha256": "ffc8119b2a838dd368e1b4d6cb5db4e55bc805c4d746c49d744d257a95f2d687",
       "calibration_labels_sha256": "e7a12cb5e299c3453599d049839c3e0d851a3b7667a15d67a5d2b318e777dacb"
+    },
+    {
+      "adopted_prompt_sha256": "d295306e09167cf7bd3ebca58817076aaddf134e9aaf5d7422cd8bc6c825f6e6",
+      "adopted_prompt_version": "v3.2"
     }
   ]
 }
