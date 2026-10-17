@@ -16,8 +16,9 @@ HYPOTHESES = (
         f"docs/results/hypotheses-m8-{kind}.md"
         for kind in ("grader", "citation", "hallucination")
     ),
-    # Addendum 1 is a registration too: it must be committed and unchanged.
+    # Addenda are registrations too: they must be committed and unchanged.
     "docs/results/hypotheses-m8-grader-addendum-1.md",
+    "docs/results/hypotheses-m8-grader-addendum-2.md",
 )
 FIELDS = {
     "evidence_max_chars",
