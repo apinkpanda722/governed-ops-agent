@@ -18,9 +18,11 @@ from govops.eval.grading import GradingError
 from govops.eval.grading_cli import _specs
 from govops.eval.observation import load_observations
 from govops.grounding import (
+    cards,
     db,
     diagnose,
     inject,
+    measure_report,
     metrics,
     prompt,
     registration,
@@ -46,6 +48,9 @@ from govops.grounding.spend import M8Spend, SpendCapError
 COMMANDS = (
     "sheet-calibration",
     "render-evidence",
+    "recompute-measurement",
+    "list-positives",
+    "render-positives",
     "register-labels",
     "cost-probe",
     "calibrate",
@@ -464,7 +469,9 @@ def _rates(rows, graded, repeats):
             }
         )
     n_citations = fabricated = no_citations = request_citations = 0
-    strict = 0  # fabricated and absent from the evidence text (addendum §F)
+    # Non-observed IDs split three ways (addendum §F + measurement fix): absent from the
+    # evidence text (strict), present in it, or the row's evidence was never loaded.
+    strict = in_only = not_loaded = 0
     citation_types = Counter()
     for row in rows:
         text, _ = select_deliverable(row.observation)
@@ -475,8 +482,13 @@ def _rates(rows, graded, repeats):
             citations, row.observation.observed_ids, row.spec.request
         )
         fabricated += len(missing)
-        blob = _evidence_blob(row)
-        strict += sum(not _id_in_text(doc, blob) for doc in missing)
+        if row.evidence is not None and row.evidence.status == "ok":
+            blob = _evidence_blob(row)
+            absent = sum(not _id_in_text(doc, blob) for doc in missing)
+            strict += absent
+            in_only += len(missing) - absent
+        else:
+            not_loaded += len(missing)
         request_citations += len(extract_citations(row.spec.request))
         for doc in citations:
             citation_types[
@@ -493,11 +505,13 @@ def _rates(rows, graded, repeats):
         },
         "fabricated_id_rate": _ratio(fabricated, n_citations),
         "fabricated_strict_rate": _ratio(strict, n_citations),
-        "in_evidence_only_rate": _ratio(fabricated - strict, n_citations),
+        "in_evidence_only_rate": _ratio(in_only, n_citations),
+        "evidence_not_loaded_rate": _ratio(not_loaded, n_citations),
         "n_citations": n_citations,
         "n_fabricated": fabricated,
         "n_fabricated_strict": strict,
-        "n_in_evidence_only": fabricated - strict,
+        "n_in_evidence_only": in_only,
+        "n_evidence_not_loaded": not_loaded,
         "n_no_citations": no_citations,
         "n_request_citations": request_citations,
         "citation_type_distribution": dict(citation_types),
@@ -755,6 +769,7 @@ async def _evaluate(
                 "fabricated_id_rate",
                 "fabricated_strict_rate",
                 "in_evidence_only_rate",
+                "evidence_not_loaded_rate",
                 "citation_type_distribution",
             }
         }
@@ -825,6 +840,112 @@ def measurement_rows(directories, specs):
     return all_rows
 
 
+def _measurement_directories(args, root):
+    directories = args.results or [Path("data/results/test") / run for run in N2_RUNS]
+    return [_path(root, path) for path in directories]
+
+
+def offline_measurement_report(args, root, specs):
+    """``recompute-measurement`` / ``list-positives``: files only, no API, no DB."""
+    out = root / PRIVATE_DIR
+    path = out / "measurement-result.json"
+    result = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    if args.command == "list-positives":
+        return measure_report.positives(out / "measurement-detail.jsonl", result)
+    if result is None:
+        raise registration.RegistrationError("measurement_result_missing")
+    recomputed = _recomputed(args, root, specs, result)
+    _json(out / "measurement-recomputed.json", recomputed)
+    return recomputed
+
+
+def _report_recomputed(args, root, specs, out):
+    """Offline re-aggregation of the stored measurement, or a reason code."""
+    path = out / "measurement-result.json"
+    if not path.exists():
+        return None
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+        return _recomputed(
+            args, root, specs if specs is not None else _specs(root), result
+        )
+    except (OSError, ValueError, KeyError, registration.RegistrationError):
+        return {"unavailable": "recompute_inputs_unavailable"}
+
+
+def _recomputed(args, root, specs, result):
+    rows = measurement_rows(_measurement_directories(args, root), specs)
+    return measure_report.recompute(result, rows)
+
+
+async def _render_positives(args, root, specs, out, saver_factory, evidence_loader):
+    """Evidence cards for only the rows holding grader-positive sentences."""
+    detail = measure_report.positives(out / "measurement-detail.jsonl", None)
+    if "unavailable" in detail:
+        raise registration.RegistrationError("measurement_detail_not_recorded")
+    index = {s.task_id: s for s in specs}
+    directories = {d.name: d for d in _measurement_directories(args, root)}
+    wanted = {}
+    for item in detail["positives"]:
+        wanted.setdefault((item["run_id"], item["task_id"]), set()).add(
+            item["sentence_id"]
+        )
+    keys = sorted(wanted)
+    rows = []
+    for run_id in sorted({run for run, _ in keys}):
+        directory = directories[run_id]
+        by_task = {
+            o.task_id: o for o in load_observations(directory / "observations.jsonl")
+        }
+        candidates = [
+            sample.PoolRow(index[task], by_task[task])
+            for run, task in keys
+            if run == run_id
+        ]
+        hydrated = await _hydrate(
+            candidates,
+            [directory],
+            args,
+            saver_factory=saver_factory,
+            evidence_loader=evidence_loader,
+        )
+        rows.extend((run_id, row) for row in hydrated)
+    labels, citations, requests, evidence, marked, mapping = [], [], {}, {}, {}, []
+    for number, (run_id, row) in enumerate(rows, 1):
+        sample_id = f"P{number:02}"
+        text = select_deliverable(row.observation)[0]
+        for s in build_sentences(text):
+            labels.append(
+                {
+                    "sample_id": sample_id,
+                    "sentence_id": s.sentence_id,
+                    "sentence": s.text,
+                }
+            )
+            citations.extend(
+                {"sample_id": sample_id, "sentence_id": s.sentence_id, "doc_id": doc}
+                for doc in s.citations
+            )
+        requests[sample_id] = row.spec.request
+        evidence[sample_id] = row.evidence.items if row.evidence else ()
+        marked[sample_id] = wanted[(run_id, row.spec.task_id)]
+        mapping.append(
+            {
+                "sample_id": sample_id,
+                "run_id": run_id,
+                "task_id": row.spec.task_id,
+                "sentence_ids": sorted(marked[sample_id], key=lambda s: int(s[1:])),
+            }
+        )
+    target = out / "measure-positives"
+    sheets.private_write(
+        target / "evidence.html",
+        cards.render_cards(labels, citations, requests, evidence, marked),
+    )
+    _json(target / "positives.json", {"rows": mapping})
+    return {"n_rows": len(rows), "n_positive_sentences": detail["n_positive_sentences"]}
+
+
 def measurement_allowed(validation) -> bool:
     """Full validation, or addendum §D limited validation that was not cap-stopped."""
     full = validation.get("verdict") == "채점기 v3 검증 통과" and bool(
@@ -856,12 +977,24 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
         root,
         GATE_SCOPE
         if command
-        not in {"sheet-calibration", "register-labels", "adopt", "render-evidence"}
+        not in {
+            "sheet-calibration",
+            "register-labels",
+            "adopt",
+            "render-evidence",
+            "render-positives",
+        }
         else [p for p in GATE_SCOPE if p != str(registration.REGISTRATION_PATH)],
     )
     if args.dbname is not None:
         # Validate even for commands that will not open a saver.
         db.url_with_dbname("postgresql://localhost/govops", args.dbname)
+    if command == "render-positives":
+        value = registration.read_registration(regpath)
+        args.evidence_max_chars = value["evidence_max_chars"]
+        return await _render_positives(
+            args, root, specs, out, saver_factory, evidence_loader
+        )
     if command == "cost-probe":
         return await _cost_probe(grader_factory())
     if command == "report":
@@ -879,6 +1012,7 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
             "measurement": json.loads((out / "measurement-result.json").read_text())
             if (out / "measurement-result.json").exists()
             else None,
+            "measurement_recomputed": _report_recomputed(args, root, specs, out),
         }
     if command == "sheet-calibration":
         value = registration.read_registration(regpath) if regpath.exists() else None
@@ -1115,7 +1249,9 @@ async def _measure(
     with _template(version, args.prompt_file):
         _assert_adopted(value, version)
         grader = grader_factory()
-        for candidates, directory in zip(all_rows, directories, strict=True):
+        for position, (candidates, directory) in enumerate(
+            zip(all_rows, directories, strict=True)
+        ):
             hydrated = await _hydrate(
                 candidates,
                 [directory],
@@ -1123,6 +1259,8 @@ async def _measure(
                 saver_factory=saver_factory,
                 evidence_loader=evidence_loader,
             )
+            # Later aggregates must see the evidence that was actually loaded.
+            all_rows[position] = list(hydrated)
             excluded = Counter()
             eligible = []
             for row in hydrated:
@@ -1133,10 +1271,11 @@ async def _measure(
                 else:
                     eligible.append(row)
             graded, failures, stop = [], Counter(), None
+            detail_rows = []
             before = grader.spend.total_usd("measurement")
             for row in eligible:
                 try:
-                    _, repeats = await _grade_row(
+                    agg, repeats = await _grade_row(
                         grader,
                         row,
                         build_sentences(select_deliverable(row.observation)[0]),
@@ -1145,16 +1284,39 @@ async def _measure(
                         3,
                     )
                     graded.append((row, repeats))
+                    detail_rows.append(
+                        {
+                            "task_id": row.spec.task_id,
+                            "repeat_labels": [
+                                {s.sentence_id: s.label for s in r.sentences}
+                                for r in repeats
+                            ],
+                            "positive_majority": sorted(
+                                sid for sid, flag in agg.positive.items() if flag
+                            ),
+                        }
+                    )
                 except GradingError as exc:
                     failures[
                         "grading_response_failure"
                         if str(exc) == "grading_response_failure"
                         else "grading_call_failure"
                     ] += 1
-                except (SpendCapError, BudgetExceededError, PriceExpiredError):
+                except SpendCapError:
+                    stop = "m8_stage_cap_exceeded"
+                    break
+                except (BudgetExceededError, PriceExpiredError):
                     stop = "budget_or_price_block"
                     break
-            position = len(result["runs"])
+            # Per-row labels (IDs and labels only) for the positive-sentence tools.
+            _append(
+                out / "measurement-detail.jsonl",
+                {
+                    "run_id": directory.name,
+                    "position": N2_POSITIONS[position],
+                    "rows": detail_rows,
+                },
+            )
             run = {
                 "run_index": position,
                 "position": N2_POSITIONS[position],
@@ -1233,6 +1395,20 @@ def main(
         root = Path.cwd() if repo_root is None else Path(repo_root)
         # No spec/evidence/ledger/SDK access before preregistration checks.
         registration.require_hypotheses(root)
+        if args.command in {"recompute-measurement", "list-positives"}:
+            offline_specs = specs
+            if offline_specs is None and args.command == "recompute-measurement":
+                offline_specs = _specs(root)
+            print(
+                json.dumps(
+                    offline_measurement_report(args, root, offline_specs),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    indent=2,
+                    allow_nan=False,
+                )
+            )
+            return 0
         if args.command == "diagnose-calibration":
             # Offline: no specs, gates, grader, database or API; counts/IDs/codes only.
             print(

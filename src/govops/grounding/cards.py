@@ -33,6 +33,7 @@ background:#f6f7f9;border:1px solid #d6d9de;border-radius:6px;padding:10px 12px}
 .req{color:#444;margin:0 0 8px}
 ol.sentences{list-style:none;margin:0;padding:0}
 ol.sentences li{margin:0 0 8px}
+ol.sentences li.flag{background:#fff4d6;border-left:4px solid #d69e00;padding-left:6px}
 .sid{display:inline-block;min-width:2.4em;font-weight:700;color:#0b57d0}
 .right{min-width:0}
 .ev{border:1px solid #d6d9de;border-radius:6px;margin:0 0 14px;padding:0 0 8px}
@@ -142,8 +143,13 @@ def render_cards(
     citations: Sequence[Mapping],
     requests: Mapping[str, str],
     evidence: Mapping[str, Sequence[EvidenceItem]],
+    marked: Mapping[str, set[str]] | None = None,
 ) -> str:
-    """``requests``/``evidence`` are keyed by sample_id."""
+    """``requests``/``evidence`` are keyed by sample_id.
+
+    ``marked`` (sample_id → sentence_ids) flags the sentences to check, e.g. the ones the
+    grader called positive. It only changes how they are shown.
+    """
     sample_ids = list(dict.fromkeys(row["sample_id"] for row in labels))
     cited: dict[tuple[str, str], list[str]] = {}
     for row in citations:
@@ -170,8 +176,11 @@ def render_cards(
             if row["sample_id"] != sample:
                 continue
             ids = cited.get((sample, row["sentence_id"]), [])
+            flagged = row["sentence_id"] in (marked or {}).get(sample, set())
+            badge = "<span class='badge'>확인 대상</span>" if flagged else ""
             parts.append(
-                f"<li><span class='sid'>{_e(row['sentence_id'])}</span>"
+                f"<li{' class="flag"' if flagged else ''}>"
+                f"<span class='sid'>{_e(row['sentence_id'])}</span>{badge}"
                 f"{_bold_citations(row['sentence'], ids)}</li>"
             )
         parts.append("</ol></div><div class='right'>")
