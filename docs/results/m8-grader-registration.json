@@ -12,6 +12,11 @@
     {
       "adopted_prompt_sha256": "d295306e09167cf7bd3ebca58817076aaddf134e9aaf5d7422cd8bc6c825f6e6",
       "adopted_prompt_version": "v3.2"
+    },
+    {
+      "heldout_citations_sha256": "887d15f4bba8ea04fda4ae206022a53e6d1aa30fd672a6e773191186f4d10dad",
+      "heldout_labels_sha256": "a66fcedec88c86b4afef2fda0054b2e03b8ec9a25e7fcb706fede06f72f5b644",
+      "heldout_task_list_sha256": "894396e6f3b16ab3e28a64b5c98663251a5e22e3c5e94d72420c9dbef94cb3e4"
     }
   ]
 }
