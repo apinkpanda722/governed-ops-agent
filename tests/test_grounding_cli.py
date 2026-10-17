@@ -301,7 +301,9 @@ def test_grader_failures_are_counted_without_exposing_text(
     )
 
 
-def test_validated_measurement_uses_three_n2_runs_in_order(tmp_path, monkeypatch):
+def test_validated_measurement_uses_three_n2_runs_in_order(
+    tmp_path, monkeypatch, capsys
+):
     run, _ = environment(tmp_path, monkeypatch, accurate=True)
     for name in ("test-run", "dev-run"):
         path = tmp_path / name / "observations.jsonl"
@@ -355,17 +357,33 @@ def test_validated_measurement_uses_three_n2_runs_in_order(tmp_path, monkeypatch
             json.loads(line)
             for line in (paths[0] / "observations.jsonl").read_text().splitlines()
         ]
-        for row in rows:
-            row["run_index"] = n
+        # The official N2 directories are separate runs: every run_index is 0.
         (path / "observations.jsonl").write_text(
             "".join(json.dumps(r) + "\n" for r in rows)
         )
         paths.append(path)
+    measurement_path = sheet_dir(tmp_path).parent / "measurement-result.json"
+    # A directory whose run_index values are mixed is a fixed-code failure and leaves
+    # no measurement-result.json behind.
+    original = (paths[2] / "observations.jsonl").read_text()
+    rows = [json.loads(line) for line in original.splitlines()]
+    rows[0]["run_index"] = 1
+    (paths[2] / "observations.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in rows)
+    )
+    capsys.readouterr()
+    assert run("measure", "--results", *map(str, paths)) == 2
+    assert "FAIL measurement_order_mismatch" in capsys.readouterr().out
+    assert not measurement_path.exists()
+    (paths[2] / "observations.jsonl").write_text(original)
     assert run("measure", "--results", *map(str, paths)) == 0
     measurement = json.loads(
         (sheet_dir(tmp_path).parent / "measurement-result.json").read_text()
     )
     assert [r["run_index"] for r in measurement["runs"]] == [0, 1, 2]
+    assert [r["position"] for r in measurement["runs"]] == ["n2_1", "n2_2", "n2_3"]
+    assert [r["run_id"] for r in measurement["runs"]] == [p.name for p in paths]
+    assert [r["observed_run_index"] for r in measurement["runs"]] == [0, 0, 0]
     assert measurement["n_graded_rows"] == measurement["n_input_rows"] == 108
     assert measurement["n_ungraded_rows"] == 0
     assert (
