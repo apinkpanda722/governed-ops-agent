@@ -16,6 +16,7 @@ from govops.eval.grading import GradingError
 from govops.grounding import cli, metrics, prompt, sample
 from govops.grounding.evidence import Evidence, EvidenceItem
 from govops.grounding.grader import GradeResult, SentenceResult
+from govops.grounding.sentences import Sentence
 from govops.grounding.spend import SpendCapError
 
 ORIGINAL_IDS = {"syn-guide-001", "INC-2026-004", "SYN-1003"}
@@ -378,3 +379,120 @@ def test_v30_prompt_file_is_unchanged():
     path = Path(__file__).resolve().parents[1] / "src/govops/grounding/prompts/v3_0.txt"
     assert prompt.prompt_sha256("v3.0").startswith("c37b72a7")
     assert path.exists()
+
+
+PROMPTS = Path(__file__).resolve().parents[1] / "docs/m8-prompts"
+
+
+def test_v32_prompt_adds_rules_8_to_10_with_synthetic_examples_only():
+    v31 = (PROMPTS / "v3_1.txt").read_text(encoding="utf-8")
+    v32 = (PROMPTS / "v3_2.txt").read_text(encoding="utf-8")
+    added = [line for line in v32.splitlines() if line not in v31.splitlines()]
+    text = "\n".join(added)
+    for marker in (
+        "8) 근거가 사건·이슈의 발생만",
+        '9) "추가 확인이 필요하다"',
+        "10) 인용 번호만 있는 줄",
+    ):
+        assert marker in text
+    # Examples use invented values only (2099 dates, syn-sample-9xx, INC-2099-9xx).
+    assert "2099-03-03" in text and "syn-sample-902" in text
+    assert "evidence_ids는 빈 배열로 내도 된다" in text
+    # Nothing but the three rules, their examples and the output-shortening line changed.
+    assert len(added) == 8
+    assert [line for line in v31.splitlines() if line not in v32.splitlines()] == [
+        line for line in v31.splitlines() if line.startswith("보정 라벨링에서 확정한")
+    ]
+    # Earlier versions are pinned (recorded results refer to these hashes).
+    assert prompt.prompt_sha256("v3.0").startswith("c37b72a7")
+    with cli._template("v3.1", PROMPTS / "v3_1.txt"):
+        assert prompt.prompt_sha256("v3.1").startswith("310658b8")
+
+
+def test_not_claim_may_omit_evidence_ids_but_not_a_citation_the_sentence_has():
+    from govops.grounding import grader
+
+    sentences = (Sentence("s1", "근거: [syn-sample-902]", ("syn-sample-902",)),)
+    evidence = (EvidenceItem("lookup_id", "합성 본문", 5),)
+
+    def reply(cited, supports):
+        return json.dumps(
+            {
+                "sentences": [
+                    {
+                        "sentence_id": "s1",
+                        "label": "not_claim",
+                        "cited_ids": cited,
+                        "evidence_ids": [],
+                        "citation_supports": supports,
+                    }
+                ]
+            }
+        )
+
+    ok = grader.parse_grade(
+        reply(["syn-sample-902"], [{"doc_id": "syn-sample-902", "supports": True}]),
+        ["s1"],
+    )
+    grader._validate_input_links(ok, sentences, evidence)
+    # Dropping the citation of a citation-only line would break the link validation,
+    # so the prompt tells the model to keep cited_ids/citation_supports.
+    empty = grader.parse_grade(reply([], []), ["s1"])
+    with pytest.raises(GradingError):
+        grader._validate_input_links(empty, sentences, evidence)
+
+
+def test_v32_prompt_file_passes_the_work_tree_gates_after_v30_and_v31(
+    tmp_path, monkeypatch
+):
+    run, _ = environment(tmp_path, monkeypatch)
+    assert run("sheet-calibration") == 0
+    label(tmp_path, "calibration")
+    assert run("register-labels") == 0
+    commit(tmp_path)
+    log_path = sheet_dir(tmp_path).parent / "calibration-log.jsonl"
+    files = {}
+    for version in ("v3_1", "v3_2"):
+        target = tmp_path / f"docs/m8-prompts/{version}.txt"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(PROMPTS / f"{version}.txt", target)
+        files[version] = target
+    commit(tmp_path)
+    # The real history: v3.0 stopped (no kappa), v3.1 finished and improved on it.
+    with cli._template("v3.1", files["v3_1"]):
+        sha31 = prompt.prompt_sha256("v3.1")
+    history = [
+        {
+            "version": "v3.0",
+            "prompt_sha256": prompt.prompt_sha256("v3.0"),
+            "status": "stopped",
+            "stop_code": "m8_stage_cap_exceeded",
+            "kappa": None,
+            "detection_rate": None,
+            "false_positive_rate": None,
+        },
+        {
+            "version": "v3.1",
+            "prompt_sha256": sha31,
+            "status": "complete",
+            "stop_code": None,
+            "kappa": 0.5635,
+            "detection_rate": 0.97,
+            "false_positive_rate": 0.008,
+        },
+    ]
+    log_path.write_text("".join(json.dumps(row) + "\n" for row in history))
+    assert (
+        run("calibrate", "--version", "v3.2", "--prompt-file", str(files["v3_2"])) == 0
+    )
+    log = [json.loads(line) for line in log_path.read_text().splitlines()]
+    done = [e for e in log if e.get("status") == "complete"]
+    assert [e["version"] for e in done] == ["v3.1", "v3.2"]
+    with cli._template("v3.2", files["v3_2"]):
+        assert done[1]["prompt_sha256"] == prompt.prompt_sha256("v3.2")
+    assert len({e["prompt_sha256"] for e in log if "prompt_sha256" in e}) == 3
+    # Revision 3 is still allowed by the registered cap; a fourth is not.
+    with pytest.raises(ValueError, match="revision_limit"):
+        cli.check_revision("v3.4", [])
+    # Without the file the unregistered version cannot run.
+    assert run("calibrate", "--version", "v3.3") != 0
