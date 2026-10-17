@@ -778,6 +778,53 @@ async def _cost_probe(grader):
     return {"scope": "m8", "calls": 3, "cost_usd": cost, "cost_per_call_usd": cost / 3}
 
 
+N2_POSITIONS = ("n2_1", "n2_2", "n2_3")
+
+
+def measurement_rows(directories, specs):
+    """Rows per N2 directory, in the given (position) order.
+
+    The official N2 directories are three separate runs: each holds the 40 test tasks with
+    ``run_index`` 0. Order therefore comes from the directory position, never from
+    ``run_index`` values. Any violated precondition is the fixed code
+    ``measurement_order_mismatch`` (no paths or values are printed).
+    """
+    mismatch = registration.RegistrationError("measurement_order_mismatch")
+    paths = [Path(d) for d in directories]
+    try:
+        resolved = {p.resolve() for p in paths}
+    except OSError:
+        raise mismatch from None
+    if len(paths) != len(N2_POSITIONS) or len(resolved) != len(paths):
+        raise mismatch
+    index = {s.task_id: s for s in specs}
+    expected = {s.task_id for s in specs if s.split == "test"}
+    all_rows = []
+    for directory in paths:
+        try:
+            observations = load_observations(directory / "observations.jsonl")
+        except (OSError, ValueError):
+            raise registration.RegistrationError(
+                "measurement_input_unreadable"
+            ) from None
+        ids = [o.task_id for o in observations]
+        if (
+            not observations
+            or len({o.run_index for o in observations}) != 1
+            or len(set(ids)) != len(ids)
+            or set(ids) != expected
+            or any(index[i].split != "test" for i in ids)
+        ):
+            raise mismatch
+        all_rows.append(
+            [
+                sample.PoolRow(index[o.task_id], o)
+                for o in sorted(observations, key=lambda o: o.task_id)
+            ]
+        )
+    return all_rows
+
+
 def measurement_allowed(validation) -> bool:
     """Full validation, or addendum §D limited validation that was not cap-stopped."""
     full = validation.get("verdict") == "채점기 v3 검증 통과" and bool(
@@ -1045,29 +1092,7 @@ async def _measure(
     version = value["adopted_prompt_version"]
     with _template(version, args.prompt_file):
         _assert_adopted(value, version)
-    index = {s.task_id: s for s in specs}
-    all_rows = []
-    for n, directory in enumerate(directories):
-        observations = load_observations(directory / "observations.jsonl")
-        if (
-            any(
-                o.run_index != n
-                or o.task_id not in index
-                or index[o.task_id].split != "test"
-                for o in observations
-            )
-            or len({o.task_id for o in observations}) != len(observations)
-            or not observations
-            or {o.task_id for o in observations}
-            != {s.task_id for s in specs if s.split == "test"}
-        ):
-            raise ValueError("measurement_order_mismatch")
-        all_rows.append(
-            [
-                sample.PoolRow(index[o.task_id], o)
-                for o in sorted(observations, key=lambda o: o.task_id)
-            ]
-        )
+    all_rows = measurement_rows(directories, specs)
     args.evidence_max_chars = value["evidence_max_chars"]
     result = {
         "scope": "m8",
@@ -1129,8 +1154,14 @@ async def _measure(
                 except (SpendCapError, BudgetExceededError, PriceExpiredError):
                     stop = "budget_or_price_block"
                     break
+            position = len(result["runs"])
             run = {
-                "run_index": len(result["runs"]),
+                "run_index": position,
+                "position": N2_POSITIONS[position],
+                "run_id": directory.name,
+                "observed_run_index": hydrated[0].observation.run_index
+                if hydrated
+                else None,
                 "observations_sha256": registration.sha256(
                     directory / "observations.jsonl"
                 ),

@@ -384,6 +384,13 @@ description: 이 프로젝트(governed-ops-agent)에서 실제로 겪은 실패 
 - **강제 수단**: 기계 검사는 없다(렌더링 가독성). /review에서 사람용 산출물 변경 시 스크린샷 확인 여부를 본다. 바이트 불변은 `tests/test_grounding_cards.py::test_rendering_does_not_change_grader_input_bytes`.
 - **출처**: m8-grading-v3 첫 보정 시트(`evidence.html`) 사용자 확인, 수정 PR
 
+### FP-076 합성 픽스처가 실제 실행 산출물의 필드 값을 가정으로 만들어 첫 live에서 깨짐
+- **증상**: `make m8-grounding-measure`가 Gemini 호출 전에 `FAIL input_or_execution_failure`로 실패했다. `_measure`의 순서 검사 `o.run_index != n`이 공식 N2 세 디렉터리의 `run_index`가 0, 1, 2라고 가정했는데, 실제 세 디렉터리(`09fbcb2b…`·`b330337d…`·`bf38e57a…`)는 각각 별도 실행이라 모두 `run_index` 0(각 40행, 고유 task 40개)이었다. 검사 실패가 일반 예외 경계에 가려져 원인 코드도 보이지 않았다.
+- **원인**: 테스트 픽스처가 디렉터리마다 `row["run_index"] = n`으로 값을 **가정해서** 만들었다. 실제 산출물의 값 분포를 확인하지 않아 코드와 픽스처가 같은 틀린 가정을 공유했고 테스트가 통과했다(FP-020·050과 같은 계열).
+- **규칙**: 실제 실행 산출물을 소비하는 코드(`run_index`·상태·개수·키)의 픽스처는 **실제 산출물의 키·값 분포를 개수로 확인한 뒤** 만든다(값 자체가 아니라 `Counter` 같은 분포만 읽는다). 순서·위치처럼 값이 아니라 구조로 정할 수 있는 것은 구조(디렉터리 위치)로 정한다. 전제 조건 실패는 일반 예외로 가리지 말고 고정 코드로 출력한다(경로·값은 출력하지 않는다).
+- **강제 수단**: `tests/test_grounding_measure_inputs.py`(실제 계약 모양: 세 디렉터리 모두 `run_index` 0, 디렉터리 안 값이 섞이면 `measurement_order_mismatch`, 같은 디렉터리 중복·task 집합 불일치·개수 오류 거부), `tests/test_grounding_cli.py`의 측정 흐름(실패 시 `measurement-result.json` 미생성). 분포 확인 자체는 기계 검사가 아니며 /review에서 픽스처의 근거를 본다.
+- **출처**: m8 측정 첫 live(`make m8-grounding-measure`), 수정 PR
+
 ---
 
 ## A에서 이식한 항목 (프로젝트 A `failure-patterns`의 번호)
