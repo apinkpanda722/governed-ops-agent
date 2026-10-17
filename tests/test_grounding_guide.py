@@ -47,3 +47,24 @@ def test_m8_guide_has_the_calibration_rules_section():
     ):
         assert phrase in section
     assert all(f"## {i}." in guide for i in range(1, 9))
+
+
+def test_m8_guide_adds_rules_8_to_10_from_addendum_2():
+    guide = (
+        Path(__file__).resolve().parents[1] / "docs/HUMAN_GRADING_GUIDE_M8.md"
+    ).read_text()
+    section = guide.split("## 8. 보정 라벨링에서 확정한 규칙", 1)[1]
+    # The original seven rules stay; three more follow, in order.
+    for number in range(1, 11):
+        assert f"\n{number}. **" in section
+    assert (
+        section.index("\n7. **") < section.index("\n8. **") < section.index("\n10. **")
+    )
+    for phrase in (
+        "원인·이유 단정",
+        "추가 확인이 필요합니다",
+        "확인 후 공유하겠습니다",
+        "문장 라벨은 `not_claim`",
+        "hypotheses-m8-grader-addendum-2.md",
+    ):
+        assert phrase in section
