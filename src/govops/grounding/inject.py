@@ -4,7 +4,7 @@ import json
 import random
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from govops.grounding.deliverable import extract_citations
 from govops.grounding.evidence import EvidenceItem
@@ -41,6 +41,8 @@ class InjectedRow:
 class InjectionSkip:
     row_key: str
     reason: str
+    # Finer, count-only explanation (never text); empty for legacy reasons.
+    cause: str = field(default="", compare=False)
 
 
 def assign_kinds(row_keys: Sequence[str], seed: int) -> dict[str, str]:
@@ -60,6 +62,46 @@ def _evidence_text(item: EvidenceItem) -> str:
     except (ValueError, RecursionError):
         return item.content
     return item.content + "\n" + decoded
+
+
+_TICKET = re.compile(r"[A-Z]{2,5}-\d{4}")
+
+
+def _documents(evidence: Sequence[EvidenceItem]) -> dict[str, list[str]]:
+    """Per-document text for structured tool results (doc_id or ticket key).
+
+    Bundled responses (search results, document lists) hold several documents; judging a
+    replacement citation only against *its own* document keeps the truth guarantee
+    without skipping every bundle. Unparseable content yields nothing, so callers fall
+    back to the conservative whole-response check.
+    """
+    found: dict[str, list[str]] = {}
+
+    def walk(value, depth=0):
+        if depth > 12:
+            return
+        if isinstance(value, dict):
+            ident = value.get("doc_id")
+            if not isinstance(ident, str):
+                key = value.get("key")
+                ident = key if isinstance(key, str) and _TICKET.fullmatch(key) else None
+            if ident is not None:
+                found.setdefault(ident, []).append(
+                    json.dumps(value, ensure_ascii=False)
+                )
+                return
+            for item in value.values():
+                walk(item, depth + 1)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item, depth + 1)
+
+    for item in evidence:
+        try:
+            walk(json.loads(item.content))
+        except (ValueError, RecursionError):
+            continue
+    return found
 
 
 def _id_pattern(doc_id: str) -> re.Pattern:
@@ -103,6 +145,7 @@ def inject(
     evidence: Sequence[EvidenceItem],
     observed_ids: Sequence[str],
     seed: int,
+    allowed_pairs: set[tuple[str, str]] | None = None,
 ) -> InjectedRow | InjectionSkip:
     """Make one copy or a reasoned skip, without model calls or input mutation.
 
@@ -110,6 +153,10 @@ def inject(
     check *every whole tool response* mentioning a candidate ID. Bundled/ambiguous
     evidence may therefore cause a skip rather than a falsely guaranteed injection.
     An observed ID without any matching evidence is never a candidate.
+
+    ``allowed_pairs`` (sentence_id, doc_id) restricts citation replacements to pairs a
+    human marked as truly supported, so the target is chosen among eligible ones instead
+    of a random sentence that the caller would later reject.
     """
     if kind not in INJECTION_KINDS:
         raise ValueError("unknown injection kind")
@@ -130,12 +177,24 @@ def inject(
             sid = f"s{len(sentences) + 1}"
             sentence = Sentence(sid, text, tuple(extract_citations(text)))
             return InjectedRow(row_key, kind, (*sentences, sentence), sid, None)
-        return InjectionSkip(row_key, "no_candidate")
+        return InjectionSkip(row_key, "no_candidate", "pool_exhausted")
 
-    indices = [i for i, s in enumerate(sentences) if s.citations]
+    def eligible(sentence: Sentence) -> list[str]:
+        return [
+            doc
+            for doc in sentence.citations
+            if allowed_pairs is None or (sentence.sentence_id, doc) in allowed_pairs
+        ]
+
+    cited = [i for i, s in enumerate(sentences) if s.citations]
+    indices = [i for i in cited if eligible(sentences[i])]
     rng.shuffle(indices)
     if not indices:
-        return InjectionSkip(row_key, "no_candidate")
+        return InjectionSkip(
+            row_key,
+            "no_candidate",
+            "no_eligible_cited_sentence" if cited else "no_cited_sentence",
+        )
     if kind == "fabricated_id":
         pool = list(_FABRICATED_IDS)
         rng.shuffle(pool)
@@ -143,11 +202,13 @@ def inject(
         for new in pool:
             if new not in forbidden and not any(new in body for body in bodies):
                 index = indices[0]
-                old = rng.choice(sentences[index].citations)
+                old = rng.choice(eligible(sentences[index]))
                 return _replace_citation(row_key, kind, sentences, index, old, new)
-        return InjectionSkip(row_key, "no_candidate")
+        return InjectionSkip(row_key, "no_candidate", "pool_exhausted")
 
+    documents = _documents(evidence)
     found_key = False
+    cause = "no_observed_candidate"
     for index in indices:
         sentence = sentences[index]
         key = _key_string(sentence)
@@ -157,11 +218,23 @@ def inject(
         candidates = sorted(set(observed_ids) - set(sentence.citations))
         rng.shuffle(candidates)
         for new in candidates:
-            matching = [body for body in bodies if new in extract_citations(body)]
-            if matching and not any(key in body for body in matching):
-                old = rng.choice(sentence.citations)
+            matching = documents.get(new) or [
+                body for body in bodies if new in extract_citations(body)
+            ]
+            if not matching:
+                cause = (
+                    "no_matching_evidence"
+                    if cause == "no_observed_candidate"
+                    else cause
+                )
+                continue
+            if not any(key in body for body in matching):
+                old = rng.choice(eligible(sentence))
                 return _replace_citation(row_key, kind, sentences, index, old, new)
-    return InjectionSkip(row_key, "no_candidate" if found_key else "no_key_string")
+            cause = "key_in_matching_evidence"
+    if not found_key:
+        return InjectionSkip(row_key, "no_key_string", "no_key_string")
+    return InjectionSkip(row_key, "no_candidate", cause)
 
 
 def injection_detected(injected: InjectedRow, agg: RowAggregate) -> bool:

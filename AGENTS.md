@@ -56,7 +56,7 @@
 - CRITICAL: 부작용 도구는 재시도 전에 항상 표식을 2단계로 조회(조회 → 대기 → 재조회)하고 둘 다 없을 때만 다시 보낸다. 바로 재시도는 연결 수립 실패와 429(`Retry-After` 준수)뿐이다. 표식은 본문이 아니라 메타데이터 필드에 두고, 조회는 채널 최근 이력·티켓 하위 목록으로 한다(검색 API 금지). 멱등 키 = task·도구·정규화 인자 해시.
 - CRITICAL: 대기 중인 `interrupt`가 있는 thread(대화)에는 새 입력으로 `ainvoke`를 호출하지 않는다(실측: 에러 없이 대기 승인이 버려진다). 승인 대기·실행 중인 대화의 새 턴은 409로 거절하고, 만료된 승인은 잠금 안에서 먼저 닫은 뒤에만 새 턴을 받는다. 잠금 순서는 대화 → task로 고정한다(턴 추가·승인·만료 처리). 턴 범위 상태는 매 턴 초기화하고 `evidence_ids`만 대화 범위로 누적한다.
 - CRITICAL: 에이전트의 모델 호출은 `gateway` 클라이언트(LiteLLM)로만 한다. 채점(Gemini)은 게이트웨이를 거치지 않고 별도 비용 원장에 기록한다.
-- CRITICAL: 모든 유료 API 호출은 호출 직전에 공급사별 누적액을 검사하고, 상한(OpenAI $9.13 주 모델, Anthropic $11.47 fallback·v2 분류기, Gemini $7.29 채점, B 전체 기간 총액)을 넘으면 호출하지 않는다. 원장에는 `purpose`(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)를 기록한다.
+- CRITICAL: 모든 유료 API 호출은 호출 직전에 공급사별 누적액을 검사하고, 상한(OpenAI $9.13 주 모델, Anthropic $11.47 fallback·v2 분류기, Gemini $10.00 채점(M8 추가 등록 1로 $7.29에서 상향), B 전체 기간 총액)을 넘으면 호출하지 않는다. 원장에는 `purpose`(`agent_primary`·`agent_fallback`·`guardrail_v2`·`grading`)를 기록한다.
 - CRITICAL: Guardrail 사전 검사의 오류·타임아웃은 차단(fail-closed), 사후 탐지의 오류는 통과 + 경보(fail-open)다. v2 분류기가 실패하면 v1 결과로 판정하고 경보하며, v1까지 실패하면 차단한다.
 - CRITICAL: 감사 로그는 `audit/` 한 곳에서만 덧붙인다. 원문 대신 내용 해시와 mock ID만 기록한다(PII 금지). 실행 전 의도를 기록하고, 감사 로그 쓰기에 실패하면 부작용을 실행하지 않는다.
 - CRITICAL: A 계약 스냅샷(A 커밋 해시와 함께 복사한 도구 4개 v1)은 수정하지 않는다. 시작 시 live `tools/list`와 비교해 다르면 중단한다.
