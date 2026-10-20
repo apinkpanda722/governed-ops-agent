@@ -23,6 +23,7 @@ LAYERS = {
     "replay",
     "evalrun",
     "grounding",
+    "metrics",
 }
 
 # AGENTS.md의 계층 경계 표가 규칙의 원본이다.
@@ -69,6 +70,18 @@ FORBIDDEN_IMPORTS: dict[str, set[str]] = {
         "anthropic",
         "litellm",
     },
+    "metrics": {
+        "govops.agent",
+        "govops.api",
+        "govops.broker",
+        "govops.gateway",
+        "govops.tools",
+        "govops.mocks",
+        "govops.evalrun",
+        "govops.grounding",
+        "langgraph",
+        *LLM_SDK,
+    },
 }
 
 FORBIDDEN_IMPORTS["evalrun"] = {
@@ -82,6 +95,9 @@ for _layer in LAYERS - {"evalrun"}:
     FORBIDDEN_IMPORTS[_layer].add("govops.evalrun")
 for _layer in LAYERS - {"grounding"}:
     FORBIDDEN_IMPORTS[_layer].add("govops.grounding")
+METRICS_CONSUMERS: set[str] = set()
+for _layer in LAYERS - {"metrics"} - METRICS_CONSUMERS:
+    FORBIDDEN_IMPORTS[_layer].add("govops.metrics")
 
 
 @dataclass(frozen=True)
