@@ -134,7 +134,8 @@
     },
     {
       "dir": "m8-metrics-regress",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_at": "2026-10-20T18:31:29+0900"
     }
   ]
 }

@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "toolcall-registration",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-20T18:25:34+0900",
+      "blocked_reason": "요구사항 “승인 전 초안 제출이나 거절된 쓰기는 호출로 세지지 않는다.”가 현재 코드와 다릅니다. dev_m3.py:986~987은 _EffectCapture 기록에서 쓰기를 제외한 뒤 observation_calls로 쓰기 초안을 다시 포함합니다. 기존 test_proposals_and_read_results_are_separate_and_ordered도 이를 단언합니다. 따라서 “테스트는 위 5가지가 현재 코드의 동작임을 단언한다.”와 “수정할 파일(이 목록이 전부다): docs/results/hypotheses-m8-toolcall.md, tests/test_m8_freeze.py, tests/test_m8_toolcall_contract.py”를 동시에 충족할 수 없습니다. 쓰기 관측 정의를 현재 동작에 맞게 정정하는 지시가 필요합니다. 파일 수정·커밋 없이 중단했으며 make verify는 실행하지 않았습니다.",
+      "blocked_at": "2026-10-20T18:31:29+0900",
+      "usage": {
+        "input_tokens": 724429,
+        "cached_input_tokens": 622208,
+        "output_tokens": 3600,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
