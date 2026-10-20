@@ -37,6 +37,14 @@ def test_ci_yaml_triggers_permissions_and_single_job(workflow):
     assert parsed["jobs"]["verify"]["runs-on"] == "ubuntu-latest"
 
 
+def test_ci_cancels_superseded_runs_of_the_same_pull_request(workflow):
+    _, parsed = workflow
+    assert parsed["concurrency"] == {
+        "group": "ci-${{ github.event.pull_request.number || github.ref }}",
+        "cancel-in-progress": True,
+    }
+
+
 def test_ci_actions_are_approved_sha_pins_with_tags(workflow):
     text, parsed = workflow
     steps = parsed["jobs"]["verify"]["steps"]
