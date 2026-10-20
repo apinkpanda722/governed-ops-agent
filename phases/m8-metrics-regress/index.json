@@ -1,0 +1,46 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m8-metrics-regress",
+  "steps": [
+    {
+      "step": 0,
+      "name": "ops-evidence-doc",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "toolcall-registration",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "toolcall-metrics",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "toolcall-cli",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "regression-registration",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "candidate-config",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "regress-compare",
+      "status": "pending"
+    },
+    {
+      "step": 7,
+      "name": "regress-matrix-smoke",
+      "status": "pending"
+    }
+  ]
+}
