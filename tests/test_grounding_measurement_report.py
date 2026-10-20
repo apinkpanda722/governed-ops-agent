@@ -115,7 +115,7 @@ def test_offline_recompute_fixes_an_old_result_without_any_call(
     (out / "measurement-result.json").write_text(json.dumps(old))
     before = (out / "measurement-result.json").read_bytes()
     capsys.readouterr()
-    assert run("recompute-measurement", *args) == 0
+    assert run("recompute-measurement", *args, dbname=None) == 0
     fixed = json.loads(capsys.readouterr().out)
     assert fixed["consistent"] is True and fixed["source"] == "recomputed_offline"
     assert [r["started"] for r in fixed["runs"]] == [True, False, False]
@@ -135,7 +135,7 @@ def test_offline_recompute_fixes_an_old_result_without_any_call(
     assert (out / "measurement-recomputed.json").exists()
     assert stat.S_IMODE((out / "measurement-recomputed.json").stat().st_mode) == 0o600
     # `report` carries the recomputation too.
-    assert run("report", *args) == 0
+    assert run("report", *args, dbname=None) == 0
     assert '"measurement_recomputed"' in capsys.readouterr().out
 
 
