@@ -1,5 +1,6 @@
 """공통 검증 진입점의 Python·web 검사 순서."""
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -440,3 +441,23 @@ def test_m8_measurement_report_targets_are_user_only_and_outside_verify():
         assert command in recipe and "$(ARGS)" in recipe
         assert ("--env-file .env" in recipe) is env_file
         assert target not in verify
+
+
+def test_m8_grounding_targets_that_take_dbname_load_the_env_file():
+    # list-positives and diagnose-calibration never open the database, so they run without .env.
+    offline = {"list-positives", "diagnose-calibration"}
+    text = (REPO_ROOT / "Makefile").read_text()
+    checked = []
+    for target in re.findall(r"^(m8-grounding-[a-z-]+):", text, re.MULTILINE):
+        recipes = [
+            line
+            for line in text.split(f"\n{target}:\n", 1)[1]
+            .split("\n\n", 1)[0]
+            .splitlines()
+            if "govops.grounding.cli" in line
+        ]
+        for recipe in recipes:
+            command = recipe.split("govops.grounding.cli", 1)[1].split()[0]
+            assert ("--env-file .env" in recipe) is (command not in offline), target
+            checked.append(command)
+    assert {"recompute-measurement", "report", "locate-positives"} <= set(checked)
