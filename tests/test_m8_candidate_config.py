@@ -9,16 +9,17 @@ import yaml
 
 from govops.costs import CLASSIFIER_DEPLOYMENTS, DEPLOYMENT_MODELS
 from govops.evalrun.preflight import required_deployments
+from govops.gateway.agent_key import AGENT_KEY_MODELS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_ROOT = REPO_ROOT / "infra/litellm"
 CANDIDATE_PATH = CONFIG_ROOT / "config.candidate.yaml"
 CANDIDATE_CONFIG_SHA256 = (
-    "4947362f07a38ca8f86bfab42621fa78fc6a1a8b75855f13bb832b2fc6deaeff"
+    "76b201d05748edb4bfd9652da3237411b5eb889904935d940a69ecd649ae561e"
 )
 CORRESPONDING_BASELINE = {
     "agent-primary": "agent-fallback",
-    "agent-primary-reference": "agent-primary",
+    "agent-fallback": "agent-primary",
     "agent-primary-only": "agent-primary-only",
     "agent-primary-down": "agent-primary-down",
     "guardrail-v2": "guardrail-v2",
@@ -54,11 +55,10 @@ def test_deployment_ids_and_preflight_requirements(baseline, candidate):
 def test_alias_mapping_and_complete_entries_match_baseline(baseline, candidate):
     original = {row["model_name"]: row for row in baseline["model_list"]}
     models = {row["model_name"]: row for row in candidate["model_list"]}
-    assert set(models) - set(original) == {"agent-primary-reference"}
-    assert set(original) - set(models) == {"agent-fallback"}
+    assert set(models) == set(original) == set(AGENT_KEY_MODELS)
     assert {name: row["model_info"]["id"] for name, row in models.items()} == {
         "agent-primary": "anthropic-claude-sonnet-5-5",
-        "agent-primary-reference": "openai-gpt-6-luna",
+        "agent-fallback": "openai-gpt-6-luna",
         **{
             name: original[name]["model_info"]["id"]
             for name in ("agent-primary-only", "agent-primary-down", "guardrail-v2")
@@ -77,7 +77,7 @@ def test_timeouts_and_retries(candidate):
         for row in candidate["model_list"]
     } == {
         "agent-primary": 30,
-        "agent-primary-reference": 15,
+        "agent-fallback": 15,
         "agent-primary-only": 15,
         "agent-primary-down": 15,
         "guardrail-v2": 8,
@@ -143,15 +143,23 @@ def test_candidate_digest_is_frozen():
 
 
 def test_registration_contains_candidate_structure():
-    registration = (REPO_ROOT / "docs/results/hypotheses-m8-regression.md").read_text(
-        encoding="utf-8"
-    )
-    structure = registration.split("## 5. 후보 설정 구조 규칙", 1)[1].split("## 6.", 1)[
-        0
-    ]
+    # 원 등록 5절의 agent-primary-reference 서술은 추가 등록 1 §3이 대체한다.
+    registration = (
+        REPO_ROOT / "docs/results/hypotheses-m8-regression-addendum-1.md"
+    ).read_text(encoding="utf-8")
+    structure = registration.split("## 3. 변경", 1)[1].split("## 4.", 1)[0]
     for value in (
+        "agent-fallback",
         "agent-primary-reference",
-        "anthropic-claude-sonnet-5-5",
         "openai-gpt-6-luna",
+        "AGENT_KEY_MODELS",
     ):
         assert value in structure
+
+
+def test_candidate_aliases_are_agent_key_models(candidate):
+    # 러너 사전 점검은 에이전트 키로 /model/info 를 조회하므로 키 허용 모델 밖
+    # 별칭의 배포는 보이지 않는다(추가 등록 1).
+    assert {row["model_name"] for row in candidate["model_list"]} == set(
+        AGENT_KEY_MODELS
+    )

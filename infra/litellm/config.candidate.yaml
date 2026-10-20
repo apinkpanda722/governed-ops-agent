@@ -7,7 +7,7 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
       timeout: 30                        # 기준 config.yaml의 agent-fallback 항목 그대로(사용자 결정 A)
       num_retries: 0
-  - model_name: agent-primary-reference  # 기존 gpt 배포를 그대로 보존해 배포 ID 집합을 유지한다(호출되지 않음)
+  - model_name: agent-fallback           # 기존 gpt 배포를 그대로 보존해 배포 ID 집합을 유지한다(에이전트 키 허용 모델 이름, fallback 연결 없음, 호출되지 않음)
     model_info:
       id: openai-gpt-6-luna
     litellm_params:
