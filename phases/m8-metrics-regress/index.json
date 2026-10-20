@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "ops-evidence-doc",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T18:10:44+0900",
+      "summary": "M8 운영 증거표·T3-05 역추적 문서와 인용·표 구조 검증 테스트 작성, 현재 줄 번호와 풀 6개·시도 12회 반영. make verify 통과.",
+      "completed_at": "2026-10-20T18:25:33+0900",
+      "usage": {
+        "input_tokens": 4114582,
+        "cached_input_tokens": 3981184,
+        "output_tokens": 13240,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -42,5 +51,6 @@
       "name": "regress-matrix-smoke",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-20T18:10:44+0900"
 }
