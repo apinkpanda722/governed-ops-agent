@@ -60,7 +60,7 @@
 
 ### 3. `tests/test_m8_freeze.py`
 
-`tests/test_m7_freeze.py`와 같은 방식(`scripts/freeze_digest.py`를 `importlib`로 불러 `digest_for`를 쓰고, **`scripts/freeze_digest.py`는 수정하지 않는다**)으로 M8 사전 등록 문서의 sha256을 고정한다: `docs/results/hypotheses-m8-toolcall.md`(이 step이 만든 최종 본문), `hypotheses-m8-grader.md`, `hypotheses-m8-grader-addendum-1.md`~`-4.md`, `hypotheses-m8-citation.md`, `hypotheses-m8-hallucination.md`. 규칙: 키는 파일 경로 문자열의 `dict`이고, 모든 키가 추적 중인 파일이며, 값이 현재 digest와 같고, `freeze_digest.FREEZE_PATHS`와 겹치지 않는다(겹치면 실패). `EXPECTED`에 파일을 더하는 유일한 방법은 새 사전 등록 파일을 이 `dict`에 키로 추가하는 것이다. 이 step 이후 `hypotheses-m8-regression.md`(R-0)가 한 키를 더한다.
+`tests/test_m7_freeze.py`와 같은 방식(`scripts/freeze_digest.py`를 `importlib`로 불러 쓰되 **`scripts/freeze_digest.py`는 수정하지 않는다**)으로 M8 사전 등록 문서의 sha256을 고정한다. 단 각 키의 digest는 `digest_for`가 아니라 **테스트 안의 단일 파일 함수**로 계산한다: 행 형식은 `freeze_digest.digest_for`와 같은 `f"{path}\0{sha256(파일 바이트)}\n"`이고 이 한 행의 sha256이 값이다(파일 하나짜리 경로 집합). git을 호출하지 않는다(이유: `digest_for`는 `git ls-files` 기반이라, 이 step에서 새로 만든 커밋 전 파일에는 `ValueError`가 난다. 실행기는 step 완료 뒤에 커밋한다). 대상: `docs/results/hypotheses-m8-toolcall.md`(이 step이 만든 최종 본문), `hypotheses-m8-grader.md`, `hypotheses-m8-grader-addendum-1.md`~`-4.md`, `hypotheses-m8-citation.md`, `hypotheses-m8-hallucination.md`. 규칙: 키는 파일 경로 문자열의 `dict`이고, 모든 키가 저장소 안에 실제로 존재하는 파일이며 `.gitignore` 대상이 아니고(`git check-ignore -q`로 읽기 전용 확인, 무시 대상이면 실패), 값이 현재 digest와 같고, `freeze_digest.FREEZE_PATHS`와 겹치지 않는다(겹치면 실패). `EXPECTED`에 파일을 더하는 유일한 방법은 새 사전 등록 파일을 이 `dict`에 키로 추가하는 것이다. 이 step 이후 `hypotheses-m8-regression.md`(R-0)가 한 키를 더한다. 추가로 테스트 1개를 둔다: 이미 추적된 `hypotheses-m8-grader.md`에 대해 단일 파일 digest가 `freeze_digest.digest_for` 결과와 같다.
 
 ### 4. 등록 문서 `docs/results/hypotheses-m8-toolcall.md`
 
@@ -113,6 +113,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 이 step의 금지사항
 
+- `git add`·`git commit`을 하지 마라. 새 파일이 추적되는 시점은 `execute.py` 커밋 뒤다. 이유: git 작업은 사용자가 요청할 때만 한다(AGENTS.md). 그래서 동결 테스트는 `git ls-files`에 의존하지 않는다.
 - 지표 정의의 분모를 데이터를 본 뒤의 사정에 맞춰 바꾸지 마라. 이유: 결과 열람 전 등록이 이 문서의 목적이다(FP-043). 이 문서는 커밋 뒤 `tests/test_m8_freeze.py`로 동결된다.
 - `run_index`가 0, 1, 2로 이어진다고 가정해 문서·테스트를 쓰지 마라. 이유: 실측은 세 디렉터리 모두 0이다(FP-076).
 - `tool_coverage`·`rules.unapproved_effect_count`와 M8 지표를 같은 이름·같은 표로 합치지 마라. 이유: 세는 대상이 다르다(FP-045). `rules.unapproved_effect_count`는 내가 확인한 네 디렉터리(N1a, N2 3회)에서 각각 task 하나가 1이지만 `tcr.reasons`의 `unapproved_effect`와 다른 기록이다.
