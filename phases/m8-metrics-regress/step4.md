@@ -89,7 +89,7 @@
 
 ### 3. `tests/test_m8_freeze.py`
 
-`EXPECTED`에 `docs/results/hypotheses-m8-regression.md`의 최종 본문 digest를 키로 **더하는 것**만 한다.
+`EXPECTED`에 `docs/results/hypotheses-m8-regression.md`의 최종 본문 digest를 키로 **더하는 것**만 한다. 값은 앞 step이 만든 테스트 안의 **단일 파일 digest 함수**(`freeze_digest.digest_for`와 같은 행 형식, git 비호출)로 계산한다. 이 파일은 이 step에서 새로 만든 커밋 전 파일이라 `git ls-files` 기반 `digest_for`를 쓰면 `ValueError`가 난다. 키는 저장소에 실제로 존재하고 `.gitignore` 대상이 아니어야 한다는 앞 step의 규칙을 그대로 따른다.
 
 ## Acceptance Criteria
 
@@ -122,6 +122,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 ## 이 step의 금지사항
 
+- `git add`·`git commit`을 하지 마라. 새 파일이 추적되는 시점은 `execute.py` 커밋 뒤다. 이유: git 작업은 사용자가 요청할 때만 한다(AGENTS.md).
 - 후보·통제 실행 결과나 smoke 결과를 보고 기준·한도·코드를 바꾸지 마라. 이유: 사전 등록의 목적이다(FP-043). 이 step에는 결과가 없다.
 - 위 "실측 값"을 다시 계산하지 않고 옮기지 마라. 계산한 값이 다르면 `blocked`로 보고한다. 이유: 비용 상한 검산이 틀린 수치 위에서 이루어지면 첫 live에서 호출이 막히거나 상한이 무의미해진다(FP-074, #195).
 - 비용 항목을 `agent_primary` 목적만 합산하도록 쓰지 마라. 이유: 후보의 비용은 `agent_fallback` 목적으로 정산된다(`gateway/client.py` 정산 루프, FP-020).
