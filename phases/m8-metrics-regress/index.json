@@ -47,16 +47,7 @@
     {
       "step": 3,
       "name": "toolcall-cli",
-      "status": "blocked",
-      "started_at": "2026-10-20T20:57:38+0900",
-      "blocked_reason": "요구사항의 “합성 결과 디렉터리 생성 도우미가 위 실측 형태(관측 행 20개 키, 중첩 `grades`, `manifest.trace_ids`, `repeat_index` 유무, `tool_attempt` 스팬 포함 trace)를 재현한다.”와 “수정할 파일(이 목록이 전부다): `src/govops/metrics/cli.py`, `src/govops/metrics/traces.py`, `tests/test_metrics_toolcall_cli.py`, `Makefile`, `tests/test_makefile.py`. TDD.”가 충돌합니다. 기존 Observation은 15개 필드이며 extra=\"forbid\"이므로, 필수 load_observations로 20개 키 관측을 읽으면 검증에 실패합니다. 스키마 파일은 수정 허용 목록 밖입니다. 지시의 열거된 관측 키도 15개이므로 ‘20개 키’를 ‘15개 키’로 정정해야 진행할 수 있습니다.",
-      "blocked_at": "2026-10-20T21:03:16+0900",
-      "usage": {
-        "input_tokens": 317610,
-        "cached_input_tokens": 244608,
-        "output_tokens": 1849,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 4,
