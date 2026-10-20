@@ -61,16 +61,7 @@
     {
       "step": 4,
       "name": "regression-registration",
-      "status": "blocked",
-      "started_at": "2026-10-20T21:34:45+0900",
-      "blocked_reason": "선점검에서 지시 충돌을 확인했습니다. “위 \"실측 값\"을 다시 계산하지 않고 옮기지 마라.”는 관측 수·TCR·지연 등의 재계산을 요구하지만, “예외로 `data/results/`의 실행 디렉터리는 파일 이름과 JSON 키 이름을 확인하는 데 한해 열람할 수 있고, 응답 본문(`answer`·`effect_bodies`)이나 근거 본문을 출력·인용하지 않는다.”는 필요한 수치 값의 열람을 허용하지 않습니다. 본문을 노출하지 않는 집계 목적의 수치 읽기를 허용하는지 확인이 필요합니다. 충돌 시 즉시 중단하라는 지시에 따라 문서 작성과 make verify를 실행하지 않았습니다.",
-      "blocked_at": "2026-10-20T21:38:27+0900",
-      "usage": {
-        "input_tokens": 65265,
-        "cached_input_tokens": 29696,
-        "output_tokens": 992,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 5,
