@@ -395,3 +395,20 @@ m8-toolcall:
 # 오프라인 비교, 읽기 전용, 사용자 실행(.env 불필요)
 m8-regress-compare:
 	uv run python -m govops.regress.compare $(COMPARE_ARGS)
+
+.PHONY: m8-regress-precheck m8-regress-smoke m8-candidate-up m8-candidate-down
+# 호출 0회 비용 단계 검사, 사용자 실행(.env 불필요)
+m8-regress-precheck:
+	uv run python -m govops.regress.smoke precheck $(REGRESS_ARGS)
+
+# live LiteLLM 소액 호출 1건, 사용자 실행
+m8-regress-smoke:
+	uv run --env-file .env python -m govops.regress.smoke smoke $(REGRESS_ARGS)
+
+# 후보 설정으로 litellm 컨테이너 재생성, 사용자 실행
+m8-candidate-up:
+	LITELLM_CONFIG_FILE=./litellm/config.candidate.yaml docker compose --env-file .env -f infra/docker-compose.yml up -d --force-recreate --no-deps litellm
+
+# 기본 설정으로 복구, 사용자 실행
+m8-candidate-down:
+	LITELLM_CONFIG_FILE=./litellm/config.yaml docker compose --env-file .env -f infra/docker-compose.yml up -d --force-recreate --no-deps litellm

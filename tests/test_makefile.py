@@ -463,7 +463,14 @@ def test_m8_grounding_targets_that_take_dbname_load_the_env_file():
     assert {"recompute-measurement", "report", "locate-positives"} <= set(checked)
 
 
-M8_ENV_CONTRACT = {"m8-toolcall": False, "m8-regress-compare": False}
+M8_ENV_CONTRACT = {
+    "m8-toolcall": False,
+    "m8-regress-compare": False,
+    "m8-regress-precheck": False,
+    "m8-regress-smoke": True,
+    "m8-candidate-up": True,
+    "m8-candidate-down": True,
+}
 
 
 def test_m8_target_env_file_contract():
@@ -480,3 +487,7 @@ def test_m8_target_env_file_contract():
         assert target in phony
         assert target not in verify
         assert ("--env-file .env" in recipe) is expected
+    assert (
+        "LITELLM_CONFIG_FILE=./litellm/config.candidate.yaml docker compose --env-file .env "
+        "-f infra/docker-compose.yml up -d --force-recreate --no-deps litellm"
+    ) in text.split("\nm8-candidate-up:\n", 1)[1].split("\n\n", 1)[0]
