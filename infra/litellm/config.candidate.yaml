@@ -1,0 +1,64 @@
+model_list:
+  - model_name: agent-primary            # 후보: claude-sonnet-5-5가 별칭을 맡는다
+    model_info:
+      id: anthropic-claude-sonnet-5-5
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 30                        # 기준 config.yaml의 agent-fallback 항목 그대로(사용자 결정 A)
+      num_retries: 0
+  - model_name: agent-primary-reference  # 기존 gpt 배포를 그대로 보존해 배포 ID 집합을 유지한다(호출되지 않음)
+    model_info:
+      id: openai-gpt-6-luna
+    litellm_params:
+      model: openai/gpt-6-luna
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 15
+      num_retries: 0
+  # agent-primary-only, agent-primary-down, guardrail-v2: config.yaml 항목을 그대로 복사(순서 포함)
+  - model_name: agent-primary-only
+    model_info:
+      id: openai-gpt-6-luna-only
+    litellm_params:
+      model: openai/gpt-6-luna
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 15
+      num_retries: 0
+  - model_name: agent-primary-down
+    model_info:
+      id: openai-gpt-6-luna-down
+    litellm_params:
+      model: openai/gpt-6-luna
+      api_key: os.environ/OPENAI_API_KEY
+      api_base: http://127.0.0.1:9
+      timeout: 15
+      num_retries: 0
+  - model_name: guardrail-v2
+    model_info:
+      id: anthropic-claude-haiku-5-5
+    litellm_params:
+      model: anthropic/claude-haiku-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 8
+      num_retries: 0
+
+router_settings:
+  fallbacks:
+    - agent-primary-down: [agent-primary]
+
+# general_settings, guardrails: config.yaml과 같다
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/LITELLM_DATABASE_URL
+
+guardrails:
+  - guardrail_name: govops-pre
+    litellm_params:
+      guardrail: govops.gateway.guardrail_hook.GovopsGuardrail
+      mode: pre_call
+      default_on: true
+  - guardrail_name: govops-post
+    litellm_params:
+      guardrail: govops.gateway.guardrail_hook.GovopsGuardrail
+      mode: post_call
+      default_on: true

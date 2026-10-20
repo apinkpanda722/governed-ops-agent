@@ -36,6 +36,8 @@
 | 기록 재생 | `replay/` | 가짜 A MCP 서버, LLM 응답 기록·재생 | `agent`, `api`, `broker` |
 | 평가 실행기 | `evalrun/` | 사용자 실행 dev 평가·관측·record-through | `broker`, `mocks`, `audit`, `guardrails`, LLM SDK; 다른 계층은 `evalrun` import 금지 |
 | 근거 | `grounding/` | M8 근거 재구성·채점기 v3·표본·합성 주입(M8 추가 측정, 공식 M6 수치 아님) | `govops.gateway`, `govops.broker`, `govops.tools`, `govops.api`, `govops.mocks`, `govops.evalrun`, `openai`, `anthropic`, `litellm`; 다른 계층은 `grounding` import 금지 |
+| 지표 | `metrics/` | M8 항목 1 Tool-call accuracy 재집계·읽기 전용 CLI(M8 추가 측정, 공식 M6 수치 아님) | `govops.agent`, `govops.api`, `govops.broker`, `govops.gateway`, `govops.tools`, `govops.mocks`, `govops.evalrun`, `govops.grounding`, `langgraph`, LLM SDK(`openai`·`anthropic`·`google.genai`·`litellm`); 다른 계층은 `metrics` import 금지 |
+| 회귀 | `regress/` | M8 항목 5 주 모델 교체 회귀 비교·판정·smoke 진단(M8 추가 측정, 공식 M6 수치 아님) | `govops.agent`, `govops.api`, `govops.broker`, `govops.tools`, `govops.mocks`, `govops.audit`, `govops.guardrails`, `govops.evalrun`, `govops.grounding`, `langgraph`, LLM SDK(`openai`·`anthropic`·`google.genai`·`litellm`) |
 | 웹 | `web/` | 화면 4개, BFF route handler | 브라우저 코드에서 FastAPI 직접 호출 금지, 세션 토큰을 JS가 읽을 수 있는 곳(`NEXT_PUBLIC_*`, localStorage, 응답 본문)에 두지 않음 |
 
 ## 고정 제약

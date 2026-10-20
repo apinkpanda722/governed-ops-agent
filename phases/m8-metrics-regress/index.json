@@ -5,42 +5,116 @@
     {
       "step": 0,
       "name": "ops-evidence-doc",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T18:10:44+0900",
+      "summary": "M8 운영 증거표·T3-05 역추적 문서와 인용·표 구조 검증 테스트 작성, 현재 줄 번호와 풀 6개·시도 12회 반영. make verify 통과.",
+      "completed_at": "2026-10-20T18:25:33+0900",
+      "usage": {
+        "input_tokens": 4114582,
+        "cached_input_tokens": 3981184,
+        "output_tokens": 13240,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
       "name": "toolcall-registration",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T20:17:59+0900",
+      "summary": "M8 도구 호출 3지표·ok 계약 사전 등록, 합성 계약 테스트와 8개 문서 동결 테스트 작성. 출력은 data/interim/m8-metrics/toolcall/로 고정. make verify 통과.",
+      "completed_at": "2026-10-20T20:36:46+0900",
+      "usage": {
+        "input_tokens": 2870632,
+        "cached_input_tokens": 2756608,
+        "output_tokens": 15461,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
       "name": "toolcall-metrics",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T20:36:46+0900",
+      "summary": "M8 도구 호출 3지표 순수 함수·정수 비율 요약·grades 대조와 계층 가드·합성 테스트 구현. make verify 통과.",
+      "completed_at": "2026-10-20T20:57:37+0900",
+      "usage": {
+        "input_tokens": 2921861,
+        "cached_input_tokens": 2799232,
+        "output_tokens": 17219,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
       "name": "toolcall-cli",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T21:11:32+0900",
+      "summary": "M8 읽기 전용 toolcall CLI·trace 다중집합 연결·SHA-256 재검증·오프라인 Make 타깃과 합성 테스트 구현, 보고서 표 확인 및 make verify 통과.",
+      "completed_at": "2026-10-20T21:34:45+0900",
+      "usage": {
+        "input_tokens": 3427414,
+        "cached_input_tokens": 3305728,
+        "output_tokens": 26330,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
       "name": "regression-registration",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T21:48:12+0900",
+      "summary": "M8 주 모델 교체 회귀 6기준·유효성 코드·비용 상한 사전 등록과 동결 digest 키 추가, 실측값 재계산 대조 및 make verify 통과.",
+      "completed_at": "2026-10-20T22:04:40+0900",
+      "usage": {
+        "input_tokens": 2535763,
+        "cached_input_tokens": 2410880,
+        "output_tokens": 18372,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
       "name": "candidate-config",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T22:22:10+0900",
+      "summary": "Sonnet 후보 설정과 구조·배포 ID·비밀 참조·SHA-256 불변식 테스트 8개 작성. 기준 설정 유지, make verify 통과. 실제 라우팅은 R-3 smoke에서 확인.",
+      "completed_at": "2026-10-20T22:42:43+0900",
+      "usage": {
+        "input_tokens": 3036785,
+        "cached_input_tokens": 2936064,
+        "output_tokens": 9026,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
       "name": "regress-compare",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T22:42:43+0900",
+      "summary": "M8 6기준 오프라인 회귀 비교 CLI·골든 구조 비교·판정 보고서·합성 테스트 68개와 계층 가드·Make 타깃 구현. 보고서 표 확인 및 make verify 통과.",
+      "completed_at": "2026-10-20T23:03:49+0900",
+      "usage": {
+        "input_tokens": 3929309,
+        "cached_input_tokens": 3777792,
+        "output_tokens": 34113,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
       "name": "regress-matrix-smoke",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T23:03:49+0900",
+      "summary": "M8 회귀 행렬·비용 precheck·4신호 smoke·후보 설정 적용/복구 타깃과 합성 테스트 69개 구현. make verify 통과, live 명령 미실행.",
+      "completed_at": "2026-10-20T23:24:10+0900",
+      "usage": {
+        "input_tokens": 4299601,
+        "cached_input_tokens": 4152960,
+        "output_tokens": 21011,
+        "attempts": 1
+      }
     }
-  ]
+  ],
+  "created_at": "2026-10-20T18:10:44+0900",
+  "completed_at": "2026-10-20T23:24:10+0900"
 }
