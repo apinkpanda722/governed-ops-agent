@@ -17,6 +17,7 @@ _spec.loader.exec_module(freeze)
 
 # 새 등록은 이 dict에 파일 키 하나를 추가한다. 기존 등록의 값은 갱신하지 않는다.
 EXPECTED: dict[str, str] = {
+    "docs/results/hypotheses-m8-regression.md": "e882edc002469a72f37853a0219a9b3ea76cf4809eb03d885064ada2b45bdd6a",
     "docs/results/hypotheses-m8-toolcall.md": "897c1278afbd034e950dbfb3084b810abfe374de9f69d44b94821f1305b47fe5",
     "docs/results/hypotheses-m8-grader.md": "8dfe8901a257bbabbe58307798e5169ddb3f789dc1c62eeb0efbad932117c3c0",
     "docs/results/hypotheses-m8-grader-addendum-1.md": "43c86115c50b5cf709f51d4727b5e49624cf30097d4802e64f0c17787698405e",
