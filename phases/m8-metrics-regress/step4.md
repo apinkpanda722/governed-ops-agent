@@ -67,7 +67,7 @@
 | 5 | 골든 구조 | **기준선 `grades.json`에서 `tcr.passed`가 true인 골든 task**(N1a 기준 13개)의 `digest_for` 비교에서 `effect_count`·`status`·`forbidden_tool_called`(해당 시 `effects`·`approval_decisions`) 불일치 0. `tool_order`·`refused` 불일치는 **보고만** | `golden_structure` |
 | 6 | 비용·지연 | task당 비용 ≤ 기준선 × 1.5 **그리고** p95 ≤ 20,000 ms | `cost_over`, `latency_over` |
 
-   - 기준 4의 비교 대상은 N1a 디렉터리와 후보 디렉터리다. 비율은 정수 분자·분모로 비교한다.
+   - 기준 4의 비교 대상은 N1a 디렉터리와 후보 디렉터리다. 비율은 정수 분자·분모로 비교한다. `call_ok_rate`는 등록 문서 정의와 같이 **읽기+쓰기 합계**로 하락을 계산하고(쓰기 `ok`는 제출 초안의 오류 응답 유무다), `values`에 읽기·쓰기 각각의 기준선·후보 분자·분모를 함께 보고한다.
    - 기준 6의 task당 비용 = 매니페스트 `costs_by_purpose`의 `agent_primary`+`agent_fallback`+`guardrail_v2` 합 ÷ task 수(후보에서 비용이 `agent_fallback` 목적으로 쌓이는 것이 정상이므로 `agent_primary`만 보지 않는다). p95는 `task_latency_ms` 값의 nearest-rank.
    - **사전 예상(결과가 아니라 단가표에서 나온 것)**: 후보 단가 구조상(`claude-sonnet-5-5` 입력 $2/1M·출력 $10/1M 대 `gpt-6-luna` 입력 $0.10/1M·캐시 $0.01/1M·출력 $0.50/1M, 후보는 캐시 할인 없이 센다) 기준 6의 비용 항목은 **구조적으로 초과가 예상된다(약 51.7배)**. 이는 행동 회귀가 아니라 모델 교체에 따른 비용 증가를 감지한다는 뜻이다. 이 한도는 사용자가 확정한 값이라 바꾸지 않고, 판정 JSON이 기준별 이유 코드를 따로 담아 `cost_over` 하나만 실패한 경우와 행동 기준이 실패한 경우를 구분해 보고한다. 사용자가 2026-10-20 실행 전에 이 예상을 보고 한도를 유지하기로 확정했다. 결과는 `behavior_criteria_met`와 `cost_criterion_met`를 나눠 보고한다.
    - **기준 5의 대상 규칙**: 골든 14 중 T3-01은 기준선 N1a에서 `tcr.passed=false`(`effect_structure_mismatch`·`invalid_status`)다. 기준선 digest와 비교하면 후보가 이를 개선해도 FAIL이 되므로, 판정 대상은 기준선에서 통과한 골든 task 13개로 한정한다. 기준선에서 실패한 골든 task(N1a 기준 1개)의 불일치 키는 `values.baseline_failing_golden`에 **보고만** 하고 판정에 쓰지 않는다.
