@@ -463,7 +463,7 @@ def test_m8_grounding_targets_that_take_dbname_load_the_env_file():
     assert {"recompute-measurement", "report", "locate-positives"} <= set(checked)
 
 
-M8_ENV_CONTRACT = {"m8-toolcall": False}
+M8_ENV_CONTRACT = {"m8-toolcall": False, "m8-regress-compare": False}
 
 
 def test_m8_target_env_file_contract():

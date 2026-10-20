@@ -390,3 +390,8 @@ m8-grounding-render-positives:
 # 오프라인 재집계, 읽기 전용, 사용자 실행(.env 불필요)
 m8-toolcall:
 	uv run python -m govops.metrics.cli toolcall $(TOOLCALL_ARGS)
+
+.PHONY: m8-regress-compare
+# 오프라인 비교, 읽기 전용, 사용자 실행(.env 불필요)
+m8-regress-compare:
+	uv run python -m govops.regress.compare $(COMPARE_ARGS)
