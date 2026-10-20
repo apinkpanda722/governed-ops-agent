@@ -49,6 +49,7 @@ def golden_diff(specs: Mapping[str, TaskSpec], baseline: Mapping[str, Observatio
 def expectation_mismatches(expectations: Mapping[str, Mapping], digests: Mapping[str, Mapping]) -> dict[str, list[str]]: ...
 ```
 
+- `golden_diff`는 모든 골든 task의 불일치 키를 계산하되, **판정 대상은 기준선 `grades`에서 `tcr.passed`가 true인 골든 task뿐**이다(N1a 기준 13개; T3-01은 기준선 실패). 기준선에서 실패한 골든 task의 불일치 키는 `values.baseline_failing_golden`(task → 키 목록)에 보고만 하고 판정에 쓰지 않는다. `TaskDetail`에 기준선 통과 여부가 이미 있으므로 `reduce_details`만으로 계산한다.
 - `golden_diff`: `GOLDEN_TASKS`의 task마다 `digest_for(spec, obs)`를 기준선과 후보 관측에 각각 적용해 `HARD_KEYS`(기준선 digest에 있는 키만)와 `REPORT_ONLY_KEYS`의 불일치 키 목록을 낸다. 기준선·후보·명세 어느 쪽에든 골든 task가 없으면 `ValueError("m8_regress_input_invalid")`(조용히 빼지 않는다).
 - `expectation_mismatches`: `golden.compare`와 같은 규칙으로 `effect_count`·`status`가 기대값과 다른지, 호출한 도구가 기대 `forbidden_tools`에 있는지를 본다(`refused`는 비교하지 않는다. 문구 추측 값이다). **판정에 쓰지 않고 `values`에 기준선·후보 각각 보고만** 한다(기준선도 기대값과 다를 수 있다).
 
@@ -98,7 +99,7 @@ m8-regress-compare:
 - **각 기준이 따로 실패**(FP-021): 다른 기준은 모두 충족한 채로 기준 2(`tcr_drop`), 3(`forbidden_violation`), 4의 두 코드(`toolcall_required_drop`, `toolcall_ok_drop`), 5(`golden_structure`), 6의 두 코드(`cost_over`, `latency_over`)가 각각 단독으로 `FAIL`과 해당 코드만 낸다. 기준 1은 세부 코드 11개를 각각 단독으로 일으켜 `invalid_run`과 해당 세부 코드를 낸다.
 - **경계**: TCR 하락 2(충족)·3(미충족), 필수 호출률 하락 정확히 0.10(충족)·초과(미충족), 호출 성공률 하락 정확히 0.05(충족)·초과, 비용 정확히 기준선×1.5(충족)·초과, p95 정확히 20,000 ms(충족)·20,001 ms(미충족). 향상한 task는 하락 계산을 상쇄하지 않는다는 규칙이 아니라 **순 하락(기준선 통과 수 − 후보 통과 수)** 임을 테스트로 고정한다.
 - 기준 3: 사유 다섯 코드가 각각 단독으로 `forbidden_violation`을 일으키고, `rules.unapproved_effect_count`가 1이어도 `tcr.reasons`에 없으면 충족이다(기준선 N1a 형태).
-- 기준 5: `tool_order`·`refused`만 다른 후보는 PASS(보고에만 나타남), `effect_count` 불일치는 FAIL, m3 task의 `effects` 불일치는 FAIL, 골든 task 누락은 `m8_regress_input_invalid`.
+- 기준 5: (a) 기준선에서 실패한 골든 task는 후보가 달라도 PASS이고 `values.baseline_failing_golden`에 보고된다, (b) 기준선에서 통과한 골든 task의 `effect_count`가 달라지면 FAIL, `tool_order`·`refused`만 다른 후보는 PASS(보고에만 나타남), `effect_count` 불일치는 FAIL, m3 task의 `effects` 불일치는 FAIL, 골든 task 누락은 `m8_regress_input_invalid`.
 - 비용: 후보 비용이 `agent_fallback` 목적으로만 쌓여도 task당 비용이 합산된다(`agent_primary`만 보는 구현이면 실패하는 케이스).
 - **집계 일치**: `verdict.json`의 기준값이 `verdict-detail.jsonl`에서 재계산한 값과 같다. `details` 하나를 바꾸면(예: 한 task의 후보 `passed`를 뒤집으면) 판정이 바뀐다(최상위가 다른 입력에서 계산되지 않는다는 증거). 필수 호출률·호출 성공률이 `govops.metrics.toolcall.summarize`의 같은 입력 결과와 일치한다.
 - 중단 코드 각각(위 목록 중 compare가 내는 것 전부): 등록 미커밋(임시 git 저장소), 기준선 ID·해시 불일치, 입력 없음·불량, 분모 0, 출력 겹침·존재, 입력 변조 뒤 `verify`가 `m8_regress_hash_mismatch`.
@@ -152,4 +153,4 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 - 수정 파일 목록 밖의 변경이 필요한가: 아니오. 설계 4-1절 R-2 행에 `Makefile`·`tests/test_makefile.py`(`M8_ENV_CONTRACT` 표가 이 파일에 있어 필요)와 `tests/test_architecture.py`·`AGENTS.md`(R-1에서 옮김)를 더했다.
 - AC를 이 step 안에서 달성할 수 있는가: 예.
-- 다른 step·등록 문서와 모순되는가: 예. 설계 4-1절은 `tests/test_architecture.py` 행 추가를 R-1에 두었으나 `regress/`가 R-2에서 생기므로 이 step으로 옮겼다. 또 `govops.golden`의 간접 의존(에이전트·API 모듈)은 직접 import 규칙으로는 막히지 않는 점을 알고 감수한다.
+- 다른 step·등록 문서와 모순되는가: 예. 설계 2-4절 기준 5는 골든 14 전체를 비교하지만 기준선 실패 task(T3-01)가 있어 기준선 통과 13개로 한정했다(지시 34, 등록 문서 7번과 같음). 또 설계 4-1절은 `tests/test_architecture.py` 행 추가를 R-1에 두었으나 `regress/`가 R-2에서 생기므로 이 step으로 옮겼다. 또 `govops.golden`의 간접 의존(에이전트·API 모듈)은 직접 import 규칙으로는 막히지 않는 점을 알고 감수한다.
