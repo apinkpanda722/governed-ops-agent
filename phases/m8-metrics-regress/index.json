@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "regression-registration",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T21:48:12+0900",
+      "summary": "M8 주 모델 교체 회귀 6기준·유효성 코드·비용 상한 사전 등록과 동결 digest 키 추가, 실측값 재계산 대조 및 make verify 통과.",
+      "completed_at": "2026-10-20T22:04:40+0900",
+      "usage": {
+        "input_tokens": 2535763,
+        "cached_input_tokens": 2410880,
+        "output_tokens": 18372,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
