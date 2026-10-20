@@ -30,7 +30,7 @@
 - 입력 단위: `Observation`(`task_id`, `run_index`, `tool_calls: list[ToolCallRecord{name, ok}]`, …)과 그 task의 `TaskSpec`(`required_tools_any: list[list[str]]`, `forbidden.forbidden_tools: list[str]`).
 - 실제 공식 결과의 `run_index`는 **모든 디렉터리에서 0**이고, 공식 N2는 **디렉터리 3개가 각각 같은 40개 task를 가진다**. 즉 `(task_id, run_index)`는 디렉터리 사이에서 겹친다. 실행 키는 반드시 `(result_dir, task_id, run_index)`다.
 - 합성 픽스처는 이 겹침을 재현해야 한다: 같은 `(task_id, 0)`이 디렉터리 3개에 있고, 별도 케이스에서는 `run_index`가 0이 아닌 값(예: 2)·비연속 값(0, 2)이 나온다. **`run_index`가 0부터 연속이라는 가정을 코드와 테스트에 쓰지 않는다.**
-- 쓰기 호출(`slack_send_message`·`jira_add_comment`·`jira_create_followup_ticket`)은 실행된 부작용 호출이다. 읽기 호출은 `search_docs`·`lookup_id`·`get_document`·`jira_get_ticket`·`run_sql`.
+- 쓰기 항목(`slack_send_message`·`jira_add_comment`·`jira_create_followup_ticket`)은 실행된 부작용이 아니라 모델이 제출한 쓰기 초안이며 실행 전에 막힌 것도 포함한다(`ok` = 해당 tool 응답에 `error` 키 없음, 승인·발송 여부와 무관; 실제 부작용은 `effects`에 따로 있다). 읽기 항목은 실제 실행된 읽기 호출(`ok` = 도구 결과가 오류가 아님)이고 그래프 단계에서 거절된 읽기는 나타나지 않는다(비대칭). 짝이 맞지 않은 캡처 읽기는 목록 끝에 붙는다. 읽기 호출 이름은 `search_docs`·`lookup_id`·`get_document`·`jira_get_ticket`·`run_sql`.
 - `grades.json`은 `{task_id: {"tcr": {"task_id", "run_index", "passed", "reasons", "tool_coverage"}, "rules": {…}, "used_auto_forbidden": bool}}` 모양의 dict다(디렉터리당 task 하나에 한 행).
 
 ### 2. 계층 규칙 (`tests/test_architecture.py`, `AGENTS.md`)
@@ -73,7 +73,7 @@ def cross_check_tool_coverage(runs, grades_by_dir: Mapping[str, Mapping[str, Map
 
 - 필수 그룹 2개 중 1개만 성공 → `required_met=False`. 같은 그룹에 `ok=False`인 호출만 있으면 미충족. 그룹이 비면 `required_met=None`이고 요약에서 분모에서 빠지며 `excluded_empty_groups`가 센다.
 - 금지 도구를 같은 실행에서 2번 호출 → 호출 2·실행 1. `ok=False`인 금지 호출도 센다.
-- 읽기·쓰기 `ok` 집계 분리, 합계 일치.
+- 읽기·쓰기 `ok` 집계 분리, 합계 일치. 합성 픽스처에 "쓰기 초안 `ok=false`(그래프 거절)"와 "짝이 안 맞은 캡처 읽기(목록 끝에 붙은 읽기)" 케이스를 넣어 각각 쓰기 분모·읽기 분모에 들어감을 확인한다.
 - **키 겹침**: 같은 `(task_id, 0)`이 디렉터리 세 개에 있는 120행형 합성 입력이 `DuplicateRun` 없이 요약되고, 같은 디렉터리의 같은 `(task_id, run_index)`는 `m8_toolcall_duplicate_run`. `run_index` 2 단독, 0·2 비연속 케이스.
 - `grade_tcr`와의 일치: 합성 `TaskSpec`·`Observation` 100쌍(시드 고정, 건수 명시)에 대해 `evaluate_run`의 `required_met`(None→참)이 `grade_tcr(...).tool_coverage`와 같다. 이 테스트는 `grade_tcr`를 호출하지만 `grade_tcr` 자체의 단언은 바꾸지 않는다.
 - `cross_check_tool_coverage`: 일치, `tool_coverage` 불일치, `run_index` 불일치, grades에 task 없음, 빈 입력 각각.
@@ -119,7 +119,7 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 - `tool_coverage`를 다시 계산해 M8 지표로 이름만 바꾸지 마라. 이유: 빈 그룹에서 `all([])`이 참이 되는 공허 통과를 분모에서 빼야 한다(FP-069). 기존 `tool_coverage`와의 일치는 `cross_check`로 따로 검증한다.
 - 실행 키를 `(task_id, run_index)`로만 쓰지 마라. 이유: 공식 N2 세 디렉터리가 같은 키를 가진다(실측, FP-076).
-- 쓰기 호출과 읽기 호출을 같은 분모로만 합쳐 보고하지 마라. 이유: 쓰기 호출은 실행된 부작용이고 읽기 호출은 모델이 요청한 조회라 세는 대상이 다르다(FP-045). 합계와 구분 값을 둘 다 낸다.
+- 쓰기 호출과 읽기 호출을 같은 분모로만 합쳐 보고하지 마라. 이유: 쓰기 항목은 제출한 초안(그래프·정책 단계에서 막힌 것 포함)이고 읽기 항목은 실제 실행된 조회라 세는 대상이 다르다(FP-045). 합계와 구분 값을 둘 다 낸다.
 - 비율을 `float`로만 들고 경계를 `<=`로 비교하지 마라. 이유: R-2의 한도 비교(0.10·0.05)가 정확한 경계에서 결정되어야 한다. 정수 분자·분모를 유지한다.
 - `tests/test_architecture.py`·`AGENTS.md`는 위에 적은 행·규칙만 더하고 기존 규칙 행과 `CRITICAL:` 개수를 바꾸지 마라. 이유: 계층 가드와 문서 일치 테스트가 정확 일치를 본다(FP-061, FP-071).
 
