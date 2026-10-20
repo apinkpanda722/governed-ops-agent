@@ -89,7 +89,16 @@
     {
       "step": 6,
       "name": "regress-compare",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T22:42:43+0900",
+      "summary": "M8 6기준 오프라인 회귀 비교 CLI·골든 구조 비교·판정 보고서·합성 테스트 68개와 계층 가드·Make 타깃 구현. 보고서 표 확인 및 make verify 통과.",
+      "completed_at": "2026-10-20T23:03:49+0900",
+      "usage": {
+        "input_tokens": 3929309,
+        "cached_input_tokens": 3777792,
+        "output_tokens": 34113,
+        "attempts": 1
+      }
     },
     {
       "step": 7,
