@@ -431,7 +431,7 @@ def test_m8_measurement_report_targets_are_user_only_and_outside_verify():
     text = (REPO_ROOT / "Makefile").read_text()
     verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
     for target, command, env_file in (
-        ("m8-grounding-recompute", "recompute-measurement", False),
+        ("m8-grounding-recompute", "recompute-measurement", True),
         ("m8-grounding-positives", "list-positives", False),
         ("m8-grounding-render-positives", "render-positives", True),
     ):
