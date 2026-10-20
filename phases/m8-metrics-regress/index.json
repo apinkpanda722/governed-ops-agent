@@ -19,16 +19,7 @@
     {
       "step": 1,
       "name": "toolcall-registration",
-      "status": "blocked",
-      "started_at": "2026-10-20T20:04:32+0900",
-      "blocked_reason": "선점검에서 추적 상태 요구와 git 작업 제한이 충돌합니다. Step은 “모든 키가 추적 중인 파일이며, 값이 현재 digest와 같고”를 요구하지만, AGENTS.md는 “git 작업은 사용자가 요청할 때만 한다: 이슈 → `feature/*` 브랜치 → PR → 머지.”라고 제한합니다. 새 hypotheses-m8-toolcall.md는 아직 추적되지 않아, 현재 방식의 digest_for는 ValueError를 내므로 실행기의 커밋 전에 make verify를 통과하려면 사전 staging 허용이 필요합니다. 파일은 수정하지 않았습니다.",
-      "blocked_at": "2026-10-20T20:09:37+0900",
-      "usage": {
-        "input_tokens": 117796,
-        "cached_input_tokens": 65536,
-        "output_tokens": 1391,
-        "attempts": 1
-      }
+      "status": "pending"
     },
     {
       "step": 2,
