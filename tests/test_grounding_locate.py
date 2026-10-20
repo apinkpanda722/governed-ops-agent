@@ -242,3 +242,25 @@ def test_locate_requires_the_measurement_record(tmp_path, monkeypatch, capsys):
     capsys.readouterr()
     assert run("locate-positives", *args) == 2
     assert "FAIL measurement_result_missing" in capsys.readouterr().out
+
+
+def test_missing_database_env_gives_the_fixed_code_not_a_hidden_failure(
+    tmp_path, monkeypatch, capsys
+):
+    run, args, _, _ = stopped_measurement(tmp_path, monkeypatch)
+    monkeypatch.delenv("SYNTHETIC_DB")
+    capsys.readouterr()
+    assert run("recompute-measurement", *args) == 2
+    assert "FAIL url_env_unset" in capsys.readouterr().out
+    monkeypatch.setenv("SYNTHETIC_DB", "  ")
+    assert run("recompute-measurement", *args) == 2
+    assert "FAIL url_env_unset" in capsys.readouterr().out
+
+
+def test_missing_gemini_key_gives_the_fixed_code(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(cli.registration.RegistrationError, match="gemini_key_unset"):
+        cli.build_grader(None, ledger_factory=object, spend_factory=object)
+    monkeypatch.setenv("GEMINI_API_KEY", " ")
+    with pytest.raises(cli.registration.RegistrationError, match="gemini_key_unset"):
+        cli.build_grader(None, ledger_factory=object, spend_factory=object)

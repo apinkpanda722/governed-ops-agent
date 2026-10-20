@@ -250,7 +250,7 @@ def build_grader(call=None, *, root=None, ledger_factory=None, spend_factory=Non
     """Construct only after guards. Tests inject calls and temporary cost ledgers."""
     root = Path.cwd() if root is None else Path(root)
     # No fallback or default key: the SDK is constructed lazily by the grader.
-    if call is None and not os.environ["GEMINI_API_KEY"].strip():
+    if call is None and not os.environ.get("GEMINI_API_KEY", "").strip():
         raise registration.RegistrationError("gemini_key_unset")
     ledger = ledger_factory() if ledger_factory else CostLedger(root / "data/manifest")
     spend = (
@@ -286,7 +286,8 @@ async def _hydrate(rows, directories, args, *, saver_factory, evidence_loader):
             if key in links:
                 raise ValueError("duplicate_observation_link")
             links[key] = link
-    url = os.environ[args.url_env]
+    # A missing variable is the same fixed code as an empty one (no KeyError first).
+    url = os.environ.get(args.url_env, "")
     if not url.strip():
         raise registration.RegistrationError("url_env_unset")
     if args.dbname is not None:
