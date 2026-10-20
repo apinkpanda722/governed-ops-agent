@@ -465,6 +465,7 @@ def test_m8_grounding_targets_that_take_dbname_load_the_env_file():
 
 M8_ENV_CONTRACT = {
     "m8-toolcall": False,
+    "m8-args": True,
     "m8-regress-compare": False,
     "m8-regress-precheck": False,
     "m8-regress-smoke": True,

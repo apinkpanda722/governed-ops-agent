@@ -80,6 +80,7 @@
 
 ## 명령어
 make m8-evidence-probe # 근거 보존 점검, 개수만 출력(읽기 전용, 사용자 실행)
+make m8-args # 임시 DB 복원본의 도구 인자 근거율 측정, 인자 원문 비출력(읽기 전용, 사용자 실행)
 make e2e-web # 포트 3200·8200·8201이 이미 쓰이고 있으면 Playwright가 시작을 거부한다(기존 서버 재사용 금지). e2e는 `next build`로 `web/.next`를 덮어쓰므로 `next start`로 띄운 데모 서버(3100)는 먼저 끈다(`next dev`는 `.next/dev`를 써서 무관). e2e가 새로 만든 변경만 실패.(사용자 실행)
 make verify      # ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest → playwright test --list (Stop hook, execute.py, CI가 모두 이 명령을 부른다). API 키·네트워크 없이 통과한다.
 make mock-tokens # 사용자별 mock-jira·mock-slack 토큰과 해시 매니페스트 생성(사용자 실행)
