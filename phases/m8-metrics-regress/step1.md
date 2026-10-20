@@ -39,7 +39,7 @@
 - **"공식 N2 120 실행" = 디렉터리 3개 × task 40개 × `run_index` 0**이다. `run_index`는 0, 1, 2가 아니라 세 디렉터리 모두 0이다(FP-076: 이 가정은 이미 한 번 깨졌다). 실행 단위의 키는 `(result_dir 이름, task_id, run_index)`다. 한 디렉터리의 `grades.json`은 `task_id`를 키로 하는 dict라 task마다 한 행만 담는다.
 - 관측 행 키 20개: `answer`·`approvals`·`cited_doc_ids`·`effect_bodies`·`effects`·`fault_injected`·`observed_ids`·`policy_violations`·`run_index`·`status`·`stop_reason`·`task_id`·`tool_calls`·`tool_results`·`trace_id`. 이 중 `tool_calls`는 `{name, ok}` 두 키뿐인 dict 목록이다.
 - `grades.json[task_id]`: 키 `tcr`·`rules`·`used_auto_forbidden`. `tcr` = `{task_id, run_index, passed, reasons, tool_coverage}`.
-- 호출 이름: 읽기 `search_docs`·`lookup_id`·`get_document`·`jira_get_ticket`·`run_sql`, 쓰기 `slack_send_message`·`jira_add_comment`·`jira_create_followup_ticket`. **쓰기 호출은 모델이 요청한 초안이 아니라 실행된 부작용 호출이다**(`_EffectCapture`가 기록, FP-045: 세는 대상이 다르다).
+- 호출 이름: 읽기 `search_docs`·`lookup_id`·`get_document`·`jira_get_ticket`·`run_sql`, 쓰기 `slack_send_message`·`jira_add_comment`·`jira_create_followup_ticket`. **관측 `tool_calls`는 `observation_calls(state, extract_tool_trace(captured))`다(`dev_m3.py:986~987`, `evalrun/tool_trace.py`). 읽기 항목 = 실제 실행된 읽기 호출(런타임 캡처)을 모델의 요청 순서에 맞춘 것이고 `ok` = 도구 결과가 오류가 아님이다. 쓰기 항목 = `proposal_calls(state)`, 즉 모델이 제출한 쓰기 초안이며 실행 전에 막힌 것도 포함한다. 쓰기 `ok` = 그래프 상태의 해당 tool 응답 메시지에 `error` 키가 없음이고 승인·거절·실제 발송 여부와 무관하다. 실제 부작용은 관측의 `effects`에 따로 기록된다. 공식 `grade_tcr`의 `tool_coverage`·`forbidden_tool_called`도 이 `tool_calls`를 쓴다**(FP-045: 읽기와 쓰기는 세는 대상이 다르다). 공식 N2 3개 디렉터리는 `dev_m3.py` 경로로 만들어졌다(manifest의 `tool_trace_mismatch`·`repeat_index`, 관측 행 키로 확인).
 - trace(`traces/<trace_id>.jsonl`, `trace_id`는 관측 행과 `manifest.trace_ids[task_id]`에서 같다): 스팬 `kind`가 `tool_call`인 것 중 **읽기 도구만 도구 이름의 스팬**이고(`attributes`에 `success`·`error_code`·`tool.result`), 이름이 `tool_attempt`인 스팬(`success`·`error_code` 없음, 속성 키는 `service`·`soft_timeout_exceeded`)도 `kind`가 `tool_call`이다. 쓰기 호출에는 도구 이름 스팬이 없다. 수가 서로 맞지 않는다(N1a: 관측 호출 52, 도구 이름 스팬 40, `tool_attempt` 49, `kind == "tool_call"` 합계 89).
 - 이 5개 디렉터리에서 `error_code`가 있는 스팬은 N2 2회·3회 각 1건(`not_found`, 읽기 호출 `get_document`)뿐이다.
 
@@ -52,10 +52,11 @@
 1. 도구가 오류 결과(`is_error`)를 돌려주면 관측의 `ok`는 false다(예: `jira_get_ticket` 없는 티켓 `not_found`).
 2. 스키마 위반 인자는 `ToolRuntime.call`이 `invalid_argument` 오류 결과를 돌려주므로 `ok=false`로 기록된다(실제로 그런지 테스트가 확인한다. 다르면 다른 대로 문서에 쓴다).
 3. `tools.call`이 예외를 던져도(타임아웃·서킷 등) `ok=false`로 기록되고 호출이 누락되지 않는다.
-4. **그래프 단계에서 거절되는 호출**(인자가 JSON이 아니거나 신원 필드를 담은 경우 `invalid_argument`, 실행 불가 도구 `tool_not_available`)은 `tools.call`에 도달하지 않으므로 관측의 `tool_calls`에 **나타나지 않는다**. `call_ok_rate`의 분모는 `tools.call`에 도달한 호출뿐이다. 이 한계를 문서에 쓴다.
-5. 쓰기 도구의 관측 호출은 실행된 부작용 호출(`_EffectCapture`)이다. 승인 전 초안 제출이나 거절된 쓰기는 호출로 세지지 않는다.
+4. **그래프 단계에서 거절된 읽기**(인자가 JSON이 아니거나 신원 필드를 담은 경우 `invalid_argument`, 실행 불가 도구 `tool_not_available`; 런타임 캡처 없음)는 `tool_calls`에 **나타나지 않는다**. 같은 조건의 **쓰기 초안**은 tool 응답에 `error`가 있으면 `ok=false`로 **나타난다**(비대칭). 가짜 state와 합성 입력으로 `observation_calls`·`proposal_calls`를 직접 호출해 단언한다.
+5. 쓰기 항목은 모델이 제출한 초안이며 `ok`는 tool 응답의 `error` 키 유무로만 정해진다. 실행·승인·거절·발송 여부와 무관하다(합성 state로 확인).
+6. 요청과 짝이 맞지 않은 캡처 읽기(모델 요청 목록에 없는 읽기)는 목록 **끝에 붙는다**(진단용).
 
-테스트는 위 5가지가 현재 코드의 동작임을 단언한다. 이 테스트의 실패는 등록 문서의 정의가 틀렸다는 뜻이다.
+테스트는 위 6가지가 현재 코드의 동작임을 단언한다. 이 테스트의 실패는 등록 문서의 정의가 틀렸다는 뜻이다.
 
 ### 3. `tests/test_m8_freeze.py`
 
@@ -71,10 +72,10 @@
 4. **세 지표의 정의**(분자·분모를 문장으로):
    - `required_tool_call_rate`: 분모 = `required_tools_any`가 **비어 있지 않은** 실행, 분자 = 모든 그룹에서 성공(`ok=true`) 호출이 하나 이상. 그룹이 비면 분모에서 빼고 건수 `excluded_empty_groups`를 보고한다(`all([])` 공허 참 방지, FP-069). 분모 0이면 실패 코드 `m8_toolcall_denominator_zero`.
    - `forbidden_call_count`: 실행 안의 금지 도구 호출 **횟수**와 그런 실행 수(`forbidden_call_runs`)를 둘 다. 분모 = 전체 실행. 호출 성공 여부와 무관하게 이름으로 센다(`grade_tcr`와 같다). 0이 좋은 지표이므로 짝으로 `required_tool_call_rate`와 공식 TCR을 함께 보고한다(FP-040: 아무것도 안 해서 0이 되는 경우를 가린다).
-   - `call_ok_rate`: 분자 = `ok` 호출 수, 분모 = 관측의 도구 호출 수. 읽기·쓰기를 나눠 보고하고 합계도 낸다. 분모 0이면 `m8_toolcall_denominator_zero`.
-5. **ok의 정의**: 2번 계약 테스트 결과를 그대로 쓴다. `call_ok_rate`는 "호출 성공률"이며 스키마 위반 비율이 아니다.
+   - `call_ok_rate`: 분자 = `ok` 호출 수, 분모 = 관측의 도구 호출 수(정의는 그대로). 읽기 = 실행된 읽기 중 오류 없음, 쓰기 = 제출한 초안 중 그래프·정책 단계에서 오류 응답을 받지 않음이다. **읽기·쓰기를 반드시 나눠 보고하고** 합계는 참고로만 쓴다(R-0 기준 4는 합계를 판정에 쓰지만 읽기·쓰기 값을 함께 보고한다). 분모 0이면 `m8_toolcall_denominator_zero`.
+5. **ok의 정의**: 2번 계약 테스트 결과를 그대로 쓴다. `call_ok_rate`는 "호출 성공률"이며 스키마 위반 비율이 아니다. **한계로 쓴다**: 그래프 단계에서 거절된 읽기는 분모에 없고 거절된 쓰기 초안은 분모에 있다(비대칭). 쓰기 `ok`는 실행 성공이 아니다. 쓰기 항목은 실행된 부작용이 아니라 제출된 초안이며 실제 부작용은 `effects`에 있다.
 6. **`tool_coverage` 일치 검증**: 각 실행에서 `required_met`(그룹이 비면 참)이 `grades.json`의 `tcr.tool_coverage`와 같다. 하나라도 다르면 코드 `m8_toolcall_grade_mismatch`로 중단한다.
-7. **오류 코드 분해**: 읽기 호출만 trace의 도구 이름 스팬(`tool_attempt` 제외)의 `error_code`와 연결한다. 한 trace 안에서 관측의 읽기 호출 `(name, ok)` 다중집합이 스팬의 `(name, success)` 다중집합과 같을 때만 연결로 인정하고, 다르면 그 실행의 읽기 호출을 `unlinked_read`로 센다. 쓰기 호출은 도구 이름 스팬이 없으므로 항상 `unlinked_write`로 세며 이는 결함이 아니다. trace 파일이 없으면 `unlinked_trace_missing`. 조용히 빼지 않고 건수를 보고한다.
+7. **오류 코드 분해**: 읽기 호출만 trace의 도구 이름 스팬(`tool_attempt` 제외)의 `error_code`와 연결한다. 한 trace 안에서 관측의 읽기 호출 `(name, ok)` 다중집합이 스팬의 `(name, success)` 다중집합과 같을 때만 연결로 인정하고, 다르면 그 실행의 읽기 호출을 `unlinked_read`로 센다. 쓰기 항목은 제출된 초안이고 도구 이름 스팬이 없으므로 항상 `unlinked_write`로 세며 이는 결함이 아니다. trace 파일이 없으면 `unlinked_trace_missing`. 조용히 빼지 않고 건수를 보고한다.
 8. **목표 없음**: 합격선을 두지 않는다. 결과가 어떻든 판정하지 않고 보고한다. 항목 5의 상대 한도가 이 지표를 쓰지만 그것은 R-0의 등록이다.
 9. **입력·출력 규칙**: 입력 파일 `observations.jsonl`·`grades.json`·`manifest.json`의 sha256과 `traces/`의 (파일 이름, sha256) 목록의 sha256을 출력 `report.json`에 기록한다. 입력은 읽기 전용. 출력은 `data/interim/m8-metrics/toolcall/`(gitignore, FP-067: `data/results/` 아래 새 파일은 러너의 `dirty_worktree` 검사에 걸린다). 단일 진입점 `python -m govops.metrics.cli toolcall`과 `make m8-toolcall`.
 10. **고정 코드 목록**: 중단 코드(원인마다 다른 이름) `m8_toolcall_registration_not_committed`, `m8_toolcall_input_missing`, `m8_toolcall_input_invalid`, `m8_toolcall_unknown_task`, `m8_toolcall_duplicate_run`, `m8_toolcall_grade_mismatch`, `m8_toolcall_denominator_zero`, `m8_toolcall_out_overlaps_input`, `m8_toolcall_out_exists`, `m8_toolcall_hash_mismatch`; 보고 카운터 `unlinked_read`·`unlinked_write`·`unlinked_trace_missing`·`excluded_empty_groups`. 이 목록이 코드 이름의 단일 출처다(T-1·T-2의 테스트가 문서와 코드 일치를 검사한다).
