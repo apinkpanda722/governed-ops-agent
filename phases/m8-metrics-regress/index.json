@@ -33,7 +33,16 @@
     {
       "step": 2,
       "name": "toolcall-metrics",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T20:36:46+0900",
+      "summary": "M8 도구 호출 3지표 순수 함수·정수 비율 요약·grades 대조와 계층 가드·합성 테스트 구현. make verify 통과.",
+      "completed_at": "2026-10-20T20:57:37+0900",
+      "usage": {
+        "input_tokens": 2921861,
+        "cached_input_tokens": 2799232,
+        "output_tokens": 17219,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
