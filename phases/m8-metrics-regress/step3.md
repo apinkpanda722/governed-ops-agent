@@ -29,7 +29,7 @@
 
 경로는 `data/results/<split>/<run_id>/`. 키·값 분포만 확인했고 본문은 보지 않았다.
 
-- `observations.jsonl`: 행 키 20개(`answer`·`approvals`·`cited_doc_ids`·`effect_bodies`·`effects`·`fault_injected`·`observed_ids`·`policy_violations`·`run_index`·`status`·`stop_reason`·`task_id`·`tool_calls`·`tool_results`·`trace_id`). `stop_reason`은 null, `run_index`는 정수 0. 공식 N2 디렉터리는 행 40개(task 40개 고유).
+- `observations.jsonl`: 행 키 15개(`answer`·`approvals`·`cited_doc_ids`·`effect_bodies`·`effects`·`fault_injected`·`observed_ids`·`policy_violations`·`run_index`·`status`·`stop_reason`·`task_id`·`tool_calls`·`tool_results`·`trace_id`). `stop_reason`은 null, `run_index`는 정수 0. 공식 N2 디렉터리는 행 40개(task 40개 고유).
 - `grades.json`: `{task_id: {tcr: {task_id, run_index, passed, reasons, tool_coverage}, rules: {duplicate_count, fault_injected, leak_candidates, leak_confirmed, leak_pending, run_index, task_id, unapproved_effect_count}, used_auto_forbidden}}`.
 - `manifest.json` 중 이 CLI가 쓰는 키: `trace_ids`(task_id → 32 hex), `repeat_index`(공식 N2 디렉터리에만 있고 값 1·2·3, N1a·N1b에는 **키가 없다**), `run_label`, `config`, `run_role`, `validity`. 나머지는 읽지 않는다.
 - `traces/<trace_id>.jsonl`: 줄마다 스팬 JSON, 키 `attributes`·`duration_ms`·`end_ts`·`kind`·`name`·`parent_id`·`span_id`·`start_ts`·`status`·`trace_id`. `kind`가 `tool_call`인 스팬 두 종류: (a) 이름이 도구 이름(읽기 도구만)이고 `attributes`에 `success`(bool)·`error_code`(없으면 null)·`tool.result`, (b) 이름이 `tool_attempt`이고 `success`·`error_code` 없음. 쓰기 항목은 모델이 제출한 초안(실행 여부 무관)이라 (a)가 없다. 같은 trace에 `kind == "task"` 스팬이 1개 또는 2개(승인 대기 task)다.
@@ -78,7 +78,8 @@ m8-toolcall:
 
 ### 5. 테스트 (`tests/test_metrics_toolcall_cli.py`, 임시 디렉터리·합성 입력만)
 
-- **합성 결과 디렉터리 생성 도우미**가 위 실측 형태(관측 행 20개 키, 중첩 `grades`, `manifest.trace_ids`, `repeat_index` 유무, `tool_attempt` 스팬 포함 trace)를 재현한다. 공식 3개 디렉터리가 같은 40개 task·`run_index` 0을 갖는 케이스, `run_index`가 0이 아닌 케이스를 모두 만든다.
+- **합성 결과 디렉터리 생성 도우미**가 위 실측 형태(관측 행 15개 키, 중첩 `grades`, `manifest.trace_ids`, `repeat_index` 유무, `tool_attempt` 스팬 포함 trace)를 재현한다. 공식 3개 디렉터리가 같은 40개 task·`run_index` 0을 갖는 케이스, `run_index`가 0이 아닌 케이스를 모두 만든다.
+- 합성 관측 행은 `govops`의 `Observation` 모델(`extra="forbid"`)로 `load_observations` 검증을 통과해야 한다(필드는 위 15개뿐이다).
 - 정상 흐름: `report.json`·`rows.jsonl`·`report.md` 생성, `scope`·`label` 포함, 입력 sha256 기록, 요약이 `rows.jsonl`에서 재계산한 값과 같다.
 - 연결: 읽기 호출이 스팬과 일치하면 `error_code`가 센다, 어긋나면 `unlinked_read`, trace 파일 없음 `unlinked_trace_missing`, 쓰기만 있으면 `unlinked_write`, `tool_attempt` 스팬은 무시, 불량 JSON 줄.
 - 중단 코드 각각(위 고정 목록 중 CLI가 내는 것 전부): 등록 미커밋(임시 git 저장소로 시뮬레이션), 입력 없음·불량, 명세에 없는 task, 중복 실행, `tool_coverage` 불일치, 분모 0, 출력 겹침·존재, 입력 변조 뒤 `verify`가 `m8_toolcall_hash_mismatch`.
