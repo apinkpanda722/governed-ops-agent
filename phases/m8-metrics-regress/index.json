@@ -75,7 +75,16 @@
     {
       "step": 5,
       "name": "candidate-config",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T22:22:10+0900",
+      "summary": "Sonnet 후보 설정과 구조·배포 ID·비밀 참조·SHA-256 불변식 테스트 8개 작성. 기준 설정 유지, make verify 통과. 실제 라우팅은 R-3 smoke에서 확인.",
+      "completed_at": "2026-10-20T22:42:43+0900",
+      "usage": {
+        "input_tokens": 3036785,
+        "cached_input_tokens": 2936064,
+        "output_tokens": 9026,
+        "attempts": 1
+      }
     },
     {
       "step": 6,
