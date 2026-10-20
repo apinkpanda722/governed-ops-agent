@@ -669,6 +669,46 @@ def test_resume_rejects_plan_or_seed_changes_before_execution(tmp_path, change):
     assert admin.clears == 0
 
 
+def _prompt_exit_chaos_server(chaos_a):
+    """Cancel idle handlers before the server waits for its connections.
+
+    Python 3.12's Server.wait_closed() waits for every open connection. A client
+    cancelled by its hard timeout can leave a connected socket that never sent a
+    request; the handler then blocks in readuntil() and ChaosAServer.__aexit__
+    (which cancels handlers only after wait_closed) never returns.
+    """
+
+    class PromptExitChaosAServer(chaos_a.ChaosAServer):
+        async def __aexit__(self, *exc):
+            pending = list(self._tasks)
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            return await super().__aexit__(*exc)
+
+    return PromptExitChaosAServer
+
+
+def test_chaos_server_exits_while_a_client_never_sends_a_request():
+    import socket
+
+    from govops.replay import chaos_a
+
+    async def exercise():
+        server_class = _prompt_exit_chaos_server(chaos_a)
+        async with server_class(chaos_a.ChaosMode("delay"), delay=0.05) as server:
+            host, port = server.url.split("//")[1].split("/")[0].split(":")
+            with socket.create_connection((host, int(port))):
+                # 연결만 열고 요청을 보내지 않는 클라이언트: 핸들러가 readuntil에서 대기한다.
+                for _ in range(100):
+                    await asyncio.sleep(0.01)
+                    if server._tasks:
+                        break
+                assert server._tasks
+
+    asyncio.run(asyncio.wait_for(exercise(), timeout=5))
+
+
 @pytest.mark.parametrize("startup", range(5))
 @pytest.mark.parametrize("variant", ["delay", "http_500", "refuse"])
 def test_each_f11_variant_has_transport_failure_evidence(
@@ -677,10 +717,12 @@ def test_each_f11_variant_has_transport_failure_evidence(
     import httpx2
 
     from govops.evalrun.faults import chaos_client
-    from govops.replay.chaos_a import ChaosAServer, ChaosMode
+    from govops.replay import chaos_a
+    from govops.replay.chaos_a import ChaosMode
     from govops.tools.a_mcp import AMcpError
     from govops.tools.resilience import ToolPolicy
 
+    ChaosAServer = _prompt_exit_chaos_server(chaos_a)
     enter = httpx2.AsyncClient.__aenter__
 
     async def slow_enter(client):
