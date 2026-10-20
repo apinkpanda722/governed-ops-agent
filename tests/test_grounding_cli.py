@@ -87,7 +87,7 @@ def environment(root, monkeypatch, *, accurate=False, failure=None):
 
     costs.init_ledgers(root / "ledger")
 
-    def run(command, *extra):
+    def run(command, *extra, dbname="govops_m8_evidence"):
         return cli.main(
             [
                 command,
@@ -97,8 +97,7 @@ def environment(root, monkeypatch, *, accurate=False, failure=None):
                 str(root / "dev-run"),
                 "--url-env",
                 "SYNTHETIC_DB",
-                "--dbname",
-                "govops_m8_evidence",
+                *(["--dbname", dbname] if dbname else []),
                 *extra,
             ],
             repo_root=root,
@@ -301,9 +300,8 @@ def test_grader_failures_are_counted_without_exposing_text(
     )
 
 
-def test_validated_measurement_uses_three_n2_runs_in_order(
-    tmp_path, monkeypatch, capsys
-):
+def measure_ready(tmp_path, monkeypatch):
+    """Run the whole pipeline up to a passed validation; return run() and 3 N2 dirs."""
     run, _ = environment(tmp_path, monkeypatch, accurate=True)
     for name in ("test-run", "dev-run"):
         path = tmp_path / name / "observations.jsonl"
@@ -362,6 +360,13 @@ def test_validated_measurement_uses_three_n2_runs_in_order(
             "".join(json.dumps(r) + "\n" for r in rows)
         )
         paths.append(path)
+    return run, paths
+
+
+def test_validated_measurement_uses_three_n2_runs_in_order(
+    tmp_path, monkeypatch, capsys
+):
+    run, paths = measure_ready(tmp_path, monkeypatch)
     measurement_path = sheet_dir(tmp_path).parent / "measurement-result.json"
     # A directory whose run_index values are mixed is a fixed-code failure and leaves
     # no measurement-result.json behind.

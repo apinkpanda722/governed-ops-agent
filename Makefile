@@ -365,3 +365,24 @@ m8-grounding-render:
 # 사용자 실행, 오프라인 진단(API·DB 없음, 개수·코드·ID 이름만 출력)
 m8-grounding-diagnose:
 	uv run python -m govops.grounding.cli diagnose-calibration $(ARGS)
+
+.PHONY: m8-grounding-recompute
+# 사용자 실행, 측정 결과 오프라인 재집계(재채점·API·DB 없음)
+m8-grounding-recompute:
+	uv run python -m govops.grounding.cli recompute-measurement $(ARGS)
+
+.PHONY: m8-grounding-positives
+# 사용자 실행, 측정에서 채점기가 양성으로 낸 문장 목록(오프라인, ID·라벨만 출력)
+m8-grounding-positives:
+	uv run python -m govops.grounding.cli list-positives $(ARGS)
+
+.PHONY: m8-grounding-locate
+# 사용자 실행, 추가 등록 3: N2-2 18행을 1회 채점해 양성 문장 위치 확인(DB 읽기 전용, Gemini 호출, 상한 $0.25)
+m8-grounding-locate:
+	uv run --env-file .env python -m govops.grounding.cli locate-positives $(ARGS)
+
+.PHONY: m8-grounding-render-positives
+# 사용자 실행, 양성 행만 근거 카드로 생성(DB 읽기 전용)
+m8-grounding-render-positives:
+	uv run --env-file .env python -m govops.grounding.cli render-positives $(ARGS)
+

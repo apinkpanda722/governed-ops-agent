@@ -425,3 +425,18 @@ def test_m8_render_and_diagnose_targets_are_user_only_and_outside_verify():
         assert command in recipe and "$(ARGS)" in recipe
         assert ("--env-file .env" in recipe) is env_file
         assert target not in verify
+
+
+def test_m8_measurement_report_targets_are_user_only_and_outside_verify():
+    text = (REPO_ROOT / "Makefile").read_text()
+    verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    for target, command, env_file in (
+        ("m8-grounding-recompute", "recompute-measurement", False),
+        ("m8-grounding-positives", "list-positives", False),
+        ("m8-grounding-render-positives", "render-positives", True),
+    ):
+        assert f".PHONY: {target}\n" in text
+        recipe = text.split(f"\n{target}:\n", 1)[1].splitlines()[0]
+        assert command in recipe and "$(ARGS)" in recipe
+        assert ("--env-file .env" in recipe) is env_file
+        assert target not in verify
