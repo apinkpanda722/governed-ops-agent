@@ -23,7 +23,7 @@ from govops.regress.compare import EXPECTED
 ROOT = Path(__file__).resolve().parents[3]
 CANDIDATE_CONFIG_PATH = ROOT / "infra/litellm/config.candidate.yaml"
 CANDIDATE_CONFIG_SHA256 = (
-    "4947362f07a38ca8f86bfab42621fa78fc6a1a8b75855f13bb832b2fc6deaeff"
+    "76b201d05748edb4bfd9652da3237411b5eb889904935d940a69ecd649ae561e"
 )
 STAGE_NEEDS: dict[str, dict[str, Decimal]] = {
     "smoke": {"openai": Decimal("0.02"), "anthropic": Decimal("0.46")},
