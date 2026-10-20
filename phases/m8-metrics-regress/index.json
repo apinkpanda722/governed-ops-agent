@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "toolcall-cli",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-20T21:11:32+0900",
+      "summary": "M8 읽기 전용 toolcall CLI·trace 다중집합 연결·SHA-256 재검증·오프라인 Make 타깃과 합성 테스트 구현, 보고서 표 확인 및 make verify 통과.",
+      "completed_at": "2026-10-20T21:34:45+0900",
+      "usage": {
+        "input_tokens": 3427414,
+        "cached_input_tokens": 3305728,
+        "output_tokens": 26330,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
