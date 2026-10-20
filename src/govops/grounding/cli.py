@@ -1362,8 +1362,13 @@ async def _locate(
             for row in eligible
         ]
         expected = float(original.get("cost_usd") or 0) / 3
-        if expected + max(reservations, default=0) > cap:
-            raise registration.RegistrationError("locate_reservation_margin")
+        largest = max(reservations, default=0)
+        if expected + largest > cap:
+            # Numbers only (no row content): lets the user see the computed margin.
+            raise registration.RegistrationError(
+                f"locate_reservation_margin expected_usd={expected:.4f} "
+                f"max_reservation_usd={largest:.4f} cap_usd={cap}"
+            )
         rows, failed, stop = [], list(skipped), None
         for row in eligible:
             try:

@@ -20,6 +20,7 @@ HYPOTHESES = (
     "docs/results/hypotheses-m8-grader-addendum-1.md",
     "docs/results/hypotheses-m8-grader-addendum-2.md",
     "docs/results/hypotheses-m8-grader-addendum-3.md",
+    "docs/results/hypotheses-m8-grader-addendum-4.md",
 )
 FIELDS = {
     "evidence_max_chars",
