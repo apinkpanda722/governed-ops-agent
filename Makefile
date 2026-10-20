@@ -367,9 +367,9 @@ m8-grounding-diagnose:
 	uv run python -m govops.grounding.cli diagnose-calibration $(ARGS)
 
 .PHONY: m8-grounding-recompute
-# 사용자 실행, 측정 결과 오프라인 재집계(재채점·API·DB 없음)
+# 사용자 실행, 측정 결과 재집계(재채점·API 없음, --dbname을 주면 DB 읽기 전용이라 .env 필요)
 m8-grounding-recompute:
-	uv run python -m govops.grounding.cli recompute-measurement $(ARGS)
+	uv run --env-file .env python -m govops.grounding.cli recompute-measurement $(ARGS)
 
 .PHONY: m8-grounding-positives
 # 사용자 실행, 측정에서 채점기가 양성으로 낸 문장 목록(오프라인, ID·라벨만 출력)
