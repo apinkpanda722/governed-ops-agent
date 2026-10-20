@@ -25,7 +25,7 @@
 
 ### 1. 설정 구조 (등록 문서 5번 절과 같아야 한다)
 
-`config.yaml`의 항목은 `agent-primary`(id `openai-gpt-6-luna`), `agent-fallback`(id `anthropic-claude-sonnet-5-5`), `agent-primary-only`(id `openai-gpt-6-luna-only`), `agent-primary-down`(id `openai-gpt-6-luna-down`), `guardrail-v2`(id `anthropic-claude-haiku-5-5`)다. 같은 배포 ID를 두 `model_name`이 쓰면 안 되므로 후보 설정은 다음과 같다. `config.yaml`처럼 `litellm_params`에 `api_key` 줄이 없다(LiteLLM이 환경 변수를 직접 읽는다). 비밀 문자열을 쓰지 않는다.
+`config.yaml`의 항목은 `agent-primary`(id `openai-gpt-6-luna`), `agent-fallback`(id `anthropic-claude-sonnet-5-5`), `agent-primary-only`(id `openai-gpt-6-luna-only`), `agent-primary-down`(id `openai-gpt-6-luna-down`), `guardrail-v2`(id `anthropic-claude-haiku-5-5`)다. 같은 배포 ID를 두 `model_name`이 쓰면 안 되므로 후보 설정은 다음과 같다. `config.yaml`처럼 `api_key` 줄은 환경 변수 참조(`os.environ/<VAR>`)로만 쓴다. 비밀 문자열을 쓰지 않는다.
 
 ```yaml
 model_list:
@@ -34,6 +34,7 @@ model_list:
       id: anthropic-claude-sonnet-5-5
     litellm_params:
       model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
       timeout: 30                        # 기준 config.yaml의 agent-fallback 항목 그대로(사용자 결정 A)
       num_retries: 0
   - model_name: agent-primary-reference  # 기존 gpt 배포를 그대로 보존해 배포 ID 집합을 유지한다(호출되지 않음)
@@ -41,6 +42,7 @@ model_list:
       id: openai-gpt-6-luna
     litellm_params:
       model: openai/gpt-6-luna
+      api_key: os.environ/OPENAI_API_KEY
       timeout: 15
       num_retries: 0
   # agent-primary-only, agent-primary-down, guardrail-v2: config.yaml 항목을 그대로 복사(순서 포함)
@@ -61,7 +63,7 @@ router_settings:
 - `model_name → id` 대응: `agent-primary`→`anthropic-claude-sonnet-5-5`, `agent-primary-reference`→`openai-gpt-6-luna`, `agent-primary-only`·`agent-primary-down`·`guardrail-v2`는 기준과 같다. 후보 `model_name` 집합과 기준의 차이는 정확히 `agent-fallback`(제거)와 `agent-primary-reference`(추가)뿐이다.
 - `agent-primary-reference`의 `litellm_params`·`model_info`가 기준 `agent-primary`와 같고, 후보 `agent-primary`의 `litellm_params` == 기준 `agent-fallback`의 `litellm_params`(timeout 30, `num_retries` 0; 사용자 결정 A: fallback이 없는 후보에서 15초 초과가 `invalid_run`으로 지연 회귀를 가리지 않게 한다). `timeout`은 `agent-primary` 30, `agent-primary-reference`·`agent-primary-down`·`agent-primary-only` 15, `guardrail-v2` 8, 모든 `num_retries`는 0.
 - `router_settings` = `{"fallbacks": [{"agent-primary-down": ["agent-primary"]}]}`. `general_settings`·`guardrails`가 기준과 같고, 최상위 키 집합이 기준과 같으며 `litellm_settings`가 없다.
-- 시크릿 없음: 모든 `litellm_params`에 `api_key` 키가 없고(`config.yaml`과 같다) `master_key`·`database_url`은 `os.environ/` 참조. 파일 전체에 `sk-`·`Bearer ` 같은 키 패턴이 없다.
+- 시크릿 없음: 모든 `api_key` 값은 `os.environ/` 참조이고, 항목별 `litellm_params`가 대응하는 기준 항목과 같다(`agent-primary` ↔ 기준 `agent-fallback`, `agent-primary-reference` ↔ 기준 `agent-primary`, 나머지는 같은 이름 항목). `master_key`·`database_url`도 `os.environ/` 참조. 파일 전체에 `sk-`·`Bearer ` 같은 키 패턴이 없다.
 - 모든 배포 ID가 `govops.costs`의 `DEPLOYMENT_MODELS` 또는 `CLASSIFIER_DEPLOYMENTS`에 등록돼 있다(미등록이면 보수 정산·경보가 켜진다).
 - `CANDIDATE_CONFIG_SHA256`: 테스트 안에 상수로 두고 `hashlib.sha256(파일 바이트)`와 같다고 단언한다. **상수는 최종 파일의 digest로 채운다**(파일을 고치면 상수도 같은 커밋에서 고친다). R-3의 사전 검사·smoke가 이 상수와 같은 값을 실행 때 대조한다.
 - 등록 문서에 `agent-primary-reference`, `anthropic-claude-sonnet-5-5`, `openai-gpt-6-luna`가 모두 들어 있다(구조 규칙의 문서-설정 일치).
@@ -112,4 +114,4 @@ make verify   # ruff check + ruff format --check + pytest + web 검사
 
 - 수정 파일 목록 밖의 변경이 필요한가: 아니오. 설계 4-1절 R-1 행에 있던 `tests/test_architecture.py`는 이 step에서 뺐다: `regress/` 디렉터리가 R-2에서 만들어지므로 R-1에서 계층 규칙 행을 더하면 `test_rules_cover_actual_layer_directories`가 실패한다(규칙은 있고 디렉터리는 없음). 규칙 행은 R-2로 옮겼다.
 - AC를 이 step 안에서 달성할 수 있는가: 예.
-- 다른 step·등록 문서와 모순되는가: 예. 설계 2-4절의 "`model_name` 집합 동일·fallbacks 동일"과 이 step의 구조(`agent-fallback` 제거, `agent-primary-reference` 추가, fallbacks 변경)는 다르다. 배포 ID 집합 유지(사전 점검 통과)와 한 배포 ID의 중복 금지를 동시에 만족하는 구조라서 R-0 등록 문서 5번에 같은 구조를 적었다. 또 후보 `agent-primary`의 `litellm_params`는 기준 `agent-fallback` 항목 그대로(timeout 30, 사용자 결정 A)이고 `api_key` 줄이 없다(`config.yaml`과 같음). 이 설정이 LiteLLM에서 실제로 `agent-primary`를 Sonnet으로 라우팅하는지는 미실측이다.
+- 다른 step·등록 문서와 모순되는가: 예. 설계 2-4절의 "`model_name` 집합 동일·fallbacks 동일"과 이 step의 구조(`agent-fallback` 제거, `agent-primary-reference` 추가, fallbacks 변경)는 다르다. 배포 ID 집합 유지(사전 점검 통과)와 한 배포 ID의 중복 금지를 동시에 만족하는 구조라서 R-0 등록 문서 5번에 같은 구조를 적었다. 또 후보 `agent-primary`의 `litellm_params`는 기준 `agent-fallback` 항목 그대로(timeout 30, 사용자 결정 A)이고 `api_key: os.environ/ANTHROPIC_API_KEY`를 포함한다(등록 문서 5번과 일치). 이 설정이 LiteLLM에서 실제로 `agent-primary`를 Sonnet으로 라우팅하는지는 미실측이다.
