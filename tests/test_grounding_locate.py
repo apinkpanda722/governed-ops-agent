@@ -11,6 +11,7 @@ from test_grounding_measurement_report import stopped_measurement
 
 from govops.grounding import cli, measure_report
 from govops.grounding import grader as grader_module
+from govops.grounding.spend import STAGE_CAPS_USD
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -146,7 +147,7 @@ def test_single_positive_is_located_with_ids_only(tmp_path, monkeypatch, capsys)
     # Nothing is mixed into the measurement record.
     assert (out / "measurement-result.json").read_bytes() == measurement
     # The locate stage has its own spend and cap.
-    assert 0 < json.loads(printed)["cost_usd"] <= 0.25
+    assert 0 < json.loads(printed)["cost_usd"] <= 0.35
     # Running it again is refused.
     assert run("locate-positives", *args) == 2
     assert "FAIL already_located" in capsys.readouterr().out
@@ -200,16 +201,36 @@ def test_locate_refuses_a_task_list_mismatch_without_calls(
     assert not (out / "locate-detail.jsonl").exists()
 
 
+def test_locate_cap_is_the_registered_addendum_4_value():
+    assert STAGE_CAPS_USD["locate"] == 0.35
+
+
+def test_locate_check_passes_when_expected_plus_reservation_fits(
+    tmp_path, monkeypatch, capsys
+):
+    # Expected 0.30 + max reservation 0.04 = 0.34 <= 0.35 (it would not fit under 0.25).
+    run, args, out, _ = locate_ready(
+        tmp_path, monkeypatch, [0, 1, 0], expected_cost=0.30
+    )
+    capsys.readouterr()
+    assert run("locate-positives", *args) == 0
+    assert (out / "locate-detail.jsonl").exists()
+
+
 def test_locate_stops_before_any_call_when_reservations_do_not_fit(
     tmp_path, monkeypatch, capsys
 ):
-    # Expected cost 0.22 + max reservation 0.04 > the 0.25 stage cap.
+    # Expected 0.32 + max reservation 0.04 = 0.36 > the 0.35 stage cap.
     run, args, out, _ = locate_ready(
-        tmp_path, monkeypatch, [0, 1, 0], expected_cost=0.22
+        tmp_path, monkeypatch, [0, 1, 0], expected_cost=0.32
     )
     capsys.readouterr()
     assert run("locate-positives", *args) == 2
-    assert "FAIL locate_reservation_margin" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "FAIL locate_reservation_margin" in printed
+    # The computed values are shown so the margin can be checked.
+    assert "expected_usd=0.3200" in printed and "max_reservation_usd=0.0400" in printed
+    assert "cap_usd=0.35" in printed
     assert not (out / "locate-detail.jsonl").exists()
     spend = out / "spend.jsonl"
     assert '"stage":"locate"' not in (spend.read_text() if spend.exists() else "")
