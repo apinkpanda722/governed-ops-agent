@@ -10,7 +10,13 @@ from decimal import Decimal
 from pathlib import Path
 
 # Addendum 1 (docs/results/hypotheses-m8-grader-addendum-1.md §E): previously 0.8/0.6/0.6, total 2.0.
-STAGE_CAPS_USD = {"calibration": 3.0, "validation": 2.5, "measurement": 1.5}
+# Addendum 3 §5: the N2-2 positive locator has its own $0.25 stage inside the $7.00 total.
+STAGE_CAPS_USD = {
+    "calibration": 3.0,
+    "validation": 2.5,
+    "measurement": 1.5,
+    "locate": 0.25,
+}
 TOTAL_CAP_USD = 7.0
 DEFAULT_PATH = (
     Path(__file__).resolve().parents[3] / "data/interim/m8-grounding/spend.jsonl"

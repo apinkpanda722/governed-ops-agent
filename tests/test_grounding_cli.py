@@ -87,7 +87,7 @@ def environment(root, monkeypatch, *, accurate=False, failure=None):
 
     costs.init_ledgers(root / "ledger")
 
-    def run(command, *extra):
+    def run(command, *extra, dbname="govops_m8_evidence"):
         return cli.main(
             [
                 command,
@@ -97,8 +97,7 @@ def environment(root, monkeypatch, *, accurate=False, failure=None):
                 str(root / "dev-run"),
                 "--url-env",
                 "SYNTHETIC_DB",
-                "--dbname",
-                "govops_m8_evidence",
+                *(["--dbname", dbname] if dbname else []),
                 *extra,
             ],
             repo_root=root,

@@ -43,7 +43,7 @@ from govops.grounding.grader import (
 )
 from govops.grounding.probe import RowLink, link_results
 from govops.grounding.sentences import build_sentences, splitter_rules_sha256
-from govops.grounding.spend import M8Spend, SpendCapError
+from govops.grounding.spend import STAGE_CAPS_USD, M8Spend, SpendCapError
 
 COMMANDS = (
     "sheet-calibration",
@@ -51,6 +51,7 @@ COMMANDS = (
     "recompute-measurement",
     "list-positives",
     "render-positives",
+    "locate-positives",
     "register-labels",
     "cost-probe",
     "calibrate",
@@ -66,6 +67,27 @@ N2_RUNS = (
     "09fbcb2be83f47669800da400a401e55",
     "b330337d70fa4cf9a6c25773fb9b1359",
     "bf38e57a74cc49eda2f2be522f14e063",
+)
+# Addendum 3 §2: the first 18 rows of N2-2 that the original measurement graded.
+LOCATE_TASKS = (
+    "T1-02",
+    "T1-03",
+    "T1-04",
+    "T1-06",
+    "T1-07",
+    "T1-09",
+    "T1-10",
+    "T2-04",
+    "T2-05",
+    "T2-06",
+    "T2-07",
+    "T2-08",
+    "T2-10",
+    "T2-11",
+    "T2-12",
+    "T3-03",
+    "T3-04",
+    "T3-05",
 )
 N1A_RUN = "6b3ec0b1ec92402db7ebefb2d4cfb1b4"
 PRIVATE_DIR = Path("data/interim/m8-grounding")
@@ -845,13 +867,19 @@ def _measurement_directories(args, root):
     return [_path(root, path) for path in directories]
 
 
+def _detail_path(out):
+    """Per-row measurement records, or the addendum 3 locate record when there are none."""
+    path = out / "measurement-detail.jsonl"
+    return path if path.exists() else out / "locate-detail.jsonl"
+
+
 def offline_measurement_report(args, root, specs):
     """``recompute-measurement`` / ``list-positives``: files only, no API, no DB."""
     out = root / PRIVATE_DIR
     path = out / "measurement-result.json"
     result = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     if args.command == "list-positives":
-        return measure_report.positives(out / "measurement-detail.jsonl", result)
+        return measure_report.positives(_detail_path(out), result)
     if result is None:
         raise registration.RegistrationError("measurement_result_missing")
     recomputed = _recomputed(args, root, specs, result)
@@ -859,17 +887,26 @@ def offline_measurement_report(args, root, specs):
     return recomputed
 
 
-def _report_recomputed(args, root, specs, out):
-    """Offline re-aggregation of the stored measurement, or a reason code."""
+async def _report_recomputed(args, root, specs, out, saver_factory, evidence_loader):
+    """Re-aggregation of the stored measurement (evidence read-only if ``--dbname``)."""
     path = out / "measurement-result.json"
     if not path.exists():
         return None
     try:
         result = json.loads(path.read_text(encoding="utf-8"))
-        return _recomputed(
-            args, root, specs if specs is not None else _specs(root), result
+        specs = specs if specs is not None else _specs(root)
+        if args.dbname is None:
+            return _recomputed(args, root, specs, result)
+        return await _recomputed_with_evidence(
+            args, root, specs, result, saver_factory, evidence_loader
         )
-    except (OSError, ValueError, KeyError, registration.RegistrationError):
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        RuntimeError,
+        registration.RegistrationError,
+    ):
         return {"unavailable": "recompute_inputs_unavailable"}
 
 
@@ -878,9 +915,57 @@ def _recomputed(args, root, specs, result):
     return measure_report.recompute(result, rows)
 
 
+async def _recomputed_with_evidence(
+    args, root, specs, result, saver_factory, evidence_loader
+):
+    """Hydrate only the runs that never started (read-only DB); no grader, no LLM."""
+    directories = _measurement_directories(args, root)
+    rows = measurement_rows(directories, specs)
+    started = {
+        run.get("position", N2_POSITIONS[i])
+        for i, run in enumerate(result.get("runs", []))
+    }
+    args.evidence_max_chars = registration.read_registration(
+        root / registration.REGISTRATION_PATH
+    )["evidence_max_chars"]
+    hydrated = {}
+    for position, candidates, directory in zip(
+        N2_POSITIONS, rows, directories, strict=True
+    ):
+        if position in started:
+            continue
+        loaded = await _hydrate(
+            candidates,
+            [directory],
+            args,
+            saver_factory=saver_factory,
+            evidence_loader=evidence_loader,
+        )
+        counts = _rates(loaded, [], 1)
+        hydrated[position] = {key: counts[key] for key in measure_report.COUNT_KEYS}
+    return measure_report.recompute(result, rows, hydrated)
+
+
+async def _recompute_to_file(args, root, specs, saver_factory, evidence_loader):
+    out = root / PRIVATE_DIR
+    path = out / "measurement-result.json"
+    if not path.exists():
+        raise registration.RegistrationError("measurement_result_missing")
+    recomputed = await _recomputed_with_evidence(
+        args,
+        root,
+        specs,
+        json.loads(path.read_text(encoding="utf-8")),
+        saver_factory,
+        evidence_loader,
+    )
+    _json(out / "measurement-recomputed.json", recomputed)
+    return recomputed
+
+
 async def _render_positives(args, root, specs, out, saver_factory, evidence_loader):
     """Evidence cards for only the rows holding grader-positive sentences."""
-    detail = measure_report.positives(out / "measurement-detail.jsonl", None)
+    detail = measure_report.positives(_detail_path(out), None)
     if "unavailable" in detail:
         raise registration.RegistrationError("measurement_detail_not_recorded")
     index = {s.task_id: s for s in specs}
@@ -1012,7 +1097,9 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
             "measurement": json.loads((out / "measurement-result.json").read_text())
             if (out / "measurement-result.json").exists()
             else None,
-            "measurement_recomputed": _report_recomputed(args, root, specs, out),
+            "measurement_recomputed": await _report_recomputed(
+                args, root, specs, out, saver_factory, evidence_loader
+            ),
         }
     if command == "sheet-calibration":
         value = registration.read_registration(regpath) if regpath.exists() else None
@@ -1069,6 +1156,23 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
             "adopted_prompt_version": best["version"],
             "adopted_prompt_sha256": best["prompt_sha256"],
         }
+    elif command == "locate-positives":
+        value = registration.require_adopted(regpath, repo_root=root)
+        validation = json.loads((out / "heldout-result.json").read_text())
+        if not measurement_allowed(validation):
+            raise registration.RegistrationError("validation_not_passed")
+        if validation["prompt_sha256"] != value["adopted_prompt_sha256"]:
+            raise registration.RegistrationError("adopted_prompt_changed")
+        return await _locate(
+            args,
+            root,
+            specs,
+            value,
+            out,
+            grader_factory,
+            saver_factory,
+            evidence_loader,
+        )
     elif command == "measure":
         value = registration.require_adopted(regpath, repo_root=root)
         validation = json.loads((out / "heldout-result.json").read_text())
@@ -1204,6 +1308,121 @@ async def _run(args, *, root, specs, grader_factory, saver_factory, evidence_loa
         else:
             _json(out / "heldout-result.json", result)
     return result
+
+
+async def _locate(
+    args, root, specs, value, out, grader_factory, saver_factory, evidence_loader
+):
+    """Addendum 3: grade the 18 N2-2 rows once to locate the original positive sentence."""
+    target = out / "locate-detail.jsonl"
+    if target.exists():
+        raise registration.RegistrationError("already_located")
+    record = out / "measurement-result.json"
+    if not record.exists():
+        raise registration.RegistrationError("measurement_result_missing")
+    runs = json.loads(record.read_text(encoding="utf-8")).get("runs", [])
+    original = next((r for r in runs if r.get("position") == N2_POSITIONS[1]), None)
+    if original is None:
+        raise registration.RegistrationError("measurement_result_missing")
+    directories = _measurement_directories(args, root)
+    version = value["adopted_prompt_version"]
+    with _template(version, args.prompt_file):
+        _assert_adopted(value, version)
+    candidates = measurement_rows(directories, specs)[1][: len(LOCATE_TASKS)]
+    if [row.spec.task_id for row in candidates] != list(LOCATE_TASKS):
+        raise registration.RegistrationError("measurement_order_mismatch")
+    args.evidence_max_chars = value["evidence_max_chars"]
+    hydrated = await _hydrate(
+        candidates,
+        [directories[1]],
+        args,
+        saver_factory=saver_factory,
+        evidence_loader=evidence_loader,
+    )
+    eligible, skipped = [], []
+    for row in hydrated:
+        if select_deliverable(row.observation)[0] is None:
+            skipped.append({"task_id": row.spec.task_id, "code": "deliverable_empty"})
+        elif row.evidence.status != "ok":
+            skipped.append({"task_id": row.spec.task_id, "code": row.evidence.status})
+        else:
+            eligible.append(row)
+    cap = STAGE_CAPS_USD["locate"]
+    with _template(version, args.prompt_file):
+        _assert_adopted(value, version)
+        grader = grader_factory()
+        # §5: refuse before any call unless the reservations leave room under the cap.
+        reservations = [
+            grader.reservation_usd(
+                version,
+                row.spec.request,
+                build_sentences(select_deliverable(row.observation)[0]),
+                row.evidence.items,
+            )
+            for row in eligible
+        ]
+        expected = float(original.get("cost_usd") or 0) / 3
+        if expected + max(reservations, default=0) > cap:
+            raise registration.RegistrationError("locate_reservation_margin")
+        rows, failed, stop = [], list(skipped), None
+        for row in eligible:
+            try:
+                agg, _ = await _grade_row(
+                    grader,
+                    row,
+                    build_sentences(select_deliverable(row.observation)[0]),
+                    version,
+                    "locate",
+                    1,
+                )
+                rows.append(
+                    {
+                        "task_id": row.spec.task_id,
+                        "repeat_labels": [dict(agg.labels)],
+                        "positive_majority": sorted(
+                            sid for sid, flag in agg.positive.items() if flag
+                        ),
+                    }
+                )
+            except GradingError as exc:
+                failed.append(
+                    {
+                        "task_id": row.spec.task_id,
+                        "code": "grading_response_failure"
+                        if str(exc) == "grading_response_failure"
+                        else "grading_call_failure",
+                    }
+                )
+            except SpendCapError:
+                stop = "m8_stage_cap_exceeded"
+                break
+            except (BudgetExceededError, PriceExpiredError):
+                stop = "budget_or_price_block"
+                break
+    entry = {
+        "run_id": directories[1].name,
+        "position": N2_POSITIONS[1],
+        "repeats": 1,
+        "prompt_sha256": value["adopted_prompt_sha256"],
+        "rows": rows,
+        "failed": failed,
+        "stop_code": stop,
+    }
+    _append(target, entry)
+    return {
+        "scope": "m8",
+        "notice": "M8 추가 측정 — 공식 M6 수치 아님",
+        "stage": "locate",
+        **measure_report.locate_summary(entry),
+        "n_input_rows": len(candidates),
+        "n_graded_rows": len(rows),
+        "complete": not failed and stop is None and len(rows) == len(candidates),
+        "failures": dict(Counter(item["code"] for item in failed)),
+        "stop_code": stop,
+        "cost_usd": grader.spend.total_usd("locate"),
+        "max_reservation_usd": max(reservations, default=0),
+        "expected_cost_usd": expected,
+    }
 
 
 async def _measure(
@@ -1399,9 +1618,21 @@ def main(
             offline_specs = specs
             if offline_specs is None and args.command == "recompute-measurement":
                 offline_specs = _specs(root)
+            if args.command == "recompute-measurement" and args.dbname is not None:
+                report = asyncio.run(
+                    _recompute_to_file(
+                        args,
+                        root,
+                        offline_specs,
+                        saver_factory or db.open_readonly_saver,
+                        evidence_loader,
+                    )
+                )
+            else:
+                report = offline_measurement_report(args, root, offline_specs)
             print(
                 json.dumps(
-                    offline_measurement_report(args, root, offline_specs),
+                    report,
                     ensure_ascii=False,
                     sort_keys=True,
                     indent=2,

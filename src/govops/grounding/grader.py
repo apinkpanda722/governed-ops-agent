@@ -269,6 +269,21 @@ class GroundingGrader:
         finally:
             self.spend.settle(spend_reservation, cost)
 
+    def _reservation(self, version, request, sentences, evidence):
+        prompt = build_prompt(version, request, sentences, evidence)
+        input_upper = 2 * len(prompt.encode()) + 4096
+        estimate = gemini_cost_usd(
+            GRADER_MODEL,
+            input_tokens=input_upper,
+            output_tokens=MAX_OUTPUT_TOKENS,
+            on=self.on,
+        )
+        return prompt, input_upper, estimate
+
+    def reservation_usd(self, version, request, sentences, evidence) -> float:
+        """The per-call reservation ``grade`` would make, without calling anything."""
+        return self._reservation(version, request, sentences, evidence)[2]
+
     async def grade(
         self,
         *,
@@ -292,13 +307,8 @@ class GroundingGrader:
         ids = [s.sentence_id for s in sentences]
         if len(set(ids)) != len(ids):
             raise GradingError("invalid grading input")
-        prompt = build_prompt(version, request, sentences, evidence)
-        input_upper = 2 * len(prompt.encode()) + 4096
-        estimate = gemini_cost_usd(
-            GRADER_MODEL,
-            input_tokens=input_upper,
-            output_tokens=MAX_OUTPUT_TOKENS,
-            on=self.on,
+        prompt, input_upper, estimate = self._reservation(
+            version, request, sentences, evidence
         )
         task_id = f"m8:{stage}:{row_key}"
         self.spend.check(stage, estimate)

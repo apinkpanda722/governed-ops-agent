@@ -22,6 +22,7 @@ RUN_KEYS = (
     "n_fabricated_strict",
     "n_in_evidence_only",
 )
+COUNT_KEYS = (*RUN_KEYS, "n_evidence_not_loaded")
 
 
 def _ratio(n, d):
@@ -40,12 +41,16 @@ def _observation_counts(rows):
     return citations, fabricated
 
 
-def recompute(result: dict, rows_by_position: list) -> dict:
+def recompute(
+    result: dict, rows_by_position: list, hydrated_counts: dict | None = None
+) -> dict:
     """Re-aggregate citation metrics from per-run values plus observations.
 
     Executed runs keep their own values (their rows were hydrated with evidence).
     A run that never started read no evidence, so its non-observed IDs are
-    ``evidence_not_loaded``: neither strict nor in-evidence-only.
+    ``evidence_not_loaded``: neither strict nor in-evidence-only. ``hydrated_counts``
+    (position -> counts, from a read-only evidence load) replaces that for such runs;
+    only rows whose evidence status is not ok stay ``evidence_not_loaded``.
     """
     runs_by_position = {
         run.get("position", POSITIONS[i]): run
@@ -66,6 +71,9 @@ def recompute(result: dict, rows_by_position: list) -> dict:
             ) and "n_evidence_not_loaded" not in run:
                 warnings.append(f"{position}:strict_may_include_not_loaded")
             started = True
+        elif position in (hydrated_counts or {}):
+            counts = {key: hydrated_counts[position][key] for key in COUNT_KEYS}
+            started = False
         else:
             citations, fabricated = _observation_counts(rows)
             counts = {
@@ -76,7 +84,14 @@ def recompute(result: dict, rows_by_position: list) -> dict:
                 "n_evidence_not_loaded": fabricated,
             }
             started = False
-        runs.append({"position": position, "started": started, **counts})
+        runs.append(
+            {
+                "position": position,
+                "started": started,
+                **({"hydrated": True} if position in (hydrated_counts or {}) else {}),
+                **counts,
+            }
+        )
         totals.update(counts)
     n = totals["n_citations"]
     consistent = totals["n_fabricated"] == (
@@ -87,7 +102,9 @@ def recompute(result: dict, rows_by_position: list) -> dict:
     return {
         "scope": "m8",
         "notice": "M8 추가 측정 — 공식 M6 수치 아님",
-        "source": "recomputed_offline",
+        "source": "recomputed_with_evidence"
+        if hydrated_counts
+        else "recomputed_offline",
         "runs": runs,
         **dict(totals),
         # Registered definition, over every row of all three runs, request IDs excluded.
@@ -109,6 +126,39 @@ def recompute(result: dict, rows_by_position: list) -> dict:
     }
 
 
+def _positive_items(entry: dict):
+    for row in entry["rows"]:
+        for sid in sorted(
+            {
+                sid
+                for repeat in row["repeat_labels"]
+                for sid, label in repeat.items()
+                if label in POSITIVE_LABELS
+            },
+            key=lambda s: int(s[1:]),
+        ):
+            yield {
+                "run_id": entry["run_id"],
+                "position": entry["position"],
+                "task_id": row["task_id"],
+                "sentence_id": sid,
+                "repeat_labels": [r[sid] for r in row["repeat_labels"]],
+                "majority_positive": sid in row["positive_majority"],
+            }
+
+
+def locate_summary(entry: dict) -> dict:
+    """Addendum 3 §7: one positive is the human-check target, any other count is a mismatch."""
+    found = list(_positive_items(entry))
+    return {
+        "verdict": "single_positive" if len(found) == 1 else "reproduction_mismatch",
+        "n_positive_sentences": len(found),
+        "human_check": [
+            {"task_id": i["task_id"], "sentence_id": i["sentence_id"]} for i in found
+        ],
+    }
+
+
 def positives(detail_path: Path, result: dict | None) -> dict:
     """Sentences the grader called positive in any repeat, with per-repeat labels."""
     per_run = {}
@@ -125,28 +175,9 @@ def positives(detail_path: Path, result: dict | None) -> dict:
         }
     items = []
     for line in Path(detail_path).read_text(encoding="utf-8").splitlines():
-        entry = json.loads(line)
-        for row in entry["rows"]:
-            for sid in sorted(
-                {
-                    sid
-                    for repeat in row["repeat_labels"]
-                    for sid, label in repeat.items()
-                    if label in POSITIVE_LABELS
-                },
-                key=lambda s: int(s[1:]),
-            ):
-                items.append(
-                    {
-                        "run_id": entry["run_id"],
-                        "position": entry["position"],
-                        "task_id": row["task_id"],
-                        "sentence_id": sid,
-                        "repeat_labels": [r[sid] for r in row["repeat_labels"]],
-                        "majority_positive": sid in row["positive_majority"],
-                    }
-                )
+        items.extend(_positive_items(json.loads(line)))
     return {
+        "source": Path(detail_path).name,
         "n_positive_sentences": len(items),
         "n_positive_sentences_majority": sum(i["majority_positive"] for i in items),
         "positives": items,

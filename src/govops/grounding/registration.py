@@ -19,6 +19,7 @@ HYPOTHESES = (
     # Addenda are registrations too: they must be committed and unchanged.
     "docs/results/hypotheses-m8-grader-addendum-1.md",
     "docs/results/hypotheses-m8-grader-addendum-2.md",
+    "docs/results/hypotheses-m8-grader-addendum-3.md",
 )
 FIELDS = {
     "evidence_max_chars",

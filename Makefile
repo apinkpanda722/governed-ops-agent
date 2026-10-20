@@ -376,6 +376,11 @@ m8-grounding-recompute:
 m8-grounding-positives:
 	uv run python -m govops.grounding.cli list-positives $(ARGS)
 
+.PHONY: m8-grounding-locate
+# 사용자 실행, 추가 등록 3: N2-2 18행을 1회 채점해 양성 문장 위치 확인(DB 읽기 전용, Gemini 호출, 상한 $0.25)
+m8-grounding-locate:
+	uv run --env-file .env python -m govops.grounding.cli locate-positives $(ARGS)
+
 .PHONY: m8-grounding-render-positives
 # 사용자 실행, 양성 행만 근거 카드로 생성(DB 읽기 전용)
 m8-grounding-render-positives:
