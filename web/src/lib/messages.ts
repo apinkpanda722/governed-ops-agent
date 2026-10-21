@@ -53,6 +53,7 @@ export function auditEventLabel(code: string): string {
     if (code.startsWith("guardrail.")) return "Guardrail 판정";
     return ({
         "model.call": "모델 호출", "conversation.deleted": "대화 삭제",
+        "tool.call": "도구 호출",
         "side_effect.draft": "발송 초안", "side_effect.attempt": "발송 시도", "side_effect.result": "발송 결과",
         "side_effect.marker_lookup": "표식 조회", "approval.requested": "승인 요청", "approval.approved": "승인 완료",
         "approval.edited": "초안 수정", "approval.rejected": "승인 거부", "approval.expired": "승인 만료",
@@ -60,6 +61,9 @@ export function auditEventLabel(code: string): string {
 }
 export function auditCodeLabel(code: string): string {
     return ({
+        ok: "성공", tool_error: "도구 오류 결과", tool_not_available: "허용되지 않은 도구",
+        invalid_argument: "인자 오류", tool_unavailable: "도구 호출 실패",
+        proposal_invalid: "잘못된 발송 제안", not_executed: "실행하지 않음",
         approve: "승인", edit_approve: "수정 후 승인", reject: "거부", expired: "만료",
         passed: "검사 통과", blocked: "차단", recipient_not_allowed: "허용되지 않은 수신처",
         pii_blocked_by_team_policy: "팀 개인정보 정책 차단", scope_wider_than_evidence: "근거보다 넓은 발송 범위",

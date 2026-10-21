@@ -29,6 +29,9 @@ ALLOWED_EVENT_FIELDS: frozenset[str] = frozenset(
         "mock_id",
         "fallback",
         "cost_usd",
+        "tool_name",
+        "status",
+        "result_count",
     }
 )
 _ENVELOPE = frozenset(
@@ -40,6 +43,8 @@ _ENUMS = {
     "check_result": log.CHECK_RESULTS,
     "reason": log.REASONS,
     "code": log.GUARDRAIL_CODES,
+    "tool_name": log.TOOL_CALL_NAMES,
+    "status": log.TOOL_CALL_STATUSES,
 }
 
 
@@ -66,6 +71,8 @@ def _display_field(key: str, value) -> bool:
         return isinstance(value, str) and value in _ENUMS[key]
     if key == "fallback":
         return type(value) is bool
+    if key == "result_count":
+        return type(value) is int and 0 <= value <= 10000
     pattern = log._MOCK_ID if key == "mock_id" else log._NEW_FORMATS["cost_usd"]
     return isinstance(value, str) and pattern.fullmatch(value) is not None
 

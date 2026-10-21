@@ -56,6 +56,7 @@ from govops.tools.slack import SlackClient
 ROOT = Path(__file__).resolve().parents[1]
 REAL_ENV = (
     "AUDIT_KEY_FILE",
+    "AUDIT_ARGS_HMAC_KEY",
     "AUDIT_DIR",
     "KODOCS_MCP_URL",
     "KODOCS_MCP_TOKENS_FILE",
@@ -226,6 +227,7 @@ def temporary_credentials(directory):
     (directory / "audit").mkdir()
     return {
         "AUDIT_KEY_FILE": str(key),
+        "AUDIT_ARGS_HMAC_KEY": __import__("secrets").token_hex(32),
         "AUDIT_PUBLIC_KEY_FILE": str(public),
         "AUDIT_ANCHORS_PENDING_FILE": str(directory / "anchors-pending.jsonl"),
         "KODOCS_MCP_TOKENS_FILE": str(a_file),

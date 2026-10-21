@@ -87,14 +87,28 @@ def test_events(tmp_path):
         "checkpoint.pruned",
         "conversation.deleted",
         "model.call",
+        "tool.call",
         "auth.failed",
         "chain.genesis",
         "chain.anchor",
     }
     from test_audit_events import CASES, emit
 
+    TOOL_CALL_FIELDS = {
+        "tool_name": "search_docs",
+        "status": "ok",
+        "result_count": 0,
+        "tool_call_sha256": "a" * 64,
+        "args_hmac": "b" * 64,
+        "args_hmac_kid": "c" * 12,
+    }
     for event in EVENTS:
-        emit(log, event, CASES.get(event, {}))
+        emit(
+            log,
+            event,
+            CASES.get(event, TOOL_CALL_FIELDS if event == "tool.call" else {}),
+        )
+    assert sum(row["event"] == "tool.call" for row in rows(tmp_path)) == 1
     with pytest.raises(ValueError):
         log.append(
             "unknown",

@@ -23,6 +23,7 @@ EVENTS = frozenset(
         "checkpoint.pruned",
         "conversation.deleted",
         "model.call",
+        "tool.call",
         "auth.failed",
         "chain.genesis",
         "chain.anchor",
@@ -58,6 +59,31 @@ GUARDRAIL_PRE = frozenset({"allow", "block", "unavailable", "team_unknown", "pro
 GUARDRAIL_POST = frozenset({"ok", "flag", "error", "none"})
 TOOLS = frozenset(
     {"jira_add_comment", "jira_create_followup_ticket", "slack_send_message"}
+)
+TOOL_CALL_NAMES = frozenset(
+    {
+        "get_document",
+        "jira_add_comment",
+        "jira_create_followup_ticket",
+        "jira_get_ticket",
+        "jira_search_tickets",
+        "lookup_id",
+        "run_sql",
+        "search_docs",
+        "slack_send_message",
+        "unknown",
+    }
+)
+TOOL_CALL_STATUSES = frozenset(
+    {
+        "ok",
+        "tool_error",
+        "tool_not_available",
+        "invalid_argument",
+        "tool_unavailable",
+        "proposal_invalid",
+        "not_executed",
+    }
 )
 CHECK_RESULTS = frozenset({"passed", "masked", "blocked"})
 DECISIONS = frozenset({"approve", "edit_approve", "reject", "expired"})
@@ -169,6 +195,16 @@ _NEW_REQUIRED = {
     "auth.failed": frozenset({"reason"}),
     "checkpoint.pruned": frozenset({"pruned_count", "cutoff"}),
     "conversation.deleted": frozenset(),
+    "tool.call": frozenset(
+        {
+            "tool_name",
+            "status",
+            "result_count",
+            "tool_call_sha256",
+            "args_hmac",
+            "args_hmac_kid",
+        }
+    ),
 }
 _GUARDRAIL_BUNDLE = frozenset(
     {"guardrail_pre", "guardrail_post", "guardrail_q", "guardrail_m"}
@@ -180,6 +216,7 @@ _NEW_OPTIONAL = {
 _NEW_FIELDS = frozenset().union(*_NEW_REQUIRED.values(), *_NEW_OPTIONAL.values()) - {
     "team",
     "reason",
+    "tool_call_sha256",
 }
 _NEW_FORMATS = {
     **{
@@ -189,11 +226,13 @@ _NEW_FORMATS = {
             "rules_sha256",
             "access_index_sha256",
             "legacy_sha256",
+            "tool_call_sha256",
+            "args_hmac",
         )
     },
     **{
         key: re.compile(r"[0-9a-f]{12}")
-        for key in ("hook_rules_digest", "hook_code_digest")
+        for key in ("hook_rules_digest", "hook_code_digest", "args_hmac_kid")
     },
     "label": re.compile(r"[a-z0-9][a-z0-9-]{0,39}"),
     "model": re.compile(r"(?:agent-[a-z-]{1,30}|unknown)"),
@@ -206,6 +245,8 @@ _NEW_ENUMS = {
     "reason": AUTH_REASONS,
     "guardrail_pre": GUARDRAIL_PRE,
     "guardrail_post": GUARDRAIL_POST,
+    "tool_name": TOOL_CALL_NAMES,
+    "status": TOOL_CALL_STATUSES,
 }
 
 
@@ -229,7 +270,7 @@ def _validate_new(fields: dict[str, Field], *, event: str) -> None:
             valid = type(value) is int and value >= minimum
             if key == "pruned_count":
                 valid = valid and value <= 1_000_000
-            if key in {"guardrail_q", "guardrail_m"}:
+            if key in {"guardrail_q", "guardrail_m", "result_count"}:
                 valid = valid and value <= 10000
         if not valid:
             raise _InvalidAuditField("Audit typed field rejected")

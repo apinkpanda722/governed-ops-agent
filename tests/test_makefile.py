@@ -6,6 +6,28 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_audit_toolcall_check_is_read_only_and_user_only():
+    text = (REPO_ROOT / "Makefile").read_text()
+    assert ".PHONY: audit-toolcall-check\n" in text
+    assert (
+        "audit-toolcall-check" not in text.split("verify:\n", 1)[1].split("\n\n", 1)[0]
+    )
+    recipe = text.split("\naudit-toolcall-check:\n", 1)[1].split("\n\n", 1)[0]
+    assert recipe.splitlines() == [
+        "\tuv run python -m govops.audit.toolcall_check $(TOOLCALL_CHECK_ARGS)"
+    ]
+    commands = (REPO_ROOT / "AGENTS.md").read_text().split("## 명령어", 1)[1]
+    lines = [
+        line
+        for line in commands.splitlines()
+        if line.startswith("make audit-toolcall-check ")
+    ]
+    assert lines == [
+        "make audit-toolcall-check # 최근 실행의 tool.call 개수와 trace 도구 span 수 대조(읽기 전용, 사용자 실행)"
+    ]
+    assert re.search(r"\([^)]*사용자 실행\)", lines[0])
+
+
 def test_m8_grounding_targets_are_user_run_and_outside_verify():
     text = (REPO_ROOT / "Makefile").read_text()
     verify = text.split("verify:\n", 1)[1].split("\n\n", 1)[0]

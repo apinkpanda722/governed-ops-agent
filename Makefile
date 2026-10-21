@@ -268,6 +268,11 @@ redteam-review-status:
 audit-verify:
 	uv run python -m govops.audit.verify --scan data/results
 
+.PHONY: audit-toolcall-check
+# 읽기 전용, 최근 실행의 tool.call 개수와 trace 도구 span 수 대조(M8 추가), 사용자 실행
+audit-toolcall-check:
+	uv run python -m govops.audit.toolcall_check $(TOOLCALL_CHECK_ARGS)
+
 .PHONY: audit-anchor
 # 사용자 실행. 체인에 고정점을 덧붙이고 대기 파일에 같은 줄을 기록한다. 사용: make audit-anchor LABEL=m4-audit-first. 첫 쓰기는 체인 genesis를 만든다
 audit-anchor:

@@ -40,6 +40,7 @@ from govops.agent.turns import build_turn_state
 from govops.agent.users import UserInfo
 from govops.audit.crypto import format_usd
 from govops.audit.log import AuditPort, AuditWriteError
+from govops.audit.toolcall import ToolCallAuditor
 from govops.costs import BudgetExceededError, LedgerMissingError
 from govops.gateway.client import (
     ChatClient,
@@ -204,6 +205,7 @@ def build_graph(
     profile: AgentProfile = READ_ONLY,
     effects: EffectDeps | None = None,
     audit: AuditPort | None = None,
+    tool_audit: ToolCallAuditor | None = None,
     scope: ScopeIndex | None = None,
     policy: TeamPolicy | None = None,
     users: Users | None = None,
@@ -507,6 +509,21 @@ def build_graph(
         }
         if finalizing:
             if calls or not (content and content.strip()):
+                if tool_audit is not None:
+                    for call in calls:
+                        try:
+                            await asyncio.to_thread(
+                                tool_audit.record,
+                                task_id=state["task_id"],
+                                actor_sub=runtime.context.user_id,
+                                tool_name=call["name"],
+                                tool_call_id=call["id"],
+                                arguments=call["arguments"],
+                                status="not_executed",
+                                result_count=0,
+                            )
+                        except Exception:  # noqa: BLE001 — content-free observability only
+                            set_attributes(**{"tool.audit_gap": True})
                 update.update(status="failed", error="max_steps")
                 return update
             update["stop_reason"] = "max_steps_finalized"
@@ -546,6 +563,7 @@ def build_graph(
                         {"properties": {key: {} for key in args}}
                     ):
                         payload = {"error": {"code": "invalid_argument"}}
+                        tool_status = "invalid_argument"
                     else:
                         reached_call = True
                         outcome = await tools.call(
@@ -557,11 +575,16 @@ def build_graph(
                             evidence.update(evidence_ids(function["name"], payload))
                         result_ids = outcome.observed_ids
                         success = not outcome.is_error
+                        tool_status = "ok" if success else "tool_error"
                         observed.update(outcome.observed_ids)
                 except ToolNotExecutable:
                     payload = {"error": {"code": "tool_not_available"}}
+                    tool_status = (
+                        "tool_unavailable" if reached_call else "tool_not_available"
+                    )
                 except Exception:  # noqa: BLE001 — 도구 오류 원문의 자격 증명 노출 방지
                     payload = {"error": {"code": "tool_unavailable"}}
+                    tool_status = "tool_unavailable"
                 if success:
                     turn_read_ok += 1
                 if exploration_budget is not None and reached_call:
@@ -573,6 +596,20 @@ def build_graph(
                 messages.append(
                     {"role": "tool", "tool_call_id": call["id"], "content": content}
                 )
+                if tool_audit is not None:
+                    try:
+                        await asyncio.to_thread(
+                            tool_audit.record,
+                            task_id=state["task_id"],
+                            actor_sub=runtime.context.user_id,
+                            tool_name=function["name"],
+                            tool_call_id=call["id"],
+                            arguments=function["arguments"],
+                            status=tool_status,
+                            result_count=len(result_ids),
+                        )
+                    except Exception:  # noqa: BLE001 — content-free observability only
+                        set_attributes(**{"tool.audit_gap": True})
                 set_attributes(
                     **{
                         "tool.result": {"ids": result_ids},
@@ -687,6 +724,20 @@ def build_graph(
             )
             draft = Draft(fn["name"], args)
         except (ValueError, TypeError, KeyError, ValidationError):
+            if tool_audit is not None:
+                for call in calls:
+                    try:
+                        tool_audit.record(
+                            task_id=state["task_id"],
+                            actor_sub=state["user_id"],
+                            tool_name=call["function"]["name"],
+                            tool_call_id=call["id"],
+                            arguments=call["function"]["arguments"],
+                            status="proposal_invalid",
+                            result_count=0,
+                        )
+                    except Exception:  # noqa: BLE001, S110 — content-free fail-open
+                        pass
             return {
                 "messages": [
                     *state["messages"],

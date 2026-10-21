@@ -6,6 +6,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+)
 
 from govops.agent.checkpointer import open_checkpointer
 from govops.agent.graph import (
@@ -21,8 +26,10 @@ from govops.api.conversations import InMemoryTurnIndex, PostgresTurnIndex
 from govops.api.retention import startup_prune
 from govops.api.startup import StartupError, verify_contract
 from govops.api.tasks import TaskService
-from govops.audit.crypto import AuditKeyError
+from govops.audit.argmac import ArgsMacKeyError, load_args_mac
+from govops.audit.crypto import AuditKeyError, load_signing_key
 from govops.audit.log import AuditLog, AuditWriteError
+from govops.audit.toolcall import ToolCallAuditor
 from govops.env import env_or
 from govops.gateway.client import LiteLLMChatClient
 from govops.gateway.faults import model_fault_mode
@@ -64,7 +71,14 @@ def build_task_service(
         else:
             semantic = None
     root = Path(__file__).resolve().parents[3]
+    key_error = None
     try:
+        signing = load_signing_key()
+        mac = load_args_mac(
+            signing_key_raw=signing.private.private_bytes(
+                Encoding.Raw, PrivateFormat.Raw, NoEncryption()
+            )
+        )
         audit = AuditLog(
             audit_dir if audit_dir is not None else Path("data/interim/audit")
         )
@@ -87,10 +101,12 @@ def build_task_service(
             hook_rules_digest=digests.rules,
             hook_code_digest=digests.code,
         )
-    except AuditKeyError as error:
-        raise StartupError(error.code) from None
+    except (AuditKeyError, ArgsMacKeyError) as error:
+        key_error = error.code
     except AuditWriteError:
         raise StartupError("audit_write_failed") from None
+    if key_error is not None:
+        raise StartupError(key_error) from None
     effects = EffectDeps(tools.jira, tools.slack, outbox)
     users = load_users()
     graph = build_graph(
@@ -100,6 +116,7 @@ def build_task_service(
         profile=profile,
         effects=effects,
         audit=audit,
+        tool_audit=ToolCallAuditor(audit, mac),
         scope=ScopeIndex.load(),
         policy=load_team_policy("data/policy/team_policy.json"),
         users=users,

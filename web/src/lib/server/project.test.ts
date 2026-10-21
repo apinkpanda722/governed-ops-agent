@@ -139,3 +139,27 @@ test("verification projection validates counts, timestamps, codes and the fixed 
  expect(projectVerify({...auditSummary,status:"fail"})).toEqual({...auditSummary,status:"fail"});
  for(const value of [null,[],{}]) {expect(projectAudit(value)).toEqual({});expect(projectVerify(value)).toEqual({});}
 });
+
+test("tool call audit projection preserves display fields and discards hashes", () => {
+ const turn_id="a".repeat(32);
+ for(const result_count of [0,3,10000]) {
+ const event={event:"tool.call",tool_name:"search_docs",status:"ok",result_count};
+ const hidden={args_hmac:"d".repeat(64),args_hmac_kid:"e".repeat(12),tool_call_sha256:"f".repeat(64)};
+ expect(projectAudit({turns:[{turn_id,turn_index:1,events:[{...event,...hidden}]}]}))
+ .toEqual({turns:[{turn_id,turn_index:1,events:[event]}]});
+ }
+ expect(projectAudit({turns:[{turn_id,turn_index:1,events:[{tool_name:"unknown",status:"not_executed"}]}]}))
+ .toEqual({turns:[{turn_id,turn_index:1,events:[{tool_name:"unknown",status:"not_executed"}]}]});
+});
+test("tool call audit projection omits malformed display values", () => {
+ const turn_id="a".repeat(32), valid={tool_name:"search_docs",status:"ok",result_count:1};
+ for(const key of ["tool_name","status"])
+ for(const bad of ["", "Bad_Name", "bad-name", "a".repeat(41), "d".repeat(64), 1, true, null, [], {}]) {
+ const expected={...valid};delete (expected as Record<string,unknown>)[key];
+ expect(projectAudit({turns:[{turn_id,turn_index:1,events:[{...valid,[key]:bad}]}]}))
+ .toEqual({turns:[{turn_id,turn_index:1,events:[expected]}]});
+ }
+ for(const result_count of [true,false,-1,10001,1.5,"1",null,[],{},NaN,Infinity])
+ expect(projectAudit({turns:[{turn_id,turn_index:1,events:[{...valid,result_count}]}]}))
+ .toEqual({turns:[{turn_id,turn_index:1,events:[{tool_name:"search_docs",status:"ok"}]}]});
+});

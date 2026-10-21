@@ -17,7 +17,7 @@ freeze = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(freeze)
 
 EXPECTED: dict[str, str] = {
-    "src/govops/agent": "f801700264f23227445cc0dd1d248da52a2af9708b004ba2341e9bc598c9d58e",
+    "src/govops/agent": "7746520a965d32294df474524a19988f6d966d1111b446dfbf991d97fcbe7637",
     "src/govops/tools": "1b3c8ab089b6ba49b5228bfe53543c84c2f657b1a598dc602506ea26976aa47c",
     "src/govops/guardrails": "76169bc4d9c92bd1443dd5424c9e7259bb1948aba00514261dbac550bcdf1b00",
     "src/govops/gateway": "9765bf09b778169ed8e4f78e2dddc5bc82613a17f78ebe525ee0b9a8afe70679",
@@ -37,7 +37,7 @@ EXPECTED: dict[str, str] = {
     "src/govops/golden.py": "972d343c894cccbe4bf647dcc1abc8b980a805e42b7361aa096884388642c0df",
     "infra/litellm/config.yaml": "3e3c3837e9541d4cf97279d7d1daeb48b5179f316d097a7931a376267722935e",
     "src/govops/audit/__init__.py": "69e5aad3174fbdc1c26681b458d724d627c8f137fadbcd7bea1b3858901aeee3",
-    "src/govops/audit/log.py": "014309c3b447ef2e34af338b53e39f1ef77d99fd5945cef03ea070f12acbf22d",
+    "src/govops/audit/log.py": "19765856f3f96aa13f6fb7abe071452b5566e8c07c59563329f17976a28949b2",
     "src/govops/audit/crypto.py": "7d6d12e3e90296898b4334a6b28dd854a9bc34a5b481e3874bc501899a5eb45d",
     "src/govops/audit/anchor.py": "6219855f996ae057e545f258fe371f567ca757bfd68639277b3c7fb34216b725",
     "src/govops/audit/verify.py": "98d1fea8ebda1aa1b6461b3995595160c1355a2fb82b973d854824e3f1a32c9f",

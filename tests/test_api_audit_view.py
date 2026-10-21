@@ -43,6 +43,9 @@ OPTIONAL = {
     "fallback",
     "cost_usd",
     "draft_hash12",
+    "tool_name",
+    "status",
+    "result_count",
 }
 
 
@@ -60,6 +63,68 @@ def draft_reply():
             )
         ]
     )
+
+
+@async_test
+async def test_owner_http_tool_call_projection_hides_hashes_and_key(
+    service_factory, monkeypatch
+):
+    import secrets
+
+    from test_api_conversation_views import client_for
+
+    from govops.audit.argmac import load_args_mac
+    from govops.audit.toolcall import ToolCallAuditor
+
+    key_hex = secrets.token_hex(32)
+    monkeypatch.setenv("AUDIT_ARGS_HMAC_KEY", key_hex)
+    service, _, _ = service_factory()
+    client, auth = client_for(service)
+    try:
+        ident = await service.start(OWNER, "합성 요청")
+        await settled(service)
+        seq = ToolCallAuditor(service.audit, load_args_mac()).record(
+            task_id=ident,
+            actor_sub=OWNER,
+            tool_name="jira_get_ticket",
+            tool_call_id="synthetic-call",
+            arguments='{"ticket_id":"SYN-1"}',
+            status="ok",
+            result_count=1,
+        )
+        row = next(r for r in chain_rows(service.audit.directory) if r["seq"] == seq)
+        before = chain_snapshot(service.audit.directory)
+        async with client:
+            response = await client.get(
+                f"/conversations/{ident}/audit", headers=auth(OWNER)
+            )
+        assert response.status_code == 200
+        value = response.json()
+        assert value["conversation_id"] == ident
+        assert value["truncated"] is False
+        assert len(value["turns"]) == 1
+        events = [e for e in value["turns"][0]["events"] if e["event"] == "tool.call"]
+        assert events == [
+            {
+                "seq": seq,
+                "ts": row["ts"],
+                "event": "tool.call",
+                "actor": OWNER,
+                "hash12": row["hash"][:12],
+                "tool_name": "jira_get_ticket",
+                "status": "ok",
+                "result_count": 1,
+            }
+        ]
+        assert key_hex not in response.text
+        for key in ("args_hmac", "args_hmac_kid", "tool_call_sha256"):
+            assert key not in response.text
+            assert row[key] not in response.text
+        assert not re.search(r"[0-9a-f]{64}|[0-9a-f]{128}", response.text)
+        assert chain_snapshot(service.audit.directory) == before
+    finally:
+        await client.aclose()
+        await service.aclose()
 
 
 def chain_snapshot(directory):
