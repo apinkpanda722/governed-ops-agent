@@ -23,6 +23,7 @@ EXPECTED: dict[str, str] = {
     "docs/results/hypotheses-m8-toolcall.md": "897c1278afbd034e950dbfb3084b810abfe374de9f69d44b94821f1305b47fe5",
     "docs/results/hypotheses-m8-rollout.md": "fe71c306b20d7053acb19945657579e7085558bd2640e351222019c04421d452",
     "docs/results/hypotheses-m8-rollout-addendum-1.md": "e88ab0fca039faba768cf3c7a2e4a6d2f03139b24df4a43abc06bb2a0b8f7b15",
+    "docs/results/hypotheses-m8-rollout-addendum-2.md": "d6254f7b6c9353490fdecb49d85e4894b270e77baa26e915ae21d12e912a6dd3",
     "docs/results/hypotheses-m8-grader.md": "8dfe8901a257bbabbe58307798e5169ddb3f789dc1c62eeb0efbad932117c3c0",
     "docs/results/hypotheses-m8-grader-addendum-1.md": "43c86115c50b5cf709f51d4727b5e49624cf30097d4802e64f0c17787698405e",
     "docs/results/hypotheses-m8-grader-addendum-2.md": "db0a5e7e95355e8b6e220a9939a49d4f6549a36910ef94842724328605dc3ded",
