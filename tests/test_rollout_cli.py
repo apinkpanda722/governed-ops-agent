@@ -11,7 +11,6 @@ from govops.rollout import cli, store
 from govops.rollout.policy import RolloutState
 
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED_TARGETS = {"m8-rollout-exercise"}
 ZERO_COUNTS = "assigned_v1=0 assigned_v2=0 variant_missing=0 rollbacks=0"
 
 
@@ -159,9 +158,13 @@ def test_registered_commands_match_cli_and_makefile(tmp_path, capsys):
     targets = {
         words[1] for words in make_examples if words[1].startswith("m8-rollout-")
     }
-    assert EXCLUDED_TARGETS <= targets
+    assert targets == {
+        "m8-rollout-status",
+        "m8-rollout-set",
+        "m8-rollout-kill",
+        "m8-rollout-exercise",
+    }
     expected = {"m8-rollout-status", "m8-rollout-set", "m8-rollout-kill"}
-    assert targets - EXCLUDED_TARGETS == expected
     makefile = (ROOT / "Makefile").read_text()
     for target in expected:
         assert f"\n{target}:\n" in makefile

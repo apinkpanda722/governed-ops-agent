@@ -407,6 +407,11 @@ m8-rollout-set:
 m8-rollout-kill:
 	uv run --env-file .env python -m govops.rollout.cli kill
 
+.PHONY: m8-rollout-exercise
+# 로컬 시연(가짜 chat, API 호출 없음, 임시 디렉터리만), 사용자 실행(.env 불필요)
+m8-rollout-exercise:
+	uv run python -m govops.api.rollout_exercise
+
 .PHONY: m8-regress-compare
 # 오프라인 비교, 읽기 전용, 사용자 실행(.env 불필요)
 m8-regress-compare:
