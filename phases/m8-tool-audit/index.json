@@ -1,0 +1,41 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m8-tool-audit",
+  "steps": [
+    {
+      "step": 0,
+      "name": "tool-audit-registration",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "audit-tool-event",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "graph-tool-audit",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "wiring-args-key",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "records-tool-view",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "web-tool-view",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "toolcall-check",
+      "status": "pending"
+    }
+  ]
+}
