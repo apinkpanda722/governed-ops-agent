@@ -17,10 +17,10 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/api/rollout_exercise.py`(신규), `tests/test_m8_rollout_exercise.py`(신규), `Makefile`(타깃 1개 추가에 한함), `tests/test_makefile.py`(`M8_ENV_CONTRACT`에 키 1개 추가와 새 테스트 함수 추가에 한함, 기존 단언 약화 금지), `AGENTS.md`(`## 명령어` 절에 줄 1개 추가에 한함). TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/api/rollout_exercise.py`(신규), `tests/test_m8_rollout_exercise.py`(신규), `Makefile`(타깃 1개 추가에 한함), `tests/test_makefile.py`(`M8_ENV_CONTRACT`에 키 1개 추가와 새 테스트 함수 추가에 한함, 기존 단언 약화 금지), `AGENTS.md`(`## 명령어` 절에 줄 1개 추가에 한함), `tests/test_rollout_cli.py`(step 5가 둔 제외 집합 `EXCLUDED_TARGETS`에서 `m8-rollout-exercise`를 지우는 것에 한함. 그러면 같은 테스트가 문서의 모든 `make m8-rollout-…` 타깃(네 개)을 정확히 검사한다. 그 밖의 단언 불변). TDD.
 
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`, `src/govops/guardrails/rules_v1.json`
-수정 허용 경로: `src/govops/api/rollout_exercise.py`, `tests/test_m8_rollout_exercise.py`, `Makefile`, `tests/test_makefile.py`, `AGENTS.md`
+수정 허용 경로: `src/govops/api/rollout_exercise.py`, `tests/test_m8_rollout_exercise.py`, `Makefile`, `tests/test_makefile.py`, `AGENTS.md`, `tests/test_rollout_cli.py`
 열람 금지의 범위: 이 금지는 **Codex 세션이 해당 경로의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드는 `data/interim/`을 쓰지 않는다(시연은 자기 임시 디렉터리만 쓴다). 테스트가 `data/interim/`·`data/eval/`·`data/redteam/`의 실제 파일 **내용**을 읽는 것은 여전히 금지이며 테스트는 임시 디렉터리만 쓴다. 예외로 `data/results/`의 실행 디렉터리는 파일 이름과 JSON 키 이름을 확인하는 데 한해 열람할 수 있고, 응답 본문(`answer`·`effect_bodies`)이나 근거 본문을 출력·인용하지 않는다. 이 제한은 이 step이 새로 작성하는 테스트에 한한 것이며, 기존 `tests/test_m7_freeze.py`가 `scripts/freeze_digest.py`로 해시를 계산하며 동결 경로 파일을 바이트로 읽는 것은 `make verify`의 일부이므로 허용한다. Codex 세션이 그 파일 내용을 출력·인용하는 것은 여전히 금지다.
 
 `src/govops/api/` 아래 새 파일에는 `redteam` 문자열을 쓰지 않는다(`tests/test_redteam_boundary.py`가 `api/`의 모든 `.py`를 검사한다).
@@ -61,7 +61,7 @@ m8-rollout-exercise:
 
 ### 4. 테스트
 
-`tests/test_m8_rollout_exercise.py`: `run_exercise(root=tmp_path)`가 두 단계 모두 통과, `main([])`의 출력이 정확히 `PASS exercise_pass_path`·`PASS exercise_rollback_path` 두 줄이고 종료 0, **공허 통과 방지**: 롤백 경로에서 분류기를 `ok`로 바꾸도록 `monkeypatch`하면 `FAIL exercise_rollback_path rollback_missing`·종료 1, PASS 경로에서 임계를 낮춰(`monkeypatch`로 `policy.ABNORMAL_RATE_MAX`를 음수로) 롤백이 일어나면 `FAIL exercise_pass_path kill_unexpected`, 출력과 `root` 아래 기록 파일에 요청 문장·답변 문자열이 없음, 실행 중 `data/interim/` 아래 새 파일이 생기지 않음(실행 전후 `data/interim/rollout` 경로 존재 여부만 비교, 내용은 읽지 않는다). 테스트에 `@pytest.mark.timeout(180)`. 문서 전체 일치: `docs/results/hypotheses-m8-rollout.md`에 나오는 `make m8-rollout-…` 타깃 이름의 집합이 정확히 `{m8-rollout-status, m8-rollout-set, m8-rollout-kill, m8-rollout-exercise}`이고 모두 `Makefile`에 있다(빈 집합이면 실패).
+`tests/test_m8_rollout_exercise.py`: `run_exercise(root=tmp_path)`가 두 단계 모두 통과, `main([])`의 출력이 정확히 `PASS exercise_pass_path`·`PASS exercise_rollback_path` 두 줄이고 종료 0, **공허 통과 방지**: 롤백 경로에서 분류기를 `ok`로 바꾸도록 `monkeypatch`하면 `FAIL exercise_rollback_path rollback_missing`·종료 1, PASS 경로에서 임계를 낮춰(`monkeypatch`로 `policy.ABNORMAL_RATE_MAX`를 음수로) 롤백이 일어나면 `FAIL exercise_pass_path kill_unexpected`, 출력과 `root` 아래 기록 파일에 요청 문장·답변 문자열이 없음, 실행 중 `data/interim/` 아래 새 파일이 생기지 않음(실행 전후 `data/interim/rollout` 경로 존재 여부만 비교, 내용은 읽지 않는다). 테스트에 `@pytest.mark.timeout(180)`. 문서 예시 일치: `docs/results/hypotheses-m8-rollout.md`에 `python -m govops.api.rollout_exercise`와 `make m8-rollout-exercise`가 나오고, 그 모듈이 import 가능하며 `main`이 있고, `m8-rollout-exercise` 레시피가 같은 모듈을 부른다.
 `tests/test_makefile.py`: `M8_ENV_CONTRACT`에 `"m8-rollout-exercise": False`를 더하고(기존 키 불변), 레시피가 위 2번과 같고 `AGENTS.md` 줄에 `(사용자 실행)`이 있다는 테스트 함수를 더한다.
 
 ## Acceptance Criteria
