@@ -75,10 +75,8 @@
     {
       "step": 5,
       "name": "rollout-cli",
-      "status": "blocked",
+      "status": "pending",
       "started_at": "2026-10-21T14:09:19+0900",
-      "blocked_reason": "선점검에서 지시 충돌을 확인했습니다. 수정 범위는 “`Makefile`(타깃 3개 추가에 한함)”이지만, 테스트는 “문서에 나오는 모든 `make m8-rollout-…` 타깃 이름이 `Makefile`에 있고”를 요구합니다. 동결 등록 문서에는 지정된 세 타깃 외에 `make m8-rollout-exercise`도 있으며 현재 Makefile에는 없습니다. 이를 만족하려면 금지된 네 번째 타깃을 추가해야 합니다. 테스트 범위를 이번 세 타깃으로 한정하거나 네 번째 타깃 추가를 허용하도록 지시 수정이 필요합니다. 파일은 수정하지 않았습니다.",
-      "blocked_at": "2026-10-21T14:14:03+0900",
       "usage": {
         "input_tokens": 159522,
         "cached_input_tokens": 105856,

@@ -61,7 +61,7 @@ m8-rollout-exercise:
 
 ### 4. 테스트
 
-`tests/test_m8_rollout_exercise.py`: `run_exercise(root=tmp_path)`가 두 단계 모두 통과, `main([])`의 출력이 정확히 `PASS exercise_pass_path`·`PASS exercise_rollback_path` 두 줄이고 종료 0, **공허 통과 방지**: 롤백 경로에서 분류기를 `ok`로 바꾸도록 `monkeypatch`하면 `FAIL exercise_rollback_path rollback_missing`·종료 1, PASS 경로에서 임계를 낮춰(`monkeypatch`로 `policy.ABNORMAL_RATE_MAX`를 음수로) 롤백이 일어나면 `FAIL exercise_pass_path kill_unexpected`, 출력과 `root` 아래 기록 파일에 요청 문장·답변 문자열이 없음, 실행 중 `data/interim/` 아래 새 파일이 생기지 않음(실행 전후 `data/interim/rollout` 경로 존재 여부만 비교, 내용은 읽지 않는다). 테스트에 `@pytest.mark.timeout(180)`.
+`tests/test_m8_rollout_exercise.py`: `run_exercise(root=tmp_path)`가 두 단계 모두 통과, `main([])`의 출력이 정확히 `PASS exercise_pass_path`·`PASS exercise_rollback_path` 두 줄이고 종료 0, **공허 통과 방지**: 롤백 경로에서 분류기를 `ok`로 바꾸도록 `monkeypatch`하면 `FAIL exercise_rollback_path rollback_missing`·종료 1, PASS 경로에서 임계를 낮춰(`monkeypatch`로 `policy.ABNORMAL_RATE_MAX`를 음수로) 롤백이 일어나면 `FAIL exercise_pass_path kill_unexpected`, 출력과 `root` 아래 기록 파일에 요청 문장·답변 문자열이 없음, 실행 중 `data/interim/` 아래 새 파일이 생기지 않음(실행 전후 `data/interim/rollout` 경로 존재 여부만 비교, 내용은 읽지 않는다). 테스트에 `@pytest.mark.timeout(180)`. 문서 전체 일치: `docs/results/hypotheses-m8-rollout.md`에 나오는 `make m8-rollout-…` 타깃 이름의 집합이 정확히 `{m8-rollout-status, m8-rollout-set, m8-rollout-kill, m8-rollout-exercise}`이고 모두 `Makefile`에 있다(빈 집합이면 실패).
 `tests/test_makefile.py`: `M8_ENV_CONTRACT`에 `"m8-rollout-exercise": False`를 더하고(기존 키 불변), 레시피가 위 2번과 같고 `AGENTS.md` 줄에 `(사용자 실행)`이 있다는 테스트 함수를 더한다.
 
 ## Acceptance Criteria
