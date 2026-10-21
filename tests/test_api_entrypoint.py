@@ -212,3 +212,32 @@ def test_auth_failure_audit_uses_the_audit_log_of_the_service_installed_by_lifes
         assert client.get("/sessions/me").status_code == 401
     assert [r["event"] for r in fake.audit.records] == ["auth.failed"]
     assert fake.audit.records[0]["reason"] == "missing_credentials"
+
+
+def test_rollout_lifespan_installs_service_and_audit_for_every_route(monkeypatch):
+    fake = FakeService()
+
+    @asynccontextmanager
+    async def fake_open_rollout_service():
+        yield fake
+
+    def forbidden():
+        pytest.fail("rollout must use its own opener")
+
+    monkeypatch.setenv("GOVOPS_V2_ROLLOUT", "on")
+    monkeypatch.setenv("DEMO_LOGIN", "true")
+    monkeypatch.setattr(entry, "open_rollout_service", fake_open_rollout_service)
+    monkeypatch.setattr(entry, "open_task_service", forbidden)
+    app = entry.build_server_config(0).app
+    assert service_routes(app) == set(EXPECTED)
+    token, _ = app.state.sessions.issue(USER)
+    headers = {"Authorization": "Bearer " + token}
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert app.state.task_service is fake
+        assert app.state.audit is fake.audit
+        for (method, path), (body, called) in EXPECTED.items():
+            before = len(fake.calls)
+            url = path.replace("{task_id}", ID).replace("{conversation_id}", ID)
+            response = client.request(method, url, headers=headers, json=body)
+            assert response.status_code != 500, (method, path)
+            assert called in fake.calls[before:], (method, path)
