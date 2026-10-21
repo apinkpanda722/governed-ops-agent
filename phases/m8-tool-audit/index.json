@@ -5,7 +5,16 @@
     {
       "step": 0,
       "name": "tool-audit-registration",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T18:52:25+0900",
+      "summary": "도구 호출 감사 사전 등록 문서와 ADR-029를 추가하고 M8 동결 digest를 등록했으며 make verify를 통과했다.",
+      "completed_at": "2026-10-21T19:05:52+0900",
+      "usage": {
+        "input_tokens": 2005042,
+        "cached_input_tokens": 1895936,
+        "output_tokens": 10926,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
@@ -37,5 +46,6 @@
       "name": "toolcall-check",
       "status": "pending"
     }
-  ]
+  ],
+  "created_at": "2026-10-21T18:52:25+0900"
 }
