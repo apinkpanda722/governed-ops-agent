@@ -21,7 +21,7 @@ M8 추가 — 공식 M6 수치 아님
 | `make audit-toolcall-check` | `PASS audit_toolcall_check turns=8 tool_calls=14 spans=14` | 사용자 보고 |
 | `make audit-verify` | `chains_pass=634 chains_fail=0 legacy_unverified_files=40 anchors_checked=275`, `anchor_dir_missing` 0건(M8 ⑤ 결과 폴더를 원래 경로로 되돌린 뒤, 3절) | 사용자 보고 |
 | 오늘 체인(`chain-2026-10-21.jsonl`) 이벤트 줄 수(첫 smoke 직후) | 33줄: `tool.call` 7, `model.call` 11, `side_effect.draft` 4, `service.start` 1 | 사용자 보고(어드바이저가 줄 수만 확인) |
-| `make smoke-conversation` | 2회 모두 14개 PASS + `FAIL no_leak_in_views contract_mismatch`(원인 미확정, 4절) | 사용자 보고 |
+| `make smoke-conversation` | 수정 전 2회 모두 14개 PASS + `FAIL no_leak_in_views contract_mismatch`, #253 수정 뒤 1회 15개 PASS(`RESULT pass`)(4절) | 사용자 보고 |
 | 비용(두 번의 smoke) | 정산 48행: 주 모델(OpenAI, `agent_primary`) 24행 $0.002635, fallback(Anthropic, `agent_fallback`) 24행 $0. 예약 48행 | 이 세션이 원장 변경분에서 합계·행 수만 집계 |
 | `make verify`·CI | phase step마다 exit 0, PR #249 CI pass | 이 세션 |
 
@@ -79,6 +79,7 @@ smoke가 차단 요청을 보낸 뒤 poll이 받은 `running` 상태의 요청�
 
 - **이번 변경 때문이라는 증거는 없다.** 차단된 요청은 도구를 부르지 않는 경로라 `tool.call` 기록 지점이 없다. 다만 이 smoke는 M5(2026-10-09, 15개 PASS) 이후 다시 돌린 적이 없고, 변경 전 커밋(`0f5d8eb`)에서 재현해 비교하지 않았다.
 - 별도 이슈 #250으로 추적하며 이번에 고치지 않았다. 수정 방향(차단 확정 화면에서만 본문 유무를 보고, 차단 확정 화면이 실제로 관측됐는지 확인)은 검사 기준을 바꾸는 일이라 사용자 결정을 기다린다.
+- **갱신(#253 뒤 재실행)**: #253은 검사 기준을 좁혔다(진행 중 상태인 소유자 본인 화면의 `turn.request`만 허용하고, 차단 확정 화면 관측을 필수로 요구). 수정 뒤 main(`c00f59d` 이후)에서 1회 실행해 14개 기존 검사와 `no_leak_in_views`가 모두 PASS(15개, `RESULT pass`)였다(사용자 보고). 원인은 여전히 추정이다(이번에도 상태를 직접 캡처하지 않았다). 이번 실행 비용은 원장 증가분 48행(예약 24행, 정산 24행)이며 정산은 주 모델(OpenAI, `agent_primary`) 12행 $0.001519, fallback(Anthropic, `agent_fallback`) 12행 $0이다.
 
 ## 5. 진행 이력
 
