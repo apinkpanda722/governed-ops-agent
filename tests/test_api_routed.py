@@ -874,3 +874,173 @@ async def test_unreadable_records_with_failed_state_write_still_assigns_v1(
         assert h.classifier.calls == []
     finally:
         await h.router.aclose()
+
+
+def append_calls(directory, turn_id, statuses):
+    for status in statuses:
+        store.append_classify(
+            directory,
+            {
+                "ts": NOW.isoformat(),
+                "turn_id": turn_id,
+                "status": status,
+                "started_ms": 1.0,
+                "ended_ms": 2.0,
+            },
+        )
+
+
+def deleted_window_fixture(h, monkeypatch, tmp_path, *, v2_deleted, v2_count=24):
+    """후보·상태·턴 색인을 합성으로 고정한다. 각 후보 대화는 턴 하나(대화 ID와 같음)."""
+    candidates = {
+        "v2": [uuid4().hex for _ in range(v2_count)],
+        "v1": [uuid4().hex for _ in range(24)],
+    }
+    owner = {"v1": "demo-owner-v1-g1", "v2": "demo-owner-v2-g1"}
+    deleted = set(v2_deleted(candidates["v2"]))
+    snapshots = {
+        ident: {"status": "completed", "user_id": owner[variant]}
+        for variant, ids in candidates.items()
+        for ident in ids
+    }
+    monkeypatch.setattr(
+        h.variants,
+        "recent",
+        AsyncMock(side_effect=lambda variant, limit: candidates[variant][:limit]),
+    )
+
+    async def snapshot(graph, ident):
+        assert ident not in deleted, "deleted candidates must be skipped first"
+        return snapshots[ident]
+
+    snapshot = AsyncMock(side_effect=snapshot)
+    monkeypatch.setattr(routed, "get_task", snapshot)
+    is_deleted = AsyncMock(side_effect=lambda ident: ident in deleted)
+    monkeypatch.setattr(h.turns, "is_deleted", is_deleted)
+
+    async def turn_ids_of(conversation, user):
+        # 실제 색인처럼 소프트 삭제된 대화의 턴은 돌려주지 않는다.
+        return [] if conversation in deleted else [(conversation, 0)]
+
+    monkeypatch.setattr(h.turns, "turn_ids_of", AsyncMock(side_effect=turn_ids_of))
+    captured = []
+    evaluate = policy.evaluate
+
+    def capture(v2, v1):
+        result = evaluate(v2, v1)
+        captured.append((v2, v1, result))
+        return result
+
+    monkeypatch.setattr(policy, "evaluate", capture)
+    return SimpleNamespace(
+        candidates=candidates,
+        deleted=deleted,
+        snapshots=snapshots,
+        is_deleted=is_deleted,
+        snapshot=snapshot,
+        captured=captured,
+    )
+
+
+@scenario
+async def test_deleted_conversations_leave_both_windows_and_next_candidates_fill(
+    tmp_path, monkeypatch
+):
+    h = harness(tmp_path)
+    set_state(tmp_path)
+    f = deleted_window_fixture(
+        h, monkeypatch, tmp_path, v2_deleted=lambda ids: [ids[0], ids[5]]
+    )
+    v1_deleted = f.candidates["v1"][2]
+    f.deleted.add(v1_deleted)
+    for ident in f.deleted:
+        f.snapshots[ident]["status"] = "blocked_input"
+    for ident in f.candidates["v2"]:
+        append_calls(tmp_path, ident, ["ok"])
+    append_calls(tmp_path, f.candidates["v2"][0], ["timeout"] * 5)
+    try:
+        await h.router.start(USER, REQUEST)
+        await settle(h)
+        ((v2, v1, result),) = f.captured
+        expected_v2 = [i for i in f.candidates["v2"] if i not in f.deleted][:20]
+        expected_v1 = [i for i in f.candidates["v1"] if i != v1_deleted][:20]
+        assert [o.conversation_id for o in v2] == expected_v2
+        assert [o.conversation_id for o in v1] == expected_v1
+        # 삭제 대화의 차단 여부와 분류 기록이 모두 집계에 없다.
+        assert not any(o.blocked_input for o in v2 + v1)
+        assert result.block_diff == 0.0 and result.abnormal_rate == 0.0
+        assert result.action == "none"
+        # 평가 한 번의 is_deleted는 창마다 확인한 후보 수 이하다.
+        assert f.is_deleted.await_count == 22 + 21
+        assert f.snapshot.await_count == 20 + 20
+    finally:
+        await h.router.aclose()
+
+
+@scenario
+@pytest.mark.parametrize(
+    ("abnormal", "action"), [(1, "none"), (2, "rollback")], ids=["equal", "over"]
+)
+async def test_deleted_slot_no_longer_hides_abnormal_calls_at_the_boundary(
+    tmp_path, monkeypatch, abnormal, action
+):
+    h = harness(tmp_path)
+    set_state(tmp_path)
+    f = deleted_window_fixture(
+        h, monkeypatch, tmp_path, v2_deleted=lambda ids: [ids[0]], v2_count=21
+    )
+    v2_ids = f.candidates["v2"]
+    for ident in v2_ids[1:20]:
+        append_calls(tmp_path, ident, ["ok"])
+    append_calls(tmp_path, v2_ids[20], ["timeout"] * abnormal)
+    # 이전 창 규칙(삭제 대화가 창 자리를 차지): 앞 20개, 삭제 대화는 호출 0개.
+    old_window = [
+        policy.ConversationOutcome(i, False, {} if i in f.deleted else {i: []})
+        for i in v2_ids[:20]
+    ]
+    for outcome in old_window[1:]:
+        outcome.turns[outcome.conversation_id].append(
+            policy.ClassifyCall("ok", 1.0, 2.0)
+        )
+    v1_window = [
+        policy.ConversationOutcome(i, False, {}) for i in f.candidates["v1"][:20]
+    ]
+    assert policy.evaluate(old_window, v1_window).action == "none"
+    f.captured.clear()
+    try:
+        await h.router.start(USER, REQUEST)
+        await settle(h)
+        ((v2, _, result),) = f.captured
+        assert [o.conversation_id for o in v2] == v2_ids[1:21]
+        assert result.abnormal_rate == abnormal / (19 + abnormal)
+        assert result.action == action
+        state = store.read_state(tmp_path)
+        assert state.kill is (action == "rollback")
+        if action == "rollback":
+            assert state.reason == "rollback_classify_abnormal"
+    finally:
+        await h.router.aclose()
+
+
+@scenario
+async def test_all_deleted_candidates_are_an_insufficient_sample(tmp_path, monkeypatch):
+    h = harness(tmp_path)
+    set_state(tmp_path)
+    f = deleted_window_fixture(
+        h, monkeypatch, tmp_path, v2_deleted=lambda ids: ids, v2_count=60
+    )
+    for ident in f.candidates["v2"]:
+        append_calls(tmp_path, ident, ["timeout"])
+    try:
+        await h.router.start(USER, REQUEST)
+        await settle(h)
+        ((v2, _, result),) = f.captured
+        assert v2 == []
+        assert (result.action, result.notes) == ("none", ("insufficient_v2_sample",))
+        assert not store.read_state(tmp_path).kill
+        assert f.is_deleted.await_count <= 2 * policy.CANDIDATE_LIMIT
+        assert all(
+            entry.args[0] not in f.deleted for entry in f.snapshot.await_args_list
+        )
+    finally:
+        await h.router.aclose()
