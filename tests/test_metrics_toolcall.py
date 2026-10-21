@@ -365,6 +365,7 @@ def test_metrics_layer_allows_eval_and_blocks_producers_and_consumers(tmp_path):
         "govops.mocks",
         "govops.evalrun",
         "govops.grounding",
+        "govops.rollout",
         "langgraph",
         *LLM_SDK,
     }
