@@ -61,7 +61,16 @@
     {
       "step": 4,
       "name": "rollout-wiring",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T13:45:38+0900",
+      "summary": "롤아웃 전용 v1·v2 서비스 조립과 lifespan 분기를 구현하고 기본 off 경로·공유 감사 체인을 검증했으며, 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T14:09:18+0900",
+      "usage": {
+        "input_tokens": 6238960,
+        "cached_input_tokens": 6105472,
+        "output_tokens": 18812,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
