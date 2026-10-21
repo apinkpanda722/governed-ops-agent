@@ -17,7 +17,7 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/api/rollout_exercise.py`(신규), `tests/test_m8_rollout_exercise.py`(신규), `Makefile`(타깃 1개 추가에 한함), `tests/test_makefile.py`(`M8_ENV_CONTRACT`에 키 1개 추가와 새 테스트 함수 추가에 한함, 기존 단언 약화 금지), `AGENTS.md`(`## 명령어` 절에 줄 1개 추가에 한함), `tests/test_rollout_cli.py`(step 5가 둔 제외 집합 `EXCLUDED_TARGETS`에서 `m8-rollout-exercise`를 지우는 것에 한함. 그러면 같은 테스트가 문서의 모든 `make m8-rollout-…` 타깃(네 개)을 정확히 검사한다. 그 밖의 단언 불변). TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/api/rollout_exercise.py`(신규), `tests/test_m8_rollout_exercise.py`(신규), `Makefile`(타깃 1개 추가에 한함), `tests/test_makefile.py`(`M8_ENV_CONTRACT`에 키 1개 추가와 새 테스트 함수 추가에 한함, 기존 단언 약화 금지), `AGENTS.md`(`## 명령어` 절에 줄 1개 추가에 한함), `tests/test_rollout_cli.py`(`EXCLUDED_TARGETS` 상수(14행)와 그 사용(162~164행)을 지우고, 문서에서 뽑은 타깃 집합이 정확히 `{m8-rollout-status, m8-rollout-set, m8-rollout-kill, m8-rollout-exercise}`라는 단언 한 줄로 바꾸는 것에 한함. 빈 제외 집합을 남기지 않는다(`EXCLUDED_TARGETS <= targets`가 공허하게 참이 된다, FP-069). 그 밖의 테스트·단언 불변). TDD.
 
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`, `src/govops/guardrails/rules_v1.json`
 수정 허용 경로: `src/govops/api/rollout_exercise.py`, `tests/test_m8_rollout_exercise.py`, `Makefile`, `tests/test_makefile.py`, `AGENTS.md`, `tests/test_rollout_cli.py`

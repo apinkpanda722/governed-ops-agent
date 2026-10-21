@@ -89,10 +89,8 @@
     {
       "step": 6,
       "name": "rollout-exercise",
-      "status": "blocked",
+      "status": "pending",
       "started_at": "2026-10-21T14:32:56+0900",
-      "blocked_reason": "“기존 테스트를 깨뜨리지 마라.”와 “그 밖의 단언 불변”이 충돌합니다. tests/test_rollout_cli.py의 EXCLUDED_TARGETS에서 m8-rollout-exercise만 제거하면, targets - EXCLUDED_TARGETS는 4개지만 expected는 기존 3개라 정확 일치 단언이 실패합니다. expected에 m8-rollout-exercise를 추가하는 수정도 허용해야 진행할 수 있습니다.",
-      "blocked_at": "2026-10-21T14:37:31+0900",
       "usage": {
         "input_tokens": 221496,
         "cached_input_tokens": 161536,
