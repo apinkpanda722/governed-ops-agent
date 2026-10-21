@@ -37,6 +37,34 @@ def safe(value):
     )
 
 
+def judge_views(views, *, blocked_path, owner):
+    """Return None when views are clean, else a fixed reason code.
+
+    The only exemption is the owner's own blocked request echoed in
+    ``turn.request`` while that conversation is still ``running``; every other
+    view, including the same conversation once ``blocked_input``, stays strict.
+    """
+    if not views:
+        # 받은 view가 없으면 `all([])`가 참이 되어 아무것도 확인하지 않고 통과한다.
+        return "no_views"
+    leaked, observed = False, False
+    for who, path, body in views:
+        turn = body.get("turn") if isinstance(body, dict) else None
+        own = blocked_path is not None and path == blocked_path and who == owner
+        status = turn.get("status") if isinstance(turn, dict) else None
+        if own and status == "blocked_input":
+            observed = True
+        if own and status == "running" and isinstance(turn.get("request"), str):
+            body = {
+                **body,
+                "turn": {k: v for k, v in turn.items() if k != "request"},
+            }
+        leaked |= not safe(body)
+    if leaked:
+        return "contract_mismatch"
+    return None if observed else "blocked_view_not_observed"
+
+
 def mock_id(state):
     effect = state.get("effect")
     return effect.get("mock_id") if isinstance(effect, dict) else None
@@ -47,6 +75,8 @@ async def run(
 ):
     failed = False
     views = []
+    owners = {}
+    blocked_path = None
     stage = "rag_turn1"
 
     def check(name, ok, reason="contract_mismatch"):
@@ -76,7 +106,7 @@ async def run(
                 if method == "GET" and (
                     path.startswith("/conversations") or path == "/approvals"
                 ):
-                    views.append(response.json())
+                    views.append((owners.get(token), path, response.json()))
                 return response
 
             async def data(method, path, token=None, **kwargs):
@@ -109,6 +139,7 @@ async def run(
             finance = (
                 await data("POST", "/sessions", json={"user": "demo-finance-g3"})
             )["session_token"]
+            owners.update({platform: "platform", finance: "finance"})
             first = await data(
                 "POST", "/conversations", platform, json={"request": REQUEST}
             )
@@ -260,6 +291,7 @@ async def run(
                 platform,
                 json={"request": SENTINEL + " 010-0000-0000"},
             )
+            blocked_path = "/conversations/" + blocked["conversation_id"]
             state = await poll(blocked["conversation_id"], platform, "blocked_input")
             if state.get("status") == "blocked_input":
                 check(
@@ -279,11 +311,8 @@ async def run(
     except Exception as error:  # noqa: BLE001 — never render response bodies or credentials
         # 예외 클래스 이름만 남긴다(문장·URL·토큰·본문은 출력하지 않는다).
         check(stage, False, f"request_failed:{type(error).__name__}")
-    if views:
-        check("no_leak_in_views", all(safe(view) for view in views))
-    else:
-        # 받은 view가 없으면 `all([])`가 참이 되어 아무것도 확인하지 않고 통과한다.
-        check("no_leak_in_views", False, "no_views")
+    reason = judge_views(views, blocked_path=blocked_path, owner="platform")
+    check("no_leak_in_views", reason is None, reason or "contract_mismatch")
     print("RESULT fail" if failed else "RESULT pass")
     return int(failed)
 

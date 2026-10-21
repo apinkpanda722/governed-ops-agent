@@ -179,3 +179,194 @@ def test_leak_check_passes_only_with_views_and_no_forbidden_content():
     assert smoke.safe({"turn": {"status": "completed"}}) is True
     assert smoke.safe({"turn": {"stop_reason": "x"}}) is False
     assert smoke.safe({"history": [smoke.SENTINEL]}) is False
+
+
+def blocked_stub(
+    *, running_views, blocked_request=None, other=None, finance_sees=False
+):
+    """차단 요청(SENTINEL) 대화가 running 화면을 running_views번 보인 뒤 blocked_input이 된다."""
+    app = stub()
+    seen = {"b": 0}
+    base = app.router.routes[-1].endpoint
+
+    probe = FastAPI()
+
+    @probe.api_route("/{path:path}", methods=["GET", "POST"])
+    async def route(path: str, request: Request):
+        finance = request.headers.get("authorization", "").endswith("finance")
+        if request.method == "GET" and path == "conversations/b":
+            if finance:
+                body = {"detail": "conversation_not_found"}
+                if finance_sees:
+                    body["echo"] = smoke.SENTINEL
+                return JSONResponse(body, 404)
+            seen["b"] += 1
+            if seen["b"] <= running_views:
+                turn = {"task_id": "b1", "status": "running"}
+                turn["request"] = smoke.SENTINEL + " 010-0000-0000"
+                if other:
+                    turn.update(other)
+                return {"turn": turn, "history": []}
+            turn = {
+                "task_id": "b1",
+                "status": "blocked_input",
+                "block": {"code": "pii_input", "message": "blocked"},
+                "request": blocked_request,
+            }
+            return {"turn": turn, "history": []}
+        return await base(path, request)
+
+    return probe
+
+
+def run_blocked(capsys, **kwargs):
+    code = asyncio.run(
+        smoke.run(
+            transport=httpx.ASGITransport(app=blocked_stub(**kwargs)),
+            timeout=1,
+            interval=0.001,
+        )
+    )
+    return code, capsys.readouterr().out
+
+
+def test_sentinel_only_in_running_request_of_own_blocked_conversation_passes(capsys):
+    code, output = run_blocked(capsys, running_views=2)
+    assert code == 0
+    assert "PASS no_leak_in_views" in output and "RESULT pass" in output
+    assert smoke.SENTINEL not in output
+
+
+def test_sentinel_in_blocked_view_request_fails(capsys):
+    code, output = run_blocked(
+        capsys, running_views=1, blocked_request=smoke.SENTINEL + " 010-0000-0000"
+    )
+    assert code == 1
+    assert "FAIL no_leak_in_views contract_mismatch" in output
+
+
+def test_missing_blocked_view_is_a_failure(capsys):
+    # 차단 확정 화면을 한 번도 보지 못하면 running 허용만으로 통과하면 안 된다(공허 통과).
+    code, output = run_blocked(capsys, running_views=10_000)
+    assert code == 1
+    assert "FAIL no_leak_in_views blocked_view_not_observed" in output
+    assert "PASS no_leak_in_views" not in output
+
+
+@pytest.mark.parametrize(
+    "other",
+    [
+        {"stop_reason": "synthetic"},
+        {"answer": smoke.SENTINEL},
+        {"nested": {"guardrail_block": {"code": "pii_input"}}},
+    ],
+)
+def test_running_allowance_is_limited_to_the_request_string(capsys, other):
+    code, output = run_blocked(capsys, running_views=1, other=other)
+    assert code == 1
+    assert "FAIL no_leak_in_views contract_mismatch" in output
+
+
+RUNNING = {"turn": {"status": "running", "request": smoke.SENTINEL}}
+BLOCKED = {"turn": {"status": "blocked_input", "request": None}}
+OWN = "/conversations/b"
+
+
+@pytest.mark.parametrize(
+    "views,expected",
+    [
+        ([], "no_views"),
+        ([("platform", OWN, RUNNING), ("platform", OWN, BLOCKED)], None),
+        ([("platform", OWN, RUNNING)], "blocked_view_not_observed"),
+        (
+            [("platform", "/conversations/p", RUNNING), ("platform", OWN, BLOCKED)],
+            "contract_mismatch",
+        ),
+        ([("finance", OWN, RUNNING), ("platform", OWN, BLOCKED)], "contract_mismatch"),
+        (
+            [
+                ("finance", "/approvals", {"approvals": [smoke.SENTINEL]}),
+                ("platform", OWN, BLOCKED),
+            ],
+            "contract_mismatch",
+        ),
+        (
+            [
+                ("platform", "/approvals", {"approvals": [smoke.SENTINEL]}),
+                ("platform", OWN, BLOCKED),
+            ],
+            "contract_mismatch",
+        ),
+        (
+            [("finance", OWN, {"detail": smoke.SENTINEL}), ("platform", OWN, BLOCKED)],
+            "contract_mismatch",
+        ),
+        (
+            [
+                (
+                    "platform",
+                    OWN,
+                    {"turn": {"status": "blocked_input", "request": smoke.SENTINEL}},
+                )
+            ],
+            "contract_mismatch",
+        ),
+        (
+            [
+                (
+                    "platform",
+                    OWN,
+                    {
+                        "turn": {"status": "running", "request": smoke.SENTINEL},
+                        "history": [smoke.SENTINEL],
+                    },
+                ),
+                ("platform", OWN, BLOCKED),
+            ],
+            "contract_mismatch",
+        ),
+        (
+            [
+                (
+                    "platform",
+                    OWN,
+                    {
+                        "turn": {
+                            "status": "running",
+                            "request": smoke.SENTINEL,
+                            "stop_reason": 1,
+                        }
+                    },
+                ),
+                ("platform", OWN, BLOCKED),
+            ],
+            "contract_mismatch",
+        ),
+        (
+            [
+                ("platform", OWN, BLOCKED),
+                (
+                    "platform",
+                    OWN,
+                    {"turn": {"status": "completed", "request": smoke.SENTINEL}},
+                ),
+            ],
+            "contract_mismatch",
+        ),
+    ],
+)
+def test_judge_views_allows_sentinel_only_in_owner_running_request(views, expected):
+    # 허용은 차단 요청 대화 경로·소유자 토큰·running 화면의 turn.request 값 하나뿐이다.
+    assert smoke.judge_views(views, blocked_path=OWN, owner="platform") == expected
+
+
+def test_judge_views_without_blocked_conversation_requires_observation():
+    views = [("platform", "/conversations/p", {"turn": {"status": "completed"}})]
+    assert smoke.judge_views(views, blocked_path=None, owner="platform") == (
+        "blocked_view_not_observed"
+    )
+
+
+def test_safe_keeps_forbidden_and_sentinel_rules():
+    assert smoke.safe({"turn": {"request": smoke.SENTINEL}}) is False
+    assert smoke.safe({"turn": {"status": "running", "stop_reason": 1}}) is False
