@@ -139,8 +139,7 @@
     },
     {
       "dir": "m8-rollout",
-      "status": "blocked",
-      "blocked_at": "2026-10-21T12:49:18+0900"
+      "status": "pending"
     }
   ]
 }

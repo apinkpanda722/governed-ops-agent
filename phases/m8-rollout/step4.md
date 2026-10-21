@@ -20,10 +20,10 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/api/rollout_wiring.py`(신규), `src/govops/api/__main__.py`(lifespan의 조립 함수 선택과 그 import에 한함), `tests/test_api_rollout_wiring.py`(신규), `tests/test_api_entrypoint.py`(새 테스트 함수 추가에 한함, 기존 테스트·`EXPECTED`·AST 가드 불변), `tests/test_env_defaults.py`(`test_variable_defaults` 표에 행 하나 추가에 한함), `tests/test_api_wiring_semantic.py`(`test_all_service_callers_omit_semantic_except_frozen_fault_runners`의 예외에 `api/rollout_wiring.py`를 정확히 더하는 것에 한함, 아래 3번). TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/api/rollout_wiring.py`(신규), `src/govops/api/__main__.py`(lifespan의 조립 함수 선택과 그 import에 한함), `tests/test_api_rollout_wiring.py`(신규), `tests/test_api_entrypoint.py`(새 테스트 함수 추가에 한함, 기존 테스트·`EXPECTED`·AST 가드 불변), `tests/test_env_defaults.py`(`test_variable_defaults` 표에 행 하나 추가에 한함), `tests/test_api_wiring_semantic.py`(`test_all_service_callers_omit_semantic_except_frozen_fault_runners`의 예외에 `api/rollout_wiring.py`를 정확히 더하는 것에 한함, 아래 3번), `.env.example`(아래 4번의 주석·변수 두 줄씩 추가에 한함). TDD.
 
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`, `src/govops/guardrails/rules_v1.json`
-수정 허용 경로: `src/govops/api/rollout_wiring.py`, `src/govops/api/__main__.py`, `tests/test_api_rollout_wiring.py`, `tests/test_api_entrypoint.py`, `tests/test_env_defaults.py`, `tests/test_api_wiring_semantic.py`
+수정 허용 경로: `src/govops/api/rollout_wiring.py`, `src/govops/api/__main__.py`, `tests/test_api_rollout_wiring.py`, `tests/test_api_entrypoint.py`, `tests/test_env_defaults.py`, `tests/test_api_wiring_semantic.py`, `.env.example`
 열람 금지의 범위: 이 금지는 **Codex 세션이 해당 경로의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드가 런타임에 그 경로를 다루는 것(예: 기본 감사 디렉터리 `data/interim/audit`, 기본 롤아웃 디렉터리 `data/interim/rollout/`)은 대상이 아니다. 테스트가 `data/interim/`·`data/eval/`·`data/redteam/`의 실제 파일 **내용**을 읽는 것은 여전히 금지이며 테스트는 `AUDIT_DIR`·`GOVOPS_ROLLOUT_DIR`를 `tmp_path`로 두고 기존 픽스처(`serve_asgi`·`a_tokens`·가짜 A)만 쓴다. 예외로 `data/results/`의 실행 디렉터리는 파일 이름과 JSON 키 이름을 확인하는 데 한해 열람할 수 있고, 응답 본문(`answer`·`effect_bodies`)이나 근거 본문을 출력·인용하지 않는다. 이 제한은 이 step이 새로 작성하는 테스트에 한한 것이며, 기존 `tests/test_m7_freeze.py`가 `scripts/freeze_digest.py`로 해시를 계산하며 동결 경로 파일을 바이트로 읽는 것은 `make verify`의 일부이므로 허용한다. Codex 세션이 그 파일 내용을 출력·인용하는 것은 여전히 금지다.
 
 `src/govops/api/` 아래 새 파일에는 `redteam` 문자열을 쓰지 않는다(`tests/test_redteam_boundary.py`가 `api/`의 모든 `.py`를 검사한다).
@@ -72,6 +72,19 @@ async with opener() as service:
 `tests/test_api_entrypoint.py`(새 함수 추가): `GOVOPS_V2_ROLLOUT=on`에서 `monkeypatch.setattr(entry, "open_rollout_service", fake)`로 바꾸면 라우트 표 `EXPECTED`의 모든 라우트가 그 가짜를 부르고 `app.state.audit`이 가짜의 `audit`이다(기존 `FakeService` 재사용). 기존 테스트 함수·`EXPECTED`·`violations`는 바꾸지 않는다.
 `tests/test_env_defaults.py`: `("api/rollout_wiring.py", "GOVOPS_V2_ROLLOUT", "off")` 한 행.
 `tests/test_api_wiring_semantic.py::test_all_service_callers_omit_semantic_except_frozen_fault_runners`(84~110행): 이 테스트는 `src/govops/` 전체의 `build_task_service` 호출을 모아 `semantic` 키워드를 금지하고(예외 `evalrun/faults.py`·`evalrun/faults_smoke.py`는 상수 `None`) 호출자 정렬 목록을 정확히 단언한다. `api/rollout_wiring.py`의 두 호출은 반드시 `semantic`을 넘기므로 이 테스트를 **정확한 예외로만** 넓힌다: `api/rollout_wiring.py`에서 `semantic` 키워드가 정확히 하나이고 그 값이 상수 `None`이거나 이름이 `RecordingClassifier`인 호출(`ast.Call`)이며, 파일 안에서 `None` 호출 하나·`RecordingClassifier` 호출 하나가 정확히 있다. 기대 목록에 `"api/rollout_wiring.py"` 두 개를 더한다. 그 밖의 파일에 대한 단언(`keywords == []`, 기존 목록 항목)은 바꾸지 않는다(FP-060: 예외 집합을 정확히 고정).
+
+### 4. `.env.example`
+
+AGENTS.md CRITICAL("필요한 변수 이름은 `.env.example`에 적는다")에 따라 `GOVOPS_GUARDRAIL_V2=` 줄 바로 뒤에 아래 네 줄을 더한다(값은 비워 둔다. `tests/test_repo_rules.py::test_env_example_has_only_empty_assignments`가 `NAME=` 형식만 허용한다):
+
+```
+# M8 v2 점진 배포 스위치: on|off, 미설정·빈 값은 off. GOVOPS_GUARDRAIL_V2=on과 함께 켜면 시작 거부(M8 추가 측정)
+GOVOPS_V2_ROLLOUT=
+# M8 롤아웃 상태·노출·분류 기록 디렉터리, 미설정·빈 값은 data/interim/rollout
+GOVOPS_ROLLOUT_DIR=
+```
+
+`.env`는 열거나 고치지 않는다.
 
 ## Acceptance Criteria
 
