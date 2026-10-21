@@ -597,3 +597,150 @@ def test_startup_with_existing_threads_finishes_in_isolated_database():
         asyncio.run(exercise())
     except Exception:  # noqa: BLE001 — conceal transport details
         raise RuntimeError("M5 startup verification failed") from None
+
+
+@pytest.mark.timeout(120)
+def test_variant_store_and_prune_in_isolated_database():
+    from test_agent_retention import saved_thread
+
+    from govops.api.variant import PostgresVariantStore
+
+    url = database_url()
+
+    async def exercise(isolated):
+        stores = [PostgresVariantStore(isolated) for _ in range(2)]
+
+        async def table_exists():
+            async with await psycopg.AsyncConnection.connect(isolated) as conn:
+                cursor = await conn.execute(
+                    "SELECT to_regclass(%s) IS NOT NULL",
+                    ("govops_conversation_variant",),
+                )
+                return (await cursor.fetchone())[0]
+
+        assert await bounded(stores[0].delete(["legacy-thread"])) == 0
+        assert await bounded(stores[1].delete([])) == 0
+        assert await bounded(table_exists()) is False
+        assigned_at = "2026-10-21T00:00:00+00:00"
+
+        def row(ident, variant="v1", time=assigned_at):
+            return {
+                "conversation_id": ident,
+                "variant": variant,
+                "bucket": 9999,
+                "pct_bp": 10000,
+                "assigned_at": time,
+            }
+
+        race_id = "f" * 32
+        results = await bounded(
+            asyncio.gather(
+                *(
+                    store.put(**row(race_id, variant))
+                    for store, variant in zip(stores, ("v1", "v2"), strict=True)
+                )
+            )
+        )
+        assert set(results) == {True, False} and sum(results) == 1
+        expected = {race_id: next(v for v, won in zip(("v1", "v2"), results) if won)}
+        for store in stores:
+            assert await bounded(store.get_many([race_id, "missing"])) == expected
+        assert await bounded(stores[0].delete([race_id, race_id])) == 1
+        assert await bounded(stores[1].delete([race_id])) == 0
+        assert await bounded(stores[0].get_many([])) == {}
+
+        for ident, variant, time in (
+            ("d" * 32, "v1", "2026-10-20T00:00:00+00:00"),
+            ("c" * 32, "v1", assigned_at),
+            ("b" * 32, "v1", assigned_at),
+            ("a" * 32, "v2", assigned_at),
+        ):
+            assert await bounded(stores[0].put(**row(ident, variant, time))) is True
+        assert await bounded(stores[1].put(**row("a" * 32, "v1"))) is False
+        assert await bounded(stores[0].get_many(["a" * 32, "missing"])) == {
+            "a" * 32: "v2"
+        }
+        assert await bounded(stores[1].recent("v1", 10)) == [
+            c * 32 for c in ("b", "c", "d")
+        ]
+        assert await bounded(stores[0].recent("v1", 2)) == [c * 32 for c in ("b", "c")]
+        assert await bounded(stores[0].recent("v1", 0)) == []
+        assert await bounded(stores[1].recent("v2", 10)) == ["a" * 32]
+        assert await bounded(stores[0].delete([c * 32 for c in "abcd"])) == 4
+
+        async with open_checkpointer(isolated) as saver:
+            variants = stores[1]
+            turns = PostgresTurnIndex(isolated)
+            deleted, failed, active = (c * 32 for c in "abc")
+            for ident, status in (
+                (deleted, "completed"),
+                (failed, "completed"),
+                (active, "running"),
+            ):
+                _, ts = await bounded(saved_thread(saver, ident, status))
+                assert await bounded(variants.put(**row(ident, "v2")))
+                await bounded(
+                    turns.add(
+                        turn_id=ident,
+                        conversation_id=ident,
+                        owner_sub="synthetic-owner",
+                        turn_index=1,
+                        created_at=ts.isoformat(),
+                    )
+                )
+            delete = saver.adelete_thread
+
+            async def fail_one(thread_id):
+                if thread_id == failed:
+                    raise RuntimeError("synthetic private detail")
+                await bounded(delete(thread_id))
+
+            saver.adelete_thread = fail_one
+            audit = MemoryAuditLog()
+            now = ts + timedelta(days=8)
+            dry = await bounded(
+                run_prune(saver, turns, audit, now=now, apply=False, variants=variants)
+            )
+            assert dry.deleted_ids == () and set(dry.candidates) == {deleted, failed}
+            assert await bounded(variants.get_many([deleted, failed, active])) == {
+                ident: "v2" for ident in (deleted, failed, active)
+            }
+            result = await bounded(
+                run_prune(saver, turns, audit, now=now, apply=True, variants=variants)
+            )
+            assert result.deleted_ids == (deleted,)
+            assert await bounded(variants.get_many([deleted, failed, active])) == {
+                failed: "v2",
+                active: "v2",
+            }
+            for ident in (deleted, failed, active):
+                assert bool(
+                    await bounded(
+                        saver.aget_tuple({"configurable": {"thread_id": ident}})
+                    )
+                ) == (ident != deleted)
+                assert await bounded(turns.conversation_of(ident)) == (
+                    None if ident == deleted else ident
+                )
+
+    async def isolated_run():
+        name = "govops_m8_variant_" + uuid4().hex
+        isolated = make_conninfo(url, dbname=name)
+        created = False
+        try:
+            await ddl(url, sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+            created = True
+            await bounded(exercise(isolated))
+        finally:
+            if created:
+                await ddl(
+                    url,
+                    sql.SQL("DROP DATABASE {} WITH (FORCE)").format(
+                        sql.Identifier(name)
+                    ),
+                )
+
+    try:
+        asyncio.run(isolated_run())
+    except Exception:  # noqa: BLE001 — conceal transport details
+        raise RuntimeError("M8 isolated variant verification failed") from None

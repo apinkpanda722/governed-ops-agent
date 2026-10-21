@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from govops.agent.checkpointer import open_checkpointer
 from govops.agent.retention import PruneResult, prune_checkpoints
 from govops.api.conversations import PostgresTurnIndex, TurnIndex
+from govops.api.variant import PostgresVariantStore, VariantStore
 from govops.audit.log import AuditLog, AuditPort
 from govops.env import env_or
 
@@ -20,6 +21,7 @@ async def run_prune(
     *,
     now: datetime,
     apply: bool,
+    variants: VariantStore | None = None,
 ) -> PruneResult:
     """Record intent before deleting; remove only successfully deleted indexes."""
     deleted_conversation_ids = await turns.deleted_conversation_ids()
@@ -41,14 +43,21 @@ async def run_prune(
     )
     if result.deleted_ids:
         await turns.delete_conversations(result.deleted_ids)
+        if variants is not None:
+            await variants.delete(result.deleted_ids)
     return result
 
 
-async def startup_prune(service, saver, turns) -> None:
+async def startup_prune(service, saver, turns, variants=None) -> None:
     """Best-effort retention after startup cleanup, without exposing errors."""
     try:
         await run_prune(
-            saver, turns, audit=service.audit, now=datetime.now(UTC), apply=True
+            saver,
+            turns,
+            audit=service.audit,
+            now=datetime.now(UTC),
+            apply=True,
+            variants=variants,
         )
     except Exception:  # noqa: BLE001 — maintenance must not prevent serving
         print("WARN checkpoint_prune_failed", file=sys.stderr)
@@ -57,8 +66,11 @@ async def startup_prune(service, saver, turns) -> None:
 async def _run_cli(url: str, *, apply: bool) -> PruneResult:
     async with open_checkpointer(url) as saver:
         turns = PostgresTurnIndex()
+        variants = PostgresVariantStore()
         audit = AuditLog(env_or("AUDIT_DIR", "data/interim/audit")) if apply else None
-        return await run_prune(saver, turns, audit, now=datetime.now(UTC), apply=apply)
+        return await run_prune(
+            saver, turns, audit, now=datetime.now(UTC), apply=apply, variants=variants
+        )
 
 
 class _Parser(argparse.ArgumentParser):
