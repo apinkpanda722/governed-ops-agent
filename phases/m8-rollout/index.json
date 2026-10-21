@@ -1,0 +1,41 @@
+{
+  "project": "governed-ops-agent",
+  "phase": "m8-rollout",
+  "steps": [
+    {
+      "step": 0,
+      "name": "rollout-registration",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "rollout-policy",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "variant-store",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "routed-service",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "rollout-wiring",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "rollout-cli",
+      "status": "pending"
+    },
+    {
+      "step": 6,
+      "name": "rollout-exercise",
+      "status": "pending"
+    }
+  ]
+}

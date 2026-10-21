@@ -136,6 +136,10 @@
       "dir": "m8-metrics-regress",
       "status": "completed",
       "completed_at": "2026-10-20T23:24:10+0900"
+    },
+    {
+      "dir": "m8-rollout",
+      "status": "pending"
     }
   ]
 }

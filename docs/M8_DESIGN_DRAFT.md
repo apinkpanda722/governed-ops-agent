@@ -48,9 +48,9 @@
 | v2 결정은 **서비스 조립 때 한 번**이다: `semantic = chat`(`GOVOPS_GUARDRAIL_V2 == "on"`일 때, 분류 메서드가 없으면 `guardrail_v2_unavailable`) 아니면 `None`. 그래프에 `graph.agent_semantic = semantic`으로 고정된다. 요청마다 바꾸는 경로가 없다 | `api/wiring.py:59-67`, `agent/graph.py:212,231,344,585-586,1003` |
 | 평가 러너는 `build_task_service`를 같은 함수로 부른다. 서비스 조립 함수와 인자는 `semantic`을 이미 주입할 수 있다(`semantic=_FROM_ENV` 기본) | `wiring.py:46-56`, `evalrun/dev_m3.py` |
 | 서버 진입점은 `open_task_service()` 하나이고 `app.state.task_service`에 **서비스 하나**를 넣는다. 모든 라우트는 `request.app.state.task_service`로만 얻고 이를 AST·라우트 표 테스트가 강제한다(FP-070) | `api/__main__.py:13,26-27`, `tests/test_api_entrypoint.py` |
-| 서비스 안의 잠금(`_locks`·`_approval_locks`·`_conv_locks`)은 **인스턴스별 dict**다. 서비스 두 개를 띄우면 잠금이 공유되지 않는다. 잠금 순서(대화 → task)는 한 서비스 안에서만 보증된다 | `api/tasks.py:56-61,75-78` |
-| checkpointer saver·턴 색인(`PostgresTurnIndex`)·outbox는 `open_task_service`에서 한 번 만들어 주입한다. 두 서비스에 같은 saver를 주입하는 것은 구조상 가능하나 **thread_id 충돌·startup_cleanup/prune의 이중 실행은 미실측** | `wiring.py:172-190` |
-| `build_task_service`는 호출마다 `AuditLog`를 만들고 `service.start`를 **한 번 쓴다**. 두 번 호출하면 `service.start`가 2개 생긴다. 감사 쓰기는 `flock` 아래 `_last_record()`로 다음 seq를 정하므로 인스턴스 둘이 같은 체인 디렉터리를 써도 seq는 충돌하지 않을 것으로 보이나 **미실측** | `audit/log.py:339,513-527`, `wiring.py:72-98` |
+| 서비스 안의 잠금(`_locks`·`_approval_locks`·`_conv_locks`)은 **인스턴스별 dict**다. 서비스 두 개를 띄우면 잠금이 공유되지 않는다. 잠금 순서(대화 → task)는 한 서비스 안에서만 보증된다 | `api/tasks.py:56-62,74-78` |
+| checkpointer saver·턴 색인(`PostgresTurnIndex`)·outbox는 `open_task_service`에서 한 번 만들어 주입한다. 두 서비스에 같은 saver를 주입하는 것은 구조상 가능하나 thread ID는 대화마다 `uuid4().hex`라 충돌하지 않는다. `startup_cleanup`은 `alist(None)`으로 saver의 **모든** thread를, `outbox.list_open()`으로 열린 outbox 전체를 처리하므로 라우터가 한 번만 부른다(2-3절) | `wiring.py:173-197`, `api/tasks.py:691-750` |
+| `build_task_service`는 호출마다 `AuditLog`를 만들고 `service.start`를 **한 번 쓴다**. 두 번 호출하면 `service.start`가 2개 생긴다. 감사 쓰기는 `flock` 아래 `_last_record()`로 다음 seq를 정하므로 인스턴스 둘이 같은 체인 디렉터리를 써도 seq는 충돌하지 않는다(코드 확인: 스레드 잠금은 디렉터리별 공유 `_directory_locks`, `_last_record()`는 캐시 없이 매번 파일을 읽음). 교차 쓰기 합성 테스트는 F-4에서 둔다 | `audit/log.py:321,362,496-527`, `wiring.py:67-93` |
 | 감사 레코드에는 `conversation_id`·변형 필드가 없다. 감사 필드·검증기는 동결이다. v2 귀속은 R2 판정이 쓴 감사 `v2=True` 속성으로 이미 보인다 | M7 draft 0-2, `m6-redteam-run-live.md` 4.3절 |
 | 기본 프로필은 `writes_team`이다(공식 N2 manifest와 같음) | `wiring.py:170` |
 | v2 켬 시 Anthropic 전송 범위가 늘어난다(ADR-026 트레이드오프). 점진 노출은 사용자 일부에게 이 전송을 켜는 결정이다 | `ADR.md` ADR-026 |
@@ -84,7 +84,7 @@ M7 draft 1절의 목록이 M8에서도 그대로다(`scripts/freeze_digest.py` `
 | 구분 | 경로 | 비고 |
 |---|---|---|
 | 신규 패키지 | `src/govops/metrics/`(항목 1), `src/govops/grounding/`(항목 2·3), `src/govops/regress/`(항목 5), `src/govops/rollout/`(항목 4 순수 로직) | `eval/`·`evalrun/`이 **디렉터리 digest**라서 그 안에 새 파일을 두면 digest가 바뀐다. 그래서 새 패키지로 둔다. `AGENTS.md` 계층 표 행 추가와 `tests/test_architecture.py` 규칙 행 추가는 승인됐다(8절 9번). 패키지별 행은 그 패키지를 만드는 phase의 첫 step에서 더한다 |
-| 신규 파일 | `src/govops/api/rollout.py`·`routed.py`(항목 4) | `api/`는 동결 목록 밖. 기존 함수 본문 불변이 원칙이고 `api/__main__.py`의 진입 분기 한 줄만 바뀐다(8절 결정 9, 승인됨) |
+| 신규 파일 | `src/govops/api/variant.py`·`routed.py`·`rollout_wiring.py`·`rollout_exercise.py`(항목 4) | `api/`는 동결 목록 밖. 기존 함수 본문 불변이 원칙이고 `api/__main__.py`의 진입 분기만 바뀐다(8절 결정 9, 승인됨). 예외: `api/retention.py`의 `run_prune`·`startup_prune`·CLI에 변형 행 삭제를 더한다(지시 46, 2-3절) |
 | 신규 설정 | `infra/litellm/config.candidate.yaml`(항목 5) | `config.yaml`은 동결이므로 복사본이 아니라 별도 파일 |
 | 문서·스크립트 | `docs/results/hypotheses-m8-*.md`, `docs/results/…-m8-*.md`, `Makefile` 타깃 추가, `scripts/` 신규 | 기존 `hypotheses-*.md`는 수정 금지 |
 | 테스트 | `tests/test_m8_*.py` | 소비자 테스트 갱신은 2절 |
@@ -170,19 +170,59 @@ M7 draft 1절의 목록이 M8에서도 그대로다(`scripts/freeze_digest.py` `
 
 ### 2-3. 항목 4: feature flag 점진 배포 (`govops/rollout/` 순수 로직 + `api/routed.py`)
 
+**개정(2026-10-21, 지시 46)**: main `94f6cd4`에서 코드와 다시 대조해 db-init 범위, 목록 메서드, 롤백 지표 수집 경로, 서비스 생성 시점, 변형 행 기록 시점, 라우터 조건, 감사 두 인스턴스를 정정했다. 이전 문장 "pct=0이면 v2 서비스를 지연 생성하지 않아 `service.start`가 1개"는 자기모순이라 지웠다.
+
 **구성**
 
-- **버킷**: `bucket = int(sha256(salt ‖ user_label)[:8], 16) % 10000`. `salt`는 저장소에 두는 비밀 아닌 상수 문자열(변경 시 전체 재배정이라 변경 금지로 등록). 사용자 ID는 `demo-…-gN` 라벨이며 해시만 기록에 남긴다.
-- **비율**: 설정 파일 `data/interim/rollout/state.json`(원자적 교체, 0600; 실행 산출물이라 커밋 안 함) `{pct_bp, kill, rolled_back_at, reason}`. 기본 `pct_bp=0`, 파일 없음 = 0%. 환경 변수 `GOVOPS_V2_ROLLOUT`(`on|off`, 기본 `off`)만이 이 장치를 켠다(`env_or`, FP-030). `GOVOPS_GUARDRAIL_V2=on`과 동시 설정이면 **시작 거부**(`rollout_conflict`)한다.
-- **변형 고정(sticky)**: 새 대화를 만들 때 한 번 배정하고 **Postgres 신규 테이블 `govops_conversation_variant`**(대화 ID→변형·버킷·배정 시점 비율, `PostgresTurnIndex` 패턴을 따름: 준비 경로 `CREATE TABLE IF NOT EXISTS`, 파라미터 바인딩)에 저장한다. `make db-init` 변경과 `make test-m5-pg` 확장이 필요하며 ② phase의 사용자 실행 항목이다. 이후 모든 턴·승인은 저장된 변형의 서비스로 간다. **킬 스위치와 비율 변경은 새 대화에만** 영향이다. 한계(등록): 킬 스위치 뒤에도 진행 중인 v2 대화는 끝날 때까지 v2로 남는다(즉시 강제 전환은 승인 대기 `interrupt` thread에 새 입력을 넣는 위험이 있어 하지 않는다).
-- **두 서비스**: `build_task_service(semantic=None)`와 `build_task_service(semantic=chat)`를 각각 호출해 같은 saver·턴 색인·outbox·도구·감사 로그를 공유한다. `RoutedTaskService`가 `TaskService`의 공개 메서드를 변형 조회 뒤 위임한다(`app.state.task_service`에는 라우터 하나만 들어가므로 FP-070 라우트 표는 불변). 목록형(`/approvals`)은 두 서비스를 합친다.
-- **노출 기록**: `data/interim/rollout/exposures.jsonl`(append-only, 사용자 해시·버킷·변형·비율·대화 ID·시각, 본문 없음, PII 없음)과 trace 속성 `rollout.variant`. 감사 체인은 건드리지 않는다.
-- **자동 롤백**: 각 v2 대화의 턴 종료 때 결과(`blocked_input` 여부, v2 분류 상태 `ok|timeout|parse|…`, 분류 지연)를 노출 기록에 덧붙이고, **새 대화 배정 시점마다** 최근 K개 v2 노출을 평가한다. 임계 초과 → `state.json`을 `pct_bp=0, kill=true, reason=<코드>`로 쓰고 이후 배정은 전부 v1. 임계 후보: 분류 비정상 비율 > 0.05, v2 귀속 차단 비율이 v1 대조군 > 0.10 포인트 초과, 분류 p95 > 8 s(M6 기준과 동일 값) — 모두 **등록 대상 제안값**. 평가 윈도우 K와 최소 표본(예: 노출 < 20이면 롤백도 확대도 하지 않음)을 등록한다.
-- **v2 설정 불변**: v2 서비스는 `classifier_v2.json`·`rules_v1.json`·`GOVOPS_GUARDRAIL_V2` 경로를 그대로 쓴다. 변경하지 않는다.
-- **기본 0%에서 공식 v1 결과 불변 보증**: (1) `GOVOPS_V2_ROLLOUT` 기본 off일 때 `open_task_service` 경로가 **바이트 단위로 동일**하게 서비스 한 개를 만든다는 테스트(서비스 조립 호출 1회, `semantic=None`, 라우터 미생성), (2) pct=0이어도 켜진 상태면 v2 서비스를 **지연 생성하지 않아** `service.start`가 1개이고 Anthropic 호출 0임을 테스트, (3) 동결 digest·`service.start` 해시 대조, (4) 평가 러너 경로(`build_task_service` 직접 호출)는 이 코드를 지나지 않음, (5) 골든·재생 테스트 무수정 통과.
+- **버킷**: `digest = sha256(SALT ‖ user_label)`, `bucket = int(digest[:8], 16) % 10000`. `SALT = "govops-m8-rollout-v1"`은 저장소의 비밀 아닌 상수다(바꾸면 전원 재배정이라 변경 금지로 등록). 기록에는 사용자 라벨 대신 `user_sha256 = digest`만 남긴다.
+- **상태 파일**: `<rollout_dir>/state.json` `{pct_bp, kill, rolled_back_at, reason}`(원자적 교체, 0600, 실행 산출물이라 커밋 안 함). `rollout_dir` 기본 `data/interim/rollout`(`GOVOPS_ROLLOUT_DIR`, `env_or`). 파일 없음 = `pct_bp=0, kill=false`. 파일 손상·형식 오류 = `kill=true, reason="state_invalid"`(fail-safe, 전원 v1).
+- **켜는 스위치**: `GOVOPS_V2_ROLLOUT`(`on|off`, 기본 `off`, `env_or`, FP-030)만 이 장치를 켠다. `GOVOPS_GUARDRAIL_V2=on`과 동시에 켜면 감사 쓰기 전에 `StartupError("rollout_conflict")`로 시작을 거부한다.
+- **서비스 생성**: 롤아웃이 켜지면 시작 때 v1 서비스(`build_task_service(semantic=None)`)와 v2 서비스(`build_task_service(semantic=RecordingClassifier(chat))`)를 **둘 다** 만든다(`service.start` 2개). 같은 디렉터리에 두 번 조립하면 `service.start`가 2개 생기는 것은 기존 `tests/test_service_start_event.py::test_start_hashes_and_shared_genesis`가 이미 예상한다(65~71행: 순차 두 번 조립, 68~69행이 `service.start` 두 개). 두 서비스는 saver·턴 색인·outbox·도구·chat을 공유하고 감사 로그는 같은 디렉터리의 인스턴스 둘이다. **롤아웃 off(기본)는 지금과 같은 `open_task_service` 경로이고 서비스는 1개다**(테스트로 보증). pct=0이면 v2 서비스가 있어도 배정이 0이라 분류 호출(Anthropic) 0건이다(가짜 chat의 `classify` 호출 수 0으로 테스트).
+- **조립 위치**: `api/rollout_wiring.py`의 `open_rollout_service()`가 조립하고 `api/__main__.py`의 lifespan이 `GOVOPS_V2_ROLLOUT`에 따라 `open_rollout_service`와 `open_task_service` 중 하나를 고른다. 두 이름은 lifespan 실행 시점에 모듈 전역에서 찾으므로 `tests/test_api_entrypoint.py`·`tests/test_api_wiring.py`의 `monkeypatch.setattr(entry, "open_task_service", …)`가 그대로 통한다. `wiring.py`의 기존 함수 본문은 바꾸지 않는다(1-2절 원칙). 그래서 `open_rollout_service`는 `open_task_service`의 사전 조립(fault mode 거부·비밀 등록·trace 설정·팀 키·`KODOCS_MCP_URL`·계약 확인·REST 클라이언트·saver·프로필·outbox·턴 색인)을 같은 순서로 다시 쓴다. 두 경로의 어긋남은 같은 실패 입력에서 같은 `StartupError` 코드가 나오는지 확인하는 동등성 테스트로 막는다.
+- **변형 저장소**: Postgres 신규 테이블 `govops_conversation_variant(conversation_id PK, variant, bucket, pct_bp, assigned_at)`(`api/variant.py`, `PostgresTurnIndex._run` 패턴). **`make db-init`은 DB만 만들고(Makefile 83~84행) 테이블은 저장소 코드가 처음 쓸 때 `CREATE TABLE IF NOT EXISTS`로 만든다**. 그래서 db-init은 바꾸지 않는다. 삭제 경로는 테이블이 없으면(`to_regclass`가 NULL) 만들지 않고 0을 돌려준다(롤아웃을 켠 적 없는 DB에서 `make checkpoint-prune`이 테이블을 만들지 않게). `make test-m5-pg`(사용자 실행)는 `tests/test_m5_pg.py`에 변형 테이블 케이스를 더하는 것으로 확장한다.
+- **변형 행 기록 시점**: `conversation_id`는 `TaskService.start()` 안에서 만들어지고 같은 호출 안에서 턴이 시작된다(`api/tasks.py:201-225`). 그래서 라우터는 배정한 변형의 서비스로 `start_conversation`·`start`를 부른 **뒤** 변형 행을 쓰고 노출 기록을 덧붙인다. 행이 없는 대화(행을 쓰기 전에 서버가 죽은 경우 등)는 v1로 보내고 `variant_missing`을 대화당 한 번 노출 기록에 남기며 CLI `status`가 건수를 출력한다. 한계(등록): 행 쓰기 전에 죽은 v2 대화는 재시작 뒤 v1 서비스가 처리한다.
+- **변형 행 삭제**: thread를 실제로 지우는 지점에서만 함께 지운다. `retention.run_prune`이 `turns.delete_conversations(result.deleted_ids)`를 부르는 곳에서 `variants.delete(result.deleted_ids)`를 부른다. 이 경로를 지나는 것은 `startup_prune`(서버 시작)과 `checkpoint-prune` CLI(`python -m govops.api.retention`)다. `delete_conversation`은 소프트 삭제(`mark_deleted`)라 thread가 남으므로 변형 행도 남긴다. 이유: `is_deleted`는 공유 색인이라 어느 서비스로 가도 404이고, 행을 먼저 지우면 v1 서비스가 v2 thread를 맡게 되고 `variant_missing`이 거짓으로 늘어난다.
+- **변형 고정(sticky)**: 이후 모든 턴·승인·조회는 저장된 변형의 서비스로 간다. 킬 스위치와 비율 변경은 새 대화에만 영향이다. 한계(등록): 킬 스위치 뒤에도 진행 중인 v2 대화는 끝날 때까지 v2로 남는다(즉시 전환은 승인 대기 `interrupt` thread에 새 입력을 넣는 위험이 있어 하지 않는다).
 
-**테스트(합성, 가짜 chat·InMemory saver)**: 버킷 결정론(같은 사용자 같은 결과, 시드 고정 무작위 10,000명에서 pct 10%의 실제 비율이 허용 오차 안), pct=0이면 전원 v1, 100%이면 전원 v2, sticky(비율 변경·킬 후에도 기존 대화 변형 불변, 새 대화만 v1), 킬 스위치 상태 파일 손상 → fail-safe(v1), 롤백 규칙 경계값(임계 직전/직후, 최소 표본 미만), 노출 기록에 본문·토큰 없음, 두 서비스가 같은 saver를 쓸 때 서로 다른 conversation_id가 충돌하지 않음, 대기 승인 있는 대화의 새 턴이 변형과 관계없이 409, 동시 두 대화 배정 시 한 파일 쓰기 경쟁(FP-012: 집합·불변식 단언), `GOVOPS_GUARDRAIL_V2=on`과 동시 설정 거부.
-**소비자(FP-071)**: `tests/test_api_entrypoint.py`(라우트 표 정확 일치·AST 가드: 라우터는 `app.state`에만 들어간다는 새 케이스를 더하되 기존 단언 약화 금지), `tests/test_api_wiring*.py`(기존 호출 시그니처 불변), `tests/test_env_defaults.py`(새 env 변수 표), `tests/test_service_start_event.py`(`service.start` 개수), `tests/test_architecture.py`(`api`의 새 파일이 `broker`·`mocks`·LLM SDK를 import하지 않음), `tests/test_api_tasks.py`·`test_api_conversations.py` 무수정 통과.
+**라우터(`RoutedTaskService`)**
+
+`app.state.task_service`에는 라우터 하나만 들어가므로 FP-070 라우트 표는 바뀌지 않는다. 라우트가 쓰는 공개 메서드는 `start`·`start_conversation`·`add_turn`·`delete_conversation`·`conversations`·`conversation_view`·`progress`·`audit_view`·`audit_verify`·`approvals`·`get`·`approve`·`aclose`와 속성 `audit`다(`api/app.py`, `__main__.py`가 `app.state.audit`로 읽음).
+
+`tasks.py` 전체에서 공유 자원을 순회하는 메서드(실측):
+
+| 메서드 | 순회하는 공유 자원 | 라우터 처리 |
+|---|---|---|
+| `conversations` | `turns.list_for_owner`(소유자의 모든 대화) | 서비스마다 **걸러진 턴 색인**을 주고 두 결과를 합친 뒤 `(updated_at 내림차순, conversation_id 오름차순)`으로 다시 정렬하고 `limit`을 적용 |
+| `approvals` | `turns.awaiting()`(모든 대기 턴) | 걸러진 턴 색인, 합친 뒤 `(expires_at, task_id)`로 다시 정렬 |
+| `startup_cleanup` | `graph.checkpointer.alist(None)`(모든 thread) + `effects.outbox.list_open()`(열린 outbox 전체) | v1 서비스에서 **한 번만** 호출 |
+| `audit_verify` | 감사 디렉터리 전체(읽기, 인스턴스별 캐시) | v1 서비스에 위임(같은 디렉터리) |
+| `audit_view` | `turns.turn_ids_of(대화 하나)` | 대화의 변형 서비스에 위임 |
+| `get`·`approve` | `_resolve` → `turns.conversation_of(턴 하나)` | 라우터가 `turns.conversation_of(task_id) or task_id`로 대화를 찾아 그 변형 서비스에 위임 |
+| `start`·`start_conversation` | 없음(새 대화) | 배정 → 위임 → 변형 행·노출 기록 |
+| `add_turn`·`delete_conversation`·`progress`·`conversation_view` | 대화 하나 | 대화의 변형 서비스에 위임 |
+| `aclose` | 자기 백그라운드 작업 | 두 서비스 모두 |
+| `anchor` | 감사 고정점 | 서버 경로에서 쓰지 않는다(호출처 `audit/anchor.py`·`audit/smoke.py`는 `AuditLog`를 직접 씀). 라우터에 두지 않는다 |
+
+- **걸러진 턴 색인**: `awaiting()`·`list_for_owner()`만 자기 변형의 대화로 거르고 나머지(쓰기 포함)는 그대로 전달한다. 행이 없는 대화는 v1로 본다. 거르지 않으면 같은 대화가 두 번 나오고, 다른 변형의 대화를 자기 잠금으로 `_expire`하게 된다(잠금 dict는 인스턴스마다 따로, `tasks.py:56-62`). `list_for_owner(owner, limit)`는 공유 색인이 먼저 전체에서 상위 `limit`개를 고르므로 변형별로 거른 결과를 합치면 정확히 원래의 상위 `limit`개다.
+- **startup_cleanup 한 번**: v1 그래프로 v2 thread를 갱신하게 된다(`_update`의 `aupdate_state(as_node="model"|"check")`). 두 그래프는 같은 `build_graph`·같은 `AgentState`·같은 프로필로 만들어지고 `semantic`은 노드 본문만 바꾸므로 상태 형태와 노드 이름이 같다(`agent/graph.py:955-998`). v2 그래프로 만든 thread를 v1 서비스의 `startup_cleanup`이 갱신한 뒤 v2 서비스가 읽는 합성 테스트로 묶는다. `startup_prune`도 한 번만 부르고 변형 저장소를 함께 넘긴다.
+
+**노출 기록과 롤백 지표 수집**
+
+- **노출 기록**: `<rollout_dir>/exposures.jsonl`(append-only). 행 `event`는 `assigned`·`variant_missing`·`rollback` 셋이고 키는 `ts`·`conversation_id`·`user_sha256`·`bucket`·`variant`·`pct_bp`·`kill`·`reason`만 쓴다. 본문·토큰·사용자 라벨은 없다. 감사 체인은 건드리지 않는다.
+- **분류 호출 기록(`RecordingClassifier`)**: 턴은 서비스 내부 백그라운드 작업(`_launch` → `_run`, `tasks.py:85-91,227-271`)에서 끝나 라우터가 끝나는 시점을 모른다. 분류 지연은 trace span(`agent/graph.py:299-317`, `guardrail.v2_ms`)에만 있다. 그래서 v2 서비스의 `semantic` 자리에 `classify`만 그대로 전달하는 계측 래퍼를 넣는다. `classify(request=, task_id=, user_id=)`(`gateway/client.py:385-525`)는 `ClassifyResult(label, status, …)`를 돌려주고 `status`는 `ok|timeout|rate_limited|error|parse|v1_blocked`다. timeout은 `APITimeoutError`·`GatewayError(timeout=True)`(설정 `timeout_s`), parse는 `semantic.parse_label`이 `None`일 때, 그 밖의 예외는 `error`로 정해지고 예산·원장 예외(`BudgetExceededError`·`LedgerMissingError`)만 밖으로 던진다. 래퍼는 호출마다 `(turn_id=task_id, status, started, ended)`를 `<rollout_dir>/classify.jsonl`에 남긴다(예외는 `status="raised"`로 남기고 그대로 다시 던짐). 결과·인자·예외를 바꾸지 않고 v2 설정(`classifier_v2.json`)·`GOVOPS_GUARDRAIL_V2` 경로를 건드리지 않는다.
+- **세 지표**(평가 단위는 대화, 창은 최근 배정된 대화 중 상태가 `running`·`awaiting_approval`이 아닌 것 K=20개):
+  1. 분류 비정상 비율 = 창의 v2 대화에 속한 턴의 분류 호출 중 `status ∈ {timeout, rate_limited, error, parse, raised}`의 비율. `v1_blocked`(게이트웨이 v1 훅이 분류 요청을 막음)는 분모에만 들고 따로 센다. 턴→대화 연결은 평가 시점에 `turns.conversation_of(turn_id)`로 한다.
+  2. 차단 비율 차 = (창의 v2 대화 중 현재 상태가 `blocked_input`인 비율) − (최근 v1 대화 창 K=20의 같은 비율). 상태는 평가 시점에 각 변형 서비스의 그래프에서 `get_task`로 읽는다. 한계(등록): 대화의 마지막 턴 상태만 보이므로 앞 턴의 차단은 세지 않는다. v1 차단도 v2 쪽에 섞인다(v2 서비스에도 v1 훅이 돈다).
+  3. 분류 p95 = 창의 v2 대화에 속한 턴마다 분류 호출 구간 `[started, ended]`의 합집합 길이(ms), 그 값들의 nearest-rank p95. M6 기준값 8000 ms를 쓰지만 M6 값은 trace의 `semantic` span 합(`eval/redteam_judge.py::v2_span_ms_from_trace`)이라 측정 지점이 다르다(등록 한계).
+- **판정**: 새 대화를 배정할 때마다 먼저 평가한다. v2 창이 20개 미만이면 롤백도 확대도 하지 않는다(`insufficient_v2_sample`). v1 대조 창이 20개 미만이면 기준 2만 보류한다(`insufficient_v1_control`). 창에 분류 호출이 0건이면 롤백한다(`rollback_no_classify_calls`, FP-069: 빈 집합으로 통과하지 않음). 임계 초과(같으면 미초과): 비율 > 0.05 → `rollback_classify_abnormal`, 차 > 0.10 → `rollback_block_diff`, p95 > 8000 ms → `rollback_classify_p95`. 롤백은 `state.json`을 `pct_bp=0, kill=true, reason=<코드>`로 쓰고 노출 기록에 `rollback` 행을 남긴다. 자동 확대는 없다(비율은 CLI `set`만 바꾼다).
+- **v2 설정 불변**: v2 서비스는 `classifier_v2.json`·`rules_v1.json`을 그대로 쓴다. 래퍼는 호출을 기록만 한다.
+
+**기본 off에서 공식 v1 결과 불변 보증**: (1) `GOVOPS_V2_ROLLOUT` 기본 off이면 lifespan이 `open_task_service`를 부르고 서비스 1개·`service.start` 1개(기존 경로, 테스트), (2) 켬 + pct=0이면 분류 호출 0건(테스트), (3) 동결 digest·`service.start` 해시 대조, (4) 평가 러너 경로(`build_task_service` 직접 호출)는 이 코드를 지나지 않음, (5) 골든·재생 테스트 무수정 통과.
+
+**감사 두 인스턴스**: `build_task_service`는 호출마다 `AuditLog`를 새로 만든다. 같은 디렉터리의 두 인스턴스가 번갈아 쓰는 합성 테스트로 seq가 1씩 늘고 겹치지 않으며 `verify_chain`이 통과함을 확인한다(`audit/log.py:321`의 디렉터리별 스레드 잠금, `fcntl.flock`, 496~527행 `_append_record`의 `_last_record()`).
+
+**테스트(합성, 가짜 chat·InMemory saver)**: 버킷 결정론(같은 사용자 같은 결과, 시드 고정 무작위 10,000명에서 pct 10%의 실제 비율이 허용 오차 안), pct=0이면 전원 v1·분류 0건, 100%이면 전원 v2, sticky(비율 변경·킬 후에도 기존 대화 변형 불변, 새 대화만 v1), 상태 파일 손상 → fail-safe(v1), 롤백 규칙 경계값(임계 같음/초과, 최소 표본 미만, 분류 0건), 노출·분류 기록에 본문·토큰 없음, 목록 합치기(중복 없음·정렬·limit), 다른 변형 대화를 자기 잠금으로 `_expire`하지 않음, task_id 경로의 `conversation_of` 위임, `startup_cleanup`·`startup_prune` 한 번, 행 없는 대화 v1 + `variant_missing`, 대기 승인 있는 대화의 새 턴이 변형과 관계없이 409, 동시 두 대화 배정(FP-012: 집합·불변식 단언), `GOVOPS_GUARDRAIL_V2=on`과 동시 설정 거부, 감사 두 인스턴스 교차 쓰기.
+**소비자(FP-071)**: `tests/test_api_entrypoint.py`(케이스 추가에 한함, 라우트 표·AST 가드 불변), `tests/test_api_wiring.py`·`test_api_wiring_build.py`·`test_api_wiring_semantic.py`(무수정 통과), `tests/test_env_defaults.py`(변수 표 행 추가에 한함), `tests/test_service_start_event.py`(무수정 통과), `tests/test_architecture.py`(`rollout` 계층 규칙 추가), `tests/test_api_retention.py`(CLI 테스트에 변형 저장소 가짜 주입 한 줄과 케이스 추가에 한함), `tests/test_m5_pg.py`(변형 테이블 케이스 추가에 한함), `tests/test_m8_freeze.py`(등록 키 추가에 한함), `tests/test_api_tasks.py`·`test_api_conversations.py` 무수정 통과.
 
 ### 2-4. 항목 5: 모델 버전업 regression (`govops/regress/` + `infra/litellm/config.candidate.yaml`)
 
@@ -232,7 +272,7 @@ M7 draft 1절의 목록이 M8에서도 그대로다(`scripts/freeze_digest.py` `
 |---|---|---|---|
 | 1 | ③ `m8-grading-v3` | 2 + 3 | Gemini + 사람 라벨링. 사람 일정이 가장 길어 먼저 시작. 증거 보존은 덤프로 해소됐다 |
 | 2 | ① `m8-metrics-regress` | 1 + 5 + 문서 step | 항목 1은 오프라인 재집계(API 0), 항목 5는 후보 dev 20 live 1회 + 통제 실행 1회. 항목 5가 쓰는 도구 호출률 함수가 같은 phase 안에서 닫힌다 |
-| 3 | ② `m8-rollout` | 4 | `api/` 신규 코드. 필수 live 없음(로컬 시연 + 선택 smoke). `make db-init` 변경과 `make test-m5-pg` 확장은 사용자 실행 항목 |
+| 3 | ② `m8-rollout` | 4 | `api/` 신규 코드. 필수 live 없음(로컬 시연 + 선택 smoke). `make test-m5-pg` 확장은 사용자 실행 항목(`make db-init`은 바꾸지 않는다, 2-3절) |
 
 이유(권장 변형 채택): 항목 5의 의존이 항목 1의 모듈 하나뿐이라 같은 phase에 둬 직렬 PR을 없앤다. 항목 4는 사용자 요청 경로를 건드리는 유일한 코드라 FP-070·071과 잠금 경계 검토가 무거워 단독 phase가 낫다. phase는 3개로 유지한다. 이전 기본안(①=1+4, ②=5)은 폐기했다.
 
@@ -278,16 +318,19 @@ D-1의 증거표 항목(기존 테스트의 단언을 **테스트 이름과 함�
 
 (b) trace 원인 역추적 사례(새 실행 없이 파일 이름과 줄 수만 인용). 사례: 공식 N2-1의 **T3-05**(3회 모두 실패, `m6-redteam-run-live.md` 7.2절 표 3번째 행). 순서: ① 결과 문서 7.2절 표: 보낼 곳 티켓 `DAI-1003`, 독자 범위보다 좁은 근거 `syn-notice-013`(team/data-ai) → ② `data/results/test/09fbcb2b…/grades.json`의 `T3-05.tcr.reasons` = `[effect_structure_mismatch, invalid_status]` → ③ `attempts/T3-05-1/attempt.json`의 `check_reason = scope_wider_than_evidence`와 `trace_id`(32 hex) → ④ `traces/<trace_id>.jsonl`(13줄: 4행 `jira_get_ticket`, 9행 `lookup_id` 도구 span, 13행 `task` span `final_status`) → ⑤ `attempts/T3-05-1/audit/chain-2026-10-15.jsonl`(8줄: 6·7행 `side_effect.draft`, 7행 사유 `scope_wider_than_evidence`) → ⑥ 원인(가설 확인됨): 같은 task에서 함께 읽은 team 문서가 근거 목록에 들어감(이슈 #159). 모두 줄 수·키 이름·파일 이름만 쓰고 본문은 인용하지 않는다.
 
-**② `m8-rollout`** (phase 파일은 ① 완료 후 작성)
+**② `m8-rollout`** (phase 파일 작성 완료: `phases/m8-rollout/`, 지시 46으로 F-3을 라우터·조립 두 step으로 나눔)
 
 | step | 내용 | 수정할 파일 |
 |---|---|---|
-| F-0 | 항목 4 사전 등록 | `docs/results/hypotheses-m8-rollout.md` |
-| F-1 | 순수 정책(버킷·배정·롤백 평가) + 상태 파일 원자 쓰기 | `src/govops/rollout/{__init__,policy,store}.py`, `tests/test_rollout_{policy,store}.py`, `tests/test_architecture.py`, `AGENTS.md`(행 추가에 한함) |
-| F-2 | 변형 저장소(Postgres 신규 테이블, `PostgresTurnIndex` 패턴, 인메모리 대응) + `make db-init`·`test-m5-pg` 확장 | `src/govops/api/variant.py`(신규), `Makefile`/db-init 진입 코드(변경 범위는 phase 작성 때 실측), `tests/test_api_variant.py`, `tests/test_m5_pg.py`(사용자 실행 케이스 추가에 한함), `tests/test_makefile.py` |
-| F-3 | `RoutedTaskService` + 조립 함수 추가 + 진입 분기 한 줄(`api/__main__.py`) | `src/govops/api/{routed,rollout_wiring}.py`, `src/govops/api/__main__.py`(분기 한 줄에 한함), `tests/test_api_routed.py`, `tests/test_api_entrypoint.py`(케이스 추가에 한함, 기존 단언 약화 금지), `tests/test_env_defaults.py`(변수 표 추가에 한함) |
-| F-4 | 운영 CLI(set·kill·status)와 노출 기록 읽기 | `src/govops/rollout/cli.py`, `tests/test_rollout_cli.py`, `Makefile` |
-| F-5 | 로컬 시연(가짜 chat, API 호출 없음) PASS/롤백 양 경로 | `scripts/demo/m8_rollout_exercise.py`(신규), `tests/test_m8_rollout_exercise.py` |
+| F-0 | 항목 4 사전 등록(배정·상태·노출 기록·세 지표 수집 경로·임계·고정 코드·CLI 인자) + 동결 키 | `docs/results/hypotheses-m8-rollout.md`, `tests/test_m8_freeze.py`(키 추가에 한함) |
+| F-1 | 순수 정책(버킷·배정·롤백 평가) + 상태·기록 파일 입출력 | `src/govops/rollout/{__init__,policy,store}.py`, `tests/test_rollout_{policy,store}.py`, `tests/test_architecture.py`(규칙 추가에 한함), `tests/test_env_defaults.py`(행 추가에 한함), `AGENTS.md`(표 행 추가에 한함) |
+| F-2 | 변형 저장소(Postgres 신규 테이블, 인메모리 대응) + prune 경로의 변형 행 삭제 | `src/govops/api/variant.py`, `src/govops/api/retention.py`(변형 행 삭제 추가에 한함), `tests/test_api_variant.py`, `tests/test_api_retention.py`(케이스 추가와 CLI 테스트의 가짜 주입 한 줄에 한함), `tests/test_m5_pg.py`(변형 테이블 케이스 추가에 한함) |
+| F-3 | `RoutedTaskService`·걸러진 턴 색인·`RecordingClassifier`(조립 없이 주입받은 서비스로) | `src/govops/api/routed.py`, `tests/test_api_routed.py` |
+| F-4 | `open_rollout_service` 조립·충돌 거부·진입 분기·감사 두 인스턴스 | `src/govops/api/rollout_wiring.py`, `src/govops/api/__main__.py`(lifespan의 조립 함수 선택에 한함), `tests/test_api_rollout_wiring.py`, `tests/test_api_entrypoint.py`(케이스 추가에 한함), `tests/test_env_defaults.py`(행 추가에 한함) |
+| F-5 | 운영 CLI(status·set·kill) + Make 타깃 + 등록 문서 실행 예시 일치 테스트 | `src/govops/rollout/cli.py`, `tests/test_rollout_cli.py`, `Makefile`(타깃 추가에 한함), `tests/test_makefile.py`(케이스 추가에 한함), `AGENTS.md`(명령 줄 추가에 한함) |
+| F-6 | 로컬 시연(가짜 chat, API 호출 없음) PASS·롤백 두 경로 | `src/govops/api/rollout_exercise.py`, `tests/test_m8_rollout_exercise.py`, `Makefile`(타깃 추가에 한함), `tests/test_makefile.py`(케이스 추가에 한함), `AGENTS.md`(명령 줄 추가에 한함) |
+
+시연은 `scripts/demo/`가 아니라 `python -m govops.api.rollout_exercise`로 둔다. 이유: 시연이 `TaskService`·`build_graph`를 직접 조립하므로 `api` 계층 가드를 받는 위치가 맞고, `scripts/`는 step 공통 금지사항에서 읽기 전용이다.
 
 소비자 점검 범위 밖 파일을 만지는 step은 없다. FP-071 시뮬레이션은 `git clone --local` 복사본에서만 하고 `.env`·`data/interim`·`data/raw`는 복사하지 않는다(FP-072).
 
@@ -307,7 +350,7 @@ D-1의 증거표 항목(기존 테스트의 단언을 **테스트 이름과 함�
 | 8 | `make m8-toolcall` 재집계 | ① | API 0 |
 | 9 | 후보 LiteLLM 오버레이 적용(`LITELLM_CONFIG_FILE`)·필요 시 `make agent-key-update`·smoke(응답 헤더·원장 방향)·복구 | ① | 호출 수 건, 센트 이하 추정 |
 | 10 | 후보 dev 20 1회 + 통제 dev 20 1회(각 실행 뒤 결과 디렉터리 이동, FP-067) | ① | 각 7~9분(M6 N1a 7.1분), 비용 후보 단가에 따라 달라짐 |
-| 11 | `make db-init`, `make test-m5-pg`, 로컬 시연, (선택) 두 사용자 `make serve` smoke | ② | 시연 0, smoke는 모델 호출 소량 |
+| 11 | `make test-m5-pg`, 로컬 시연 `make m8-rollout-exercise`, (선택) 두 사용자 `make serve` smoke | ② | 시연 0, smoke는 모델 호출 소량 |
 | 12 | **M8 결과 PR 머지 직후 덤프 파일과 임시 DB `govops_m8_evidence` 삭제**(ADR-015 예외 종료) | 전체 | 0 |
 
 일정 가늠(미실측): ③은 사람 라벨링(보정 + held-out)이 가장 길고, 보정 루프는 개정 횟수에 따라 달라진다. 오프라인 구현은 step당 20~30분(FP-054 선례) × 5~9 step. Gemini 단가 유효일 2026-12-31 전에 끝나야 하고 지시 12가 M8 채점의 내부 기한을 2026-11-30으로 정했다.
@@ -324,9 +367,9 @@ D-1의 증거표 항목(기존 테스트의 단언을 **테스트 이름과 함�
 | 4 | LiteLLM 설정 교체 후 미재시작·`litellm_config_stale`·가상 키 허용 모델 | 러너 사전 점검 실패 또는 낡은 환경(FP-051·052) | PR 본문 "머지 후 사용자 실행" 절에 `docker compose … --force-recreate litellm`·`make agent-key-update` 순서, 복구 절차(`config.yaml` 복원) |
 | 5 | 결과 디렉터리 untracked로 다음 실행의 `dirty_worktree`(FP-067) | 통제 실행 시작 거부 | 첫 실행 뒤 `data/interim/`로 이동하는 절차를 실행 순서에 명시. 골든은 `--no-record-golden` |
 | 6 | 기준선 노이즈 미측정 | 후보 PASS/FAIL이 우연 | 기준선은 N1a 1회뿐. 통제 실행으로 같은 경로의 편차를 한 번 관측하고 한계로 표시. 임계는 경험적 노이즈를 보고 바꾸지 않는다 |
-| 7 | 두 서비스가 같은 saver를 쓸 때 startup_cleanup/prune 이중 실행 | 만료 처리·삭제 중복 | F-2에서 `startup_cleanup`을 라우터가 한 번만 호출하도록 하고 합성 테스트 + `make test-m5-pg`(사용자 실행)로 임시 DB 확인(FP-068 선례) |
+| 7 | 두 서비스가 같은 saver를 쓸 때 startup_cleanup/prune 이중 실행, v1 그래프가 v2 thread를 갱신 | 만료 처리·삭제 중복, 상태 형태 불일치 | `startup_cleanup`은 `alist(None)`으로 모든 thread를 처리하므로 F-4 조립이 v1 서비스에서 한 번만 부르고 `startup_prune`도 한 번만 부른다. 두 그래프의 상태 형태가 같음을 F-3 합성 테스트(v2 thread를 v1 `startup_cleanup`이 갱신한 뒤 v2가 읽음)로 묶는다. 변형 테이블 왕복은 `make test-m5-pg`(사용자 실행)로 임시 DB 확인(FP-068 선례) |
 | 8 | 진입점을 거치지 않는 테스트만 통과 | 실제 서버에서 라우트가 자리표시자 서비스를 호출(FP-070) | 실제 진입점 경유 테스트 추가, 라우터가 `app.state`에만 들어감을 AST 가드로 강제 |
-| 9 | `service.start` 2개로 감사 체인 검증 가정(개수) 깨짐 | `audit-verify` 또는 smoke 단언 실패 | pct=0이면 서비스 1개 보장, pct>0은 변형별 하나씩이며 `service_start` 개수 단언 갱신을 F-2 소비자에 포함, `make audit-verify`·`make smoke-audit` 실행 |
+| 9 | 롤아웃 켬일 때 `service.start` 2개, 감사 인스턴스 둘의 교차 쓰기 | `audit-verify` 또는 smoke 단언 실패, seq 충돌 | 롤아웃 off(기본)는 기존 경로로 서비스 1개·`service.start` 1개(F-4 테스트). 켬이면 pct와 무관하게 시작 때 두 서비스를 만들어 `service.start` 2개다(`tests/test_service_start_event.py` 65~71행이 같은 디렉터리 순차 두 번 조립의 2개를 이미 예상, 무수정). 교차 쓰기는 F-4 합성 테스트(seq 1씩 증가·중복 없음·`verify_chain` 통과). 켬 상태로 서버를 띄운 뒤 `make audit-verify` 사용자 실행 |
 | 10 | Gemini `MAX_TOKENS`로 응답 잘림(r2 선례) | 호출 실패, κ 생성 불가 | 구조화 출력의 `max_output_tokens`를 등록값으로 고정, 응답 실패는 `grading_response_failure`로 구분 보고, 실패를 SKIP으로 덮지 않고 분모에서 건수 표시 |
 | 11 | 사람 표본 풀 부족(held-out) | 20행 미만 | 배분을 조용히 바꾸지 않고 중단(기존 규칙). 풀 크기는 G-0에서 센다 |
 | 12 | 합성 주입 정답 보장이 깨짐(주입 문장이 우연히 근거에 존재) | 탐지율 왜곡 | 부분 문자열 부재 검사를 생성 단계에서 강제하고 실패 항목은 건수와 함께 제외 |
@@ -370,6 +413,8 @@ D-1의 증거표 항목(기존 테스트의 단언을 **테스트 이름과 함�
 | 9 | `AGENTS.md` 계층 표 행 추가, `api/__main__.py` 진입 분기 한 줄, 신규 패키지 `metrics`·`grounding`·`regress`·`rollout` 승인 |
 | 10 | 항목 1의 `ok`는 "호출 성공률"(`call_ok_rate`) |
 | 추가 | 증거 보존: Postgres 전체 덤프 `data/interim/m8-evidence/govops-2026-10-16.dump` 완료. 보관은 ADR-015 예외로 `hypotheses-m8-grader.md`에 기록, 삭제는 M8 결과 PR 머지 직후(사용자 실행) |
+
+**정정(2026-10-21, 지시 46)**: 결정 7의 "`make db-init` 변경"은 필요 없다. `make db-init`은 DB만 만들고 변형 테이블은 저장소 코드가 처음 쓸 때 만든다(2-3절). 결정의 내용(Postgres 신규 테이블)은 그대로다.
 
 ### 8-1. 초안이 정한 값 (확인 요청)
 
