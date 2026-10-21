@@ -17,7 +17,7 @@ freeze = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(freeze)
 
 EXPECTED: dict[str, str] = {
-    "src/govops/agent": "f801700264f23227445cc0dd1d248da52a2af9708b004ba2341e9bc598c9d58e",
+    "src/govops/agent": "7746520a965d32294df474524a19988f6d966d1111b446dfbf991d97fcbe7637",
     "src/govops/tools": "1b3c8ab089b6ba49b5228bfe53543c84c2f657b1a598dc602506ea26976aa47c",
     "src/govops/guardrails": "76169bc4d9c92bd1443dd5424c9e7259bb1948aba00514261dbac550bcdf1b00",
     "src/govops/gateway": "9765bf09b778169ed8e4f78e2dddc5bc82613a17f78ebe525ee0b9a8afe70679",
