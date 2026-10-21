@@ -150,7 +150,7 @@ class RoutedTaskService:
             _warn_once("rollout_exposure_record_failed")
 
     async def _window(self, variant, service):
-        outcomes = []
+        outcomes, owners = [], {}
         for ident in await self.variants.recent(variant, policy.CANDIDATE_LIMIT):
             state = await get_task(service.graph, ident)
             if state is None or state.get("status") in {"running", "awaiting_approval"}:
@@ -160,33 +160,45 @@ class RoutedTaskService:
                     ident, state.get("status") == "blocked_input", {}
                 )
             )
+            owners[ident] = state.get("user_id")
             if len(outcomes) == policy.WINDOW:
                 break
-        return outcomes
+        return outcomes, owners
 
     async def _evaluate_rollback(self, state):
-        v2 = await self._window("v2", self.v2)
-        v1 = await self._window("v1", self.v1)
-        outcomes = {outcome.conversation_id: outcome for outcome in v2}
-        conversations = {}
-        rows = await asyncio.to_thread(
-            store.read_classify_tail, self.directory, policy.CLASSIFY_TAIL
-        )
+        v2, owners = await self._window("v2", self.v2)
+        v1, _ = await self._window("v1", self.v1)
+        try:
+            rows = await asyncio.to_thread(
+                store.read_classify_tail, self.directory, policy.CLASSIFY_TAIL
+            )
+        except (OSError, ValueError):
+            return await self._rollback(state, policy.RECORDS_INVALID_CODE)
+        # Map turns per window conversation (at most WINDOW lookups, addendum-1 §3).
+        outcomes = {}
+        for outcome in v2:
+            for turn_id, _ in await self.turns.turn_ids_of(
+                outcome.conversation_id, owners[outcome.conversation_id]
+            ):
+                outcomes[turn_id] = outcome
         for row in rows:
-            turn_id = row["turn_id"]
-            if turn_id not in conversations:
-                conversations[turn_id] = await self.turns.conversation_of(turn_id)
-            outcome = outcomes.get(conversations[turn_id])
+            outcome = outcomes.get(row["turn_id"])
             if outcome is not None:
-                outcome.turns.setdefault(turn_id, []).append(
+                outcome.turns.setdefault(row["turn_id"], []).append(
                     policy.ClassifyCall(
                         row["status"], row["started_ms"], row["ended_ms"]
                     )
                 )
-        evaluation = policy.evaluate(v2, v1)
+        try:
+            evaluation = policy.evaluate(v2, v1)
+        except ValueError:
+            return await self._rollback(state, policy.RECORDS_INVALID_CODE)
         if evaluation.action != "rollback":
             return state
-        ts, reason = self._timestamp(), evaluation.reasons[0]
+        return await self._rollback(state, evaluation.reasons[0])
+
+    async def _rollback(self, state, reason):
+        ts = self._timestamp()
         stopped = policy.RolloutState(0, True, ts, reason)
         try:
             await asyncio.to_thread(store.write_state, self.directory, stopped)
