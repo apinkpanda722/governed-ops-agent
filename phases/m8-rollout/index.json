@@ -89,14 +89,16 @@
     {
       "step": 6,
       "name": "rollout-exercise",
-      "status": "pending",
+      "status": "completed",
       "started_at": "2026-10-21T14:32:56+0900",
       "usage": {
-        "input_tokens": 221496,
-        "cached_input_tokens": 161536,
-        "output_tokens": 828,
+        "input_tokens": 3967912,
+        "cached_input_tokens": 3851776,
+        "output_tokens": 16249,
         "attempts": 1
-      }
+      },
+      "summary": "임시 디렉터리·가짜 모델로 PASS·자동 롤백·sticky 경로를 검증하는 시연과 Make 타깃·회귀 테스트를 추가했으며 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T14:56:04+0900"
     }
   ],
   "created_at": "2026-10-21T12:20:13+0900"
