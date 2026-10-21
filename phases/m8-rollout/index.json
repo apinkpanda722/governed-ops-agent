@@ -19,14 +19,16 @@
     {
       "step": 1,
       "name": "rollout-policy",
-      "status": "pending",
+      "status": "completed",
       "started_at": "2026-10-21T12:33:59+0900",
       "usage": {
-        "input_tokens": 3006494,
-        "cached_input_tokens": 2891136,
-        "output_tokens": 20518,
+        "input_tokens": 2985754,
+        "cached_input_tokens": 2888448,
+        "output_tokens": 6784,
         "attempts": 1
-      }
+      },
+      "summary": "기존 rollout 정책·파일 저장·계층 규칙을 등록 문서와 대조하고 metrics 금지 import 단언을 보완했으며 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T13:07:37+0900"
     },
     {
       "step": 2,
