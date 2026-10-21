@@ -152,6 +152,9 @@ class RoutedTaskService:
     async def _window(self, variant, service):
         outcomes, owners = [], {}
         for ident in await self.variants.recent(variant, policy.CANDIDATE_LIMIT):
+            # Soft-deleted conversations leave both windows (addendum-2 §1).
+            if await self.turns.is_deleted(ident):
+                continue
             state = await get_task(service.graph, ident)
             if state is None or state.get("status") in {"running", "awaiting_approval"}:
                 continue
