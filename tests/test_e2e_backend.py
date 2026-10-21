@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "tests/e2e_backend.py"
 REAL_ENV = (
     "AUDIT_KEY_FILE",
+    "AUDIT_ARGS_HMAC_KEY",
     "AUDIT_DIR",
     "KODOCS_MCP_URL",
     "KODOCS_MCP_TOKENS_FILE",

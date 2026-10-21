@@ -140,6 +140,7 @@ def isolated_audit_environment(audit_test_directory, monkeypatch, audit_key_pair
 
     tmp_path = audit_test_directory
     monkeypatch.setenv("AUDIT_DIR", str(tmp_path / "audit"))
+    monkeypatch.setenv("AUDIT_ARGS_HMAC_KEY", vars(audit_key_pair).setdefault("args_key", secrets.token_hex(32)))  # fmt: skip
 
     private_path = tmp_path / "private.pem"
     public_path = tmp_path / "public.pem"
