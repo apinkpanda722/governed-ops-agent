@@ -466,6 +466,9 @@ def test_m8_grounding_targets_that_take_dbname_load_the_env_file():
 M8_ENV_CONTRACT = {
     "m8-toolcall": False,
     "m8-args": True,
+    "m8-rollout-status": True,
+    "m8-rollout-set": True,
+    "m8-rollout-kill": True,
     "m8-regress-compare": False,
     "m8-regress-precheck": False,
     "m8-regress-smoke": True,
@@ -492,3 +495,22 @@ def test_m8_target_env_file_contract():
         "LITELLM_CONFIG_FILE=./litellm/config.candidate.yaml docker compose --env-file .env "
         "-f infra/docker-compose.yml up -d --force-recreate --no-deps litellm"
     ) in text.split("\nm8-candidate-up:\n", 1)[1].split("\n\n", 1)[0]
+
+
+def test_m8_rollout_recipes_and_user_commands_match_registration():
+    text = (REPO_ROOT / "Makefile").read_text()
+    commands = (REPO_ROOT / "AGENTS.md").read_text().split("## 명령어", 1)[1]
+    for target, args in {
+        "m8-rollout-status": "status",
+        "m8-rollout-set": "set --pct-bp $(PCT_BP)",
+        "m8-rollout-kill": "kill",
+    }.items():
+        recipe = text.split(f"\n{target}:\n", 1)[1].split("\n\n", 1)[0]
+        assert recipe.splitlines() == [
+            f"\tuv run --env-file .env python -m govops.rollout.cli {args}"
+        ]
+        lines = [
+            line for line in commands.splitlines() if line.startswith(f"make {target} ")
+        ]
+        assert len(lines) == 1
+        assert re.search(r"\([^)]*사용자 실행\)", lines[0])
