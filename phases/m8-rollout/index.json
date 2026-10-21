@@ -75,14 +75,16 @@
     {
       "step": 5,
       "name": "rollout-cli",
-      "status": "pending",
+      "status": "completed",
       "started_at": "2026-10-21T14:09:19+0900",
       "usage": {
-        "input_tokens": 159522,
-        "cached_input_tokens": 105856,
-        "output_tokens": 961,
+        "input_tokens": 2863309,
+        "cached_input_tokens": 2749824,
+        "output_tokens": 11456,
         "attempts": 1
-      }
+      },
+      "summary": "롤아웃 status/set/kill CLI와 Make 타깃 3개, 명령 문서 및 회귀·문서 일치 테스트를 추가했으며 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T14:32:56+0900"
     },
     {
       "step": 6,
