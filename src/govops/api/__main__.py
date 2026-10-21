@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from govops.api.app import create_app
+from govops.api.rollout_wiring import open_rollout_service, rollout_enabled
 from govops.api.sessions import SessionStore
 from govops.api.tasks import TaskService
 from govops.api.users import load_users
@@ -23,7 +24,8 @@ def build_server_config(port: int) -> uvicorn.Config:
 
     @asynccontextmanager
     async def lifespan(app):
-        async with open_task_service() as service:
+        opener = open_rollout_service if rollout_enabled() else open_task_service
+        async with opener() as service:
             app.state.task_service = service
             # 인증 실패 감사(record_auth_failure)도 실제 서비스의 감사 로그를 쓴다(FP-070).
             app.state.audit = getattr(service, "audit", None)

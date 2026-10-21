@@ -21,6 +21,7 @@ EXPECTED: dict[str, str] = {
     "docs/results/hypotheses-m8-regression-addendum-1.md": "316dcbac36ad4fad8882836ddfc4cba9a65df96e0ac458ad5dca35e0050b9aac",
     "docs/results/hypotheses-m8-argument.md": "20a76db20057ccf56e516a5bdb1be2f8dea0f8632992c250b40e16013d4c1815",
     "docs/results/hypotheses-m8-toolcall.md": "897c1278afbd034e950dbfb3084b810abfe374de9f69d44b94821f1305b47fe5",
+    "docs/results/hypotheses-m8-rollout.md": "fe71c306b20d7053acb19945657579e7085558bd2640e351222019c04421d452",
     "docs/results/hypotheses-m8-grader.md": "8dfe8901a257bbabbe58307798e5169ddb3f789dc1c62eeb0efbad932117c3c0",
     "docs/results/hypotheses-m8-grader-addendum-1.md": "43c86115c50b5cf709f51d4727b5e49624cf30097d4802e64f0c17787698405e",
     "docs/results/hypotheses-m8-grader-addendum-2.md": "db0a5e7e95355e8b6e220a9939a49d4f6549a36910ef94842724328605dc3ded",

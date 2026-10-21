@@ -25,10 +25,27 @@ LAYERS = {
     "grounding",
     "metrics",
     "regress",
+    "rollout",
 }
 
 # AGENTS.md의 계층 경계 표가 규칙의 원본이다.
 FORBIDDEN_IMPORTS: dict[str, set[str]] = {
+    "rollout": {
+        "govops.agent",
+        "govops.api",
+        "govops.broker",
+        "govops.tools",
+        "govops.gateway",
+        "govops.mocks",
+        "govops.audit",
+        "govops.guardrails",
+        "govops.eval",
+        "govops.obs",
+        "langgraph",
+        "fastapi",
+        "psycopg",
+        *LLM_SDK,
+    },
     "regress": {
         "govops.agent",
         "govops.api",
@@ -110,6 +127,9 @@ for _layer in LAYERS - {"grounding"}:
 METRICS_CONSUMERS: set[str] = {"regress"}
 for _layer in LAYERS - {"metrics"} - METRICS_CONSUMERS:
     FORBIDDEN_IMPORTS[_layer].add("govops.metrics")
+ROLLOUT_CONSUMERS: set[str] = {"api"}
+for _layer in LAYERS - {"rollout"} - ROLLOUT_CONSUMERS:
+    FORBIDDEN_IMPORTS[_layer].add("govops.rollout")
 
 
 @dataclass(frozen=True)

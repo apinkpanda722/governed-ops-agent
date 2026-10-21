@@ -396,6 +396,22 @@ m8-toolcall:
 m8-args:
 	uv run --env-file .env python -m govops.grounding.argument $(ARGUMENT_ARGS)
 
+.PHONY: m8-rollout-status m8-rollout-set m8-rollout-kill
+# 롤아웃 상태 보기·비율 설정·끄기, API 호출 없음, 사용자 실행
+m8-rollout-status:
+	uv run --env-file .env python -m govops.rollout.cli status
+
+m8-rollout-set:
+	uv run --env-file .env python -m govops.rollout.cli set --pct-bp $(PCT_BP)
+
+m8-rollout-kill:
+	uv run --env-file .env python -m govops.rollout.cli kill
+
+.PHONY: m8-rollout-exercise
+# 로컬 시연(가짜 chat, API 호출 없음, 임시 디렉터리만), 사용자 실행(.env 불필요)
+m8-rollout-exercise:
+	uv run python -m govops.api.rollout_exercise
+
 .PHONY: m8-regress-compare
 # 오프라인 비교, 읽기 전용, 사용자 실행(.env 불필요)
 m8-regress-compare:

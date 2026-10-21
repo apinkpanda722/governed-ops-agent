@@ -82,6 +82,7 @@ def test_replay_switch_is_checked_at_construction(monkeypatch, switch):
 
 def test_all_service_callers_omit_semantic_except_frozen_fault_runners():
     callers = []
+    rollout_semantics = []
     for path in (ROOT / "src/govops").rglob("*.py"):
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
@@ -99,9 +100,22 @@ def test_all_service_callers_omit_semantic_except_frozen_fault_runners():
                     isinstance(keywords[0].value, ast.Constant)
                     and keywords[0].value.value is None
                 )
+            elif relative == "api/rollout_wiring.py":
+                assert len(keywords) == 1
+                value = keywords[0].value
+                if isinstance(value, ast.Constant) and value.value is None:
+                    rollout_semantics.append("None")
+                else:
+                    assert isinstance(value, ast.Call)
+                    assert isinstance(value.func, ast.Name)
+                    assert value.func.id == "RecordingClassifier"
+                    rollout_semantics.append("RecordingClassifier")
             else:
                 assert keywords == []
+    assert sorted(rollout_semantics) == ["None", "RecordingClassifier"]
     assert sorted(callers) == [
+        "api/rollout_wiring.py",
+        "api/rollout_wiring.py",
         "api/wiring.py",
         "evalrun/dev_m3.py",
         "evalrun/dev_m3.py",

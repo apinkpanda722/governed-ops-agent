@@ -62,7 +62,7 @@ m8-rollout-kill:
 ### 4. 테스트
 
 `tests/test_rollout_cli.py`: 상태 파일 없음의 `status`(`pct_bp=0 kill=false reason=none …=0`), `set` 뒤 `status`, `kill` 뒤 새 상태와 `reason`, `set`이 kill을 풀음, 인자 오류 5종(범위 밖 -1·10001, 정수 아님, reason 형식 밖, 하위 명령 없음) → `FAIL m8_rollout_invalid_arguments`·종료 1·표준 오류 비어 있음, `write_state` 실패(`monkeypatch`) → `FAIL m8_rollout_state_write_failed`, 깨진 `exposures.jsonl` → `FAIL m8_rollout_records_invalid`, 손상된 `state.json` → `status`가 `kill=true reason=state_invalid`를 출력하고 종료 0, 노출 기록 집계(합성 `assigned` v1 2·v2 3, `variant_missing` 1, `rollback` 1), 출력에 `tmp_path` 문자열 없음.
-**등록 문서 실행 예시 일치**(지시 46): `docs/results/hypotheses-m8-rollout.md`에서 `python -m govops.rollout.cli`가 나오는 모든 명령의 인자를 뽑아 `main`의 파서로 파싱했을 때 오류가 없다(실제로 상태를 쓰지 않도록 `tmp_path`에서 실행해도 된다). 문서에 나오는 모든 `make m8-rollout-…` 타깃 이름이 `Makefile`에 있고, `PCT_BP=`가 붙은 예시는 `m8-rollout-set` 레시피가 `$(PCT_BP)`를 쓴다. 예시가 하나도 없으면 실패한다(FP-069).
+**등록 문서 실행 예시 일치**(지시 46): `docs/results/hypotheses-m8-rollout.md`에서 `python -m govops.rollout.cli`가 나오는 모든 명령의 인자를 뽑아 `main`의 파서로 파싱했을 때 오류가 없다(실제로 상태를 쓰지 않도록 `tmp_path`에서 실행해도 된다). Make 타깃 검사: 테스트 안에 제외 집합 `EXCLUDED_TARGETS = {"m8-rollout-exercise"}`(step 6이 만드는 타깃)를 두고, 문서에서 뽑은 `make m8-rollout-…` 이름 집합에서 제외 집합을 뺀 것이 **정확히** `{m8-rollout-status, m8-rollout-set, m8-rollout-kill}`이며 이 셋이 모두 `Makefile`에 있다. 제외 집합의 이름이 문서에 실제로 있다는 것도 단언한다(없으면 실패). `PCT_BP=`가 붙은 예시는 `m8-rollout-set` 레시피가 `$(PCT_BP)`를 쓴다. 예시가 하나도 없으면 실패한다(FP-069). 제외 집합은 step 6이 비운다.
 `tests/test_makefile.py`: `M8_ENV_CONTRACT`에 `"m8-rollout-status": True`, `"m8-rollout-set": True`, `"m8-rollout-kill": True`를 더한다(기존 키 불변). 새 테스트: 세 레시피가 위 2번과 정확히 같고 `AGENTS.md` 명령 줄에 `(사용자 실행)`이 있다.
 
 ## Acceptance Criteria

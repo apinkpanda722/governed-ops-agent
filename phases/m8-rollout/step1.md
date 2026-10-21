@@ -15,10 +15,10 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/rollout/__init__.py`(신규), `src/govops/rollout/policy.py`(신규), `src/govops/rollout/store.py`(신규), `tests/test_rollout_policy.py`(신규), `tests/test_rollout_store.py`(신규), `tests/test_architecture.py`(`rollout` 계층 규칙 추가에 한함, 기존 규칙 약화 금지), `tests/test_env_defaults.py`(`test_variable_defaults` 표에 행 하나 추가에 한함), `AGENTS.md`(계층 경계 표에 `rollout` 행 하나 추가에 한함). TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/rollout/__init__.py`(신규), `src/govops/rollout/policy.py`(신규), `src/govops/rollout/store.py`(신규), `tests/test_rollout_policy.py`(신규), `tests/test_rollout_store.py`(신규), `tests/test_architecture.py`(`rollout` 계층 규칙 추가에 한함, 기존 규칙 약화 금지), `tests/test_env_defaults.py`(`test_variable_defaults` 표에 행 하나 추가에 한함), `AGENTS.md`(계층 경계 표에 `rollout` 행 하나 추가에 한함), `tests/test_metrics_toolcall.py`(`FORBIDDEN_IMPORTS["metrics"]`를 정확히 단언하는 테스트의 `forbidden` 집합(359~370행)에 `"govops.rollout"` 한 줄 추가에 한함, 그 밖의 단언 불변. 380~388행의 소비자 루프는 `LAYERS`를 따라가므로 고치지 않는다). TDD.
 
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`, `src/govops/guardrails/rules_v1.json`
-수정 허용 경로: `src/govops/rollout/__init__.py`, `src/govops/rollout/policy.py`, `src/govops/rollout/store.py`, `tests/test_rollout_policy.py`, `tests/test_rollout_store.py`, `tests/test_architecture.py`, `tests/test_env_defaults.py`, `AGENTS.md`
+수정 허용 경로: `src/govops/rollout/__init__.py`, `src/govops/rollout/policy.py`, `src/govops/rollout/store.py`, `tests/test_rollout_policy.py`, `tests/test_rollout_store.py`, `tests/test_architecture.py`, `tests/test_env_defaults.py`, `AGENTS.md`, `tests/test_metrics_toolcall.py`
 열람 금지의 범위: 이 금지는 **Codex 세션이 해당 경로의 파일을 직접 열람·출력·인용하는 것**에 대한 것이다. 이 step의 코드가 런타임에 그 경로를 다루는 것(예: 기본 출력 경로 `data/interim/rollout/`)은 대상이 아니다. 테스트가 `data/interim/`·`data/eval/`·`data/redteam/`의 실제 파일 **내용**을 읽는 것은 여전히 금지이며 테스트는 임시 디렉터리만 쓴다(`GOVOPS_ROLLOUT_DIR`를 `tmp_path`로 두거나 경로 인자를 넘긴다). 예외로 `data/results/`의 실행 디렉터리는 파일 이름과 JSON 키 이름을 확인하는 데 한해 열람할 수 있고, 응답 본문(`answer`·`effect_bodies`)이나 근거 본문을 출력·인용하지 않는다. 이 제한은 이 step이 새로 작성하는 테스트에 한한 것이며, 기존 `tests/test_m7_freeze.py`가 `scripts/freeze_digest.py`로 해시를 계산하며 동결 경로 파일을 바이트로 읽는 것은 `make verify`의 일부이므로 허용한다. Codex 세션이 그 파일 내용을 출력·인용하는 것은 여전히 금지다.
 
 **목적**: 등록 문서의 배정·평가 규칙을 순수 함수로, 상태·기록 파일 입출력을 작은 저장 모듈로 만든다. 서비스·DB·그래프는 이 step에서 다루지 않는다.

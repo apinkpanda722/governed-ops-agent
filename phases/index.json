@@ -139,7 +139,8 @@
     },
     {
       "dir": "m8-rollout",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-10-21T14:56:04+0900"
     }
   ]
 }

@@ -38,6 +38,7 @@
 | 근거 | `grounding/` | M8 근거 재구성·채점기 v3·표본·합성 주입(M8 추가 측정, 공식 M6 수치 아님) | `govops.gateway`, `govops.broker`, `govops.tools`, `govops.api`, `govops.mocks`, `govops.evalrun`, `openai`, `anthropic`, `litellm`; 다른 계층은 `grounding` import 금지 |
 | 지표 | `metrics/` | M8 항목 1 Tool-call accuracy 재집계·읽기 전용 CLI(M8 추가 측정, 공식 M6 수치 아님) | `govops.agent`, `govops.api`, `govops.broker`, `govops.gateway`, `govops.tools`, `govops.mocks`, `govops.evalrun`, `govops.grounding`, `langgraph`, LLM SDK(`openai`·`anthropic`·`google.genai`·`litellm`); 다른 계층은 `metrics` import 금지 |
 | 회귀 | `regress/` | M8 항목 5 주 모델 교체 회귀 비교·판정·smoke 진단(M8 추가 측정, 공식 M6 수치 아님) | `govops.agent`, `govops.api`, `govops.broker`, `govops.tools`, `govops.mocks`, `govops.audit`, `govops.guardrails`, `govops.evalrun`, `govops.grounding`, `langgraph`, LLM SDK(`openai`·`anthropic`·`google.genai`·`litellm`) |
+| 롤아웃 | `rollout/` | M8 항목 4 v2 점진 배포의 순수 정책(버킷·배정·롤백 평가)·상태·노출 기록 파일·운영 CLI(M8 추가 측정, 공식 M6 수치 아님) | `govops.agent`, `govops.api`, `govops.broker`, `govops.tools`, `govops.gateway`, `govops.mocks`, `govops.audit`, `govops.guardrails`, `govops.eval`, `govops.obs`, `govops.evalrun`, `govops.grounding`, `govops.metrics`, `langgraph`, `fastapi`, `psycopg`, LLM SDK; `api` 외 다른 계층은 `rollout` import 금지 |
 | 웹 | `web/` | 화면 4개, BFF route handler | 브라우저 코드에서 FastAPI 직접 호출 금지, 세션 토큰을 JS가 읽을 수 있는 곳(`NEXT_PUBLIC_*`, localStorage, 응답 본문)에 두지 않음 |
 
 ## 고정 제약
@@ -81,6 +82,10 @@
 ## 명령어
 make m8-evidence-probe # 근거 보존 점검, 개수만 출력(읽기 전용, 사용자 실행)
 make m8-args # 임시 DB 복원본의 도구 인자 근거율 측정, 인자 원문 비출력(읽기 전용, 사용자 실행)
+make m8-rollout-status # v2 롤아웃 상태·노출 집계 한 줄(API 호출 없음, 사용자 실행)
+make m8-rollout-set PCT_BP=500 # v2 롤아웃 비율 설정, 킬 해제(사용자 실행)
+make m8-rollout-kill # v2 롤아웃 끄기, 새 대화만 v1(사용자 실행)
+make m8-rollout-exercise # v2 롤아웃 로컬 시연 PASS·롤백 두 경로(가짜 chat, API 호출 없음, 사용자 실행)
 make e2e-web # 포트 3200·8200·8201이 이미 쓰이고 있으면 Playwright가 시작을 거부한다(기존 서버 재사용 금지). e2e는 `next build`로 `web/.next`를 덮어쓰므로 `next start`로 띄운 데모 서버(3100)는 먼저 끈다(`next dev`는 `.next/dev`를 써서 무관). e2e가 새로 만든 변경만 실패.(사용자 실행)
 make verify      # ruff check → ruff format --check → pytest → web typecheck(tsc) → eslint → vitest → playwright test --list (Stop hook, execute.py, CI가 모두 이 명령을 부른다). API 키·네트워크 없이 통과한다.
 make mock-tokens # 사용자별 mock-jira·mock-slack 토큰과 해시 매니페스트 생성(사용자 실행)

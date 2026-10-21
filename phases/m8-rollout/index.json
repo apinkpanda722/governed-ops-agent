@@ -5,37 +5,102 @@
     {
       "step": 0,
       "name": "rollout-registration",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T12:20:13+0900",
+      "summary": "M8 점진 배포 사전 등록 17개 절과 동결 digest 키 1개를 추가했으며 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T12:33:59+0900",
+      "usage": {
+        "input_tokens": 2322586,
+        "cached_input_tokens": 2197376,
+        "output_tokens": 8678,
+        "attempts": 1
+      }
     },
     {
       "step": 1,
       "name": "rollout-policy",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T12:33:59+0900",
+      "usage": {
+        "input_tokens": 2985754,
+        "cached_input_tokens": 2888448,
+        "output_tokens": 6784,
+        "attempts": 1
+      },
+      "summary": "기존 rollout 정책·파일 저장·계층 규칙을 등록 문서와 대조하고 metrics 금지 import 단언을 보완했으며 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T13:07:37+0900"
     },
     {
       "step": 2,
       "name": "variant-store",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T13:07:37+0900",
+      "summary": "변형 고정 저장소와 thread 삭제 성공 시 변형 행 정리를 구현하고 테스트를 추가했으며 make verify를 통과했습니다. Postgres 통합 테스트는 환경 미설정으로 skip되었습니다.",
+      "completed_at": "2026-10-21T13:26:05+0900",
+      "usage": {
+        "input_tokens": 3477130,
+        "cached_input_tokens": 3362688,
+        "output_tokens": 15752,
+        "attempts": 1
+      }
     },
     {
       "step": 3,
       "name": "routed-service",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T13:26:05+0900",
+      "summary": "변형별 턴 색인·분류 기록 래퍼·sticky 라우터와 자동 롤백을 구현하고 회귀 테스트 27개를 추가했으며, 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T13:45:38+0900",
+      "usage": {
+        "input_tokens": 4885999,
+        "cached_input_tokens": 4751616,
+        "output_tokens": 25028,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
       "name": "rollout-wiring",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T13:45:38+0900",
+      "summary": "롤아웃 전용 v1·v2 서비스 조립과 lifespan 분기를 구현하고 기본 off 경로·공유 감사 체인을 검증했으며, 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T14:09:18+0900",
+      "usage": {
+        "input_tokens": 6238960,
+        "cached_input_tokens": 6105472,
+        "output_tokens": 18812,
+        "attempts": 1
+      }
     },
     {
       "step": 5,
       "name": "rollout-cli",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T14:09:19+0900",
+      "usage": {
+        "input_tokens": 2863309,
+        "cached_input_tokens": 2749824,
+        "output_tokens": 11456,
+        "attempts": 1
+      },
+      "summary": "롤아웃 status/set/kill CLI와 Make 타깃 3개, 명령 문서 및 회귀·문서 일치 테스트를 추가했으며 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T14:32:56+0900"
     },
     {
       "step": 6,
       "name": "rollout-exercise",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T14:32:56+0900",
+      "usage": {
+        "input_tokens": 3967912,
+        "cached_input_tokens": 3851776,
+        "output_tokens": 16249,
+        "attempts": 1
+      },
+      "summary": "임시 디렉터리·가짜 모델로 PASS·자동 롤백·sticky 경로를 검증하는 시연과 Make 타깃·회귀 테스트를 추가했으며 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T14:56:04+0900"
     }
-  ]
+  ],
+  "created_at": "2026-10-21T12:20:13+0900",
+  "completed_at": "2026-10-21T14:56:04+0900"
 }

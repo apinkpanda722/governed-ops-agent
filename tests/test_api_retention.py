@@ -14,6 +14,7 @@ from test_agent_retention import ANSWER, DRAFT, MESSAGE, saved_thread
 
 from govops.api import retention
 from govops.api.conversations import InMemoryTurnIndex
+from govops.api.variant import InMemoryVariantStore
 from govops.audit.log import AuditWriteError, MemoryAuditLog
 
 
@@ -282,6 +283,9 @@ def test_cli_uses_fake_dependencies_and_safe_summary(monkeypatch, capsys, apply)
 
     monkeypatch.setattr(retention, "open_checkpointer", opened)
     monkeypatch.setattr(retention, "PostgresTurnIndex", lambda: turns)
+    monkeypatch.setattr(
+        retention, "PostgresVariantStore", lambda: InMemoryVariantStore()
+    )
     monkeypatch.setattr(retention, "AuditLog", audit_factory)
     assert retention.main(["--apply"] if apply else []) == 0
     assert calls == (["audit"] if apply else [])
@@ -342,3 +346,98 @@ def test_cli_error_is_safe(monkeypatch, capsys):
     assert retention.main([]) == 1
     output = capsys.readouterr()
     assert output.out == "" and output.err == "ERROR checkpoint_prune_failed\n"
+
+
+@async_test
+async def test_apply_removes_only_successfully_deleted_thread_variants():
+    saver, turns, audit = InMemorySaver(), InMemoryTurnIndex(), MemoryAuditLog()
+    variants = InMemoryVariantStore()
+    deleted, failed, active = (c * 32 for c in ("a", "b", "c"))
+    for ident, status in (
+        (deleted, "completed"),
+        (failed, "completed"),
+        (active, "running"),
+    ):
+        _, ts = await saved_thread(saver, ident, status)
+        await turns.add(
+            turn_id=ident,
+            conversation_id=ident,
+            owner_sub="synthetic-owner",
+            turn_index=1,
+            created_at=ts.isoformat(),
+        )
+        await variants.put(
+            conversation_id=ident,
+            variant="v2",
+            bucket=0,
+            pct_bp=10000,
+            assigned_at=ts.isoformat(),
+        )
+    delete = saver.adelete_thread
+
+    async def fail_one(thread_id):
+        if thread_id == failed:
+            raise RuntimeError("synthetic private detail")
+        await delete(thread_id)
+
+    saver.adelete_thread = fail_one
+    remove_variants = variants.delete
+
+    async def after_turns(ids):
+        assert ids == (deleted,)
+        assert await turns.conversation_of(deleted) is None
+        assert audit.records[0]["pruned_count"] == 2
+        return await remove_variants(ids)
+
+    variants.delete = AsyncMock(side_effect=after_turns)
+    result = await retention.run_prune(
+        saver, turns, audit, now=ts + timedelta(days=8), apply=True, variants=variants
+    )
+    assert result.deleted_ids == (deleted,)
+    variants.delete.assert_awaited_once_with((deleted,))
+    assert await variants.get_many([deleted, failed, active]) == {
+        failed: "v2",
+        active: "v2",
+    }
+    assert await saver.aget_tuple({"configurable": {"thread_id": failed}})
+
+
+@pytest.mark.parametrize("mode", ["dry_run", "no_candidates", "all_failed"])
+@async_test
+async def test_variants_delete_is_not_called_without_deleted_threads(mode):
+    saver, turns, audit, now = await fixture_threads()
+    if mode == "no_candidates":
+        saver, turns = InMemorySaver(), InMemoryTurnIndex()
+    elif mode == "all_failed":
+        saver.adelete_thread = AsyncMock(side_effect=RuntimeError("synthetic failure"))
+    variants = SimpleNamespace(delete=AsyncMock())
+    result = await retention.run_prune(
+        saver, turns, audit, now=now, apply=mode != "dry_run", variants=variants
+    )
+    assert result.deleted_ids == ()
+    variants.delete.assert_not_called()
+
+
+@async_test
+async def test_explicit_none_variants_preserves_pruning():
+    saver, turns, audit, now = await fixture_threads()
+    result = await retention.run_prune(
+        saver, turns, audit, now=now, apply=True, variants=None
+    )
+    assert result.deleted_ids == ("expired", "old")
+    assert await turns.conversation_of("old-turn-1") is None
+    assert len(audit.records) == 1
+
+
+@async_test
+async def test_startup_passes_variants_as_keyword(monkeypatch):
+    prune = AsyncMock()
+    monkeypatch.setattr(retention, "run_prune", prune)
+    service, saver, turns = SimpleNamespace(audit=MemoryAuditLog()), object(), object()
+    variants = InMemoryVariantStore()
+    await retention.startup_prune(service, saver, turns, variants)
+    args, kwargs = prune.call_args
+    assert args == (saver, turns)
+    assert kwargs["variants"] is variants
+    assert kwargs["audit"] is service.audit and kwargs["apply"] is True
+    assert kwargs["now"].utcoffset() == timedelta(0)
