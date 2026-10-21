@@ -85,6 +85,7 @@ def test_env_or(monkeypatch, value, expected):
 @pytest.mark.parametrize(
     "relative,name,default",
     [
+        ("rollout/store.py", "GOVOPS_ROLLOUT_DIR", "data/interim/rollout"),
         ("tools/smoke.py", "MOCK_JIRA_URL", "http://127.0.0.1:8081"),
         ("tools/smoke.py", "MOCK_SLACK_URL", "http://127.0.0.1:8082"),
         ("tools/smoke.py", "SMOKE_USER", "demo-platform-g3"),
