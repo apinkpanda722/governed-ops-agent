@@ -144,7 +144,8 @@
     },
     {
       "dir": "m8-tool-audit",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_at": "2026-10-21T19:09:50+0900"
     }
   ]
 }
