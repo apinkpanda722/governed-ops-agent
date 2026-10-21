@@ -130,11 +130,12 @@ function projectAuditEvent(value: unknown): Obj {
   Object.assign(out, strings(v, ["ts"], auditTime),
     strings(v, ["event"], auditString(/^[a-z_.]{1,40}$/)),
     strings(v, ["actor"], auditString(/^demo-[a-z-]+-g[0-9]+$/)),
-    strings(v, ["tool", "decision", "check_result", "reason", "code"], auditCode),
+    strings(v, ["tool", "decision", "check_result", "reason", "code", "tool_name", "status"], auditCode),
     strings(v, ["mock_id"], auditString(/^[A-Za-z0-9._-]{1,40}$/)),
     strings(v, ["cost_usd"], auditString(/^[0-9]+\.[0-9]{6}$/)),
     strings(v, ["hash12", "draft_hash12"], auditString(/^[0-9a-f]{12}$/)));
   if (typeof v.fallback === "boolean") out.fallback = v.fallback;
+  if (count(v.result_count) && v.result_count <= 10000) out.result_count = v.result_count;
   return out;
 }
 export function projectAudit(value: unknown): Obj {

@@ -52,6 +52,9 @@ function EventRow({event}: {event: AuditEvent}) {
         <p className="font-medium">#{event.seq} · {auditEventTitle(event.event ?? "", event.check_result)}</p>
         <p><time>{event.ts}</time> · {auditActorLabel(event.event ?? "")}: {event.actor}</p>
         {event.tool && <p>도구: {toolLabel(event.tool)}</p>}
+        {event.tool_name && <p>도구: {event.tool_name === "unknown" ? "알 수 없는 도구" : toolLabel(event.tool_name)}</p>}
+        {event.status && <p>결과: {auditCodeLabel(event.status)}</p>}
+        {event.result_count !== undefined && <p>결과 수: {event.result_count}</p>}
         {event.decision && <p>결정: {auditCodeLabel(event.decision)}</p>}
         {event.check_result && <p>검사: {auditCodeLabel(event.check_result)}</p>}
         {event.reason && <p>사유: {auditCodeLabel(event.reason)}</p>}

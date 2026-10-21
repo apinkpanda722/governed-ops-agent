@@ -316,3 +316,18 @@ test("B6 B7 records strip nested secrets and expose no session value in body or 
  expect(response.headers.get("cache-control")).toBe("no-store");
  } expect(calls).toBe(2);
 });
+test("tool.call BFF response retains display fields and drops upstream argument hashes",async()=>{
+ const event={seq:1,event:"tool.call",tool_name:"search_docs",status:"ok",result_count:2};
+ const hidden={args_hmac:"d".repeat(64),args_hmac_kid:"synthetic-hidden-kid",tool_call_sha256:"f".repeat(64)};
+ server.removeAllListeners("request");
+ server.on("request",(request,response)=>{
+ calls++;receivedUrl=request.url;
+ response.setHeader("content-type","application/json");
+ response.end(JSON.stringify({conversation_id:id,turns:[{turn_id:id,turn_index:1,events:[{...event,...hidden}]}],truncated:false}));
+ });
+ const response=await audit.GET(req(`conversations/${id}/audit`,"GET",undefined,{cookie:token}),context);
+ expect(response.status).toBe(200);expect(calls).toBe(1);expect(receivedUrl).toBe(`/conversations/${id}/audit`);
+ const body=await response.json();
+ expect(body).toEqual({conversation_id:id,turns:[{turn_id:id,turn_index:1,events:[event]}],truncated:false});
+ for(const [key,value] of Object.entries(hidden)) {expect(JSON.stringify(body)).not.toContain(key);expect(JSON.stringify(body)).not.toContain(value);}
+});

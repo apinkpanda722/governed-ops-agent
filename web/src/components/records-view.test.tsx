@@ -2,6 +2,8 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { RecordsView } from "./records-view";
 import { testids } from "@/lib/testids";
+import { readFileSync } from "node:fs";
+import { auditCodeLabel } from "@/lib/messages";
 
 const id="a".repeat(32), ts="2026-10-16T01:02:03+00:00";
 const event=(seq:number, name="side_effect.attempt")=>({seq,ts,event:name,actor:"demo-platform-g3",hash12:"b".repeat(12)});
@@ -61,4 +63,38 @@ test("draft with check result, requester and decider are labeled by role",async(
  expect(rows[1].textContent).toContain("발송 초안 검사");
  expect(rows[2].textContent).toContain("요청자");expect(rows[2].textContent).not.toContain("승인자");
  expect(rows[3].textContent).toContain("결정자");
+});
+
+const toolStatuses={ok:"성공",tool_error:"도구 오류 결과",tool_not_available:"허용되지 않은 도구",invalid_argument:"인자 오류",tool_unavailable:"도구 호출 실패",proposal_invalid:"잘못된 발송 제안",not_executed:"실행하지 않음"};
+test("tool call status label table defines all seven nonempty labels",()=>{
+ const source=readFileSync("src/lib/messages.ts","utf8");
+ const table=source.split("export function auditCodeLabel")[1].split("\n}")[0];
+ const entries=[...table.matchAll(/(\w+): "([^"]+)"/g)].filter(([,code])=>code in toolStatuses);
+ expect(entries.length).toBeGreaterThan(0);
+ expect(Object.fromEntries(entries.map(([,code,label])=>[code,label]))).toEqual(toolStatuses);
+ expect(Object.keys(toolStatuses)).toHaveLength(7);
+ for(const [code,label] of Object.entries(toolStatuses))expect(auditCodeLabel(code)).toBe(label);
+});
+test.each(Object.entries(toolStatuses))("tool.call renders display labels for %s without hashes",async(status,label)=>{
+ const hidden={args_hmac:"d".repeat(64),args_hmac_kid:"synthetic-hidden-kid",tool_call_sha256:"f".repeat(64)};
+ const value={conversation_id:id,turns:[{turn_id:id,turn_index:1,events:[
+ {...event(1,"tool.call"),tool_name:"search_docs",status,result_count:3,...hidden},
+ {...event(2,"tool.call"),tool_name:"unknown",status:"not_executed",result_count:0,...hidden},
+ ]}]};
+ vi.stubGlobal("fetch",vi.fn(async(path:string)=>new Response(JSON.stringify(path.endsWith("/verify")?verify:value))));
+ const {container}=render(<RecordsView id={id}/>);
+ await waitFor(()=>expect(screen.getAllByTestId(testids.recordsEvent)).toHaveLength(2));
+ const rows=screen.getAllByTestId(testids.recordsEvent);
+ expect(rows[0].textContent).toContain("도구 호출");expect(rows[0].textContent).toContain("도구: 문서 검색");
+ expect(rows[0].textContent).toContain(`결과: ${label}`);expect(rows[0].textContent).toContain("결과 수: 3");
+ expect(rows[1].textContent).toContain("도구: 알 수 없는 도구");expect(rows[1].textContent).toContain("결과 수: 0");
+ for(const [key,value] of Object.entries(hidden)) {expect(container.innerHTML).not.toContain(key);expect(container.innerHTML).not.toContain(value);}
+});
+test("tool.call without optional display fields does not render extra labels",async()=>{
+ const value={turns:[{turn_id:id,turn_index:1,events:[event(1,"tool.call")]}]};
+ vi.stubGlobal("fetch",vi.fn(async(path:string)=>new Response(JSON.stringify(path.endsWith("/verify")?verify:value))));
+ render(<RecordsView id={id}/>);
+ await waitFor(()=>expect(screen.getByTestId(testids.recordsEvent).textContent).toContain("도구 호출"));
+ const row=screen.getByTestId(testids.recordsEvent).textContent;
+ for(const label of ["도구:","결과:","결과 수:"])expect(row).not.toContain(label);
 });

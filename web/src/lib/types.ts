@@ -134,6 +134,9 @@ export type AuditEvent = {
     event?: string;
     actor?: string;
     tool?: string;
+    tool_name?: string;
+    status?: string;
+    result_count?: number;
     decision?: string;
     check_result?: string;
     reason?: string;
