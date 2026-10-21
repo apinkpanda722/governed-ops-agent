@@ -47,7 +47,16 @@
     {
       "step": 3,
       "name": "routed-service",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-21T13:26:05+0900",
+      "summary": "변형별 턴 색인·분류 기록 래퍼·sticky 라우터와 자동 롤백을 구현하고 회귀 테스트 27개를 추가했으며, 전체 make verify를 통과했습니다.",
+      "completed_at": "2026-10-21T13:45:38+0900",
+      "usage": {
+        "input_tokens": 4885999,
+        "cached_input_tokens": 4751616,
+        "output_tokens": 25028,
+        "attempts": 1
+      }
     },
     {
       "step": 4,
