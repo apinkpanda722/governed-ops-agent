@@ -17,6 +17,7 @@ M8 추가 측정 — 공식 M6 수치 아님
 |---|---|---|
 | 로컬 시연 `make m8-rollout-exercise` | `PASS exercise_pass_path`, `PASS exercise_rollback_path` (main `3d5d2f3`, #241 머지 후) | 사용자 보고 |
 | 같은 시연, 수정 전 | 같은 두 줄 PASS (feature/m8-rollout `2ab643d`) | 사용자 보고 |
+| 같은 시연, #245 뒤 재실행 | 같은 두 줄 PASS (main, #245 `6d40ee9` 포함 코드. 그 뒤 커밋은 설계·phase 파일뿐) | 사용자 보고 |
 | `make test-m5-pg` | 8 passed, skip 0 (feature/m8-rollout `2ab643d`). 변형 테이블 테스트 `test_variant_store_and_prune_in_isolated_database`가 실제 임시 Postgres에서 실행됨 | 사용자 보고 |
 | `make verify` | exit 0 (#239·#241 각 커밋, CI verify pass) | 이 세션 |
 | 실제 서버 `GOVOPS_V2_ROLLOUT=on` 운영·두 사용자 smoke·`make audit-verify` | **실행하지 않음**(선택 항목) | — |
