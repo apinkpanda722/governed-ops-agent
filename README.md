@@ -153,6 +153,6 @@ correctness는 등록 규칙상 Gemini 채점을 채택했으나 κ 구간 하�
 
 ## 라이선스·A 저장소와의 관계
 
-[MIT License](LICENSE)를 사용한다. `LICENSE`의 `[저작권자]`는 공개 전에 사용자가 채울 자리표시자다.
+[MIT License](LICENSE)를 사용한다. 저작권자는 Tommy Lee다.
 
 프로젝트 A [ko-docs-agentic-rag](https://github.com/apinkpanda722/ko-docs-agentic-rag)는 같은 MIT 라이선스로 공개 예정이다. B는 A의 MCP 계약 스냅샷과 합성 시드·메타데이터·응답 재생 자료를 참조한다. **live 실행에만 A가 필요하며 `make verify`는 replay로 실행한다.** A의 라이선스·비밀 이력·합성 자료 재배포 허용 확인은 A 저장소 쪽 공개 점검에서 수행한다.
