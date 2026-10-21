@@ -24,6 +24,8 @@ ROLLBACK_CODES: tuple[str, ...] = (
     "rollback_block_diff",
     "rollback_classify_p95",
 )
+# hypotheses-m8-rollout-addendum-1.md: unreadable records roll back before evaluate.
+RECORDS_INVALID_CODE: str = "rollback_records_invalid"
 
 
 @dataclass(frozen=True)

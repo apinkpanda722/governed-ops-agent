@@ -200,3 +200,17 @@ def test_constants_and_codes_match_frozen_registration():
     )
     assert p.BLOCK_DIFF_MAX == float(re.search(r"차 > ([\d.]+)", doc).group(1))
     assert p.P95_MS_MAX == float(re.search(r"p95 > (\d+) ms", doc).group(1))
+
+
+def test_records_invalid_code_matches_addendum_registration():
+    doc = (
+        Path(__file__).resolve().parents[1]
+        / "docs/results/hypotheses-m8-rollout-addendum-1.md"
+    ).read_text()
+    table = doc.split("## 2.")[1].split("## 3.")[0]
+    rows = [line for line in table.splitlines() if line.startswith("| 평가 |")]
+    assert len(rows) == 1
+    registered = re.findall(r"`([^`]+)`", rows[0])
+    assert registered == [p.RECORDS_INVALID_CODE]
+    assert p.RECORDS_INVALID_CODE not in p.ROLLBACK_CODES
+    assert f'policy.RECORDS_INVALID_CODE = "{p.RECORDS_INVALID_CODE}"' in doc

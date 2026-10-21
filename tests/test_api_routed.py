@@ -672,7 +672,7 @@ async def test_failed_rollback_state_write_assigns_v1(tmp_path, monkeypatch):
 
 
 @scenario
-async def test_rollback_windows_skip_active_threads_and_cache_turn_mapping(
+async def test_rollback_windows_skip_active_threads_and_map_turns_per_window(
     tmp_path, monkeypatch
 ):
     h = harness(tmp_path)
@@ -686,7 +686,11 @@ async def test_rollback_windows_skip_active_threads_and_cache_turn_mapping(
             + ["completed"] * 20,
             strict=True,
         ):
-            snapshots[ident] = None if status is None else {"status": status}
+            snapshots[ident] = (
+                None
+                if status is None
+                else {"status": status, "user_id": f"demo-owner-{variant}-g1"}
+            )
     recent = AsyncMock(side_effect=lambda variant, limit: candidates[variant])
     monkeypatch.setattr(h.variants, "recent", recent)
 
@@ -696,16 +700,20 @@ async def test_rollback_windows_skip_active_threads_and_cache_turn_mapping(
 
     snapshot = AsyncMock(side_effect=snapshot)
     monkeypatch.setattr(routed, "get_task", snapshot)
-    first, second, control, outside = (uuid4().hex for _ in range(4))
-    mapping = {
-        first: candidates["v2"][3],
-        second: candidates["v2"][3],
-        control: candidates["v1"][3],
-        outside: candidates["v2"][-1],
+    first, second, control, outside, stranger = (uuid4().hex for _ in range(5))
+    window_head = candidates["v2"][3]
+    turns_of = {
+        (window_head, "demo-owner-v2-g1"): [(first, 0), (second, 1)],
+        (candidates["v1"][3], "demo-owner-v1-g1"): [(control, 0)],
+        (candidates["v2"][-1], "demo-owner-v2-g1"): [(outside, 0)],
     }
-    lookup = AsyncMock(side_effect=lambda ident: mapping[ident])
+    turn_ids_of = AsyncMock(
+        side_effect=lambda conversation, owner: turns_of.get((conversation, owner), [])
+    )
+    lookup = AsyncMock(side_effect=AssertionError("conversation_of must not be used"))
+    monkeypatch.setattr(h.turns, "turn_ids_of", turn_ids_of)
     monkeypatch.setattr(h.turns, "conversation_of", lookup)
-    for turn_id in (first, first, second, control, outside):
+    for turn_id in (first, first, second, control, outside, stranger):
         store.append_classify(
             tmp_path,
             {
@@ -738,13 +746,131 @@ async def test_rollback_windows_skip_active_threads_and_cache_turn_mapping(
             ] * 19
             recent.assert_any_await(variant, policy.CANDIDATE_LIMIT)
         assert snapshot.await_count == 46
-        assert lookup.await_count == 4
-        assert {entry.args[0] for entry in lookup.await_args_list} == set(mapping)
+        lookup.assert_not_awaited()
+        # 평가 한 번에 v2 창 대화마다 한 번, 소유자와 함께(추가 등록 1 §3).
+        assert turn_ids_of.await_count == policy.WINDOW
+        assert {entry.args for entry in turn_ids_of.await_args_list} == {
+            (ident, "demo-owner-v2-g1") for ident in candidates["v2"][3:23]
+        }
         assert v2[0].turns == {
             first: [policy.ClassifyCall("ok", 1.0, 2.0)] * 2,
             second: [policy.ClassifyCall("ok", 1.0, 2.0)],
         }
         assert all(not outcome.turns for outcome in v2[1:] + v1)
         assert not store.read_state(tmp_path).kill
+    finally:
+        await h.router.aclose()
+
+
+@scenario
+async def test_turn_ids_mapping_matches_conversation_of_mapping(tmp_path, monkeypatch):
+    h = harness(tmp_path)
+    set_state(tmp_path)
+    try:
+        ids = [await create(h) for _ in range(policy.WINDOW + 2)]
+        for ident in ids[:5]:
+            await h.router.add_turn(USER, ident, REQUEST)
+            await settle(h)
+        captured = []
+        evaluate = policy.evaluate
+
+        def capture(v2, v1):
+            captured.append(v2)
+            return evaluate(v2, v1)
+
+        monkeypatch.setattr(policy, "evaluate", capture)
+        await create(h)
+        (window,) = captured
+        assert len(window) == policy.WINDOW
+        # 기준 등록 9절의 이전 방식(turn → conversation_of)으로 같은 결과를 다시 만든다.
+        by_conversation = {outcome.conversation_id: {} for outcome in window}
+        for row in store.read_classify_tail(tmp_path):
+            owner = await h.turns.conversation_of(row["turn_id"])
+            if owner in by_conversation:
+                by_conversation[owner].setdefault(row["turn_id"], []).append(
+                    policy.ClassifyCall(
+                        row["status"], row["started_ms"], row["ended_ms"]
+                    )
+                )
+        assert {o.conversation_id: o.turns for o in window} == by_conversation
+        assert sum(len(turns) for turns in by_conversation.values()) > len(window)
+    finally:
+        await h.router.aclose()
+
+
+def corrupt_classify(directory):
+    with (directory / "classify.jsonl").open("a") as handle:
+        handle.write("{not json\n")
+
+
+@scenario
+@pytest.mark.parametrize("failure", ["corrupt", "oserror", "evaluate"])
+async def test_unreadable_records_roll_back_before_sample_check(
+    tmp_path, monkeypatch, failure
+):
+    h = harness(tmp_path)
+    set_state(tmp_path)
+    if failure == "corrupt":
+        corrupt_classify(tmp_path)
+    elif failure == "oserror":
+
+        def unreadable(*args, **kwargs):
+            raise OSError("synthetic read failure")
+
+        monkeypatch.setattr(store, "read_classify_tail", unreadable)
+    else:
+
+        def invalid(v2, v1):
+            raise ValueError("invalid_classify_status")
+
+        monkeypatch.setattr(policy, "evaluate", invalid)
+    try:
+        # 표본이 0개여도 기록을 읽을 수 없으면 롤백한다(추가 등록 1 §1).
+        result = await h.router.start_conversation(USER, REQUEST)
+        await settle(h)
+        ident = result["conversation_id"]
+        assert await h.variants.get_many([ident]) == {ident: "v1"}
+        state = store.read_state(tmp_path)
+        assert (state.pct_bp, state.kill, state.reason) == (
+            0,
+            True,
+            policy.RECORDS_INVALID_CODE,
+        )
+        assert state.rolled_back_at == NOW.isoformat()
+        rollbacks = [
+            r for r in store.read_exposures(tmp_path) if r["event"] == "rollback"
+        ]
+        assert rollbacks == [
+            {
+                "event": "rollback",
+                "ts": NOW.isoformat(),
+                "reason": policy.RECORDS_INVALID_CODE,
+                "pct_bp": 10000,
+            }
+        ]
+        assert h.classifier.calls == []
+    finally:
+        await h.router.aclose()
+
+
+@scenario
+async def test_unreadable_records_with_failed_state_write_still_assigns_v1(
+    tmp_path, monkeypatch
+):
+    h = harness(tmp_path)
+    set_state(tmp_path)
+    corrupt_classify(tmp_path)
+
+    def fail(*args):
+        raise OSError("synthetic state failure")
+
+    monkeypatch.setattr(store, "write_state", fail)
+    try:
+        result = await h.router.start_conversation(USER, REQUEST)
+        await settle(h)
+        ident = result["conversation_id"]
+        assert await h.variants.get_many([ident]) == {ident: "v1"}
+        assert store.read_state(tmp_path).pct_bp == 10000
+        assert h.classifier.calls == []
     finally:
         await h.router.aclose()
