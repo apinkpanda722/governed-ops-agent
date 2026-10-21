@@ -30,11 +30,121 @@ ALLOWED = {
     "mock_id",
     "fallback",
     "cost_usd",
+    "tool_name",
+    "status",
+    "result_count",
 }
 
 
 def write_rows(path, rows):
     path.write_text("".join(canonical_json(row) + "\n" for row in rows))
+
+
+@pytest.mark.parametrize("result_count", [0, 1, 10000])
+def test_tool_call_projection_excludes_argument_and_call_hashes(tmp_path, result_count):
+    from govops.audit.argmac import load_args_mac
+    from govops.audit.toolcall import ToolCallAuditor
+
+    now = datetime(2026, 10, 21, tzinfo=UTC)
+    audit = AuditLog(tmp_path / "audit", clock=lambda: now)
+    auditor = ToolCallAuditor(audit, load_args_mac())
+    seq = auditor.record(
+        task_id=TASK,
+        actor_sub=ACTOR,
+        tool_name="search_docs",
+        tool_call_id="synthetic-call",
+        arguments='{"query":"합성 검색"}',
+        status="ok",
+        result_count=result_count,
+    )
+    rows = [
+        json.loads(line)
+        for path in audit.directory.glob("chain-*.jsonl")
+        for line in path.read_bytes().splitlines()
+    ]
+    row = next(row for row in rows if row["seq"] == seq)
+    events, truncated = records.read_events(audit.directory, [TASK])
+    assert not truncated
+    assert events[TASK] == [
+        {
+            "seq": seq,
+            "ts": now.isoformat(),
+            "event": "tool.call",
+            "actor": ACTOR,
+            "hash12": row["hash"][:12],
+            "tool_name": "search_docs",
+            "status": "ok",
+            "result_count": result_count,
+        }
+    ]
+    encoded = json.dumps(events)
+    for key in ("args_hmac", "args_hmac_kid", "tool_call_sha256"):
+        assert key not in encoded
+        assert row[key] not in encoded
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("tool_name", "unregistered_tool"),
+        ("tool_name", True),
+        ("status", "unregistered_status"),
+        ("status", True),
+        ("result_count", True),
+        ("result_count", False),
+        ("result_count", -1),
+        ("result_count", 10001),
+        ("result_count", 1.0),
+        ("result_count", "1"),
+        ("result_count", None),
+    ],
+)
+def test_tool_call_invalid_display_values_are_not_exposed(tmp_path, key, value):
+    from govops.audit.argmac import load_args_mac
+    from govops.audit.toolcall import ToolCallAuditor
+
+    audit = AuditLog(tmp_path / "audit")
+    ToolCallAuditor(audit, load_args_mac()).record(
+        task_id=TASK,
+        actor_sub=ACTOR,
+        tool_name="search_docs",
+        tool_call_id="synthetic-call",
+        arguments="{}",
+        status="ok",
+    )
+    path = next(audit.directory.glob("chain-*.jsonl"))
+    row = json.loads(path.read_bytes().splitlines()[-1])
+    assert records._display_field(key, value) is False
+    # Bypass writer canonicalization to exercise untrusted JSON, including floats.
+    path.write_text(
+        "".join(json.dumps(item) + "\n" for item in ({**row, key: value}, row))
+    )
+    events, truncated = records.read_events(audit.directory, [TASK])
+    assert not truncated
+    assert len(events[TASK]) == 1
+    assert events[TASK][0][key] == row[key]
+
+
+def test_tool_calls_keep_default_500_event_limit(tmp_path):
+    from govops.audit.argmac import load_args_mac
+    from govops.audit.toolcall import ToolCallAuditor
+
+    audit = AuditLog(tmp_path / "audit")
+    auditor = ToolCallAuditor(audit, load_args_mac())
+    for index in range(600):
+        auditor.record(
+            task_id=TASK,
+            actor_sub=ACTOR,
+            tool_name="search_docs",
+            tool_call_id=f"synthetic-call-{index}",
+            arguments="{}",
+            status="ok",
+        )
+    events, truncated = records.read_events(audit.directory, [TASK])
+    assert truncated is True
+    assert len(events[TASK]) == 500
+    assert all(event["event"] == "tool.call" for event in events[TASK])
+    assert [event["seq"] for event in events[TASK]] == list(range(2, 502))
 
 
 @pytest.fixture
