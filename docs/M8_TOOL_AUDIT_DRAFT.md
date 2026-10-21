@@ -145,10 +145,10 @@ trace와의 대조: `read_tools_body`의 각 호출은 `SpanKind.TOOL_CALL` 도�
 
 ## 10. 사용자 실행 (머지 후, 블록당 한 명령)
 
-1. 키 생성(값을 화면에 출력하지 않고 `.env`에 덧붙임):
+1. 키 생성(값을 화면에 출력하지 않고 `.env`에 덧붙임). 줄바꿈을 먼저 붙여 `.env` 마지막 줄 끝에 줄바꿈이 없어도 새 줄에 들어가게 한다(정정 2026-10-21: 처음 명령은 줄바꿈 없는 마지막 줄 뒤에 키가 이어 붙었다, 결과 문서 참조):
 
 ```
-python3 -c "import secrets; print('AUDIT_ARGS_HMAC_KEY=' + secrets.token_hex(32))" >> .env
+python3 -c "import secrets; print('\nAUDIT_ARGS_HMAC_KEY=' + secrets.token_hex(32))" >> .env
 ```
 
 2. 키가 한 번만 들어갔는지 확인(값은 보지 않음):
