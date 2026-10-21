@@ -19,10 +19,8 @@
     {
       "step": 1,
       "name": "audit-tool-event",
-      "status": "blocked",
+      "status": "pending",
       "started_at": "2026-10-21T19:05:52+0900",
-      "blocked_reason": "선점검에서 충돌을 발견했습니다. 수정 제한은 “`tests/test_audit.py`(`test_events`의 기대 집합에 `\"tool.call\"` 한 항목 추가에 한함)”이고, 이벤트 요구는 “`_NEW_REQUIRED[\"tool.call\"] = {\"tool_name\", \"status\", \"result_count\", \"tool_call_sha256\", \"args_hmac\", \"args_hmac_kid\"}`”입니다. 기존 test_events는 EVENTS 전체를 순회하며 CASES.get(event, {})로 기록하는데, 수정 금지된 tests/test_audit_events.py의 CASES에는 tool.call이 없어 필수 필드 없이 호출되어 실패합니다. test_events의 호출 인자 보완 또는 CASES 항목 추가를 허용해야 합니다. 코드는 수정하지 않았습니다.",
-      "blocked_at": "2026-10-21T19:09:50+0900",
       "usage": {
         "input_tokens": 173936,
         "cached_input_tokens": 113792,

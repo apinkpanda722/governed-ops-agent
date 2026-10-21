@@ -14,7 +14,7 @@
 
 ## 작업
 
-**수정할 파일**(이 목록이 전부다): `src/govops/audit/log.py`(`tool.call` 이벤트와 필드 형식 추가에 한함), `src/govops/audit/argmac.py`(신규), `src/govops/audit/toolcall.py`(신규), `tests/test_audit_tool_call.py`(신규), `tests/test_audit.py`(`test_events`의 기대 집합에 `"tool.call"` 한 항목 추가에 한함), `tests/test_m7_freeze.py`(`EXPECTED`의 `"src/govops/audit/log.py"` 값 한 줄 갱신에 한함). TDD.
+**수정할 파일**(이 목록이 전부다): `src/govops/audit/log.py`(`tool.call` 이벤트와 필드 형식 추가에 한함), `src/govops/audit/argmac.py`(신규), `src/govops/audit/toolcall.py`(신규), `tests/test_audit_tool_call.py`(신규), `tests/test_audit.py`(`test_events`의 기대 집합에 `"tool.call"` 한 항목 추가, 같은 테스트 안에서 `tool.call`에만 유효한 합성 필수 필드를 넘기도록 한 줄 보완(지역 상수 `TOOL_CALL_FIELDS`와 `CASES.get(event, TOOL_CALL_FIELDS if event == "tool.call" else {})`), 그리고 `tool.call` 레코드가 감사 파일에 정확히 1줄 기록됐다는 단언 한 줄에 한함. 그 밖의 단언 불변), `tests/test_m7_freeze.py`(`EXPECTED`의 `"src/govops/audit/log.py"` 값 한 줄 갱신에 한함). TDD.
 
 열람 금지 경로: `data/interim/`, `data/eval/`, `data/redteam/`, `src/govops/guardrails/rules_v1.json`, `.env`
 수정 허용 경로: `src/govops/audit/log.py`, `src/govops/audit/argmac.py`, `src/govops/audit/toolcall.py`, `tests/test_audit_tool_call.py`, `tests/test_audit.py`, `tests/test_m7_freeze.py`
@@ -62,7 +62,7 @@ class ToolCallAuditor:
 ### 4. 테스트
 
 `tests/test_audit_tool_call.py`: 정상 기록(필드 6개 정확, 키 값·원문 인자 문자열이 레코드에 없음), `verify_chain` 통과, 필드 누락·추가·형식 오류(대문자 hex, 13자 kid, `result_count` -1·10001·bool, enum 밖 `status`·`tool_name`) 거부, `tool_call_sha256`을 `guardrail.tool_quarantined`가 계속 쓸 수 있음(회귀), `args_hmac`·`args_hmac_kid`·`tool_name`·`status`·`result_count`가 다른 이벤트에서 거부됨, 키 로더 오류 3종과 공백 값, `kid`·HMAC이 등록 식으로 독립 계산한 값과 같음(JSON dict·순서만 다른 dict는 같은 값·비JSON 문자열·비문자열), `ArgsMac`의 `repr`과 예외 문자열에 키 hex가 없음, 알려진 이름은 그대로·모르는 이름은 `unknown`, 시드 고정(`random.Random(20261021)`) 무작위 tool_call ID 10,000개의 해시가 모두 기록됨(FP-010: 형식 검증만, PII 검사에 걸리지 않음), **등록 문서 3·10절의 enum·코드 목록과 상수가 같음**(문서에서 뽑은 집합이 비어 있으면 실패, FP-069). 합성 키는 `secrets.token_hex(32)`로 테스트 안에서 만들고 `monkeypatch.setenv`로 넣는다.
-`tests/test_audit.py::test_events`: 기대 집합에 `"tool.call"` 한 항목만 추가한다.
+`tests/test_audit.py::test_events`: 기대 집합에 `"tool.call"` 한 항목을 더하고, 기록 루프가 `tool.call`에만 지역 상수 `TOOL_CALL_FIELDS`(등록 3절 형식의 합성 값: `tool_name` `"search_docs"`, `status` `"ok"`, `result_count` 0, `tool_call_sha256`·`args_hmac` 64 hex, `args_hmac_kid` 12 hex)를 넘기도록 `CASES.get(event, TOOL_CALL_FIELDS if event == "tool.call" else {})`로 바꾼다. 같은 테스트에 `tool.call` 레코드가 감사 파일에 정확히 1줄 있다는 단언을 더한다(공허 방지, FP-069). **`tests/test_audit_events.py`의 `CASES`에 `tool.call`을 넣지 않는다**: `emit`·`test_identity`가 `CASES`의 이벤트를(`model.call`·`conversation.deleted` 제외) 시스템 이벤트로 다루고, `test_new_fields_are_event_scoped`가 `CASES`의 각 키를 다른 모든 이벤트에서 거부하라고 단언하는데 `tool_call_sha256`은 `guardrail.tool_quarantined`가 허용하기 때문이다. `tool.call`의 형식·거부 테스트는 새 파일 `tests/test_audit_tool_call.py`에 둔다(위 목록).
 `tests/test_m7_freeze.py`: `EXPECTED["src/govops/audit/log.py"]` 값만 새 digest로 바꾼다(`uv run python scripts/freeze_digest.py` 출력의 해당 키, 이 명령은 읽기 전용이다). 다른 키는 그대로이며 `test_digests_match_expected`가 통과해야 한다.
 
 ## Acceptance Criteria
