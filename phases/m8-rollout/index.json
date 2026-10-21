@@ -19,7 +19,16 @@
     {
       "step": 1,
       "name": "rollout-policy",
-      "status": "pending"
+      "status": "blocked",
+      "started_at": "2026-10-21T12:33:59+0900",
+      "blocked_reason": "동일한 실패입니다. 필수 계층 규칙으로 추가한 govops.rollout이 tests/test_metrics_toolcall.py:371의 기존 기대 집합에 없습니다. 이 파일은 수정 허용 목록 밖이므로, 해당 테스트의 기대 집합에 govops.rollout을 추가하는 변경을 명시적으로 허용해야 진행할 수 있습니다. 계층 규칙을 약화해 우회할 수는 없습니다.",
+      "blocked_at": "2026-10-21T12:49:18+0900",
+      "usage": {
+        "input_tokens": 3006494,
+        "cached_input_tokens": 2891136,
+        "output_tokens": 20518,
+        "attempts": 1
+      }
     },
     {
       "step": 2,
