@@ -52,7 +52,8 @@ general_settings:
 
 
 
-# 프롬프트·응답 원문은 obs 마스킹을 거치지 않으므로 끈다(요청·답변은 에이전트 span이 PII 마스킹 후 보낸다).
+# 프롬프트·응답 원문은 obs 마스킹을 거치지 않으므로 끈다. 최종 답변은 에이전트 span이 PII 마스킹 후 trace 맨 위 Output으로 보낸다.
+# 요청 원문은 M4 step 5 정책에 따라 trace에 넣지 않으므로 trace 맨 위 Input은 비어 있다.
 # 끄면 LiteLLM은 내용을 비우지 않고 messages·응답 내용을 `redacted-by-litellm` 자리 표시자로 바꿔 보낸다.
 # 이 파일은 바인드 마운트라 내용만 바꾸면 compose가 재생성하지 않으므로 `make obs-up`이 litellm을 항상 재생성한다.
 litellm_settings:
