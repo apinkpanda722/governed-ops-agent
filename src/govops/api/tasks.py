@@ -284,7 +284,7 @@ class TaskService:
     def _checked(state):
         return (state.get("check") or {}).get("status") in {"passed", "masked"}
 
-    def _view(self, state, task_id, *, approval=False):
+    def _view(self, state, task_id, *, approval=False, viewer=None):
         view = {"task_id": task_id, "status": state["status"]}
         if not approval:
             view.update(
@@ -349,6 +349,8 @@ class TaskService:
             view[field] = check
         if approval:
             view["requester_label"] = state["user_id"]
+        if viewer is not None and state["status"] == "awaiting_approval":
+            view["can_decide"] = self._decision(state, viewer) == Decision.ALLOW
         if state["status"] == "interrupted":
             view.update(
                 retry_hint="다시 요청해 주세요",
@@ -467,7 +469,7 @@ class TaskService:
                     "turn_index": state.get("turn_index", 0),
                     "history": state.get("history", []),
                     "turn": {
-                        **self._view(state, turn_id),
+                        **self._view(state, turn_id, viewer=user_id),
                         "turn_id": turn_id,
                         "request": None
                         if state["status"] == "blocked_input"
@@ -559,7 +561,7 @@ class TaskService:
                     self._checked(state)
                     and self._decision(state, user_id) == Decision.ALLOW
                 ):
-                    view = self._view(state, turn_id, approval=True)
+                    view = self._view(state, turn_id, approval=True, viewer=user_id)
                     if state["user_id"] == user_id:
                         view["conversation_id"] = conversation_id
                     views.append(view)
@@ -590,7 +592,7 @@ class TaskService:
             state = await self._expire(conversation_id, state)
             if not owner and state["status"] != "awaiting_approval":
                 return None
-            return self._view(state, task_id, approval=not owner)
+            return self._view(state, task_id, approval=not owner, viewer=user_id)
 
     async def approve(self, user_id, task_id, *, decision, draft_sha256, edited=None):
         async with (

@@ -94,6 +94,27 @@ test.each([["passed", "검사 통과"], ["other", "확인 필요"]])("badge %s a
  expect(screen.getAllByRole("button").map(b=>b.textContent)).toEqual(["거부","수정 후 승인","승인"]);
  expect(screen.getAllByRole("button").map(b=>b.getAttribute("data-hierarchy"))).toEqual(["danger","secondary","primary"]);
 });
+const NOT_DECIDABLE = "전사 공지는 요청자 본인이 승인할 수 없습니다. 같은 팀 4급 이상의 다른 승인자가 승인함에서 승인해야 합니다.";
+test("can_decide=false hides every decision button and shows the notice", () => {
+ const f = vi.fn(); vi.stubGlobal("fetch", f);
+ render(<ApprovalCard view={view({ can_decide: false })} onChanged={vi.fn()}/>);
+ expect(screen.queryAllByRole("button")).toHaveLength(0);
+ for (const id of ["approval-approve", "approval-reject", "approval-edit-toggle"]) expect(screen.queryByTestId(id)).toBeNull();
+ expect(screen.getByTestId("approval-not-decidable").textContent).toBe(NOT_DECIDABLE);
+ expect(screen.getByTestId("approval-body").textContent).toContain("원래 본문");
+ expect(f).not.toHaveBeenCalled();
+});
+test.each([true, undefined])("can_decide=%s keeps buttons and no notice", can_decide => {
+ render(<ApprovalCard view={view({ can_decide })} onChanged={vi.fn()}/>);
+ expect(screen.getAllByRole("button").map(b => b.textContent)).toEqual(["거부", "수정 후 승인", "승인"]);
+ expect(screen.queryByTestId("approval-not-decidable")).toBeNull();
+});
+test("server 403 stays a defensive message when the button is shown", async () => {
+ vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({ code: "approval_forbidden" }, 403)));
+ render(<ApprovalCard view={view({ can_decide: true })} onChanged={vi.fn()}/>);
+ fireEvent.click(screen.getByTestId("approval-approve"));
+ await waitFor(() => expect(screen.getByTestId("approval-result").textContent).toBe("이 요청을 승인할 권한이 없습니다."));
+});
 test("unparsed requester is unchanged", () => {
  render(<ApprovalCard view={view({requester_label:"syn-requester"})} onChanged={vi.fn()}/>);
  expect(screen.getByTestId("approval-requester").textContent).toBe("syn-requester");

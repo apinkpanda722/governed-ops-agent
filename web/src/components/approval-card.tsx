@@ -7,11 +7,11 @@ import { Badge } from "./ui/badge";
 import { Textarea } from "./ui/textarea";
 import { useEffect, useRef, useState } from "react";
 import { apiError } from "@/lib/bff";
-import { errorMessage } from "@/lib/messages";
+import { errorMessage, SELF_APPROVAL_NOTICE } from "@/lib/messages";
 import { testids } from "@/lib/testids";
 import type { TurnView, ApprovalRow, Draft } from "@/lib/types";
 import { Button } from "./ui/button";
-export type ApprovalView = Pick<TurnView, "turn_id" | "status" | "draft" | "draft_sha256" | "check" | "expires_at" | "rejected_edit" | "effect"> & Pick<ApprovalRow, "requester_label" | "conversation_id">;
+export type ApprovalView = Pick<TurnView, "turn_id" | "status" | "draft" | "draft_sha256" | "check" | "expires_at" | "rejected_edit" | "effect" | "can_decide"> & Pick<ApprovalRow, "requester_label" | "conversation_id">;
 const fields: Record<Draft["tool"], ("text" | "body" | "title" | "description")[]> = {
     slack_send_message: ["text"], jira_add_comment: ["body"], jira_create_followup_ticket: ["title", "description"],
 };
@@ -83,11 +83,12 @@ function ApprovalCardContent({ view, onChanged }: Props) {
         {view.rejected_edit && <div className="flex gap-2"><TriangleAlert aria-hidden="true" className="size-4 shrink-0"/><p data-testid={testids.approvalRejectedEdit}>수정한 내용이 검사를 통과하지 못했습니다: {view.rejected_edit.message}</p></div>}
         {remaining === 0 && <div className="flex gap-2"><TriangleAlert aria-hidden="true" className="size-4 shrink-0"/><p data-testid={testids.approvalExpired}>승인 시간이 지났습니다</p></div>}
         {result && <div className="flex gap-2"><TriangleAlert aria-hidden="true" className="size-4 shrink-0"/><p data-testid={testids.approvalResult}>{result}</p></div>}
-        {editing && <div className="space-y-3">{editable.map(field => <label className="block" key={field}>{labels[field]}<Textarea data-testid={testids.approvalEditInput(field)} value={values[field] ?? ""} disabled={disabled} maxLength={4000} onChange={e => setValues(v => ({ ...v, [field]: e.target.value }))}/></label>)}</div>}
-        <div className="flex flex-wrap justify-end gap-2">
+        {view.can_decide === false && <p data-testid={testids.approvalNotDecidable} className="text-sm text-muted-foreground">{SELF_APPROVAL_NOTICE}</p>}
+        {view.can_decide !== false && editing && <div className="space-y-3">{editable.map(field => <label className="block" key={field}>{labels[field]}<Textarea data-testid={testids.approvalEditInput(field)} value={values[field] ?? ""} disabled={disabled} maxLength={4000} onChange={e => setValues(v => ({ ...v, [field]: e.target.value }))}/></label>)}</div>}
+        {view.can_decide !== false && <div className="flex flex-wrap justify-end gap-2">
             <Button variant="destructive" data-hierarchy="danger" data-testid={testids.approvalReject} disabled={disabled} onClick={() => void decide("reject")}>거부</Button>
             <Button variant="outline" data-hierarchy="secondary" data-testid={testids.approvalEditToggle} disabled={disabled} onClick={() => { setEditing(!editing); setValues(Object.fromEntries(editable.map(field => [field, draft.args[field] ?? ""]))); }}>수정 후 승인</Button>
             <Button data-hierarchy="primary" data-testid={editing ? testids.approvalEditSubmit : testids.approvalApprove} disabled={disabled || (editing && !Object.keys(edited).length)} onClick={() => void decide(editing ? "edit_approve" : "approve")}>{editing ? "수정 내용 승인" : "승인"}</Button>
-        </div>
+        </div>}
     </section>;
 }

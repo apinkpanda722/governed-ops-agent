@@ -25,6 +25,7 @@ export type Draft = {
 };
 export type ToolStep = { name: string; ok: boolean };
 export type TurnView = {
+    can_decide?: boolean;
     limited?: boolean;
     tool_steps?: ToolStep[];
     approval_method?: "approve" | "edit_approve";
@@ -61,6 +62,7 @@ export type ConversationView = {
     turn?: TurnView;
 };
 export type ApprovalRow = {
+    can_decide?: boolean;
     turn_id?: string;
     status?: string;
     requester_label?: string;
@@ -93,6 +95,7 @@ export function conversationView(value: ConversationView): ConversationView {
         ...(typeof t.effect_at === "string" && t.effect_at.length <= 64 && Number.isFinite(Date.parse(t.effect_at)) ? {effect_at: t.effect_at} : {}),
         ...(!["blocked_input", "blocked"].includes(t.status ?? "") ? { request: t.request } : {}),
         answer: t.answer, retry_hint: t.retry_hint, expires_at: t.expires_at, cited_doc_ids: t.cited_doc_ids,
+        ...(typeof t.can_decide === "boolean" ? {can_decide: t.can_decide} : {}),
         error: t.error, draft_sha256: t.draft_sha256, draft: t.draft, check: t.check, rejected_edit: t.rejected_edit,
         effect: t.effect, guardrail: t.guardrail ? { quarantined: t.guardrail.quarantined, quarantined_at_least: t.guardrail.quarantined_at_least } : undefined,
         block: t.block ? { code: t.block.code, message: t.block.message } : undefined

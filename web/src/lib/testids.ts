@@ -37,6 +37,7 @@ export const testids = {
     approvalReject: "approval-reject",
     approvalResult: "approval-result",
     approvalExpired: "approval-expired",
+    approvalNotDecidable: "approval-not-decidable",
     approvalRejectedEdit: "approval-rejected-edit",
     approvalRequester: "approval-requester",
     approvalOpenConversation: "approval-open-conversation",

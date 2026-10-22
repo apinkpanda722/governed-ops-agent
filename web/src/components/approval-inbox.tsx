@@ -31,7 +31,7 @@ export function ApprovalInbox() {
                         <TableCell data-testid={testids.inboxRemaining}>{formatRemaining(remaining)}</TableCell>
                         <TableCell><Badge data-testid={testids.inboxStatus} variant={remaining ? "secondary" : "outline"}>{remaining ? "승인 대기" : "만료"}</Badge></TableCell>
                     </TableRow>
-                    {open[key] && <TableRow><TableCell colSpan={4} className="whitespace-normal"><ApprovalCard view={{ turn_id: row.turn_id, status: row.status, draft: row.draft, draft_sha256: row.draft_sha256, check: row.check, expires_at: row.expires_at, requester_label: row.requester_label, conversation_id: row.conversation_id }} onChanged={refresh}/></TableCell></TableRow>}
+                    {open[key] && <TableRow><TableCell colSpan={4} className="whitespace-normal"><ApprovalCard view={{ turn_id: row.turn_id, status: row.status, draft: row.draft, draft_sha256: row.draft_sha256, check: row.check, expires_at: row.expires_at, requester_label: row.requester_label, conversation_id: row.conversation_id, can_decide: row.can_decide }} onChanged={refresh}/></TableCell></TableRow>}
                 </TableBody>;
             })}
         </Table>}

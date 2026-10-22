@@ -25,6 +25,7 @@ export function projectTurn(value: unknown): Obj {
   if (!out.turn_id && id(t.task_id)) out.turn_id = t.task_id;
   if (typeof t.status === "string" && statuses.includes(t.status)) out.status = t.status;
   if (typeof t.limited === "boolean") out.limited = t.limited;
+  if (typeof t.can_decide === "boolean") out.can_decide = t.can_decide;
   Object.assign(out, strings(t, ["answer", "retry_hint", "expires_at"]));
   if (!["blocked_input", "blocked"].includes(String(t.status)) && text(t.request)) out.request = t.request;
   if (Array.isArray(t.cited_doc_ids)) out.cited_doc_ids = t.cited_doc_ids.filter(id);
@@ -80,6 +81,7 @@ export function projectApprovals(value: unknown): Obj {
     if (id(row.task_id)) result.turn_id = row.task_id;
     if (typeof row.status === "string" && statuses.includes(row.status)) result.status = row.status;
     const d = draft(row.draft); if (d) result.draft = d;
+    if (typeof row.can_decide === "boolean") result.can_decide = row.can_decide;
     if (hex(row.draft_sha256)) result.draft_sha256 = row.draft_sha256;
     if (Object.keys(check(row.check)).length) result.check = check(row.check);
     if (text(row.expires_at)) result.expires_at = row.expires_at;
