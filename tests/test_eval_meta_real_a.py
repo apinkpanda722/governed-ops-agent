@@ -7,16 +7,23 @@ from pathlib import Path
 import pytest
 
 from govops.eval import meta_extract
+from govops.eval.doc_titles import load_doc_titles
 from govops.eval.meta import load_meta
 
 A_ROOT = Path(
     os.environ.get("A_ROOT", "~/PycharmProjects/ko-docs-agentic-rag")
 ).expanduser()
 
-pytestmark = pytest.mark.skipif(
-    not (A_ROOT / "data/synthetic/plan.jsonl").is_file(),
-    reason="A_ROOT에 A 저장소가 없다",
-)
+pytestmark = [
+    pytest.mark.skipif(
+        not (A_ROOT / "data/synthetic/plan.jsonl").is_file(),
+        reason="A_ROOT에 A 저장소가 없다",
+    ),
+    pytest.mark.skipif(
+        not (A_ROOT / "data/synthetic/ledger.sqlite").is_file(),
+        reason="A의 합성 원장(ledger.sqlite, gitignore) 없음",
+    ),
+]
 
 
 def a_head() -> str:
@@ -74,7 +81,34 @@ def test_real_a_meta_generates_the_taskset(tmp_path):
     seed = Path(__file__).resolve().parents[1] / "data/seed"
     tickets = json.loads((seed / "tickets.json").read_text())["tickets"]
     users = json.loads((seed / "users.json").read_text())["users"]
-    specs = generate_tasks(meta, tickets, users)
+    # 실제 생성 경로(taskgen.main)와 같이 문서 제목을 넘긴다. 없으면 doc_ok가 늘 거짓이다(#258).
+    titles = load_doc_titles(tmp_path / "out/doc_titles.json")
+    specs = generate_tasks(meta, tickets, users, titles=titles)
     validate_specs(specs, meta, users, tickets)
     assert all(summarize(specs)["checks"].values())
     assert len(specs) == 60
+
+    def without_commit(path):
+        data = json.loads(path.read_text())
+        data.pop("a_commit", None)
+        return data
+
+    if committed.is_file() and without_commit(committed) == without_commit(
+        tmp_path / "out/meta.json"
+    ):
+        # a_commit만 다를 때 meta digest(taskgen.py 168행)에서 파생되는 필드는 둘뿐이다:
+        # provenance.meta_sha256(431행)와 이를 포함해 해시하는 spec_sha256(438행, spec.py 135행).
+        # task_id는 유형·순번(411행)이라 digest와 무관하므로 비교에서 빼지 않는다.
+        def body(spec):
+            data = spec if isinstance(spec, dict) else spec.model_dump(mode="json")
+            data = json.loads(json.dumps(data))
+            data.pop("spec_sha256")
+            data["provenance"].pop("meta_sha256")
+            return data
+
+        official = json.loads((committed.parent / "tasks.json").read_text())
+        if [body(s) for s in specs] != [body(s) for s in official]:
+            # 내용을 출력하지 않는다(data/eval 원문 비노출).
+            pytest.fail(
+                "regenerated specs differ from data/eval/tasks.json", pytrace=False
+            )
