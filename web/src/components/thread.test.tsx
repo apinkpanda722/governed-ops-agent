@@ -55,6 +55,11 @@ test("approval slot forwards refresh and shows completed effect only after appro
     expect(screen.queryByTestId("approval-card")).toBeNull(); expect(screen.getByTestId("sent-card").textContent).toContain("syn-effect");
     rerender(<Thread view={view("expired")}/>); expect(screen.queryByTestId("approval-card")).toBeNull(); expect(screen.getByTestId("turn-error").textContent).toBe("승인 시간이 지나 종료되었습니다.");
 });
+test("owner card for a draft the owner cannot approve shows the notice instead of buttons", () => {
+    render(<Thread view={view("awaiting_approval", { can_decide: false, draft: { tool: "slack_send_message", args: { channel: "announce", text: "초안" } }, draft_sha256: "a".repeat(64), expires_at: new Date(Date.now() + 60000).toISOString() })}/>);
+    expect(screen.getByTestId("approval-not-decidable")).toBeDefined();
+    expect(screen.queryByTestId("approval-approve")).toBeNull(); expect(screen.queryByTestId("approval-reject")).toBeNull();
+});
 test("completed answers and assistant history render markdown without completed status", () => {
     render(<Thread view={{...view("completed", {answer:"**답변**"}),history:[{role:"assistant",content:"**이력**"}]}}/>);
     expect(screen.queryByTestId("turn-status")).toBeNull(); expect(screen.getByTestId("turn-answer").querySelector("strong")?.textContent).toBe("답변"); expect(screen.getByTestId("history-assistant").querySelector("strong")?.textContent).toBe("이력");

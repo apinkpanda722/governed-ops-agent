@@ -61,6 +61,7 @@ M8 추가 측정 — 공식 M6 수치 아님
 
 - smoke: 4신호 PASS(응답 모델 `openai-gpt-6-luna`, 비용 0.00141센트 = $0.0000141).
 - 실행 `M8-CTRL`: `gpt-6-luna`, `valid`, 인프라 실패 0, 모델 스팬 53, fallback 시도 0, `agent_primary` 정산 $0.01178228. 결과는 `data/interim/m8-regress/control`(원래 `data/results/dev/3d4f36c8…`)로 옮겼다.
+- 이동 주의: 감사 고정점(`data/interim/audit/anchors-pending.jsonl`)은 실행 결과 폴더의 옛 경로를 기록하므로, 후보·통제 결과를 `data/interim/m8-regress/`로 옮기면 `make audit-verify`와 웹 기록 화면이 `anchor_dir_missing`으로 FAIL한다. 이동 뒤에도 각 실행의 `attempts` 트리를 원래 경로에 복사본으로 남겨야 한다(고정점 파일은 서명 대상이라 고치지 않는다). 복사본은 untracked이며 `.git/info/exclude`로 커밋을 막는다.
 - 판정 `verdict-control`: **PASS**, `verdict.json` sha256 `617e9e005fe173723c2662f5d8918144f686c8c3276926bfd93f0a90cc35b60b`. `compare verify`가 입력 sha256 일치를 확인했다(종료 코드 0).
 
 | 기준 | 충족 | 값 |

@@ -4,7 +4,7 @@ import { apiError, bff } from "@/lib/bff";
 import type { ApiError, ApprovalRow } from "@/lib/types";
 // Only presentation fields enter state, including for another requester's approval.
 function rowView(row: ApprovalRow): ApprovalRow {
-    return { turn_id: row.turn_id, status: row.status, requester_label: row.requester_label, conversation_id: row.conversation_id, draft: row.draft, draft_sha256: row.draft_sha256, check: row.check, expires_at: row.expires_at };
+    return { turn_id: row.turn_id, status: row.status, requester_label: row.requester_label, conversation_id: row.conversation_id, can_decide: row.can_decide, draft: row.draft, draft_sha256: row.draft_sha256, check: row.check, expires_at: row.expires_at };
 }
 export function useApprovals(interval = 5000) {
     const [approvals, setApprovals] = useState<ApprovalRow[]>([]), [error, setError] = useState<ApiError>();

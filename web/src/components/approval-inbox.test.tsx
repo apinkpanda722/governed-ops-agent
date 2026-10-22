@@ -30,6 +30,16 @@ test("rows keep server expiry order, project allowed fields, link only requester
     fireEvent.click(within(rows[0]).getByTestId("approval-reject")); await waitFor(() => expect(f.mock.calls.filter(c => c[0] === "/api/approvals")).toHaveLength(2));
 });
 
+test("inbox rows pass can_decide through to the card", async () => {
+ vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify({approvals:[{...row("first"),can_decide:false},{...row("second"),can_decide:true}]}))));
+ render(<ApprovalInbox/>);
+ const rows = await screen.findAllByTestId("inbox-row");
+ rows.forEach(r => fireEvent.click(within(r).getByTestId("inbox-requester")));
+ expect(within(rows[0]).getByTestId("approval-not-decidable")).toBeDefined();
+ expect(within(rows[0]).queryByTestId("approval-approve")).toBeNull();
+ expect(within(rows[1]).queryByTestId("approval-not-decidable")).toBeNull();
+ expect(within(rows[1]).getByTestId("approval-approve")).toBeDefined();
+});
 test("one shared countdown updates rows and marks expiry", async () => {
  vi.useFakeTimers();
  const timer = vi.spyOn(globalThis,"setInterval");

@@ -28,7 +28,7 @@ let closed:Promise<unknown>;
 let timer:ReturnType<typeof setInterval>|undefined;
 const id="a".repeat(32);
 const context={params:Promise.resolve({id})};
-const safe={task_id:id,turn_id:id,status:"awaiting_approval",answer:"safe answer",cited_doc_ids:["syn-doc"],draft:{tool:"jira_add_comment",args:{ticket_id:"syn-ticket",body:"draft"}},check:{status:"passed",message:"checked"},expires_at:"2026-10-08T12:00:00Z",draft_sha256:"b".repeat(64)};
+const safe={task_id:id,turn_id:id,status:"awaiting_approval",answer:"safe answer",cited_doc_ids:["syn-doc"],draft:{tool:"jira_add_comment",args:{ticket_id:"syn-ticket",body:"draft"}},check:{status:"passed",message:"checked"},expires_at:"2026-10-08T12:00:00Z",draft_sha256:"b".repeat(64),can_decide:false};
 function req(path:string,method="GET",body?:unknown, options:{cookie?:string;origin?:string|null;host?:string;signal?:AbortSignal}={}) {
  const headers=new Headers({host:options.host??"127.0.0.1:3100"});
  if(options.origin!==null) headers.set("origin",options.origin??"http://127.0.0.1:3100");
@@ -128,7 +128,7 @@ test("valid operations, projection and safe error mapping",async()=>{
  }
  for(const execute of [()=>conversation.GET(req("conversation","GET",undefined,{cookie:token}),context),()=>approvals.GET(req("approvals","GET",undefined,{cookie:token}))]){
  const response=await execute();expect(response.headers.get("cache-control")).toBe("no-store");
- const text=await response.text();expect(text).not.toContain("SENTINEL");expect(text.includes(token)).toBe(false);expect(text).toContain("draft");expect(text).toContain("checked");
+ const text=await response.text();expect(text).not.toContain("SENTINEL");expect(text.includes(token)).toBe(false);expect(text).toContain("draft");expect(text).toContain("checked");expect(text).toContain('"can_decide":false');
  }
  for(const detail of ["approval_pending","turn_in_progress","turn_limit","conversation_not_found","invalid_request"]){
  failure={status:detail==="conversation_not_found"?404:409,detail};

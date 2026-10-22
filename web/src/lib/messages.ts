@@ -13,6 +13,7 @@ const errors: Record<string, string> = {
 };
 export function errorMessage(code: string) { return errors[code] ?? "요청을 처리하지 못했습니다."; }
 export function blockCategory(code?: string) { return code === "injection_direct" ? "지시 변경 시도" : code === "pii_input" ? "개인정보 포함" : "정책 차단"; }
+export const SELF_APPROVAL_NOTICE = "전사 공지는 요청자 본인이 승인할 수 없습니다. 같은 팀 4급 이상의 다른 승인자가 승인함에서 승인해야 합니다.";
 export const APPROVED_RUN_NOTICE = "승인된 내용대로 실행했습니다";
 export const LIMITED_NOTICE = "조사 단계 한도(8단계)에서 멈추고 모은 근거로 답했습니다. 일부 내용이 빠졌을 수 있습니다.";
 export const DELETE_CONFIRM_NOTICE = "대화를 삭제할까요? 원문은 다음 정리 때 제거되고, 감사 기록과 이미 발송된 효과는 남는다.";
