@@ -170,7 +170,7 @@ docker compose -f infra/docker-compose.yml exec mock-slack python -m govops.mock
 
 ### 장면 4b — 전사 공지의 별도 승인자
 
-요청자는 `demo-payments-g3`, 승인자는 `demo-payments-g4`다. 근거는 공개 문서 `syn-notice-012`이고 문서 ID를 지정한 질의를 쓴다. 검색 경로는 4a와 같은 이유로 연속 차단되어 선택지에서 뺐다. **영상 설명에 “문서 ID를 지정해 근거를 한 건으로 한정”했음을 밝힌다.**
+요청자는 `demo-payments-g3`, 승인자는 `demo-payments-g4`다. 근거는 공개 문서 `syn-notice-012`이고 문서 ID를 지정한 질의를 쓴다. 제목으로 지정한 질의는 근거에 팀 전용 문서가 섞여 4a와 같은 이유로 차단되었다(플랫폼팀 공지, 결제서비스팀 공지 모두). 그래서 검색 경로는 선택지에서 뺐다. **영상 설명에 “문서 ID를 지정해 근거를 한 건으로 한정”했음을 밝힌다.**
 
 > syn-notice-012 공지를 요약해서 전사 공지 채널에 올려줘
 
