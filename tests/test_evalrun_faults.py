@@ -941,7 +941,9 @@ def test_f11_live_assembly_queries_chaos_then_judges_answer(
     async def forbidden_rest(request):
         pytest.fail("F11 must not execute a side effect")
 
-    from govops.replay.chaos_a import ChaosAServer
+    from govops.replay import chaos_a
+
+    ChaosAServer = _prompt_exit_chaos_server(chaos_a)
 
     # Keep real loopback transport while scaling the server's otherwise 12 s delay.
     monkeypatch.setattr(
